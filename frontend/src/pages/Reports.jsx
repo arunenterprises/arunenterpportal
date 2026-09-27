@@ -30,6 +30,11 @@ export default function Reports() {
   const payments = useMemo(() => getPayments(), [refresh]);
 
   const approvedBills = bills.filter((b) => b.step === 5);
+  const vouchersByBill = useMemo(() => {
+    const m = {};
+    payments.forEach((p) => { if (p.billId) m[p.billId] = p; });
+    return m;
+  }, [payments]);
   const today = new Date().toISOString().slice(0, 10);
 
   const dueRows = approvedBills.map((b) => {
@@ -106,6 +111,17 @@ export default function Reports() {
   const generateVoucher = () => {
     const b = approvedBills.find((x) => x.id === selectedBillId);
     if (!b) { toast.error("Select an approved bill"); return; }
+    // Prevent duplicate voucher for same bill (billId primary + fallback vendorCode+billNo)
+    const existing = payments.find(
+      (p) => p.billId === b.id ||
+        (p.vendorCode === b.vendorCode && String(p.billNo || "").trim() === String(b.billNo || "").trim() && b.billNo)
+    );
+    if (existing) {
+      toast.error(`Voucher already exists for this bill (${existing.pvNo}). Cannot create duplicate.`);
+      // Load the existing voucher so user can view/edit it
+      setPv(existing);
+      return;
+    }
     const c = computeBill(b);
     const paid = payments.filter((p) => p.billId === b.id).reduce((s, p) => s + Number(p.amount || 0), 0);
     const balance = +(c.netPayable - paid).toFixed(2);
@@ -262,11 +278,15 @@ export default function Reports() {
                 <F label="Approved Bill">
                   <select data-testid="pv-bill-select" value={selectedBillId} onChange={(e) => setSelectedBillId(e.target.value)}>
                     <option value="">Select approved bill</option>
-                    {approvedBills.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.permanentBillNo || b.refNo} · {b.vendorSnapshot?.firmName || b.vendorCode} · ₹{computeBill(b).netPayable}
-                      </option>
-                    ))}
+                    {approvedBills.map((b) => {
+                      const exists = vouchersByBill[b.id];
+                      return (
+                        <option key={b.id} value={b.id} disabled={!!exists}>
+                          {b.permanentBillNo || b.refNo} · {b.vendorSnapshot?.firmName || b.vendorCode} · ₹{computeBill(b).netPayable}
+                          {exists ? `  ✓ Voucher: ${exists.pvNo}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </F>
                 <div className="field-b" style={{ justifyContent: "end" }}>
