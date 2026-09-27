@@ -36,7 +36,10 @@ export default function Reports() {
     const balance = +(c.netPayable - paid).toFixed(2);
     const isOverdue = b.dueDate && b.dueDate < today && balance > 0;
     return {
-      id: b.id, refNo: b.refNo, vendorCode: b.vendorCode,
+      id: b.id,
+      refNo: b.permanentBillNo || b.refNo,
+      tempRef: b.refNo,
+      vendorCode: b.vendorCode,
       vendorName: b.vendorSnapshot?.firmName || "",
       billNo: b.billNo, billDate: b.billDate, dueDate: b.dueDate,
       basic: c.basic, gst: c.gst, tds: c.tds, net: c.netPayable, paid, balance,
@@ -107,7 +110,7 @@ export default function Reports() {
     setPv({
       pvNo: nextPvNo(),
       date: new Date().toISOString().slice(0, 10),
-      billId: b.id, billRefNo: b.refNo, billNo: b.billNo,
+      billId: b.id, billRefNo: b.permanentBillNo || b.refNo, billNo: b.billNo,
       vendorCode: b.vendorCode, vendorName: b.vendorSnapshot?.firmName || "",
       accountName: b.vendorSnapshot?.accountHolder || "",
       accountNumber: b.vendorSnapshot?.accountNumber || "",
@@ -246,7 +249,7 @@ export default function Reports() {
                     <option value="">Select approved bill</option>
                     {approvedBills.map((b) => (
                       <option key={b.id} value={b.id}>
-                        {b.refNo} · {b.vendorSnapshot?.firmName || b.vendorCode} · ₹{computeBill(b).netPayable}
+                        {b.permanentBillNo || b.refNo} · {b.vendorSnapshot?.firmName || b.vendorCode} · ₹{computeBill(b).netPayable}
                       </option>
                     ))}
                   </select>
@@ -334,7 +337,7 @@ export default function Reports() {
             </>
           )}
 
-          <div className="bottom-actions">
+          <div className="bottom-actions" style={{ display: "none" }}>
             <div />
             <button className="btn-color btn-nav" data-testid="btn-prev-step" onClick={() => nav("/bill")}>
               <ArrowLeft size={14} /><span className="lbl">← Bill Processing</span>

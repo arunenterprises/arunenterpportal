@@ -35,13 +35,10 @@ export const getCounters = () =>
   read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0 });
 export const saveCounters = (c) => write(KEYS.COUNTERS, c);
 
-// Temp Ref ID format: TMP-XXXXXXXX (8 hex chars)
-const nextTempRef = () => {
-  let s = "";
-  const chars = "0123456789ABCDEF";
-  for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * 16)];
-  return `TMP-${s}`;
-};
+// Temp Bill Ref: AE + 4-digit + FY (before final approval)
+const buildTempBillRef = (serial) => `AE${String(serial).padStart(4, "0")}${getFY()}`;
+// Permanent Bill No (Primary Key): BILL + 4-digit + FY (after final approval)
+const buildPermanentBillNo = (serial) => `BILL${String(serial).padStart(4, "0")}${getFY()}`;
 
 // Vendor Code: AE + 4-digit serial + JV + FY (e.g., AE0001JV2526)
 const nextVendorCode = () => {
@@ -71,7 +68,12 @@ export const saveVendors = (list) => write(KEYS.VENDORS, list);
 
 export const createVendorDraft = () => ({
   id: `v_${Date.now()}`,
-  tempRefId: nextTempRef(),
+  tempRefId: (() => {
+    let s = "";
+    const chars = "0123456789ABCDEF";
+    for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * 16)];
+    return `TMP-${s}`;
+  })(),
   vendorCode: "",
   step: 1,
   // Project & Site
@@ -164,11 +166,11 @@ export const createBillDraft = () => {
   const c = getCounters();
   c.billSerial = (c.billSerial || 0) + 1;
   saveCounters(c);
-  const serial = String(c.billSerial).padStart(4, "0");
   return {
     id: `b_${Date.now()}`,
-    refNo: `BILL/${getFY()}/${serial}`,
-    processRefId: `PRC-${getFY()}-${serial}`,
+    billSerial: c.billSerial,
+    refNo: buildTempBillRef(c.billSerial),      // AE0001{FY} (active till approval)
+    permanentBillNo: "",                          // BILL0001{FY} (generated on final approval — primary key)
     processDate: new Date().toISOString().slice(0, 10),
     step: 1,
     vendorCode: "",
@@ -238,7 +240,12 @@ export const advanceBillStep = (b) => {
   const next = { ...b };
   if (next.step < 5) {
     next.step += 1;
-    if (next.step === 5) next.approvalDate = new Date().toISOString().slice(0, 10);
+    if (next.step === 5) {
+      next.approvalDate = new Date().toISOString().slice(0, 10);
+      if (!next.permanentBillNo && next.billSerial) {
+        next.permanentBillNo = buildPermanentBillNo(next.billSerial);
+      }
+    }
   }
   upsertBill(next);
   return next;

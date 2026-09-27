@@ -240,14 +240,6 @@ export default function VendorRegistration() {
             <div className="sig"><div className="title">Checked By</div><div className="role">(Audit &amp; Verification)</div></div>
             <div className="sig"><div className="title">Approved By</div><div className="role">(Account Manager / Partner)</div></div>
           </div>
-
-          <div className="bottom-actions">
-            <div />
-            <button className="btn-color btn-next" data-testid="btn-next-step" onClick={() => nav("/bill")}>
-              <span className="lbl">Next Step → (Vendor Bill Processing)</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
         </div>
       </div>
     </>

@@ -137,7 +137,8 @@ export default function BillProcessing() {
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
     const rows = [
-      ["Ref No", bill.refNo], ["Process Ref ID", bill.processRefId], ["Process Date", bill.processDate],
+      ["Ref No", bill.refNo], ["Permanent Bill No", bill.permanentBillNo],
+      ["Process Date", bill.processDate],
       ["Vendor Code", bill.vendorCode], ["Vendor Name", vendor?.firmName || ""],
       ["Work Order No", bill.workOrderNo], ["Work Order Date", bill.workOrderDate],
       ["Project Code & Location", bill.projectCodeLocation],
@@ -172,6 +173,8 @@ export default function BillProcessing() {
           searchPlaceholder="Search Process ID / Bill No / Vendor Code"
           searchLabel="Search Bill"
           onSearch={handleSearch}
+          nextLabel="Page 3 (Reports & Due List) →"
+          nextTo="/reports"
           onNew={handleNew}
           onSave={handleSave}
           onEdit={handleEdit}
@@ -195,8 +198,8 @@ export default function BillProcessing() {
           {isApproved && (
             <div className="approval-banner" data-testid="approval-banner">
               <CheckCircle2 size={18} />
-              <span>BILL APPROVED FOR PAYMENT · REF:</span>
-              <span className="code">{bill.refNo}</span>
+              <span>BILL APPROVED · PERMANENT BILL NO (PRIMARY KEY):</span>
+              <span className="code" data-testid="approved-bill-no">{bill.permanentBillNo}</span>
               <span>· NET PAYABLE:</span>
               <span className="code">₹ {comp.netPayable.toFixed(2)}</span>
               <span className="exp">SCHEDULED: {bill.scheduledDueDate || bill.dueDate}</span>
@@ -207,9 +210,13 @@ export default function BillProcessing() {
           <div className="section">
             <div className="sec-head">Bill Process Reference</div>
             <div className="sec-body">
-              <div className="row cols-3">
-                <F label="Process Ref ID">
-                  <input className="pill" value={bill.processRefId} readOnly data-testid="field-processRefId" />
+              <div className="row cols-4">
+                <F label="Bill Ref No (Active till Approval)">
+                  <input className="pill" value={bill.refNo} readOnly data-testid="field-refNo" />
+                </F>
+                <F label="Permanent Bill No (Primary Key)">
+                  <input className="pill-generated" data-testid="field-permanentBillNo"
+                    value={bill.permanentBillNo || "Generated on Final Approval"} readOnly />
                 </F>
                 <F label="Process Date">
                   <input type="date" {...bind("processDate")} />
@@ -455,13 +462,6 @@ export default function BillProcessing() {
             <div className="sig"><div className="title">Purchase Manager</div></div>
             <div className="sig"><div className="title">Account Manager</div></div>
             <div className="sig"><div className="title">Authorized Signatory</div></div>
-          </div>
-
-          <div className="bottom-actions">
-            <div />
-            <button className="btn-color btn-next" data-testid="btn-next-step" onClick={() => nav("/reports")}>
-              <span className="lbl">Next Step → (Reports &amp; Due List)</span>
-            </button>
           </div>
         </div>
       </div>
