@@ -48,20 +48,13 @@ export default function Login() {
     <div className="login-wrap" data-testid="login-page">
       <Toaster position="top-center" richColors />
       <div className="hero-banner" data-testid="hero-banner">
-        <div className="hero-logo">
-          <div className="hero-mark">AE</div>
+        <div className="hero-logo hero-logo-image">
+          <img src="https://customer-assets-rejwkqb3.emergentagent.net/job_vendor-workflow-sys/artifacts/l29ur9ov_Logo.jpg" alt="Arun Enterprises" />
         </div>
         <div className="hero-text">
           <div className="hero-eyebrow">ARUN ENTERPRISES</div>
           <h1 className="hero-title">Welcome to Arun Enterprises</h1>
           <div className="hero-sub">Vendor Management &amp; Bill Processing Portal</div>
-          <div className="hero-nav">
-            <a href="https://www.arunenterprises.com.in" target="_blank" rel="noreferrer">Home</a>
-            <a href="https://www.arunenterprises.com.in/about-us.php" target="_blank" rel="noreferrer">About Us</a>
-            <a href="https://www.arunenterprises.com.in/services.php" target="_blank" rel="noreferrer">Services</a>
-            <a href="https://www.arunenterprises.com.in/projects.php" target="_blank" rel="noreferrer">Projects</a>
-            <a href="https://www.arunenterprises.com.in/contact.php" target="_blank" rel="noreferrer">Contact</a>
-          </div>
         </div>
       </div>
 

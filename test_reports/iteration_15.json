@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend testing of page-specific Vendor Query modal variants and Login hero-banner. Most acceptance criteria PASS. CRITICAL: existing-vendors clickable chip list on not-found panel is NOT implemented — no chips render in .modal-body regardless of whether vendors exist in storage.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorQueryModal", "issue": "Not-found panel does NOT render existing vendors as clickable chips. Verified with 1 saved vendor (Alpha) — after an empty/invalid search, modal-body contains only the Query button (no chip buttons). Code in VendorQueryModal.jsx lines 119-123 only renders the red 'No vendor found' <p>; there is no chip list rendering (no getAllVendors call, no chip mapping).", "selector": ".modal-body button (chips)", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bill BillProcessing", "issues": ["React DOM warning in console: '<span> cannot be a child of <option>' — appears to be caused by data-tagging wrapper inside <option> elements in GST_SLABS <select>. Non-blocking but pollutes console and can cause hydration errors."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_15.json"],
+  "action_items": [
+    "Implement existing-vendors chip list inside VendorQueryModal not-found panel: render clickable buttons for each vendor (from getAllVendors) below the 'No vendor found' text; clicking a chip should populate data-testid=query-input with that vendor's vendorCode (or tempRefId) and preferably auto-run the query.",
+    "Also render chips proactively when input is empty & user clicks Query (already triggers notFound=true with empty q) — current behavior confirmed.",
+    "Fix <span> inside <option> DOM warning on /bill (likely from static-data-tagging wrapper around GST_SLABS options)."
+  ],
+  "critical_code_review_comments": [
+    "VendorQueryModal.jsx: notFound branch only renders a message; requirement specifies clickable chips of existing vendors — feature missing.",
+    "modal-eyebrow/modal-title correctly switch per variant (vendor/bill/final) — good.",
+    "Variant-based field hiding (Bank/IFSC/Account) works correctly for bill and final variants.",
+    "Payment Vouchers hidden on 'bill' variant and Bill History hidden on 'final' variant — matches spec."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "85%"},
+  "test_credentials": "admin / admin@123",
+  "seed_data_creation": "Saved 1 vendor: Firm='Alpha', Mobile='9000000001' via /vendor Save button for chip/query tests.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All variant modal labels/field-visibility/table-visibility pass. Regression pass: /final has exactly 1 .a4; top-action-bar has btn-search, btn-prev-page/btn-next-page, btn-new/save/edit/submit/approve/export/print, btn-change-logo, btn-logout. Only missing implementation is the existing-vendors chip list on not-found (see action_items).",
+  "rca of the issue": "VendorQueryModal.jsx: In the notFound conditional (lines 119-123) only a red <p> message renders. There is no call to a getAllVendors()/store helper and no chip buttons rendered. To fix: import listVendors (or equivalent) from ../lib/store, and after the <p data-testid='query-notfound'> add a wrapper e.g. <div data-testid='query-vendor-chips'> mapping vendors → <button onClick={()=>{ setQ(v.vendorCode||v.tempRefId); runQuery(); }}>{v.firmName} ({v.vendorCode||v.tempRefId})</button>."
+}

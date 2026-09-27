@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { X, Search } from "lucide-react";
+import { X, Search, Download as DownloadIcon } from "lucide-react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import {
   findVendorByAny, getBillsForVendor, getPaymentsForVendor,
-  vendorAccountSummary, computeBill,
+  vendorAccountSummary, computeBill, getVendors,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -117,9 +117,31 @@ export default function VendorQueryModal({ open, onClose, initialCode = "", vari
           </div>
 
           {notFound && (
-            <p style={{ color: "#dc2626", fontSize: 12, marginTop: 10 }} data-testid="query-notfound">
-              No vendor found with that code / temp ID / name.
-            </p>
+            <div data-testid="query-notfound" style={{ marginTop: 10, padding: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6 }}>
+              <p style={{ color: "#dc2626", fontSize: 12, margin: 0, fontWeight: 600 }}>
+                No vendor found with that code / temp ID / name.
+              </p>
+              <p style={{ color: "#64748b", fontSize: 11, marginTop: 6 }}>
+                Available vendors in your system ({getVendors().length}):
+              </p>
+              <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {getVendors().length === 0 && (
+                  <span style={{ fontSize: 11, color: "#64748b", fontStyle: "italic" }}>
+                    No vendors saved yet. Save one from the Vendor Registration form first.
+                  </span>
+                )}
+                {getVendors().map((v) => (
+                  <button
+                    key={v.id}
+                    className="mono"
+                    onClick={() => setQ(v.vendorCode || v.tempRefId)}
+                    style={{ padding: "2px 8px", fontSize: 10.5, background: "#eef4fb", color: "#1e3a8a", border: "1px solid #cfe0ff", borderRadius: 4, cursor: "pointer" }}
+                  >
+                    {v.vendorCode || v.tempRefId} · {v.firmName || "(no name)"}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {vendor && (
