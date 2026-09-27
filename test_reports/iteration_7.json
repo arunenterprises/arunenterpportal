@@ -1,0 +1,40 @@
+{
+  "summary": "Attempted to test the new 'Item & Work Scope Breakdown Details' feature on the /bill page. Feature is NOT implemented in the UI. Login succeeded and /bill loads with sections 1-5, but the new 2B section is completely absent. All required data-testids (items-empty, items-table, btn-add-item-row, item-*, items-subtotal, btn-use-items-total, item-del-*) return NOT FOUND. Cannot proceed with any of the 12 test scenarios listed in the request.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BillProcessing (Section 2B)", "issue": "The entire 'Item & Work Scope Breakdown Details' section is not rendered. The JSX between Section 2 (Work Order) and Section 3 (Bill Entry) is missing. Only partial scaffolding exists: imports of Plus/X from lucide-react (unused), CATEGORY_SCOPES + ITEM_UNITS constants (unused), CSS classes (.items-table, .items-empty, .btn-add-row, .btn-del-row, .section-title-inline), and store field `items: []` in createBillDraft(). No addItem/updateItem/removeItem handlers exist. No section header with '+ Add Row' button. No subtotal row with 'Use →' button. No delete column. No Excel export integration for items.", "selector": "[data-testid='btn-add-item-row']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Items → Basic Amount push", "issue": "btn-use-items-total does not exist so subtotal cannot push into Basic Amount (Section 3).", "affected_selectors": ["[data-testid='btn-use-items-total']", "input[placeholder='0.00']"]},
+      {"flow": "Excel export items rows", "issue": "handleExportExcel in BillProcessing.jsx (lines 144-170) does NOT include the items array in the exported worksheet.", "affected_selectors": ["btn-export"]},
+      {"flow": "Approval lock", "issue": "No row inputs exist to lock; readOnly/disabled propagation for items cannot be verified until feature is built.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Implement the 'Item & Work Scope Breakdown Details' section 2B in /app/frontend/src/pages/BillProcessing.jsx between Section 2 and Section 3.",
+    "Add state handlers: addItem() → append {category:'Civil Work', description:'', woQty:0, unit:'Sft/MT', woRate:0, billedQty:0} to bill.items; updateItem(index, field, value); removeItem(index).",
+    "Render table with data-testid='items-table' when bill.items.length > 0, else render an empty state with data-testid='items-empty'.",
+    "Row testids: item-category-{i}, item-desc-{i}, item-woQty-{i}, item-unit-{i}, item-woRate-{i}, item-billedQty-{i}, item-amount-{i} (readOnly, computed = woRate * billedQty), item-del-{i}.",
+    "Section header '+ Add Row' button with data-testid='btn-add-item-row' (use Plus icon from lucide-react, apply .btn-add-row class).",
+    "Subtotal footer row: data-testid='items-subtotal' showing sum of amounts formatted to 2 decimals; 'Use →' button with data-testid='btn-use-items-total' that setBill({...bill, basicAmount: subtotal}).",
+    "Approval lock: when bill.step === 5 (locked), disable btn-add-item-row (add .disabled class + disabled prop) and make all row inputs readOnly / selects disabled; also disable btn-del-{i} and btn-use-items-total.",
+    "Excel export: include items array as a second sheet or appended rows in handleExportExcel so 'Export as Excel' click does not miss the section.",
+    "Remove unused imports/constants only after implementation is complete."
+  ],
+  "critical_code_review_comments": [
+    "BillProcessing.jsx imports Plus, X and declares CATEGORY_SCOPES, ITEM_UNITS but never uses them — indicates incomplete implementation (dead code).",
+    "createBillDraft() adds `items: []` but no consumer of that field exists in the UI or export logic.",
+    "App.css contains full styling for .items-table, .items-empty, .btn-add-row, .btn-del-row but no JSX references any of these classes."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "0%"},
+  "test_credentials": "admin / admin@123 (verified working)",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Feature was never rendered in JSX. Once E1 implements the Section 2B in BillProcessing.jsx, retest all 12 scenarios in the review_request including: empty state, add row, compute amount, subtotal, 'Use →' push to Basic Amount, delete rows returning to empty state, step-5 approval lock (btn-add-item-row.disabled + item-desc-{i} readOnly), and Excel export executing without JS errors. Basic Amount input in Section 3 has no data-testid — use page.locator(\"input[placeholder='0.00']\").first() scoped to Section 3.",
+  "rca of the issue": "E1 partially scaffolded the feature — CSS styles, lucide-react icon imports, dropdown constants (CATEGORY_SCOPES, ITEM_UNITS), and the store schema field `items: []` are all in place. However the actual React JSX block (section wrapper, table with header/body/footer, add-row button, item field handlers, subtotal computation, 'Use →' push-to-basic-amount, delete column, approval-locked disabled states) was never added to BillProcessing.jsx. handleExportExcel also does not iterate bill.items. Mitigation: E1 should implement Section 2B JSX block between existing Section 2 and Section 3 (currently at lines 283-323 and 325-371 respectively in BillProcessing.jsx), wire up add/update/remove handlers using setBill, and extend Excel export to include items rows. All target data-testids and behavior contracts are documented in the review_request."
+}

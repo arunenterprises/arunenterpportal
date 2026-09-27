@@ -44,6 +44,34 @@ export default function BillProcessing() {
     setBill((b) => ({ ...b, createdByName: b.createdByName || currentUser() }));
   }, []);
 
+  // ---- Items & Work Scope Breakdown handlers ----
+  const items = bill.items || [];
+  const itemsTotal = items.reduce((s, r) => s + (Number(r.woRate) || 0) * (Number(r.billedQty) || 0), 0);
+
+  const addItem = () => {
+    const list = [...items, {
+      id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      categoryScope: "Civil Work",
+      description: "",
+      woQty: 0,
+      unit: "Sft/MT",
+      woRate: 0,
+      billedQty: 0,
+    }];
+    setBill({ ...bill, items: list });
+  };
+  const updateItem = (id, patch) => {
+    const list = items.map((r) => r.id === id ? { ...r, ...patch } : r);
+    setBill({ ...bill, items: list });
+  };
+  const removeItem = (id) => {
+    setBill({ ...bill, items: items.filter((r) => r.id !== id) });
+  };
+  const useItemsSumAsBasic = () => {
+    setBill({ ...bill, basicAmount: +itemsTotal.toFixed(2) });
+    toast.success(`Basic Amount set to ₹${itemsTotal.toFixed(2)}`);
+  };
+
   const bind = (k, extra = {}) => ({
     value: bill[k] ?? "",
     onChange: (e) => setBill({ ...bill, [k]: e.target.value }),
@@ -307,10 +335,10 @@ export default function BillProcessing() {
                 </F>
               </div>
               <div className="row cols-3" style={{ marginTop: 10 }}>
-                <F label="Item Description">
+                <F label="Item Description (Summary)">
                   <input placeholder="Item / Service" {...bind("itemDescription")} />
                 </F>
-                <F label="Quantity">
+                <F label="Quantity (Summary)">
                   <input type="number" step="0.01" min="0" placeholder="0" {...bind("quantity")} />
                 </F>
                 <F label="UOM (Unit of Measure)">
@@ -320,6 +348,108 @@ export default function BillProcessing() {
                 </F>
               </div>
             </div>
+          </div>
+
+          {/* 2B. ITEM & WORK SCOPE BREAKDOWN */}
+          <div className="section">
+            <div className="section-title-inline">
+              <span>Item &amp; Work Scope Breakdown Details</span>
+              <button className="btn-add-row" data-testid="btn-add-item-row"
+                onClick={addItem} disabled={locked}>
+                <Plus size={12} /> Add Row
+              </button>
+            </div>
+            {items.length === 0 ? (
+              <div className="items-empty" data-testid="items-empty">
+                No items added yet. Click "Add Row" to break down the work scope.
+              </div>
+            ) : (
+              <table className="items-table" data-testid="items-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "18%" }}>Category Scope</th>
+                    <th>Item Description</th>
+                    <th style={{ width: "9%" }}>WO Qty</th>
+                    <th style={{ width: "9%" }}>Unit</th>
+                    <th style={{ width: "11%" }}>WO Rate (₹)</th>
+                    <th style={{ width: "9%" }}>Billed Qty</th>
+                    <th style={{ width: "11%" }}>Amount (₹)</th>
+                    <th className="col-del">X</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((r, i) => {
+                    const amount = (Number(r.woRate) || 0) * (Number(r.billedQty) || 0);
+                    return (
+                      <tr key={r.id} data-testid={`item-row-${i}`}>
+                        <td>
+                          <select value={r.categoryScope}
+                            onChange={(e) => updateItem(r.id, { categoryScope: e.target.value })}
+                            disabled={locked} data-testid={`item-category-${i}`}>
+                            {CATEGORY_SCOPES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <input placeholder="Work Item Name"
+                            value={r.description}
+                            onChange={(e) => updateItem(r.id, { description: e.target.value })}
+                            readOnly={locked} data-testid={`item-desc-${i}`} />
+                        </td>
+                        <td>
+                          <input type="number" step="0.01" min="0" placeholder="0"
+                            value={r.woQty}
+                            onChange={(e) => updateItem(r.id, { woQty: e.target.value })}
+                            readOnly={locked} data-testid={`item-woQty-${i}`} className="num" />
+                        </td>
+                        <td>
+                          <select value={r.unit}
+                            onChange={(e) => updateItem(r.id, { unit: e.target.value })}
+                            disabled={locked} data-testid={`item-unit-${i}`}>
+                            {ITEM_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <input type="number" step="0.01" min="0" placeholder="0.00"
+                            value={r.woRate}
+                            onChange={(e) => updateItem(r.id, { woRate: e.target.value })}
+                            readOnly={locked} data-testid={`item-woRate-${i}`} className="num" />
+                        </td>
+                        <td>
+                          <input type="number" step="0.01" min="0" placeholder="0"
+                            value={r.billedQty}
+                            onChange={(e) => updateItem(r.id, { billedQty: e.target.value })}
+                            readOnly={locked} data-testid={`item-billedQty-${i}`} className="num" />
+                        </td>
+                        <td>
+                          <input value={amount.toFixed(2)} readOnly
+                            data-testid={`item-amount-${i}`} className="num" />
+                        </td>
+                        <td className="col-del">
+                          <button className="btn-del-row" data-testid={`item-del-${i}`}
+                            onClick={() => removeItem(r.id)} disabled={locked} title="Delete row">
+                            <X size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "right" }}>Items Subtotal (Basic Amount)</td>
+                    <td className="num" data-testid="items-subtotal">{itemsTotal.toFixed(2)}</td>
+                    <td className="col-del">
+                      <button className="btn-color btn-save" data-testid="btn-use-items-total"
+                        onClick={useItemsSumAsBasic} disabled={locked}
+                        style={{ padding: "5px 8px", fontSize: 10 }}
+                        title="Use subtotal as Basic Amount below">
+                        Use →
+                      </button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
           </div>
 
           {/* 3. BILL ENTRY */}
