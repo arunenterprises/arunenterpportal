@@ -172,7 +172,10 @@ export default function BillProcessing() {
     toast.success(`Final Approval · Added to Due List · Net ₹${comp.netPayable}`);
   };
 
-  const handleExportJSON = () => exportJSON({ ...bill, computed: comp }, `bill_${bill.refNo.replace(/\//g, "_")}.json`);
+  const handleExportJSON = () => {
+    exportJSON({ ...bill, computed: comp }, `bill_${(bill.refNo || "draft").replace(/\//g, "_")}.json`);
+    toast.success("Bill exported as JSON");
+  };
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
     const rows = [
@@ -198,7 +201,8 @@ export default function BillProcessing() {
       ["Step", BILL_STEP_LABEL[bill.step]],
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Field", "Value"], ...rows]), "Bill");
-    XLSX.writeFile(wb, `bill_${bill.refNo.replace(/\//g, "_")}.xlsx`);
+    XLSX.writeFile(wb, `bill_${(bill.refNo || "draft").replace(/\//g, "_")}.xlsx`);
+    toast.success("Bill exported as Excel");
   };
   const handlePrint = () => window.print();
 

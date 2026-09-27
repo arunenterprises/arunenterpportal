@@ -93,12 +93,16 @@ export default function VendorRegistration() {
     else toast.error("Vendor not found");
   };
   const openQuery = (q) => { setQueryCode(q || ""); setQueryOpen(true); };
-  const handleExportJSON = () => exportJSON(vendor, `vendor_${vendor.vendorCode || vendor.tempRefId}.json`);
+  const handleExportJSON = () => {
+    exportJSON(vendor, `vendor_${vendor.vendorCode || vendor.tempRefId || "draft"}.json`);
+    toast.success("Vendor exported as JSON");
+  };
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
     const rows = Object.entries(vendor).map(([k, v]) => ({ Field: k, Value: v }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Vendor");
-    XLSX.writeFile(wb, `vendor_${vendor.vendorCode || vendor.tempRefId}.xlsx`);
+    XLSX.writeFile(wb, `vendor_${vendor.vendorCode || vendor.tempRefId || "draft"}.xlsx`);
+    toast.success("Vendor exported as Excel");
   };
   const handlePrint = () => window.print();
 

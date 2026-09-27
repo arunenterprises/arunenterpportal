@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Search, FilePlus2, Save, Pencil, Printer, Download, ChevronDown,
@@ -23,17 +24,32 @@ export const TopActionBar = ({
 }) => {
   const [q, setQ] = useState("");
   const [openExport, setOpenExport] = useState(false);
+  const [ddPos, setDdPos] = useState({ bottom: 0, right: 0 });
   const [hasLogo, setHasLogo] = useState(!!getLogo());
   const ddRef = useRef(null);
+  const exportBtnRef = useRef(null);
+  const menuRef = useRef(null);
   const fileRef = useRef(null);
   const navigate = useNavigate();
   const user = currentUser();
 
   useEffect(() => {
-    const h = (e) => { if (ddRef.current && !ddRef.current.contains(e.target)) setOpenExport(false); };
+    const h = (e) => {
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      if (ddRef.current && ddRef.current.contains(e.target)) return;
+      setOpenExport(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  const toggleExport = () => {
+    if (!openExport && exportBtnRef.current) {
+      const r = exportBtnRef.current.getBoundingClientRect();
+      setDdPos({ bottom: window.innerHeight - r.top + 6, right: window.innerWidth - r.right });
+    }
+    setOpenExport((v) => !v);
+  };
 
   const submitSearch = (e) => {
     e?.preventDefault?.();
@@ -103,14 +119,20 @@ export const TopActionBar = ({
       </button>
 
       <div className="dd-wrap" ref={ddRef}>
-        <button className="btn-color btn-export" data-testid="btn-export" disabled={disabled.export} onClick={() => setOpenExport((v) => !v)}>
+        <button ref={exportBtnRef} className="btn-color btn-export" data-testid="btn-export" disabled={disabled.export} onClick={toggleExport}>
           <Download size={12} /><span className="lbl">Export</span><ChevronDown size={11} />
         </button>
-        {openExport && (
-          <div className="dd-menu">
+        {openExport && createPortal(
+          <div
+            ref={menuRef}
+            className="dd-menu"
+            style={{ position: "fixed", bottom: ddPos.bottom, right: ddPos.right }}
+            data-testid="export-menu"
+          >
             <button data-testid="btn-export-json" onClick={() => { setOpenExport(false); onExportJSON?.(); }}>Export as JSON</button>
             <button data-testid="btn-export-excel" onClick={() => { setOpenExport(false); onExportExcel?.(); }}>Export as Excel</button>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 

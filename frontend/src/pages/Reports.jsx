@@ -151,7 +151,10 @@ export default function Reports() {
     toast.success("Excel exported");
   };
 
-  const handleExportJSON = () => exportJSON({ dueRows, summary, payments, generatedAt: new Date().toISOString() }, `vendor_reports_${today}.json`);
+  const handleExportJSON = () => {
+    exportJSON({ dueRows, summary, payments, generatedAt: new Date().toISOString() }, `vendor_reports_${today}.json`);
+    toast.success("Reports exported as JSON");
+  };
   const handlePrint = () => window.print();
   const handleSearch = (q) => setFilter(q);
   const openQuery = (q) => { setQueryCode(q || ""); setQueryOpen(true); };
