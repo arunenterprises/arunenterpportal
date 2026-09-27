@@ -3,14 +3,16 @@ import { useNavigate } from "react-router-dom";
 import {
   Search, FilePlus2, Save, Pencil, Printer, Download, ChevronDown,
   ImageUp, ImageOff, LogOut, User, Send, CheckCircle2, ArrowLeft, ArrowRight,
+  FileSearch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { logout, currentUser, setLogo, clearLogo, getLogo } from "../lib/store";
 
 export const TopActionBar = ({
-  searchPlaceholder = "Search...",
-  searchLabel = "Search",
+  searchPlaceholder = "Vendor Code / ID / Name",
+  searchLabel = "Query",
   onSearch,
+  onQuery,
   prevLabel, prevTo,
   nextLabel, nextTo,
   onNew, onSave, onEdit, onSubmit, onApprove, onPrint,
@@ -33,7 +35,11 @@ export const TopActionBar = ({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const submitSearch = (e) => { e?.preventDefault?.(); onSearch?.(q.trim()); };
+  const submitSearch = (e) => {
+    e?.preventDefault?.();
+    if (onQuery) onQuery(q.trim());
+    else onSearch?.(q.trim());
+  };
   const pickLogo = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -66,7 +72,7 @@ export const TopActionBar = ({
         />
       </form>
       <button className="btn-color btn-search" data-testid="btn-search" onClick={submitSearch}>
-        <Search size={12} /><span className="lbl">{searchLabel}</span>
+        <FileSearch size={12} /><span className="lbl">{searchLabel}</span>
       </button>
 
       {prevLabel && (

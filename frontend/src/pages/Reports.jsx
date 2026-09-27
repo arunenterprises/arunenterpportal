@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
 import Header from "../components/Header";
 import TopActionBar from "../components/TopActionBar";
+import VendorQueryModal from "../components/VendorQueryModal";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON,
@@ -21,6 +22,8 @@ export default function Reports() {
   const [pv, setPv] = useState(null);
   const [refresh, setRefresh] = useState(0);
   const [filter, setFilter] = useState("");
+  const [queryOpen, setQueryOpen] = useState(false);
+  const [queryCode, setQueryCode] = useState("");
 
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
@@ -151,6 +154,7 @@ export default function Reports() {
   const handleExportJSON = () => exportJSON({ dueRows, summary, payments, generatedAt: new Date().toISOString() }, `vendor_reports_${today}.json`);
   const handlePrint = () => window.print();
   const handleSearch = (q) => setFilter(q);
+  const openQuery = (q) => { setQueryCode(q || ""); setQueryOpen(true); };
 
   const workflowLabel = !pv ? "Generate first" :
                         pv.status === "Draft" ? "Submit for Checking" :
@@ -162,8 +166,9 @@ export default function Reports() {
       <Toaster position="top-center" richColors />
       <div className="app-shell">
         <TopActionBar
-          searchPlaceholder="Ref / Vendor / Bill"
-          onSearch={handleSearch}
+          searchPlaceholder="Vendor Code / Firm / Bill Ref"
+          searchLabel="Query"
+          onQuery={openQuery}
           prevLabel="Bill Process"
           prevTo="/bill"
           onNew={handleNew}
@@ -179,6 +184,7 @@ export default function Reports() {
             approve: !pv || pv?.status !== "Submitted",
           }}
         />
+        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} />
 
         <div className="a4" data-testid="reports-page">
           <Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" />

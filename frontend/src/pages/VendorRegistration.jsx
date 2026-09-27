@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
   STEP_LABEL, currentUser, exportJSON, generateTempRefId,
@@ -24,6 +25,8 @@ export default function VendorRegistration() {
   const nav = useNavigate();
   const [vendor, setVendor] = useState(() => createVendorDraft());
   const [locked, setLocked] = useState(false);
+  const [queryOpen, setQueryOpen] = useState(false);
+  const [queryCode, setQueryCode] = useState("");
 
   useEffect(() => {
     setVendor((v) => ({ ...v, createdByName: v.createdByName || currentUser() }));
@@ -89,6 +92,7 @@ export default function VendorRegistration() {
     if (v) { setVendor(v); setLocked(v.step === 3); toast.success(`Loaded ${v.firmName || v.tempRefId}`); }
     else toast.error("Vendor not found");
   };
+  const openQuery = (q) => { setQueryCode(q || ""); setQueryOpen(true); };
   const handleExportJSON = () => exportJSON(vendor, `vendor_${vendor.vendorCode || vendor.tempRefId}.json`);
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
@@ -104,7 +108,8 @@ export default function VendorRegistration() {
       <div className="app-shell">
         <TopActionBar
           searchPlaceholder="Vendor Code / ID / Name"
-          onSearch={handleSearch}
+          searchLabel="Query"
+          onQuery={openQuery}
           nextLabel="Bill Process"
           nextTo="/bill"
           onNew={handleNew}
@@ -117,6 +122,7 @@ export default function VendorRegistration() {
           onExportExcel={handleExportExcel}
           disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 }}
         />
+        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} />
 
         <div className="a4" data-testid="vendor-page">
           <Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" />

@@ -6,6 +6,7 @@ import { CheckCircle2, Search, Plus, X } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny,
@@ -39,6 +40,8 @@ export default function BillProcessing() {
   const [bill, setBill] = useState(() => createBillDraft());
   const [locked, setLocked] = useState(false);
   const [vendorInput, setVendorInput] = useState("");
+  const [queryOpen, setQueryOpen] = useState(false);
+  const [queryCode, setQueryCode] = useState("");
 
   useEffect(() => {
     setBill((b) => ({ ...b, createdByName: b.createdByName || currentUser() }));
@@ -109,6 +112,7 @@ export default function BillProcessing() {
     setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v });
     toast.success(`Loaded ${v.firmName}`);
   };
+  const openQuery = (q) => { setQueryCode(q || bill.vendorCode || ""); setQueryOpen(true); };
 
   const handleNew = () => {
     setBill({ ...createBillDraft(), createdByName: currentUser() });
@@ -205,9 +209,9 @@ export default function BillProcessing() {
       <div className="app-shell">
         <TopActionBar
           variant="dark"
-          searchPlaceholder="Process ID / Bill / Vendor"
-          searchLabel="Search"
-          onSearch={handleSearch}
+          searchPlaceholder="Vendor Code / Firm / Temp ID"
+          searchLabel="Query"
+          onQuery={openQuery}
           prevLabel="Vendor Reg"
           prevTo="/vendor"
           nextLabel="Final Process"
@@ -223,6 +227,7 @@ export default function BillProcessing() {
           labels={{ new: "New Bill", save: "Save Bill", print: "Print" }}
           disabled={{ submit: bill.step >= 4, approve: bill.step !== 4 }}
         />
+        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} />
 
         <div className="a4" data-testid="bill-page">
           <Header formTitle="VENDOR BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />

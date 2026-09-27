@@ -268,6 +268,33 @@ export const nextPvNo = () => {
   return `PV/${getFY()}/${String(c.pvSerial).padStart(4, "0")}`;
 };
 
+// ---- Bills lookup helpers ----
+export const getBillsForVendor = (vendorCode) => {
+  if (!vendorCode) return [];
+  return getBills().filter((b) => b.vendorCode === vendorCode);
+};
+export const getPaymentsForVendor = (vendorCode) => {
+  if (!vendorCode) return [];
+  return getPayments().filter((p) => p.vendorCode === vendorCode);
+};
+export const vendorAccountSummary = (vendorCode) => {
+  const bills = getBillsForVendor(vendorCode);
+  const payments = getPaymentsForVendor(vendorCode);
+  const approvedBills = bills.filter((b) => b.step === 5);
+  const totalBilled = approvedBills.reduce((s, b) => s + computeBill(b).netPayable, 0);
+  const totalPaid = payments
+    .filter((p) => p.status === "Approved")
+    .reduce((s, p) => s + Number(p.amount || 0), 0);
+  const totalOutstanding = +(totalBilled - totalPaid).toFixed(2);
+  return {
+    totalBillsRaised: bills.length,
+    approvedBillsCount: approvedBills.length,
+    totalBilled: +totalBilled.toFixed(2),
+    totalPaid: +totalPaid.toFixed(2),
+    totalOutstanding,
+  };
+};
+
 // ---- Auth & Users ----
 const DEFAULT_ADMIN = { id: "u_admin", name: "Administrator", username: "admin", password: "admin@123", role: "Admin", createdAt: new Date().toISOString() };
 
