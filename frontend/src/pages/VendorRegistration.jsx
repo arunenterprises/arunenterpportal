@@ -122,7 +122,7 @@ export default function VendorRegistration() {
           onExportExcel={handleExportExcel}
           disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 }}
         />
-        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} />
+        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="vendor" />
 
         <div className="a4" data-testid="vendor-page">
           <Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" />

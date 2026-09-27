@@ -1,0 +1,40 @@
+{
+  "summary": "Verified Vendor Code Query modal on /vendor, /bill, /final pages; export-to-XLSX from modal; user-creation persistence fix (login as newly-created test1 succeeds and lands on /vendor even after admin ran vendor workflow); login error hint includes 'Registered users: admin, test1'; /final has exactly 1 .a4; field-tempRefId initial value = 'Generated on First Save'; vendor code format AE####JV#### produced. Complete Bill workflow to Step 5 was not achieved in the automated run (Final Approval button became disabled after Step 4 with minimal required fields), so query-bills-raised was validated at 0/₹0 (no completed bill). The Query modal, its inputs, tables, export, and close all functioned; no JS errors during export.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TopActionBar / App.css",
+        "issue": "`.search-wrap { display: none; }` at App.css line 99-101 hides the top-bar search-input entirely. The Query button remains visible/clickable but users cannot type a vendor code into the top-bar before opening the modal (initialCode always empty). Feature still usable via the modal's own query-input, but this contradicts the spec that says 'Type QUERYTEST in search-input, click btn-search'.",
+        "selector": ".search-wrap / [data-testid=\"search-input\"]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Bill Processing (/bill)",
+        "issues": ["React hydration warning: <span> cannot be a child of <option> — VE tracker span injected inside <option> tags in the GST slab <select>. Non-blocking but pollutes console."]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Remove the `display:none` override on `.search-wrap` in /app/frontend/src/App.css (line 99-101). Either delete the rule or, if the top-bar input is intentionally hidden, remove it from the DOM and rely solely on the modal's query-input. Current state is dead HTML.",
+    "Investigate Bill Processing Step 4 → Step 5 gating: with only Work Order No + Bill No + Basic Amount filled, the Final Approval button stays disabled after clicking Submit through Step 4. If additional required fields are needed to enable Final Approval, expose them clearly or relax gating for smoke tests; otherwise the 'bill history + payment vouchers appear in the modal' path cannot be exercised end-to-end.",
+    "Fix React DOM warning on BillProcessing GST slab select — the VE dynamic span is being rendered inside <option>, which is invalid HTML."
+  ],
+  "critical_code_review_comments": [
+    "VendorQueryModal reads store synchronously with useMemo keyed on vendor state — fine, but there is no refresh trigger if bills/payments change while modal is open (rare in this app).",
+    "Login.jsx reads localStorage directly for the 'Registered users' hint; works because seedAdminIfMissing runs on import and only writes when empty (preserves created users). Good pattern.",
+    "TopActionBar's onQuery takes precedence over onSearch only if truthy — correct. However the search-input is CSS-hidden, so typed initialCode never reaches VendorQueryModal from any page. Suggest removing the hidden input or restoring visibility."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A", "frontend": "90%" },
+  "test_credentials": "admin / admin@123 (seeded); test1 / pass1234 (created during test)",
+  "seed_data_creation": "During test: user 'test1' created via Create User tab; vendor 'QUERYTEST' created and approved -> vendorCode AE0001JV2627",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Query modal + user persistence work. The top-bar search-input is hidden by `.search-wrap { display: none; }` in App.css:99 — either fix CSS or drop the input. Full bill workflow to Step 5 could not be reached with only Work Order No / Bill No / Basic Amount filled — main agent should confirm what additional fields (or steps) are required to enable Final Approval; testing agent should attempt filling Site Incharge / Purchase Incharge / Account Incharge names and stage-specific fields before Submit at each step. Once a bill hits step 5, re-run the vendor-query test to validate query-bills-raised=1 and query-total-billed = Basic + GST - TDS.",
+  "rca of the issue": "Search input hidden: CSS rule `.search-wrap { display: none; }` was added at App.css line 99 (likely leftover from removing an older top-bar search UI). The input DOM node still exists, so Playwright can find it but cannot fill (visibility check fails). Removing the rule or the input restores/cleans the flow."
+}

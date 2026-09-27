@@ -9,10 +9,12 @@ import {
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function VendorQueryModal({ open, onClose, initialCode = "" }) {
+export default function VendorQueryModal({ open, onClose, initialCode = "", variant = "full" }) {
   const [q, setQ] = useState(initialCode);
   const [vendor, setVendor] = useState(null);
   const [notFound, setNotFound] = useState(false);
+
+  React.useEffect(() => { setQ(initialCode); }, [initialCode]);
 
   const runQuery = () => {
     const v = findVendorByAny(q);
@@ -80,8 +82,18 @@ export default function VendorQueryModal({ open, onClose, initialCode = "" }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <div className="modal-eyebrow">Vendor Code Query</div>
-            <div className="modal-title">Vendor Details, Bill History &amp; Payment Summary</div>
+            <div className="modal-eyebrow">
+              {variant === "vendor" ? "Vendor Query" :
+               variant === "bill" ? "Bill History Query" :
+               variant === "final" ? "Payment & Dues Query" :
+               "Vendor Code Query"}
+            </div>
+            <div className="modal-title">
+              {variant === "vendor" ? "Vendor Master Details (Primary Key: Vendor Code)" :
+               variant === "bill" ? "Bill History & Amounts (Primary Key: Vendor Code)" :
+               variant === "final" ? "Payment Summary & Due Status (Primary Key: Vendor Code)" :
+               "Vendor Details, Bill History & Payment Summary"}
+            </div>
           </div>
           <button className="modal-close" onClick={onClose} data-testid="query-close">
             <X size={16} />
@@ -117,7 +129,7 @@ export default function VendorQueryModal({ open, onClose, initialCode = "" }) {
                 <div className="sec-body">
                   <div className="row cols-3">
                     <div className="field-b">
-                      <label>Vendor Code</label>
+                      <label>Vendor Code (Primary Key)</label>
                       <input className="pill-generated" readOnly value={vendor.vendorCode || vendor.tempRefId} data-testid="query-vendor-code" />
                     </div>
                     <div className="field-b"><label>Firm Name</label><input readOnly value={vendor.firmName || ""} /></div>
@@ -125,87 +137,97 @@ export default function VendorQueryModal({ open, onClose, initialCode = "" }) {
                     <div className="field-b"><label>PAN</label><input readOnly value={vendor.panNo || ""} /></div>
                     <div className="field-b"><label>GST</label><input readOnly value={vendor.gstNo || ""} /></div>
                     <div className="field-b"><label>Mobile</label><input readOnly value={vendor.mobileNo || ""} /></div>
-                    <div className="field-b"><label>Bank</label><input readOnly value={vendor.bankName || ""} /></div>
-                    <div className="field-b"><label>IFSC</label><input readOnly value={vendor.ifscCode || ""} /></div>
-                    <div className="field-b"><label>Account No.</label><input readOnly value={vendor.accountNumber || ""} /></div>
+                    {variant !== "bill" && variant !== "final" && (
+                      <>
+                        <div className="field-b"><label>Bank</label><input readOnly value={vendor.bankName || ""} /></div>
+                        <div className="field-b"><label>IFSC</label><input readOnly value={vendor.ifscCode || ""} /></div>
+                        <div className="field-b"><label>Account No.</label><input readOnly value={vendor.accountNumber || ""} /></div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="section">
-                <div className="sec-head">Account Summary</div>
-                <div className="sec-body">
-                  <div className="row cols-4">
-                    <div className="field-b"><label>Bills Raised</label><input className="pill" readOnly value={summary?.totalBillsRaised || 0} data-testid="query-bills-raised" /></div>
-                    <div className="field-b"><label>Total Billed</label><input className="pill" readOnly value={inr(summary?.totalBilled)} data-testid="query-total-billed" /></div>
-                    <div className="field-b"><label>Total Paid</label><input className="pill-generated" readOnly value={inr(summary?.totalPaid)} data-testid="query-total-paid" /></div>
-                    <div className="field-b"><label>Outstanding</label><input className="pill-status" readOnly value={inr(summary?.totalOutstanding)} data-testid="query-outstanding" /></div>
+              {(variant === "bill" || variant === "final" || variant === "full") && (
+                <div className="section">
+                  <div className="sec-head">Account Summary</div>
+                  <div className="sec-body">
+                    <div className="row cols-4">
+                      <div className="field-b"><label>Bills Raised</label><input className="pill" readOnly value={summary?.totalBillsRaised || 0} data-testid="query-bills-raised" /></div>
+                      <div className="field-b"><label>Total Billed</label><input className="pill" readOnly value={inr(summary?.totalBilled)} data-testid="query-total-billed" /></div>
+                      <div className="field-b"><label>Total Paid</label><input className="pill-generated" readOnly value={inr(summary?.totalPaid)} data-testid="query-total-paid" /></div>
+                      <div className="field-b"><label>Outstanding</label><input className="pill-status" readOnly value={inr(summary?.totalOutstanding)} data-testid="query-outstanding" /></div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="section">
-                <div className="sec-head">Bill History</div>
-                <div className="sec-body">
-                  <table className="data-table" data-testid="query-bill-history">
-                    <thead>
-                      <tr>
-                        <th>Bill Ref</th><th>Bill No</th><th>Date</th><th>Due</th>
-                        <th style={{ textAlign: "right" }}>Net (₹)</th>
-                        <th>Step</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bills.length === 0 && (
-                        <tr><td colSpan={6} style={{ textAlign: "center", color: "#64748b", padding: 12 }}>No bills for this vendor yet</td></tr>
-                      )}
-                      {bills.map((b) => {
-                        const c = computeBill(b);
-                        return (
-                          <tr key={b.id}>
-                            <td className="mono">{b.permanentBillNo || b.refNo}</td>
-                            <td>{b.billNo}</td>
-                            <td>{b.billDate}</td>
-                            <td>{b.dueDate}</td>
-                            <td className="num">{c.netPayable.toFixed(2)}</td>
-                            <td><span className={`pill-tag ${b.step === 5 ? "paid" : "due"}`}>{b.step === 5 ? "Approved" : `Step ${b.step}`}</span></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="section">
-                <div className="sec-head">Payment Vouchers</div>
-                <div className="sec-body">
-                  <table className="data-table" data-testid="query-payment-history">
-                    <thead>
-                      <tr>
-                        <th>PV No</th><th>Date</th><th>Bill Ref</th>
-                        <th style={{ textAlign: "right" }}>Amount</th>
-                        <th>Mode</th><th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payments.length === 0 && (
-                        <tr><td colSpan={6} style={{ textAlign: "center", color: "#64748b", padding: 12 }}>No vouchers yet</td></tr>
-                      )}
-                      {payments.map((p) => (
-                        <tr key={p.pvNo}>
-                          <td className="mono">{p.pvNo}</td>
-                          <td>{p.date}</td>
-                          <td className="mono">{p.billRefNo}</td>
-                          <td className="num">{Number(p.amount || 0).toFixed(2)}</td>
-                          <td>{p.mode}</td>
-                          <td><span className={`pill-tag ${p.status === "Approved" ? "paid" : "due"}`}>{p.status}</span></td>
+              {(variant === "bill" || variant === "full") && (
+                <div className="section">
+                  <div className="sec-head">Bill History</div>
+                  <div className="sec-body">
+                    <table className="data-table" data-testid="query-bill-history">
+                      <thead>
+                        <tr>
+                          <th>Bill Ref</th><th>Bill No</th><th>Date</th><th>Due</th>
+                          <th style={{ textAlign: "right" }}>Net (₹)</th>
+                          <th>Step</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {bills.length === 0 && (
+                          <tr><td colSpan={6} style={{ textAlign: "center", color: "#64748b", padding: 12 }}>No bills for this vendor yet</td></tr>
+                        )}
+                        {bills.map((b) => {
+                          const c = computeBill(b);
+                          return (
+                            <tr key={b.id}>
+                              <td className="mono">{b.permanentBillNo || b.refNo}</td>
+                              <td>{b.billNo}</td>
+                              <td>{b.billDate}</td>
+                              <td>{b.dueDate}</td>
+                              <td className="num">{c.netPayable.toFixed(2)}</td>
+                              <td><span className={`pill-tag ${b.step === 5 ? "paid" : "due"}`}>{b.step === 5 ? "Approved" : `Step ${b.step}`}</span></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {(variant === "final" || variant === "full") && (
+                <div className="section">
+                  <div className="sec-head">Payment Vouchers</div>
+                  <div className="sec-body">
+                    <table className="data-table" data-testid="query-payment-history">
+                      <thead>
+                        <tr>
+                          <th>PV No</th><th>Date</th><th>Bill Ref</th>
+                          <th style={{ textAlign: "right" }}>Amount</th>
+                          <th>Mode</th><th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.length === 0 && (
+                          <tr><td colSpan={6} style={{ textAlign: "center", color: "#64748b", padding: 12 }}>No vouchers yet</td></tr>
+                        )}
+                        {payments.map((p) => (
+                          <tr key={p.pvNo}>
+                            <td className="mono">{p.pvNo}</td>
+                            <td>{p.date}</td>
+                            <td className="mono">{p.billRefNo}</td>
+                            <td className="num">{Number(p.amount || 0).toFixed(2)}</td>
+                            <td>{p.mode}</td>
+                            <td><span className={`pill-tag ${p.status === "Approved" ? "paid" : "due"}`}>{p.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div style={{ marginTop: 10, textAlign: "right" }}>
                 <button className="btn-color btn-export" data-testid="query-export" onClick={exportHistory}>

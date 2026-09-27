@@ -227,7 +227,7 @@ export default function BillProcessing() {
           labels={{ new: "New Bill", save: "Save Bill", print: "Print" }}
           disabled={{ submit: bill.step >= 4, approve: bill.step !== 4 }}
         />
-        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} />
+        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 
         <div className="a4" data-testid="bill-page">
           <Header formTitle="VENDOR BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />

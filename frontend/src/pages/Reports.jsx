@@ -184,7 +184,7 @@ export default function Reports() {
             approve: !pv || pv?.status !== "Submitted",
           }}
         />
-        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} />
+        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="final" />
 
         <div className="a4" data-testid="reports-page">
           <Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" />
