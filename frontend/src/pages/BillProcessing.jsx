@@ -480,33 +480,32 @@ export default function BillProcessing() {
                 <F label="Basic Amount (₹)" req>
                   <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("basicAmount")} />
                 </F>
-                <F label={`GST Amount (${bill.gstSlab}% / Actual ₹)`}>
-                  <input value={comp.gst.toFixed(2)} readOnly data-testid="calc-gst" />
-                </F>
-              </div>
-              <div className="row cols-4" style={{ marginTop: 10 }}>
                 <F label="GST Slab">
                   <select {...bind("gstSlab")}>
                     {GST_SLABS.map((s) => <option key={s} value={s}>{s}%</option>)}
                   </select>
                 </F>
+              </div>
+              <div className="row cols-4" style={{ marginTop: 10 }}>
+                <F label={`GST Amount (${bill.gstSlab}% / Actual ₹)`}>
+                  <input value={comp.gst.toFixed(2)} readOnly data-testid="calc-gst" />
+                </F>
                 <F label="Gross Bill Amount (₹)">
                   <input value={comp.gross.toFixed(2)} readOnly data-testid="calc-gross" />
                 </F>
-                <F label={`TDS / Retention Deduction (${bill.tdsRate}%)`}>
-                  <input value={comp.tds.toFixed(2)} readOnly data-testid="calc-tds" />
-                </F>
-                <F label="Other Deductions / Penalties (₹)">
-                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("otherDeductions")} />
-                </F>
-              </div>
-              <div className="row cols-4" style={{ marginTop: 10 }}>
                 <F label="TDS Rate">
                   <select {...bind("tdsRate")}>
                     {[0, 1, 2, 5, 10].map((r) => <option key={r} value={r}>{r}%</option>)}
                   </select>
                 </F>
-                <div className="field-b" style={{ gridColumn: "span 2" }}></div>
+                <F label={`TDS / Retention Deduction (${bill.tdsRate}%)`}>
+                  <input value={comp.tds.toFixed(2)} readOnly data-testid="calc-tds" />
+                </F>
+              </div>
+              <div className="row cols-2" style={{ marginTop: 10 }}>
+                <F label="Other Deductions / Penalties (₹)">
+                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("otherDeductions")} />
+                </F>
                 <F label="Net Payable Amount (₹)">
                   <input className="pill-generated" value={comp.netPayable.toFixed(2)} readOnly data-testid="calc-net" />
                 </F>
@@ -518,60 +517,50 @@ export default function BillProcessing() {
           <div className="section">
             <div className="sec-head">4. Multi-Stage Approval &amp; Verification</div>
             <div className="sec-body">
-              <div className="row cols-2">
+              <div className="row cols-4">
                 <div className="substep">
                   <div className="substep-title">[STEP 1] MEASUREMENT &amp; SITE CHECK</div>
-                  <div className="row cols-2">
-                    <F label="Site Incharge Name">
-                      <input placeholder="Enter Name" {...bind("siteInchargeName")} />
-                    </F>
-                    <F label="Measurement Status">
-                      <select {...bind("measurementStatus")}>
-                        {MEASUREMENT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </F>
-                  </div>
+                  <F label="Site Incharge Name">
+                    <input placeholder="Enter Name" {...bind("siteInchargeName")} />
+                  </F>
+                  <F label="Measurement Status" style={{ marginTop: 8 }}>
+                    <select {...bind("measurementStatus")}>
+                      {MEASUREMENT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </F>
                 </div>
                 <div className="substep">
                   <div className="substep-title">[STEP 2] PURCHASE DEPT VERIFICATION</div>
-                  <div className="row cols-2">
-                    <F label="Purchase Incharge Name">
-                      <input placeholder="Enter Name" {...bind("purchaseInchargeName")} />
-                    </F>
-                    <F label="WO Rate Status">
-                      <select {...bind("woRateStatus")}>
-                        {WO_RATE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </F>
-                  </div>
+                  <F label="Purchase Incharge Name">
+                    <input placeholder="Enter Name" {...bind("purchaseInchargeName")} />
+                  </F>
+                  <F label="WO Rate Status" style={{ marginTop: 8 }}>
+                    <select {...bind("woRateStatus")}>
+                      {WO_RATE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </F>
                 </div>
-              </div>
-              <div className="row cols-2" style={{ marginTop: 10 }}>
                 <div className="substep">
                   <div className="substep-title">[STEP 3] ACCOUNTS &amp; TAX VERIFICATION</div>
-                  <div className="row cols-2">
-                    <F label="Account Incharge Name">
-                      <input placeholder="Enter Name" {...bind("accountInchargeName")} />
-                    </F>
-                    <F label="GST/TDS Check">
-                      <select {...bind("gstTdsCheck")}>
-                        {GST_TDS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </F>
-                  </div>
+                  <F label="Account Incharge Name">
+                    <input placeholder="Enter Name" {...bind("accountInchargeName")} />
+                  </F>
+                  <F label="GST/TDS Check" style={{ marginTop: 8 }}>
+                    <select {...bind("gstTdsCheck")}>
+                      {GST_TDS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </F>
                 </div>
                 <div className="substep">
                   <div className="substep-title">[STEP 4] MANAGEMENT APPROVAL</div>
-                  <div className="row cols-2">
-                    <F label="Approver Name">
-                      <input placeholder="Enter Approver Name" {...bind("approverName")} />
-                    </F>
-                    <F label="Approval Status">
-                      <select {...bind("approvalStatus")}>
-                        {APPROVAL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    </F>
-                  </div>
+                  <F label="Approver Name">
+                    <input placeholder="Enter Approver Name" {...bind("approverName")} />
+                  </F>
+                  <F label="Approval Status" style={{ marginTop: 8 }}>
+                    <select {...bind("approvalStatus")}>
+                      {APPROVAL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </F>
                 </div>
               </div>
             </div>
