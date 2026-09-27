@@ -80,11 +80,57 @@ export default function Reports() {
     const list = getPayments();
     const idx = list.findIndex((x) => x.pvNo === pvNo);
     if (idx < 0) return;
-    list[idx] = { ...list[idx], status: "Draft", approvedByName: "", approvalDate: "" };
+    const prev = list[idx];
+    const history = Array.isArray(prev.history) ? prev.history : [];
+    history.push({
+      action: "Reopened",
+      from: prev.status,
+      by: currentUser(),
+      at: new Date().toISOString(),
+      prevAmount: prev.amount,
+      prevDate: prev.date,
+    });
+    list[idx] = {
+      ...prev,
+      status: "Draft",
+      approvedByName: "",
+      approvalDate: "",
+      revision: (prev.revision || 0) + 1,
+      reopenedAt: new Date().toISOString(),
+      reopenedBy: currentUser(),
+      history,
+    };
     savePayments(list);
     setPv(list[idx]);
     setRefresh((n) => n + 1);
-    toast.success(`${pvNo} reopened · Bill re-added to Due List`);
+    toast.success(`${pvNo} reopened (Rev ${list[idx].revision}) · Awaiting Re-Approval`);
+  };
+  const reApprovePayment = (pvNo) => {
+    const list = getPayments();
+    const idx = list.findIndex((x) => x.pvNo === pvNo);
+    if (idx < 0) return;
+    const prev = list[idx];
+    if (prev.status === "Approved") { toast.info("Already approved"); return; }
+    const history = Array.isArray(prev.history) ? prev.history : [];
+    history.push({
+      action: "Re-Approved",
+      from: prev.status,
+      by: currentUser(),
+      at: new Date().toISOString(),
+      amount: prev.amount,
+      date: prev.date,
+    });
+    list[idx] = {
+      ...prev,
+      status: "Approved",
+      approvedByName: currentUser(),
+      approvalDate: new Date().toISOString().slice(0, 10),
+      history,
+    };
+    savePayments(list);
+    if (pv?.pvNo === pvNo) setPv(list[idx]);
+    setRefresh((n) => n + 1);
+    toast.success(`${pvNo} Re-Approved (Rev ${prev.revision || 0}) · Bill marked Paid`);
   };
   const deletePayment = (pvNo) => {
     if (!window.confirm(`Delete voucher ${pvNo}? Bill will re-appear in Due List.`)) return;
@@ -99,7 +145,16 @@ export default function Reports() {
     const list = getPayments();
     const idx = list.findIndex((x) => x.pvNo === pvNo);
     if (idx < 0) return;
-    list[idx] = { ...list[idx], date: newDate };
+    const prev = list[idx];
+    const history = Array.isArray(prev.history) ? prev.history : [];
+    history.push({
+      action: "Rescheduled",
+      from: prev.date,
+      to: newDate,
+      by: currentUser(),
+      at: new Date().toISOString(),
+    });
+    list[idx] = { ...prev, date: newDate, history };
     savePayments(list);
     if (pv?.pvNo === pvNo) setPv(list[idx]);
     setRefresh((n) => n + 1);
@@ -341,6 +396,15 @@ export default function Reports() {
                           >
                             {p.pvNo}
                           </button>
+                          {p.revision > 0 && (
+                            <span
+                              data-testid={`pay-rev-${p.pvNo}`}
+                              style={{ marginLeft: 6, padding: "1px 6px", fontSize: 9, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontWeight: 700 }}
+                              title={`Reopened ${p.revision} time(s)`}
+                            >
+                              REV {p.revision}
+                            </span>
+                          )}
                         </td>
                         <td>{p.vendorName || p.vendorCode}</td>
                         <td>{p.billNo}</td>
@@ -366,9 +430,19 @@ export default function Reports() {
                                 onClick={() => reopenPayment(p.pvNo)}
                                 data-testid={`pay-reopen-${p.pvNo}`}
                                 style={{ padding: "3px 8px", fontSize: 10.5, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                                title="Reopen for edit"
+                                title="Reopen for edit (requires Re-Approval)"
                               >
                                 Reopen
+                              </button>
+                            )}
+                            {p.status !== "Approved" && (
+                              <button
+                                onClick={() => reApprovePayment(p.pvNo)}
+                                data-testid={`pay-reapprove-${p.pvNo}`}
+                                style={{ padding: "3px 8px", fontSize: 10.5, background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                                title={p.revision > 0 ? "Re-Approve after edit" : "Approve this voucher"}
+                              >
+                                {p.revision > 0 ? "Re-Approve" : "Approve"}
                               </button>
                             )}
                             <button
