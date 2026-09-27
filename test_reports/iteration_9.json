@@ -1,0 +1,28 @@
+{
+  "summary": "Verified merge of Payment Voucher into single /final A4. Full E2E: login -> vendor create+approve (AE0001JV2627) -> bill create with item (rate 100 x billed 10 = 1000), use-items, 4x Submit + Final Approval (permanent BillNo BILL00032627) -> /final: pv-bill-select shows approved bill, pv-generate produces pv-no=PV/2627/0001, sections E/F/G render INSIDE the same single A4. .a4 count == 1 before and after generate. voucher-page testid absent. reports-page testid present. Headings A-G all present. Print (window.print) invoked. Export -> Excel export clicked without JS errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BillProcessing & Reports (select dropdowns)", "issues": ["React hydration warning: '<span> cannot be a child of <option>'. Caused by dev-time visual-editor injecting <span data-ve-dynamic> inside <option> for dynamic option children (GST_SLABS in BillProcessing.jsx:476 and Approved Bill options in Reports.jsx:346). Non-blocking (dev tooling artifact) but pollutes console. Consider rendering plain string children in <option> without wrapping expressions that the ve-tooling would wrap, or suppress via ve-static hint."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Minor: address React <span> in <option> hydration warning polluting the console on Bill and Reports pages (dev visual-editor instrumentation over dynamic option children)."
+  ],
+  "critical_code_review_comments": [
+    "Reports.jsx now correctly renders a single .a4 container with sections A-G; voucher-page wrapper removed. Good.",
+    "pv-mode is a <select>; reading .textContent gives concatenated options ('NEFTRTGSIMPSUPIChequeCash'). Testing agents should use .value instead. Not a bug in app.",
+    "pv-status textContent returned empty because the status badge displays 'Draft' via inner styled element; consider adding a dedicated data-testid on the status text node for easier assertions."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "admin / admin@123",
+  "seed_data_creation": "Created vendor AE0001JV2627 (Test Vendor Pvt Ltd) and bill BILL00032627 (basic 1000, GST 180, TDS 20, net 1160) via full UI flow.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MCP browser sessions are isolated per invocation (fresh context each time), so localStorage does not persist across separate mcp_browser_automation calls. Do the entire seed+assert flow in a single script. Vendor code format: AE####JV####. Permanent bill: BILL####FY (e.g., BILL00032627 = BILL0003 + FY2627). pv-mode is a <select>, use .value. .a4 count assertion via page.evaluate(() => document.querySelectorAll('.a4').length) — must be exactly 1 on /final both before and after Generate Voucher.",
+  "rca of the issue": "N/A — the previously reported JSX build error and duplicate A4 (iteration_8) are resolved; single A4 with sections A/B/C/D always present and E/F/G appearing inside the same A4 upon voucher generation confirmed."
+}
