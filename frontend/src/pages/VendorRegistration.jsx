@@ -173,7 +173,13 @@ export default function VendorRegistration() {
           <div className="section">
             <div className="sec-head">1. Vendor Basic, Contact &amp; Address Details</div>
             <div className="sec-body">
-              <div className="row cols-2">
+              <div className="row cols-3">
+                <F label="Vendor Type" req>
+                  <select {...bind("vendorType")} data-testid="field-vendorType">
+                    <option value="Vendor">Vendor</option>
+                    <option value="Supplier">Supplier</option>
+                  </select>
+                </F>
                 <F label="Vendor / Firm Name" req><input placeholder="Full Firm Name" {...bind("firmName")} /></F>
                 <F label="Contact Person Name"><input placeholder="Contact Person Name" {...bind("contactPerson")} /></F>
               </div>

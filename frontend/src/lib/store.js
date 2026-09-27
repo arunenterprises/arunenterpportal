@@ -84,6 +84,7 @@ export const createVendorDraft = () => ({
   projectCode: "",
   siteName: "",
   // Vendor basic
+  vendorType: "Vendor",
   firmName: "",
   contactPerson: "",
   mobileNo: "",

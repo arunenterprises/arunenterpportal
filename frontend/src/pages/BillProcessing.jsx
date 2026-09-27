@@ -292,6 +292,9 @@ export default function BillProcessing() {
                     </button>
                   </div>
                 </div>
+                <F label="Vendor Type">
+                  <input value={vendor?.vendorType || ""} readOnly data-testid="fetched-vendorType" />
+                </F>
                 <F label="Vendor / Firm Name">
                   <input value={vendor?.firmName || ""} readOnly data-testid="fetched-firmName" />
                 </F>
