@@ -1,78 +1,91 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import Header from "../components/Header";
-import Workflow from "../components/Workflow";
-import ActionBar from "../components/ActionBar";
-import TopNav from "../components/TopNav";
+import { CheckCircle2, Search } from "lucide-react";import Header from "../components/Header";
+import StepTabs from "../components/StepTabs";
+import TopActionBar from "../components/TopActionBar";
 import {
-  createBillDraft, computeBill, upsertBill, findVendorByCode, approveBill,
-  currentUser, exportJSON,
+  createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
+  BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny,
 } from "../lib/store";
 
 const GST_SLABS = [0, 5, 12, 18, 28];
-const TDS_RATES = [
-  { r: 0, l: "0% (None)" },
-  { r: 1, l: "1% (Sec 194C - Ind/HUF)" },
-  { r: 2, l: "2% (Sec 194C - Others)" },
-  { r: 5, l: "5% (Sec 194J - Prof)" },
-  { r: 10, l: "10% (Sec 194J - Tech)" },
-];
+const UOMS = ["Nos", "Kg", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
+const MEASUREMENT_OPTIONS = ["Verified & OK", "Pending", "Rejected"];
+const WO_RATE_OPTIONS = ["Matched with WO", "Rate Deviation", "Not Verified"];
+const GST_TDS_OPTIONS = ["TDS & GST Verified", "Pending", "Discrepancy Found"];
+const APPROVAL_OPTIONS = ["Approved For Payment", "Hold", "Rejected"];
+const PRIORITY_OPTIONS = ["High Priority (Immediate)", "Normal", "Low"];
+const PAY_MODES = ["RTGS / NEFT Bank Transfer", "IMPS", "UPI", "Cheque", "Cash"];
+const RELEASE_OPTIONS = ["Added to Due List (Unpaid)", "Paid", "On Hold"];
 
-const Field = ({ label, children, test }) => (
-  <div className="field">
-    <label>{label}</label>
-    <div className="ctl" data-testid={test}>{children}</div>
+const F = ({ label, req, children }) => (
+  <div className="field-b">
+    <label>{label}{req && <span className="req"> *</span>}</label>
+    {children}
   </div>
 );
 
 export default function BillProcessing() {
+  const nav = useNavigate();
   const [bill, setBill] = useState(() => createBillDraft());
   const [locked, setLocked] = useState(false);
   const [vendorInput, setVendorInput] = useState("");
 
   useEffect(() => {
-    setBill((b) => ({ ...b, createdBy: b.createdBy || currentUser() }));
+    setBill((b) => ({ ...b, createdByName: b.createdByName || currentUser() }));
   }, []);
 
-  const bind = (k) => ({
+  const bind = (k, extra = {}) => ({
     value: bill[k] ?? "",
     onChange: (e) => setBill({ ...bill, [k]: e.target.value }),
     readOnly: locked,
     "data-testid": `field-${k}`,
+    ...extra,
   });
 
   const vendor = bill.vendorSnapshot;
   const comp = useMemo(() => computeBill(bill), [bill]);
 
-  // Auto due date if empty when bill date changes
   useEffect(() => {
     if (bill.billDate && !bill.dueDate) {
       const d = new Date(bill.billDate);
       d.setDate(d.getDate() + 30);
-      setBill((b) => ({ ...b, dueDate: d.toISOString().slice(0, 10) }));
+      setBill((b) => ({ ...b, dueDate: d.toISOString().slice(0, 10), scheduledDueDate: b.scheduledDueDate || d.toISOString().slice(0, 10) }));
     }
   }, [bill.billDate, bill.dueDate]);
 
-  const loadVendor = () => {
-    const v = findVendorByCode(vendorInput.trim());
+  const fetchVendor = (codeArg) => {
+    const code = (codeArg ?? vendorInput).trim();
+    if (!code) { toast.error("Enter Vendor Code first"); return; }
+    const v = findVendorByCode(code);
     if (!v) { toast.error("Vendor not found"); return; }
-    if (v.status !== "Approved") { toast.error("Vendor is not approved yet"); return; }
+    if (v.step !== 3) { toast.error("Vendor is not approved yet"); return; }
     setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v });
-    toast.success(`Loaded ${v.vendorName}`);
+    toast.success(`Loaded ${v.firmName}`);
+  };
+
+  const handleSearch = (q) => {
+    const v = findVendorByAny(q);
+    if (!v) { toast.error("Vendor not found"); return; }
+    if (v.step !== 3) { toast.error("Vendor is not approved yet"); return; }
+    setVendorInput(v.vendorCode);
+    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v });
+    toast.success(`Loaded ${v.firmName}`);
   };
 
   const handleNew = () => {
-    setBill({ ...createBillDraft(), createdBy: currentUser() });
-    setLocked(false);
-    setVendorInput("");
-    toast.success("New bill draft created");
+    setBill({ ...createBillDraft(), createdByName: currentUser() });
+    setLocked(false); setVendorInput("");
+    toast.success("New bill draft");
   };
 
   const validate = () => {
-    if (!bill.vendorSnapshot) { toast.error("Load an approved vendor first"); return false; }
-    if (!bill.billNo.trim()) { toast.error("Bill No is required"); return false; }
-    if (!bill.billDate) { toast.error("Bill Date is required"); return false; }
+    if (!bill.vendorSnapshot) { toast.error("Fetch approved vendor first"); return false; }
+    if (!bill.workOrderNo.trim()) { toast.error("Work Order No is required"); return false; }
+    if (!bill.billNo.trim()) { toast.error("Vendor Invoice / Bill No is required"); return false; }
+    if (!bill.billDate) { toast.error("Invoice Date is required"); return false; }
     if (!(Number(bill.basicAmount) > 0)) { toast.error("Basic amount must be > 0"); return false; }
     return true;
   };
@@ -85,193 +98,372 @@ export default function BillProcessing() {
   };
 
   const handleEdit = () => {
-    if (bill.status === "Approved") { toast.error("Approved bill cannot be edited"); return; }
-    setLocked(false);
-    toast.info("You can edit the form now");
+    if (bill.step === 5) { toast.error("Approved bill cannot be edited"); return; }
+    setLocked(false); toast.info("Editable");
+  };
+
+  const requiredForStep = (step) => {
+    if (step === 1) return { field: "siteInchargeName", label: "Site Incharge Name" };
+    if (step === 2) return { field: "purchaseInchargeName", label: "Purchase Incharge Name" };
+    if (step === 3) return { field: "accountInchargeName", label: "Account Incharge Name" };
+    if (step === 4) return { field: "approverName", label: "Approver Name" };
+    return null;
   };
 
   const handleSubmit = () => {
+    if (bill.step >= 4) { toast.error("Already at final approval stage"); return; }
     if (!validate()) return;
-    const s = upsertBill({ ...bill, status: "Submitted", preparedBy: bill.preparedBy || currentUser() });
-    setBill(s);
-    toast.success("Submitted for approval");
+    const req = requiredForStep(bill.step);
+    if (req && !String(bill[req.field] || "").trim()) {
+      toast.error(`Enter '${req.label}' first`); return;
+    }
+    const next = advanceBillStep({ ...bill });
+    setBill(next);
+    toast.success(`Advanced to ${BILL_STEP_LABEL[next.step]}`);
   };
 
   const handleApprove = () => {
-    if (bill.status === "Approved") { toast.info("Already approved"); return; }
+    if (bill.step === 5) { toast.info("Already in Payment Due List"); return; }
+    if (bill.step !== 4) { toast.error("Complete all approval steps first (use Submit)"); return; }
     if (!validate()) return;
-    const s = approveBill({
-      ...bill,
-      status: "Submitted",
-      checkedBy: bill.checkedBy || currentUser(),
-      approvedBy: bill.approvedBy || currentUser(),
-    });
-    setBill(s);
+    if (!bill.approverName.trim()) { toast.error("Enter Approver Name first"); return; }
+    const next = advanceBillStep({ ...bill });
+    setBill(next);
     setLocked(true);
-    toast.success(`Approved · Net Payable ₹${comp.netPayable}`);
+    toast.success(`Final Approval · Added to Due List · Net ₹${comp.netPayable}`);
   };
 
   const handleExportJSON = () => exportJSON({ ...bill, computed: comp }, `bill_${bill.refNo.replace(/\//g, "_")}.json`);
-
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
     const rows = [
-      ["Ref No", bill.refNo],
-      ["Bill No", bill.billNo],
-      ["Bill Date", bill.billDate],
-      ["Vendor Code", bill.vendorCode],
-      ["Vendor Name", vendor?.vendorName || ""],
-      ["Description", bill.description],
-      ["Basic Amount", comp.basic],
-      [`GST @ ${bill.gstSlab}%`, comp.gst],
-      ["Gross", comp.gross],
-      [`TDS @ ${bill.tdsRate}%`, comp.tds],
-      ["Net Payable", comp.netPayable],
-      ["Due Date", bill.dueDate],
-      ["Status", bill.status],
+      ["Ref No", bill.refNo], ["Process Ref ID", bill.processRefId], ["Process Date", bill.processDate],
+      ["Vendor Code", bill.vendorCode], ["Vendor Name", vendor?.firmName || ""],
+      ["Work Order No", bill.workOrderNo], ["Work Order Date", bill.workOrderDate],
+      ["Project Code & Location", bill.projectCodeLocation],
+      ["Work Scope", bill.workScope],
+      ["Total WO Value", bill.totalWOValue], ["Previous Advance", bill.previousAdvance],
+      ["Item Description", bill.itemDescription], ["Quantity", bill.quantity], ["UOM", bill.uom],
+      ["Bill No", bill.billNo], ["Bill Date", bill.billDate],
+      ["Basic Amount", comp.basic], [`GST @ ${bill.gstSlab}%`, comp.gst],
+      ["Gross", comp.gross], [`TDS @ ${bill.tdsRate}%`, comp.tds],
+      ["Other Deductions", comp.other], ["Net Payable", comp.netPayable],
+      ["Site Incharge", bill.siteInchargeName], ["Measurement Status", bill.measurementStatus],
+      ["Purchase Incharge", bill.purchaseInchargeName], ["WO Rate Status", bill.woRateStatus],
+      ["Account Incharge", bill.accountInchargeName], ["GST/TDS Check", bill.gstTdsCheck],
+      ["Approver", bill.approverName], ["Approval Status", bill.approvalStatus],
+      ["Scheduled Due Date", bill.scheduledDueDate], ["Priority", bill.priorityLevel],
+      ["Payment Mode", bill.paymentMode], ["To-Do Notes", bill.todoNotes],
+      ["Final Release Status", bill.finalReleaseStatus],
+      ["Step", BILL_STEP_LABEL[bill.step]],
     ];
-    const ws = XLSX.utils.aoa_to_sheet([["Field", "Value"], ...rows]);
-    XLSX.utils.book_append_sheet(wb, ws, "Bill");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Field", "Value"], ...rows]), "Bill");
     XLSX.writeFile(wb, `bill_${bill.refNo.replace(/\//g, "_")}.xlsx`);
   };
-
   const handlePrint = () => window.print();
 
-  return (
+  const workflowLabel = bill.step < 5 ? `Next Approval Step (→ ${BILL_STEP_LABEL[bill.step + 1] || ""})` : "Approved";
+  const isApproved = bill.step === 5;  return (
     <>
       <Toaster position="top-center" richColors />
       <div className="app-shell">
-        <TopNav />
-        <div className="a4" data-testid="bill-page">
-          <Header
-            docTitle="Vendor Bill Processing"
-            docNo={bill.refNo}
-            pageLabel="PAGE 2 / 3"
-            status={bill.status}
-          />
-          {bill.status === "Approved" && <div className="stamp approved">APPROVED</div>}
-          {bill.status === "Submitted" && <div className="stamp submitted">SUBMITTED</div>}
-          {bill.status === "Draft" && <div className="stamp draft">DRAFT</div>}
-
-          <Workflow data={bill} />
-
-          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center", fontSize: 11 }}>
-            <label style={{ color: "#55617a", letterSpacing: 1 }}>VENDOR CODE</label>
-            <input
-              className="mono"
-              data-testid="bill-vendor-input"
-              value={vendorInput}
-              onChange={(e) => setVendorInput(e.target.value)}
-              placeholder="e.g. AE0001JV2526"
-              style={{ flex: 1, border: "1px solid #d7dbe3", borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
-            />
-            <button className="btn ghost" data-testid="bill-load-vendor" onClick={loadVendor}>Autofill</button>
-          </div>
-
-          <div className="section-title">A. Vendor Snapshot</div>
-          <div className="field-grid cols-3">
-            <Field label="Vendor Code" test="v-code">
-              <input value={bill.vendorCode || ""} readOnly />
-            </Field>
-            <Field label="Vendor Name" test="v-name">
-              <input value={vendor?.vendorName || ""} readOnly />
-            </Field>
-            <Field label="PAN" test="v-pan">
-              <input value={vendor?.panNo || ""} readOnly />
-            </Field>
-            <Field label="GST No" test="v-gst">
-              <input value={vendor?.gstNo || ""} readOnly />
-            </Field>
-            <Field label="Business Type" test="v-btype">
-              <input value={vendor?.businessType || ""} readOnly />
-            </Field>
-            <Field label="Phone" test="v-phone">
-              <input value={vendor?.phoneNo || ""} readOnly />
-            </Field>
-            <Field label="Bank" test="v-bank">
-              <input value={vendor?.bankName || ""} readOnly />
-            </Field>
-            <Field label="IFSC" test="v-ifsc">
-              <input value={vendor?.ifscCode || ""} readOnly />
-            </Field>
-            <Field label="Account No" test="v-acct">
-              <input value={vendor?.accountNumber || ""} readOnly />
-            </Field>
-          </div>
-
-          <div className="section-title">B. Bill Details</div>
-          <div className="field-grid cols-3">
-            <Field label="Bill No" test="cell-billNo"><input {...bind("billNo")} /></Field>
-            <Field label="Bill Date" test="cell-billDate"><input type="date" {...bind("billDate")} /></Field>
-            <Field label="Due Date" test="cell-dueDate"><input type="date" {...bind("dueDate")} /></Field>
-          </div>
-          <div className="field-grid cols-1">
-            <Field label="Description of Goods / Services" test="cell-description">
-              <textarea rows={2} {...bind("description")} />
-            </Field>
-          </div>
-
-          <div className="section-title">C. Amounts, GST & TDS</div>
-          <div className="field-grid cols-3">
-            <Field label="Basic Amount (₹)" test="cell-basicAmount">
-              <input type="number" step="0.01" min="0" {...bind("basicAmount")} />
-            </Field>
-            <Field label="GST Slab" test="cell-gstSlab">
-              <select {...bind("gstSlab")}>
-                {GST_SLABS.map((s) => <option key={s} value={s}>{s}%</option>)}
-              </select>
-            </Field>
-            <Field label="TDS Rate" test="cell-tdsRate">
-              <select {...bind("tdsRate")}>
-                {TDS_RATES.map((t) => <option key={t.r} value={t.r}>{t.l}</option>)}
-              </select>
-            </Field>
-          </div>
-
-          <div className="compute" data-testid="bill-compute">
-            <table>
-              <thead>
-                <tr><th>Particulars</th><th style={{ textAlign: "right" }}>Amount (₹)</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>Basic Amount</td><td className="num" data-testid="calc-basic">{comp.basic.toFixed(2)}</td></tr>
-                <tr><td>GST @ {bill.gstSlab}%</td><td className="num" data-testid="calc-gst">{comp.gst.toFixed(2)}</td></tr>
-                <tr><td><b>Gross (Basic + GST)</b></td><td className="num" data-testid="calc-gross"><b>{comp.gross.toFixed(2)}</b></td></tr>
-                <tr><td>Less: TDS @ {bill.tdsRate}% on Basic</td><td className="num" data-testid="calc-tds">{comp.tds.toFixed(2)}</td></tr>
-                <tr className="total"><td>Net Payable</td><td className="num" data-testid="calc-net">{comp.netPayable.toFixed(2)}</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div className="section-title">D. Approval Workflow</div>
-          <div className="field-grid cols-3">
-            <Field label="Created By" test="cell-createdBy"><input {...bind("createdBy")} /></Field>
-            <Field label="Checked By" test="cell-checkedBy"><input {...bind("checkedBy")} /></Field>
-            <Field label="Prepared By" test="cell-preparedBy"><input {...bind("preparedBy")} /></Field>
-            <Field label="Approved By" test="cell-approvedBy"><input {...bind("approvedBy")} /></Field>
-            <Field label="Approval Date" test="cell-approvalDate"><input value={bill.approvalDate || ""} readOnly /></Field>
-            <Field label="Status" test="cell-status"><input value={bill.status} readOnly /></Field>
-          </div>
-
-          <div className="sign-row">
-            <div className="sig">Prepared By</div>
-            <div className="sig">Checked By</div>
-            <div className="sig">Approved By</div>
-            <div className="sig">Received By</div>
-          </div>
-        </div>
-
-        <ActionBar
+        <TopActionBar
+          variant="dark"
+          searchPlaceholder="Search Process ID / Bill No / Vendor Code"
+          searchLabel="Search Bill"
+          onSearch={handleSearch}
           onNew={handleNew}
           onSave={handleSave}
           onEdit={handleEdit}
           onSubmit={handleSubmit}
           onApprove={handleApprove}
+          onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
-          onPrint={handlePrint}
-          disabled={{ approve: bill.status === "Approved" }}
+          labels={{ new: "New Bill", save: "Save Bill", print: "Print Voucher" }}
+          disabled={{ submit: bill.step >= 4, approve: bill.step !== 4 }}
         />
+
+        <div className="a4" data-testid="bill-page">
+          <Header formTitle="VENDOR BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />
+          <StepTabs
+            step={bill.step}
+            labels={[BILL_STEP_LABEL[1], BILL_STEP_LABEL[2], BILL_STEP_LABEL[3], BILL_STEP_LABEL[4], BILL_STEP_LABEL[5]]}
+          />
+
+          {/* Approval banner */}
+          {isApproved && (
+            <div className="approval-banner" data-testid="approval-banner">
+              <CheckCircle2 size={18} />
+              <span>BILL APPROVED FOR PAYMENT · REF:</span>
+              <span className="code">{bill.refNo}</span>
+              <span>· NET PAYABLE:</span>
+              <span className="code">₹ {comp.netPayable.toFixed(2)}</span>
+              <span className="exp">SCHEDULED: {bill.scheduledDueDate || bill.dueDate}</span>
+            </div>
+          )}
+
+          {/* Bill Process Reference */}
+          <div className="section">
+            <div className="sec-head">Bill Process Reference</div>
+            <div className="sec-body">
+              <div className="row cols-3">
+                <F label="Process Ref ID">
+                  <input className="pill" value={bill.processRefId} readOnly data-testid="field-processRefId" />
+                </F>
+                <F label="Process Date">
+                  <input type="date" {...bind("processDate")} />
+                </F>
+                <F label="Current Status">
+                  <input className="pill-status" value={BILL_STEP_LABEL[bill.step]} readOnly data-testid="field-currentStatus" />
+                </F>
+              </div>
+            </div>
+          </div>
+
+          {/* 1. VENDOR LOOKUP */}
+          <div className="section">
+            <div className="sec-head">1. Vendor Lookup &amp; Details (Auto-Fetch via Vendor Code)</div>
+            <div className="sec-body">
+              <div className="row cols-3">
+                <div className="field-b">
+                  <label>Enter Vendor Code (Primary Key) <span className="req">*</span></label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input className="mono" placeholder="E.G. AE0001JV2526"
+                      value={vendorInput} onChange={(e) => setVendorInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && fetchVendor()}
+                      data-testid="bill-vendor-input"
+                      style={{ flex: 1 }} />
+                    <button className="btn-color btn-save" data-testid="bill-fetch-vendor" onClick={() => fetchVendor()} style={{ minWidth: 76 }}>
+                      <Search size={13} /><span className="lbl">Fetch</span>
+                    </button>
+                  </div>
+                </div>
+                <F label="Vendor / Firm Name">
+                  <input value={vendor?.firmName || ""} readOnly data-testid="fetched-firmName" />
+                </F>
+                <F label="GST Number">
+                  <input value={vendor?.gstNo || ""} readOnly data-testid="fetched-gst" />
+                </F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
+                <F label="Mobile Number">
+                  <input value={vendor?.mobileNo || ""} readOnly data-testid="fetched-mobile" />
+                </F>
+                <F label="Vendor Email ID">
+                  <input value={vendor?.email || ""} readOnly />
+                </F>
+                <F label="Bank Name &amp; Account No.">
+                  <input
+                    value={vendor ? `${vendor.bankName || ""} / ${vendor.accountNumber || ""}` : ""}
+                    readOnly placeholder="Bank Name / Acc No"
+                    data-testid="fetched-bank"
+                  />
+                </F>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. WORK ORDER */}
+          <div className="section">
+            <div className="sec-head">2. Work Order &amp; Project Allocation</div>
+            <div className="sec-body">
+              <div className="row cols-3">
+                <F label="Work Order No." req>
+                  <input placeholder="WO Number" {...bind("workOrderNo")} />
+                </F>
+                <F label="Work Order Date">
+                  <input type="date" {...bind("workOrderDate")} />
+                </F>
+                <F label="Project Code &amp; Location">
+                  <input placeholder="Project Code / Site Name" {...bind("projectCodeLocation")} />
+                </F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
+                <F label="Work Scope / Description">
+                  <input placeholder="Description of executed work" {...bind("workScope")} />
+                </F>
+                <F label="Total Work Order Value (₹)">
+                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("totalWOValue")} />
+                </F>
+                <F label="Previous Advance / Paid Amount (₹)">
+                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("previousAdvance")} />
+                </F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
+                <F label="Item Description">
+                  <input placeholder="Item / Service" {...bind("itemDescription")} />
+                </F>
+                <F label="Quantity">
+                  <input type="number" step="0.01" min="0" placeholder="0" {...bind("quantity")} />
+                </F>
+                <F label="UOM (Unit of Measure)">
+                  <select {...bind("uom")}>
+                    {UOMS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </F>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. BILL ENTRY */}
+          <div className="section">
+            <div className="sec-head">3. Bill Entry &amp; Payment Calculation</div>
+            <div className="sec-body">
+              <div className="row cols-4">
+                <F label="Vendor Invoice / Bill No." req>
+                  <input placeholder="Bill Number" {...bind("billNo")} />
+                </F>
+                <F label="Invoice Date">
+                  <input type="date" {...bind("billDate")} />
+                </F>
+                <F label="Basic Amount (₹)" req>
+                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("basicAmount")} />
+                </F>
+                <F label={`GST Amount (${bill.gstSlab}% / Actual ₹)`}>
+                  <input value={comp.gst.toFixed(2)} readOnly data-testid="calc-gst" />
+                </F>
+              </div>
+              <div className="row cols-4" style={{ marginTop: 10 }}>
+                <F label="GST Slab">
+                  <select {...bind("gstSlab")}>
+                    {GST_SLABS.map((s) => <option key={s} value={s}>{s}%</option>)}
+                  </select>
+                </F>
+                <F label="Gross Bill Amount (₹)">
+                  <input value={comp.gross.toFixed(2)} readOnly data-testid="calc-gross" />
+                </F>
+                <F label={`TDS / Retention Deduction (${bill.tdsRate}%)`}>
+                  <input value={comp.tds.toFixed(2)} readOnly data-testid="calc-tds" />
+                </F>
+                <F label="Other Deductions / Penalties (₹)">
+                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("otherDeductions")} />
+                </F>
+              </div>
+              <div className="row cols-4" style={{ marginTop: 10 }}>
+                <F label="TDS Rate">
+                  <select {...bind("tdsRate")}>
+                    {[0, 1, 2, 5, 10].map((r) => <option key={r} value={r}>{r}%</option>)}
+                  </select>
+                </F>
+                <div className="field-b" style={{ gridColumn: "span 2" }}></div>
+                <F label="Net Payable Amount (₹)">
+                  <input className="pill-generated" value={comp.netPayable.toFixed(2)} readOnly data-testid="calc-net" />
+                </F>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. MULTI-STAGE APPROVAL */}
+          <div className="section">
+            <div className="sec-head">4. Multi-Stage Approval &amp; Verification</div>
+            <div className="sec-body">
+              <div className="row cols-2">
+                <div className="substep">
+                  <div className="substep-title">[STEP 1] MEASUREMENT &amp; SITE CHECK</div>
+                  <div className="row cols-2">
+                    <F label="Site Incharge Name">
+                      <input placeholder="Enter Name" {...bind("siteInchargeName")} />
+                    </F>
+                    <F label="Measurement Status">
+                      <select {...bind("measurementStatus")}>
+                        {MEASUREMENT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </F>
+                  </div>
+                </div>
+                <div className="substep">
+                  <div className="substep-title">[STEP 2] PURCHASE DEPT VERIFICATION</div>
+                  <div className="row cols-2">
+                    <F label="Purchase Incharge Name">
+                      <input placeholder="Enter Name" {...bind("purchaseInchargeName")} />
+                    </F>
+                    <F label="WO Rate Status">
+                      <select {...bind("woRateStatus")}>
+                        {WO_RATE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </F>
+                  </div>
+                </div>
+              </div>
+              <div className="row cols-2" style={{ marginTop: 10 }}>
+                <div className="substep">
+                  <div className="substep-title">[STEP 3] ACCOUNTS &amp; TAX VERIFICATION</div>
+                  <div className="row cols-2">
+                    <F label="Account Incharge Name">
+                      <input placeholder="Enter Name" {...bind("accountInchargeName")} />
+                    </F>
+                    <F label="GST/TDS Check">
+                      <select {...bind("gstTdsCheck")}>
+                        {GST_TDS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </F>
+                  </div>
+                </div>
+                <div className="substep">
+                  <div className="substep-title">[STEP 4] MANAGEMENT APPROVAL</div>
+                  <div className="row cols-2">
+                    <F label="Approver Name">
+                      <input placeholder="Enter Approver Name" {...bind("approverName")} />
+                    </F>
+                    <F label="Approval Status">
+                      <select {...bind("approvalStatus")}>
+                        {APPROVAL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </F>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. PAYMENT SCHEDULE */}
+          <div className="section">
+            <div className="sec-head">5. Step 5: Payment Schedule &amp; To-Do List Setup</div>
+            <div className="sec-body">
+              <div className="row cols-3">
+                <F label="Scheduled Payment Due Date" req>
+                  <input type="date" {...bind("scheduledDueDate")} />
+                </F>
+                <F label="Payment Priority Level">
+                  <select {...bind("priorityLevel")}>
+                    {PRIORITY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </F>
+                <F label="Payment Mode / Account">
+                  <select {...bind("paymentMode")}>
+                    {PAY_MODES.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </F>
+              </div>
+              <div className="row cols-2" style={{ marginTop: 10 }}>
+                <F label="To-Do / Action Notes for Cashier/Accounts">
+                  <input placeholder="e.g. Release 50% first, check original invoice attached" {...bind("todoNotes")} />
+                </F>
+                <F label="Final Payment Release Status">
+                  <select {...bind("finalReleaseStatus")}>
+                    {RELEASE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </F>
+              </div>
+            </div>
+          </div>
+
+          {/* Signatures - 4 columns */}
+          <div className="signs cols-4">
+            <div className="sig"><div className="title">Site Engineer</div></div>
+            <div className="sig"><div className="title">Purchase Manager</div></div>
+            <div className="sig"><div className="title">Account Manager</div></div>
+            <div className="sig"><div className="title">Authorized Signatory</div></div>
+          </div>
+
+          <div className="bottom-actions">
+            <div />
+            <button className="btn-color btn-next" data-testid="btn-next-step" onClick={() => nav("/reports")}>
+              <span className="lbl">Next Step → (Reports &amp; Due List)</span>
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );

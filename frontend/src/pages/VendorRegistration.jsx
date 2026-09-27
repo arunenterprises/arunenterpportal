@@ -1,272 +1,254 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Header from "../components/Header";
-import Workflow from "../components/Workflow";
-import ActionBar from "../components/ActionBar";
-import TopNav from "../components/TopNav";
+import StepTabs from "../components/StepTabs";
+import TopActionBar from "../components/TopActionBar";
 import {
-  createVendorDraft, upsertVendor, getVendors, findVendorByCode, approveVendor,
-  currentUser, exportJSON,
+  createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
+  STEP_LABEL, currentUser, exportJSON,
 } from "../lib/store";
 
-const VENDOR_TYPES = ["Material Supplier", "Service Provider", "Contractor", "Consultant", "Transporter", "Other"];
-const PROJECTS = ["Project Alpha", "Project Bravo", "Project Charlie", "Project Delta", "Head Office"];
-const LOCATIONS = ["Prayagraj", "Lucknow", "Delhi", "Mumbai", "Kolkata", "Chennai", "Bangalore", "Other"];
-const BUSINESS_TYPES = ["Registered", "Non-Registered"];
+const ACCOUNT_TYPES = ["Current Account", "Savings Account", "Overdraft (OD)", "Cash Credit (CC)"];
 
-const Field = ({ label, children, test }) => (
-  <div className="field">
-    <label>{label}</label>
-    <div className="ctl" data-testid={test}>{children}</div>
+const F = ({ label, req, children, test }) => (
+  <div className="field-b" data-testid={test ? `wrap-${test}` : undefined}>
+    <label>{label}{req && <span className="req"> *</span>}</label>
+    {children}
   </div>
 );
 
 export default function VendorRegistration() {
+  const nav = useNavigate();
   const [vendor, setVendor] = useState(() => createVendorDraft());
-  const [locked, setLocked] = useState(false); // approved -> locked
-  const [searchCode, setSearchCode] = useState("");
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
-    setVendor((v) => ({ ...v, createdBy: v.createdBy || currentUser() }));
+    setVendor((v) => ({ ...v, createdByName: v.createdByName || currentUser() }));
   }, []);
 
-  const bind = (k) => ({
+  const bind = (k, extra = {}) => ({
     value: vendor[k] ?? "",
     onChange: (e) => setVendor({ ...vendor, [k]: e.target.value }),
     readOnly: locked,
     "data-testid": `field-${k}`,
+    ...extra,
   });
 
-  const displayCode = vendor.vendorCode || vendor.tempCode;
-
-  const validate = () => {
-    const required = [
-      ["vendorType", "Vendor Type"],
-      ["vendorName", "Vendor / Supplier Name"],
-      ["panNo", "PAN No"],
-      ["email", "Email ID"],
-      ["phoneNo", "Phone No"],
-      ["bankName", "Bank Name"],
-      ["ifscCode", "IFSC Code"],
-      ["accountNumber", "Account Number"],
-    ];
-    for (const [k, l] of required) {
-      if (!String(vendor[k] || "").trim()) {
-        toast.error(`${l} is required`);
-        return false;
-      }
-    }
+  const validateStep1 = () => {
+    if (!String(vendor.firmName || "").trim()) { toast.error("Vendor / Firm Name is required"); return false; }
+    if (!String(vendor.mobileNo || "").trim()) { toast.error("Mobile Number is required"); return false; }
     return true;
   };
 
   const handleNew = () => {
-    setVendor({ ...createVendorDraft(), createdBy: currentUser() });
+    setVendor({ ...createVendorDraft(), createdByName: currentUser() });
     setLocked(false);
     toast.success("New vendor draft created");
   };
-
   const handleSave = () => {
-    if (!validate()) return;
+    if (!validateStep1()) return;
     const saved = upsertVendor({ ...vendor });
     setVendor(saved);
-    toast.success(`Saved (${saved.tempCode})`);
+    toast.success(`Saved (${saved.tempRefId})`);
   };
-
   const handleEdit = () => {
-    if (vendor.status === "Approved") {
-      toast.error("Approved vendor cannot be edited");
-      return;
-    }
+    if (vendor.step === 3) { toast.error("Approved vendor cannot be edited"); return; }
     setLocked(false);
-    toast.info("You can edit the form now");
+    toast.info("You can edit the form");
   };
-
   const handleSubmit = () => {
-    if (!validate()) return;
-    const s = { ...vendor, status: "Submitted", preparedBy: vendor.preparedBy || currentUser() };
-    upsertVendor(s);
-    setVendor(s);
-    toast.success("Submitted for approval");
-  };
-
-  const handleApprove = () => {
-    if (vendor.status === "Approved") {
-      toast.info("Already approved");
+    if (vendor.step !== 1) {
+      toast.error(vendor.step === 3 ? "Already approved" : "Already submitted for checking");
       return;
     }
-    if (!validate()) return;
-    const approved = approveVendor({
-      ...vendor,
-      status: "Submitted",
-      checkedBy: vendor.checkedBy || currentUser(),
-      approvedBy: vendor.approvedBy || currentUser(),
-    });
-    setVendor(approved);
+    if (!validateStep1()) return;
+    if (!vendor.checkedByName.trim()) { toast.error("Enter 'Checked By (Name)' in Step 2 section"); return; }
+    const next = advanceVendorStep({ ...vendor });
+    setVendor(next);
+    toast.success("Submitted for Checking & Verification");
+  };
+  const handleApprove = () => {
+    if (vendor.step === 3) { toast.info("Already approved"); return; }
+    if (vendor.step === 1) { toast.error("Please Submit for Checking first"); return; }
+    if (!vendor.approvedByName.trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
+    const next = advanceVendorStep({ ...vendor });
+    setVendor(next);
     setLocked(true);
-    toast.success(`Approved · Vendor Code: ${approved.vendorCode}`);
+    toast.success(`Final Approval done · Vendor Code: ${next.vendorCode}`);
   };
-
-  const handleExportJSON = () => {
-    exportJSON(vendor, `vendor_${displayCode || "draft"}.json`);
+  const handleSearch = (q) => {
+    const v = findVendorByAny(q);
+    if (v) { setVendor(v); setLocked(v.step === 3); toast.success(`Loaded ${v.firmName || v.tempRefId}`); }
+    else toast.error("Vendor not found");
   };
-
+  const handleExportJSON = () => exportJSON(vendor, `vendor_${vendor.vendorCode || vendor.tempRefId}.json`);
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
     const rows = Object.entries(vendor).map(([k, v]) => ({ Field: k, Value: v }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, "Vendor");
-    XLSX.writeFile(wb, `vendor_${displayCode || "draft"}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Vendor");
+    XLSX.writeFile(wb, `vendor_${vendor.vendorCode || vendor.tempRefId}.xlsx`);
   };
-
   const handlePrint = () => window.print();
-
-  const handleSearch = () => {
-    const v = findVendorByCode(searchCode.trim());
-    if (v) {
-      setVendor(v);
-      setLocked(v.status === "Approved");
-      toast.success(`Loaded ${v.vendorCode || v.tempCode}`);
-    } else {
-      toast.error("Vendor not found");
-    }
-  };
 
   return (
     <>
       <Toaster position="top-center" richColors />
       <div className="app-shell">
-        <TopNav />
-        <div className="a4" data-testid="vendor-page">
-          <Header
-            docTitle="Vendor Registration Form"
-            docNo={displayCode}
-            pageLabel="PAGE 1 / 3"
-            status={vendor.status}
-          />
-          {vendor.status === "Approved" && <div className="stamp approved">APPROVED</div>}
-          {vendor.status === "Submitted" && <div className="stamp submitted">SUBMITTED</div>}
-          {vendor.status === "Draft" && <div className="stamp draft">DRAFT</div>}
-
-          <Workflow data={vendor} />
-
-          {/* Search bar */}
-          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center", fontSize: 11 }}>
-            <label style={{ color: "#55617a", letterSpacing: 1 }}>SEARCH BY CODE</label>
-            <input
-              className="mono"
-              data-testid="vendor-search-input"
-              value={searchCode}
-              onChange={(e) => setSearchCode(e.target.value)}
-              placeholder="Enter Temp or Vendor Code"
-              style={{ flex: 1, border: "1px solid #d7dbe3", borderRadius: 6, padding: "6px 8px", fontSize: 12 }}
-            />
-            <button className="btn ghost" data-testid="vendor-search-btn" onClick={handleSearch}>Load</button>
-          </div>
-
-          {/* Section 1 */}
-          <div className="section-title">1. Classification</div>
-          <div className="field-grid cols-3">
-            <Field label="1.1 Vendor Type" test="cell-vendorType">
-              <select {...bind("vendorType")}>
-                <option value="">Select</option>
-                {VENDOR_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-            <Field label="1.2 Project" test="cell-project">
-              <select {...bind("project")}>
-                <option value="">Select</option>
-                {PROJECTS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-            <Field label="1.3 Location" test="cell-location">
-              <select {...bind("location")}>
-                <option value="">Select</option>
-                {LOCATIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-          </div>
-
-          {/* Section 2 */}
-          <div className="section-title">2. Entity Details</div>
-          <div className="field-grid">
-            <Field label="2.1 Vendor / Supplier Name" test="cell-vendorName">
-              <input {...bind("vendorName")} />
-            </Field>
-            <Field label="2.2 Concern Person Name" test="cell-concernPerson">
-              <input {...bind("concernPerson")} />
-            </Field>
-            <Field label="2.3 PAN No" test="cell-panNo">
-              <input {...bind("panNo")} maxLength={10} style={{ textTransform: "uppercase" }} />
-            </Field>
-            <Field label="2.4 Business Type" test="cell-businessType">
-              <select {...bind("businessType")}>
-                {BUSINESS_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-            <Field label="2.5 GST No" test="cell-gstNo">
-              <input {...bind("gstNo")} maxLength={15} style={{ textTransform: "uppercase" }} />
-            </Field>
-            <Field label=""><span style={{ fontSize: 10, color: "#55617a" }}>GST required if Registered</span></Field>
-          </div>
-
-          {/* Section 3 */}
-          <div className="section-title">3. Contact & Address</div>
-          <div className="field-grid cols-1">
-            <Field label="3.1 Permanent / Communication Address" test="cell-address">
-              <textarea rows={2} {...bind("address")} />
-            </Field>
-          </div>
-          <div className="field-grid cols-3">
-            <Field label="Pin Code" test="cell-pinNo"><input {...bind("pinNo")} maxLength={6} /></Field>
-            <Field label="3.2 Email ID" test="cell-email"><input type="email" {...bind("email")} /></Field>
-            <Field label="3.3 Phone No" test="cell-phoneNo"><input {...bind("phoneNo")} maxLength={12} /></Field>
-          </div>
-          <div className="field-grid cols-1">
-            <Field label="3.4 Aadhaar Card No" test="cell-aadhaarNo"><input {...bind("aadhaarNo")} maxLength={12} /></Field>
-          </div>
-
-          {/* Section 4 */}
-          <div className="section-title">4. Bank Details</div>
-          <div className="field-grid">
-            <Field label="4.1 Bank Name" test="cell-bankName"><input {...bind("bankName")} /></Field>
-            <Field label="4.2 Bank Address" test="cell-bankAddress"><input {...bind("bankAddress")} /></Field>
-            <Field label="4.3 IFSC Code" test="cell-ifscCode"><input {...bind("ifscCode")} maxLength={11} style={{ textTransform: "uppercase" }} /></Field>
-            <Field label="4.4 Account Name" test="cell-accountName"><input {...bind("accountName")} /></Field>
-            <Field label="4.5 Account Number" test="cell-accountNumber"><input {...bind("accountNumber")} /></Field>
-            <Field label=""><span style={{ fontSize: 10, color: "#55617a" }}>Confirm details before final approval</span></Field>
-          </div>
-
-          {/* Workflow signers */}
-          <div className="section-title">5. Approval Workflow</div>
-          <div className="field-grid cols-3">
-            <Field label="Created By" test="cell-createdBy"><input {...bind("createdBy")} /></Field>
-            <Field label="Checked By" test="cell-checkedBy"><input {...bind("checkedBy")} /></Field>
-            <Field label="Prepared By" test="cell-preparedBy"><input {...bind("preparedBy")} /></Field>
-            <Field label="Approved By" test="cell-approvedBy"><input {...bind("approvedBy")} /></Field>
-            <Field label="Approval Date" test="cell-approvalDate"><input value={vendor.approvalDate || ""} readOnly /></Field>
-            <Field label="Expiry Date (Auto +2Y)" test="cell-expiryDate"><input value={vendor.expiryDate || ""} readOnly /></Field>
-          </div>
-
-          <div className="sign-row">
-            <div className="sig">Created By</div>
-            <div className="sig">Checked By</div>
-            <div className="sig">Prepared By</div>
-            <div className="sig">Approved By</div>
-          </div>
-        </div>
-
-        <ActionBar
+        <TopActionBar
+          searchPlaceholder="Search Vendor Code / Temp ID / Name"
+          onSearch={handleSearch}
+          nextLabel="Page 2 (Bill Processing) →"
+          nextTo="/bill"
           onNew={handleNew}
           onSave={handleSave}
           onEdit={handleEdit}
           onSubmit={handleSubmit}
           onApprove={handleApprove}
+          onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
-          onPrint={handlePrint}
-          disabled={{ approve: vendor.status === "Approved" }}
+          disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 }}
         />
+
+        <div className="a4" data-testid="vendor-page">
+          <Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" />
+          <StepTabs step={vendor.step} />
+
+          {vendor.step === 3 && vendor.vendorCode && (
+            <div className="approval-banner" data-testid="approval-banner">
+              <CheckCircle2 size={18} />
+              <span>VENDOR APPROVED · PERMANENT VENDOR CODE:</span>
+              <span className="code" data-testid="approved-vendor-code">{vendor.vendorCode}</span>
+              <span className="exp">VALID TILL: {vendor.expiryDate}</span>
+            </div>
+          )}
+
+          <div className="section">
+            <div className="sec-head">System Reference &amp; Primary Key</div>
+            <div className="sec-body">
+              <div className="row cols-3">
+                <F label="Temporary Ref ID (Active till Approval)">
+                  <input className="pill" data-testid="field-tempRefId" value={vendor.tempRefId} readOnly />
+                </F>
+                <F label="Permanent Vendor Code (Primary Key)">
+                  <input className="pill-generated" data-testid="field-vendorCode"
+                    value={vendor.vendorCode || "Generated on Step 3 Approval"} readOnly />
+                </F>
+                <F label="Current Status">
+                  <input className="pill-status" data-testid="field-currentStatus" value={STEP_LABEL[vendor.step]} readOnly />
+                </F>
+              </div>
+            </div>
+          </div>
+
+          <div className="section">
+            <div className="sec-head">Project &amp; Site Details</div>
+            <div className="sec-body">
+              <div className="row cols-2">
+                <F label="Project Code"><input placeholder="e.g. PRJ-2026-NNA" {...bind("projectCode")} /></F>
+                <F label="Project Location / Site Name"><input placeholder="e.g. Naini Site / Prayagraj" {...bind("siteName")} /></F>
+              </div>
+            </div>
+          </div>
+
+          <div className="section">
+            <div className="sec-head">1. Vendor Basic, Contact &amp; Address Details</div>
+            <div className="sec-body">
+              <div className="row cols-2">
+                <F label="Vendor / Firm Name" req><input placeholder="Full Firm Name" {...bind("firmName")} /></F>
+                <F label="Contact Person Name"><input placeholder="Contact Person Name" {...bind("contactPerson")} /></F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
+                <F label="Mobile Number" req><input placeholder="Phone Number" maxLength={12} {...bind("mobileNo")} /></F>
+                <F label="Vendor Email ID (For Work Orders)"><input type="email" placeholder="vendor@domain.com" {...bind("email")} /></F>
+                <F label="GST Number">
+                  <input placeholder="GSTIN Number" maxLength={15}
+                    {...bind("gstNo", { style: { textTransform: "uppercase" } })} />
+                </F>
+              </div>
+              <div className="row cols-2" style={{ marginTop: 10 }}>
+                <F label="PAN Number">
+                  <input placeholder="PAN Number" maxLength={10}
+                    {...bind("panNo", { style: { textTransform: "uppercase" } })} />
+                </F>
+                <F label="Registered Street Address"><input placeholder="Premises No, Street, Area" {...bind("streetAddress")} /></F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
+                <F label="City"><input placeholder="City" {...bind("city")} /></F>
+                <F label="State"><input placeholder="State" {...bind("state")} /></F>
+                <F label="Pincode / PIN Number"><input placeholder="PIN Code" maxLength={6} {...bind("pincode")} /></F>
+              </div>
+            </div>
+          </div>
+
+          <div className="section">
+            <div className="sec-head">2. Vendor Bank Details</div>
+            <div className="sec-body">
+              <div className="row cols-3">
+                <F label="Bank Name"><input placeholder="Bank Name" {...bind("bankName")} /></F>
+                <F label="Branch Name"><input placeholder="Branch Name / City" {...bind("branchName")} /></F>
+                <F label="IFSC Code">
+                  <input placeholder="IFSC CODE (E.G. SBIN0001234)" maxLength={11}
+                    {...bind("ifscCode", { style: { textTransform: "uppercase" } })} />
+                </F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
+                <F label="Account Holder Name"><input placeholder="Name as per Bank" {...bind("accountHolder")} /></F>
+                <F label="Account Number"><input placeholder="Bank Account Number" {...bind("accountNumber")} /></F>
+                <F label="Account Type">
+                  <select {...bind("accountType")}>
+                    {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </F>
+              </div>
+            </div>
+          </div>
+
+          <div className="section">
+            <div className="sec-head">3. Workflow &amp; Approvals</div>
+            <div className="sec-body">
+              <div className="substep">
+                <div className="substep-title">[STEP 1] CREATED BY</div>
+                <div className="row cols-2">
+                  <F label="Created By (Fill Name)"><input placeholder="Name of Creator" {...bind("createdByName")} /></F>
+                  <F label="Creation Date"><input type="date" {...bind("creationDate")} /></F>
+                </div>
+              </div>
+              <div className="substep">
+                <div className="substep-title">[STEP 2] CHECKED &amp; PREPARED BY</div>
+                <div className="row cols-2">
+                  <F label="Checked By (Name)"><input placeholder="Checker Name" {...bind("checkedByName")} /></F>
+                  <F label="Prepared By (Name with Purchase Manager)"><input placeholder="e.g. Divya Srivastava (Purchase Manager)" {...bind("preparedByName")} /></F>
+                </div>
+              </div>
+              <div className="substep">
+                <div className="substep-title">[STEP 3] FINAL APPROVAL &amp; EXPIRY</div>
+                <div className="row cols-3">
+                  <F label="Approved By (Name with Account Manager)"><input placeholder="e.g. Komal Srivastava (Account Manager)" {...bind("approvedByName")} /></F>
+                  <F label="Date of Approval"><input className="date-highlight" value={vendor.approvalDate || ""} readOnly placeholder="dd / mm / yyyy" /></F>
+                  <F label="Expiry Date (2 Years Valid)"><input className="date-highlight" value={vendor.expiryDate || ""} readOnly placeholder="dd / mm / yyyy" /></F>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="signs">
+            <div className="sig"><div className="title">Prepared By</div><div className="role">(Purchase Dept.)</div></div>
+            <div className="sig"><div className="title">Checked By</div><div className="role">(Audit &amp; Verification)</div></div>
+            <div className="sig"><div className="title">Approved By</div><div className="role">(Account Manager / Partner)</div></div>
+          </div>
+
+          <div className="bottom-actions">
+            <div />
+            <button className="btn-color btn-next" data-testid="btn-next-step" onClick={() => nav("/bill")}>
+              <span className="lbl">Next Step → (Vendor Bill Processing)</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );
