@@ -187,6 +187,8 @@ export const createBillDraft = () => {
     itemDescription: "",
     quantity: 0,
     uom: "Nos",
+    // Item & Work Scope Breakdown Details
+    items: [],
     // Bill
     billNo: "",
     billDate: new Date().toISOString().slice(0, 10),

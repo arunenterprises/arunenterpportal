@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only regression on Vendor Management footer refactor (prev/next nav + narrow search + single-row footer). Login OK. Nav buttons correct on all 3 pages (Vendor: next-only, Bill: prev+next, Final: prev-only) and all navigations (/vendor <-> /bill <-> /final) work. Search box width = 180px (< 260px) on all pages. All 10 required footer testids present on all pages (btn-new/save/edit/submit/approve/export/print/search/change-logo/logout + search-input). Footer bar height = 51px (< 70px) on all pages. Export dropdown opens upward showing btn-export-json + btn-export-excel. E2E save on /vendor works (toast 'Saved'). 2 real issues found: (1) footer children are NOT vertically aligned — search-wrap top=1038px while all buttons/user-chip top=1042px (rounded), so exactly-one-row spec is violated by 4px on all three pages; visually it's still a single visual row (bar height 51px) but the search input sits ~4px above the buttons. (2) On /bill page the TopActionBar receives variant='dark' but the `.dark` class is (intermittently) not applied — screenshot shows a white/light footer instead of the expected navy #0f2b6b background. classList.contains('dark') returned false at the post-E2E navigation. Also captured a hydration warning in console on /bill (<span> as child of <option> in the GST_SLABS select — instrumentation artifact / VE dynamic wrapper, non-blocking).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TopActionBar", "issue": "search-wrap is 4px higher than buttons/user-chip (top 1038 vs 1042). Rounded .top values are NOT all equal; violates 'exactly one row (uniqueTops.length===1)' spec on /vendor, /bill and /final. Visually still one row, but not pixel-aligned. Likely because `.search-wrap` uses `align-items: stretch` while `.top-action` centers children — the form element grows to natural height causing offset. Fix: give `.search-wrap` `align-self: center` and/or a fixed height matching `.btn-color` (~30px), or set `align-items: center` on children consistently.", "selector": ".top-action > .search-wrap", "priority": "MEDIUM"},
+      {"component": "BillProcessing footer", "issue": "variant='dark' is passed to TopActionBar but the rendered footer appears light/white (screenshot). classList.contains('dark') returned false on the /bill footer after post-E2E navigation, though earlier visit was not explicitly verified. Expected `.top-action.dark` navy background (#0f2b6b). Please verify the variant prop is actually landing on the element every render and that no override is stripping the class.", "selector": "[data-testid=top-action-bar].dark", "priority": "HIGH"},
+      {"component": "BillProcessing <select> options", "issue": "React hydration warning: '<span> cannot be a child of <option>' for GST_SLABS options. Appears to be caused by VE dynamic wrappers injecting spans; may only surface in dev/instrumented build but pollutes console and can cause hydration mismatches.", "selector": "select > option (GST slabs)", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Footer bar", "issues": ["search-wrap not vertically centered with buttons (4px offset)", "Dark variant not visible on /bill — footer appears light instead of navy"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Vertically center .search-wrap with buttons so all footer children share the exact same rounded top (fix: `align-self:center` or fixed height 30px on .search-wrap).",
+    "Investigate why `.dark` variant class isn't rendering on /bill footer (screenshot confirms light background). Ensure variant='dark' prop → `top-action dark` className is present on the DOM after all navigations.",
+    "Silence/eliminate the <span>-in-<option> hydration warning in BillProcessing (GST_SLABS select)."
+  ],
+  "critical_code_review_comments": [
+    "App.css has duplicate `.search-wrap` blocks (lines 67 and 97) — consolidate to avoid override confusion.",
+    "TopActionBar file organization is fine but Reports.jsx is >440 lines mixing PV logic + user management + summary — consider splitting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "80%"},
+  "test_credentials": "admin / admin@123 (from login screen default; test_credentials.md not required)",
+  "seed_data_creation": "One vendor draft saved via E2E flow (Firm='TEST_FIRM_X', Mobile='9876543210'). Stored in localStorage only.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login placeholder is 'admin' (lowercase) and submit is button text 'Sign in'. Use `page.get_by_text('Sign in', exact=True)`. Fields on vendor page use placeholders 'Full Firm Name' and 'Phone Number'. Footer bar test at width=1920 — bar is 51px, children tops [1038 (search-wrap), 1042 (all buttons/user-chip)]. Nav testids are btn-prev-page / btn-next-page. Dark variant is expected on /bill footer.",
+  "rca of the issue": "1) Single-row failure RCA: .top-action uses `align-items:center` (line 55) but .search-wrap has `align-items:stretch` (line 70) which makes the form/wrap start at container top instead of centered — 4px offset. Fix by giving search-wrap explicit height ≈30px or `align-self:center`. 2) Dark variant RCA: unverified but suspect either a stale rerender or the `variant` prop not being passed as literal 'dark' on some code path. Reproduce by navigating /vendor → /bill via btn-next-page and inspecting the top-action element's classList."
+}

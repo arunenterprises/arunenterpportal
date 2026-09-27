@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { CheckCircle2, Search } from "lucide-react";import Header from "../components/Header";
+import { CheckCircle2, Search, Plus, X } from "lucide-react";
+import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import {
@@ -12,6 +13,12 @@ import {
 
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
+const CATEGORY_SCOPES = [
+  "Civil Work", "Electrical Work", "Plumbing & Sanitary", "Steel & Fabrication",
+  "Painting & Finishing", "Interior / Woodwork", "Material Supply",
+  "Labour / Manpower", "Consulting / Design", "Other",
+];
+const ITEM_UNITS = ["Sft/MT", "Nos", "Kg", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
 const MEASUREMENT_OPTIONS = ["Verified & OK", "Pending", "Rejected"];
 const WO_RATE_OPTIONS = ["Matched with WO", "Rate Deviation", "Not Verified"];
 const GST_TDS_OPTIONS = ["TDS & GST Verified", "Pending", "Discrepancy Found"];

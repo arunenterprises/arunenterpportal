@@ -66,6 +66,8 @@ body {
 }
 .search-wrap {
   flex: 0 0 auto;
+  align-self: center;
+  height: 32px;
   width: 180px; min-width: 140px;
   display: flex; align-items: stretch;
   border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
@@ -95,9 +97,7 @@ body {
 .top-action.dark .user-chip { color: #fff; border-color: #1e3a8a; background: rgba(255,255,255,.05); }
 .top-action.dark .user-chip button { color: #cbd5e1; }
 .search-wrap {
-  display: flex; align-items: stretch;
-  border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
-  background: #fff;
+  display: none;
 }
 .btn-color:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .btn-color:active { transform: translateY(0); }
@@ -335,6 +335,73 @@ body {
 .pill-tag.paid { background: #dcfce7; color: #166534; }
 .pill-tag.overdue { background: #fee2e2; color: #991b1b; }
 
+/* ---- Items & Work Scope Breakdown Table ---- */
+.section-title-inline {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--strip);
+  color: var(--brand);
+  font-size: 11.5px; letter-spacing: 1.5px;
+  text-transform: uppercase; font-weight: 700;
+  border-bottom: 1px solid var(--line);
+}
+.section-title-inline .btn-add-row {
+  background: var(--brand-2); color: #fff; border: none;
+  padding: 5px 12px; border-radius: 4px; font: inherit;
+  font-size: 11px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  text-transform: none; letter-spacing: .3px;
+}
+.section-title-inline .btn-add-row:hover { filter: brightness(1.1); }
+.items-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.items-table th {
+  background: #eef4fb; color: var(--brand);
+  padding: 8px 8px; text-align: left; font-size: 11px;
+  letter-spacing: .3px; font-weight: 700;
+  border-bottom: 1px solid var(--line);
+}
+.items-table td {
+  padding: 4px 6px; border-bottom: 1px solid var(--line-2);
+  background: #fff;
+}
+.items-table tr:last-child td { border-bottom: none; }
+.items-table input,
+.items-table select {
+  width: 100%; padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px; font: inherit;
+  font-size: 12px; outline: none;
+  background: #fff;
+}
+.items-table input:focus,
+.items-table select:focus {
+  border-color: var(--brand-2);
+  box-shadow: 0 0 0 2px rgba(29,78,216,.12);
+}
+.items-table input[readonly] {
+  background: #f0fdf4; color: #15803d; font-weight: 700;
+  border-color: #bbf7d0;
+}
+.items-table .col-del { width: 44px; text-align: center; }
+.items-table .btn-del-row {
+  background: var(--danger); color: #fff; border: none;
+  border-radius: 3px; padding: 6px 10px;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.items-table .btn-del-row:hover { filter: brightness(1.1); }
+.items-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.items-table tfoot td {
+  background: #fff9e8; font-weight: 800; color: var(--orange-2);
+  border-top: 1px solid var(--accent);
+  padding: 8px 10px;
+}
+.items-empty {
+  padding: 14px; text-align: center;
+  color: var(--muted); font-size: 12px;
+  background: #fafcfe;
+}
 /* ---- Signatures ---- */
 .signs {
   display: grid; grid-template-columns: repeat(3, 1fr);
