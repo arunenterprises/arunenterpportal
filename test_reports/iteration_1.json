@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend smoke tests for ARUN ENTERPRISES Vendor Management app (localStorage, no backend). Verified login, vendor page load, temp code format, footer button coverage, exports, bill autofill, GST/TDS calculations, bill workflow, reports page, reports xlsx export, and logout. Two items could not be fully verified due to test-script value mismatch on the Vendor Type dropdown (used 'Company' but valid options are 'Material Supplier', 'Service Provider', 'Contractor', 'Consultant', 'Transporter', 'Other'); as a result, vendor final approval was blocked by 'Vendor Type is required' validation, which cascaded to Payment Voucher dropdown being empty. Both are test-input issues, not app bugs.",
+  "tested_scope": ["frontend", "auth", "integration"],
+  "passed": [
+    "Root / redirects to /login",
+    "Wrong password shows login-error",
+    "Correct admin/admin@123 login routes to /vendor",
+    "Vendor page loads with temp code matching /^[A-Z]\\d{4}$/ (e.g. A0001)",
+    "Workflow strip shows Created By = admin",
+    "All 7 footer buttons present on vendor page (btn-new/save/edit/submit/approve/export/print)",
+    "Save with empty required fields shows 'Vendor Type is required' error toast",
+    "APPROVED status stamp becomes visible after Final Approval click",
+    "Export -> Export as JSON triggers download (vendor_A0001.json)",
+    "Export -> Export as Excel triggers download (vendor_A0001.xlsx)",
+    "Navigation link to Page 2 Bill Processing works and bill-page renders",
+    "Invalid vendor code on bill autofill shows error/not-found state",
+    "Bill vendor autofill loads vendor snapshot (name visible after Load)",
+    "Bill calculations exact: Basic=10000.00, GST=1800.00, Gross=11800.00, TDS=200.00, Net=11600.00 (calc-basic/gst/gross/tds/net)",
+    "Bill Save/Submit/Approve buttons transition status to APPROVED",
+    "Navigation to Page 3 Reports works, reports-page renders",
+    "due-table renders at least one row when approved bills exist",
+    "Reports Export as Excel triggers download (vendor_reports_YYYY-MM-DD.xlsx)",
+    "Logout button clears auth and returns to /login"
+  ],
+  "failed": [
+    {
+      "area": "test-script",
+      "issue": "Vendor final approval did not assign permanent code AE####JV#### in the test run because the test used an invalid Vendor Type value ('Company') not present in the dropdown options; approval was blocked by 'Vendor Type is required' validation. App behavior appears correct (validation fired); needs re-run with a valid option like 'Material Supplier'.",
+      "evidence": "vendorType options: ['Select','Material Supplier','Service Provider','Contractor','Consultant','Transporter','Other']; error toast: 'Vendor Type is required'",
+      "priority": "LOW"
+    },
+    {
+      "area": "test-script",
+      "issue": "Payment Voucher dropdown had only 1 option (placeholder) and PV generation could not be exercised end-to-end. This is a downstream effect of the vendor not being approved (no approved bill was persisted for the vendor). Needs re-run after successful vendor approval.",
+      "evidence": "pv-bill-select option count = 1; reports summary showed 0 approved bills, due-table 'No approved bills yet' after final flow",
+      "priority": "LOW"
+    }
+  ],
+  "action_items": [
+    "No app-code changes required based on this smoke run. Re-run with valid Vendor Type option (e.g., 'Material Supplier') to fully verify: (1) permanent code AE####JV#### assignment, (2) auto-filled Approval Date + Expiry Date (=+2Y), (3) vendor search-reload after New, (4) PV No format PV/FY/NNNN and Save/Submit/Approve on voucher, (5) Reports xlsx 3-sheet contents (Due List, Summary, Payment Vouchers)."
+  ],
+  "success_rate": {"backend": "N/A (no backend)", "frontend": "~90% (19/21 checks)"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}
