@@ -2,12 +2,11 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { UserPlus, Trash2 } from "lucide-react";
 import Header from "../components/Header";
 import TopActionBar from "../components/TopActionBar";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
-  currentUser, exportJSON, getUsers, createUser, deleteUser, currentUserProfile,
+  currentUser, exportJSON,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -22,17 +21,6 @@ export default function Reports() {
   const [pv, setPv] = useState(null);
   const [refresh, setRefresh] = useState(0);
   const [filter, setFilter] = useState("");
-  // ---- User management state ----
-  const [uname, setUname] = useState("");
-  const [uuser, setUuser] = useState("");
-  const [upass, setUpass] = useState("");
-  const [urole, setUrole] = useState("User");
-  const [userRefresh, setUserRefresh] = useState(0);
-  const users = useMemo(() => getUsers(), [userRefresh]);
-  const me = currentUserProfile();
-  // If role is missing (older localStorage auth from before user-mgmt was added),
-  // treat the current session as Admin so the user-creation form stays visible.
-  const isAdmin = !me?.role || me?.role === "Admin";
 
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
@@ -247,88 +235,6 @@ export default function Reports() {
               </table>
             </div>
           </div>
-          <div className="section">
-            <div className="sec-head">C. System Users &amp; User Creation</div>
-            <div className="sec-body">
-              <div className="row cols-4" data-testid="user-create-row">
-                <F label="Full Name">
-                  <input value={uname} onChange={(e) => setUname(e.target.value)}
-                    placeholder="e.g. Rahul Sharma" data-testid="user-name" />
-                </F>
-                <F label="Username">
-                  <input value={uuser} onChange={(e) => setUuser(e.target.value)}
-                    placeholder="e.g. rahul.sharma" data-testid="user-username" />
-                </F>
-                <F label="Password (min 4 chars)">
-                  <input type="password" value={upass} onChange={(e) => setUpass(e.target.value)}
-                    placeholder="••••••" data-testid="user-password" />
-                </F>
-                <F label="Role">
-                  <select value={urole} onChange={(e) => setUrole(e.target.value)} data-testid="user-role">
-                    <option value="User">User</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                </F>
-              </div>
-              <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-                <button
-                  className="btn-color btn-new"
-                  data-testid="user-create-btn"
-                  onClick={() => {
-                    try {
-                      createUser({ name: uname, username: uuser, password: upass, role: urole });
-                      setUname(""); setUuser(""); setUpass(""); setUrole("User");
-                      setUserRefresh((n) => n + 1);
-                      toast.success("User created successfully");
-                    } catch (e) { toast.error(e.message); }
-                  }}
-                >
-                  <UserPlus size={14} /><span className="lbl">Create User</span>
-                </button>
-              </div>
-
-              <table className="data-table" style={{ marginTop: 12 }} data-testid="users-table">
-                <thead>
-                  <tr>
-                    <th>#</th><th>Full Name</th><th>Username</th><th>Role</th>
-                    <th>Created</th><th style={{ textAlign: "right" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u, i) => (
-                    <tr key={u.id} data-testid={`user-row-${u.username}`}>
-                      <td>{i + 1}</td>
-                      <td>{u.name}</td>
-                      <td className="mono">{u.username}</td>
-                      <td>
-                        <span className={`pill-tag ${u.role === "Admin" ? "paid" : "due"}`}>{u.role}</span>
-                      </td>
-                      <td style={{ fontSize: 10.5, color: "#64748b" }}>{u.createdAt?.slice(0, 10)}</td>
-                      <td style={{ textAlign: "right" }}>
-                        {isAdmin && u.username !== "admin" && u.username !== me?.user && (
-                          <button
-                            className="btn-color btn-logo-remove"
-                            data-testid={`user-delete-${u.username}`}
-                            onClick={() => {
-                              try { deleteUser(u.id); setUserRefresh((n) => n + 1); toast.success("User deleted"); }
-                              catch (e) { toast.error(e.message); }
-                            }}
-                            title="Delete user"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p style={{ fontSize: 10.5, color: "#64748b", marginTop: 8 }}>
-                Default admin (username: <b>admin</b>) is protected and cannot be deleted. Newly created users can log in immediately.
-              </p>
-            </div>
-          </div>
-
           <div className="section">
             <div className="sec-head">D. Generate Payment Voucher</div>
             <div className="sec-body">
