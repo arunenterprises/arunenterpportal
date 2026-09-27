@@ -39,7 +39,10 @@ export default function Reports() {
 
   const dueRows = approvedBills.map((b) => {
     const c = computeBill(b);
-    const paid = payments.filter((p) => p.billId === b.id).reduce((s, p) => s + Number(p.amount || 0), 0);
+    // Only Approved vouchers count as paid; Draft/Submitted don't reduce due
+    const paid = payments
+      .filter((p) => p.billId === b.id && p.status === "Approved")
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
     const balance = +(c.netPayable - paid).toFixed(2);
     const isOverdue = b.dueDate && b.dueDate < today && balance > 0;
     return {
@@ -71,6 +74,42 @@ export default function Reports() {
   };
 
   const handleNew = () => { setSelectedBillId(""); setPv(null); toast.success("New voucher draft"); };
+
+  // ---- Payment management (Edit / Delete / Reschedule after approval) ----
+  const reopenPayment = (pvNo) => {
+    const list = getPayments();
+    const idx = list.findIndex((x) => x.pvNo === pvNo);
+    if (idx < 0) return;
+    list[idx] = { ...list[idx], status: "Draft", approvedByName: "", approvalDate: "" };
+    savePayments(list);
+    setPv(list[idx]);
+    setRefresh((n) => n + 1);
+    toast.success(`${pvNo} reopened · Bill re-added to Due List`);
+  };
+  const deletePayment = (pvNo) => {
+    if (!window.confirm(`Delete voucher ${pvNo}? Bill will re-appear in Due List.`)) return;
+    const list = getPayments().filter((x) => x.pvNo !== pvNo);
+    savePayments(list);
+    if (pv?.pvNo === pvNo) setPv(null);
+    setRefresh((n) => n + 1);
+    toast.success(`${pvNo} deleted · Bill moved back to Due List`);
+  };
+  const reschedulePayment = (pvNo, newDate) => {
+    if (!newDate) return;
+    const list = getPayments();
+    const idx = list.findIndex((x) => x.pvNo === pvNo);
+    if (idx < 0) return;
+    list[idx] = { ...list[idx], date: newDate };
+    savePayments(list);
+    if (pv?.pvNo === pvNo) setPv(list[idx]);
+    setRefresh((n) => n + 1);
+    toast.success(`${pvNo} rescheduled to ${newDate}`);
+  };
+  const loadVoucher = (pvNo) => {
+    const p = payments.find((x) => x.pvNo === pvNo);
+    if (p) { setPv(p); setSelectedBillId(p.billId || ""); toast.info(`Loaded ${pvNo}`); }
+  };
+
   const handleSave = () => {
     if (!pv) { toast.error("Generate a voucher first"); return; }
     const list = getPayments();
@@ -269,6 +308,92 @@ export default function Reports() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+          <div className="section">
+            <div className="sec-head">C. Payments Register · Edit / Delete / Reschedule</div>
+            <div className="sec-body">
+              {payments.length === 0 ? (
+                <div style={{ padding: 14, color: "#64748b", fontSize: 12, textAlign: "center" }}>
+                  No payment vouchers generated yet.
+                </div>
+              ) : (
+                <table className="data-table" data-testid="payments-register">
+                  <thead><tr>
+                    <th>PV No</th>
+                    <th>Vendor</th>
+                    <th>Bill No</th>
+                    <th>Payment Date</th>
+                    <th style={{ textAlign: "right" }}>Amount (₹)</th>
+                    <th>Mode</th>
+                    <th>Status</th>
+                    <th style={{ minWidth: 260 }}>Actions</th>
+                  </tr></thead>
+                  <tbody>
+                    {payments.map((p) => (
+                      <tr key={p.pvNo} data-testid={`pay-row-${p.pvNo}`}>
+                        <td className="mono">
+                          <button
+                            onClick={() => loadVoucher(p.pvNo)}
+                            data-testid={`pay-load-${p.pvNo}`}
+                            style={{ background: "transparent", border: "none", color: "#1d4ed8", cursor: "pointer", textDecoration: "underline", padding: 0, font: "inherit" }}
+                            title="Load voucher below to view/edit"
+                          >
+                            {p.pvNo}
+                          </button>
+                        </td>
+                        <td>{p.vendorName || p.vendorCode}</td>
+                        <td>{p.billNo}</td>
+                        <td>
+                          <input
+                            type="date"
+                            value={p.date || ""}
+                            onChange={(e) => reschedulePayment(p.pvNo, e.target.value)}
+                            data-testid={`pay-date-${p.pvNo}`}
+                            style={{ padding: "4px 6px", fontSize: 11, border: "1px solid #cfd8e3", borderRadius: 4 }}
+                            title="Change payment date"
+                          />
+                        </td>
+                        <td className="num">{Number(p.amount || 0).toFixed(2)}</td>
+                        <td>{p.mode}</td>
+                        <td>
+                          <span className={`pill-tag ${p.status === "Approved" ? "paid" : "due"}`}>{p.status}</span>
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                            {p.status === "Approved" && (
+                              <button
+                                onClick={() => reopenPayment(p.pvNo)}
+                                data-testid={`pay-reopen-${p.pvNo}`}
+                                style={{ padding: "3px 8px", fontSize: 10.5, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                                title="Reopen for edit"
+                              >
+                                Reopen
+                              </button>
+                            )}
+                            <button
+                              onClick={() => loadVoucher(p.pvNo)}
+                              data-testid={`pay-edit-${p.pvNo}`}
+                              style={{ padding: "3px 8px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                              title="Load voucher below to edit"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deletePayment(p.pvNo)}
+                              data-testid={`pay-delete-${p.pvNo}`}
+                              style={{ padding: "3px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                              title="Delete voucher and free the bill"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
           <div className="section">
