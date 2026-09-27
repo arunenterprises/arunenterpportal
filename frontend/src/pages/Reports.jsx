@@ -293,17 +293,36 @@ export default function Reports() {
                         {["NEFT", "RTGS", "IMPS", "UPI", "Cheque", "Cash"].map((m) => <option key={m} value={m}>{m}</option>)}
                       </select>
                     </F>
+                  </div>
+                  <div className="row cols-3" style={{ marginTop: 10 }}>
                     <F label="Bill Ref"><input value={pv.billRefNo} readOnly /></F>
                     <F label="Bill No"><input value={pv.billNo} readOnly /></F>
                     <F label="Vendor Code"><input value={pv.vendorCode} readOnly /></F>
+                  </div>
+                  <div className="row cols-2" style={{ marginTop: 10 }}>
                     <F label="Vendor Name"><input value={pv.vendorName} readOnly /></F>
                     <F label="Bank"><input value={pv.bankName} readOnly /></F>
+                  </div>
+                  <div className="row cols-3" style={{ marginTop: 10 }}>
                     <F label="IFSC"><input value={pv.ifscCode} readOnly /></F>
                     <F label="Account Holder"><input value={pv.accountName} readOnly /></F>
                     <F label="Account Number"><input value={pv.accountNumber} readOnly /></F>
+                  </div>
+                  <div className="row cols-1" style={{ marginTop: 10 }}>
                     <F label="Amount (₹)">
                       <input type="number" step="0.01" min="0" value={pv.amount}
                         onChange={(e) => setPv({ ...pv, amount: e.target.value })} data-testid="pv-amount" />
+                    </F>
+                  </div>
+                  <div className="row cols-1" style={{ marginTop: 10 }}>
+                    <F label="Amount (In Words)">
+                      <input
+                        className="pill-generated"
+                        value={amountToWords(pv.amount)}
+                        readOnly
+                        data-testid="pv-amount-words"
+                        style={{ fontStyle: "italic", letterSpacing: ".2px" }}
+                      />
                     </F>
                   </div>
                 </div>
@@ -323,6 +342,17 @@ export default function Reports() {
                         <tr className="total"><td>Voucher Amount</td><td className="num" data-testid="pv-voucher-amount">{Number(pv.amount || 0).toFixed(2)}</td></tr>
                       </tbody>
                     </table>
+                  </div>
+                  <div className="row cols-1" style={{ marginTop: 10 }}>
+                    <F label="Voucher Amount (In Words)">
+                      <input
+                        className="pill-generated"
+                        value={amountToWords(pv.amount)}
+                        readOnly
+                        data-testid="pv-breakup-words"
+                        style={{ fontStyle: "italic", letterSpacing: ".2px" }}
+                      />
+                    </F>
                   </div>
                 </div>
               </div>
