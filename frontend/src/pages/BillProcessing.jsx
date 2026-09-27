@@ -298,17 +298,19 @@ export default function BillProcessing() {
                 <F label="Vendor / Firm Name">
                   <input value={vendor?.firmName || ""} readOnly data-testid="fetched-firmName" />
                 </F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="GST Number">
                   <input value={vendor?.gstNo || ""} readOnly data-testid="fetched-gst" />
                 </F>
-              </div>
-              <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="Mobile Number">
                   <input value={vendor?.mobileNo || ""} readOnly data-testid="fetched-mobile" />
                 </F>
                 <F label="Vendor Email ID">
                   <input value={vendor?.email || ""} readOnly />
                 </F>
+              </div>
+              <div className="row cols-1" style={{ marginTop: 10 }}>
                 <F label="Bank Name &amp; Account No.">
                   <input
                     value={vendor ? `${vendor.bankName || ""} / ${vendor.accountNumber || ""}` : ""}
