@@ -22,7 +22,7 @@ function App() {
           <Route path="/bill" element={<RequireAuth><BillProcessing /></RequireAuth>} />
           <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/reports" element={<Navigate to="/final" replace />} />
-          <Route path="/" element={<Navigate to={isAuthed() ? "/home" : "/login"} replace />} />
+          <Route path="/" element={<Navigate to={isAuthed() ? "/vendor" : "/login"} replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

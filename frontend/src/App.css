@@ -479,6 +479,41 @@ body {
 }
 .login-card .submit:hover { background: var(--brand); }
 
+/* ---- Home welcome banner ---- */
+.home-a4 {
+  display: flex; flex-direction: column;
+}
+.home-a4 .welcome {
+  margin: auto;
+}
+.welcome {
+  margin: 40px auto 0;
+  padding: 44px 32px;
+  max-width: 640px;
+  border: 1px dashed #1e3a8a;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eef4fb 0%, #fef7e0 100%);
+  text-align: center;
+}
+.welcome-lead {
+  font-size: 12px; letter-spacing: 4px;
+  color: var(--muted); text-transform: uppercase;
+  font-weight: 600;
+}
+.welcome-title {
+  margin-top: 6px;
+  font-size: 34px; letter-spacing: 6px;
+  color: var(--brand);
+  font-weight: 800;
+  font-family: "Georgia", "Cambria", serif;
+}
+.welcome-sub {
+  margin-top: 6px;
+  font-size: 15px; letter-spacing: 2px;
+  color: var(--brand-2);
+  font-weight: 600;
+}
+
 /* ---- Print ---- */
 @media print {
   body, html, #root, .app-shell { background: #fff; }

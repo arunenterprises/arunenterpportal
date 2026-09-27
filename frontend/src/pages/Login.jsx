@@ -12,7 +12,7 @@ export default function Login() {
   const submit = (e) => {
     e.preventDefault();
     if (login(u.trim(), p)) {
-      nav("/home");
+      nav("/vendor");
     } else {
       setErr("Invalid credentials. Use admin / admin@123");
     }
