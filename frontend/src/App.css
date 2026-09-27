@@ -37,25 +37,31 @@ body {
 .app-shell {
   min-height: 100vh;
   display: flex; flex-direction: column; align-items: center;
-  padding: 16px 16px 80px;
+  padding: 16px 16px 140px; /* leave space for fixed footer */
   background: #eef2f7;
 }
 
-/* ---- Top Action Bar (colored buttons like screenshot) ---- */
+/* ---- Action Bar (fixed bottom footer with all 7 workflow buttons) ---- */
 .top-action {
-  width: 210mm;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 40;
+  width: 100%;
+  background: #ffffff;
+  border: none;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 10px 16px;
   display: flex; align-items: center; gap: 8px;
   flex-wrap: wrap;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, .05);
-  margin-bottom: 12px;
+  justify-content: center;
+  box-shadow: 0 -8px 22px rgba(15, 23, 42, .08);
+  margin: 0;
 }
 .top-action.dark {
   background: #0f2b6b;
-  border-color: #0f2b6b;
+  border-top-color: #0f2b6b;
+  box-shadow: 0 -8px 22px rgba(15, 43, 107, .35);
 }
 .top-action.dark .search-wrap { background: #0b224f; border-color: #1e3a8a; }
 .top-action.dark .search-wrap input { color: #fff; }
@@ -105,10 +111,10 @@ body {
 
 .dd-wrap { position: relative; }
 .dd-menu {
-  position: absolute; top: calc(100% + 6px); right: 0;
+  position: absolute; bottom: calc(100% + 8px); right: 0;
   background: #fff; border: 1px solid var(--line); border-radius: 8px;
-  padding: 4px; min-width: 170px; z-index: 30;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+  padding: 4px; min-width: 170px; z-index: 50;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, .12);
 }
 .dd-menu button {
   width: 100%; text-align: left; padding: 8px 10px;
@@ -410,4 +416,3 @@ body {
   .a4:last-child { page-break-after: auto; }
   input, select, textarea { color: #000 !important; background: #fff !important; }
 }
-@page { size: A4 portrait; margin: 0; }
