@@ -260,7 +260,7 @@ export default function BillProcessing() {
                 <F label="Bill Ref No (Active till Approval)">
                   <input className="pill" value={bill.refNo} readOnly data-testid="field-refNo" />
                 </F>
-                <F label="Permanent Bill No (Primary Key)">
+                <F label="Permanent Bill No">
                   <input className="pill-generated" data-testid="field-permanentBillNo"
                     value={bill.permanentBillNo || "Generated on Final Approval"} readOnly />
                 </F>
@@ -280,7 +280,7 @@ export default function BillProcessing() {
             <div className="sec-body">
               <div className="row cols-3">
                 <div className="field-b">
-                  <label>Enter Vendor Code (Primary Key) <span className="req">*</span></label>
+                  <label>Enter Vendor Code <span className="req">*</span></label>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input className="mono" placeholder="E.G. AE0001JV2526"
                       value={vendorInput} onChange={(e) => setVendorInput(e.target.value)}
