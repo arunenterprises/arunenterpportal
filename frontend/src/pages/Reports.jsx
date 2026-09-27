@@ -7,7 +7,7 @@ import TopActionBar from "../components/TopActionBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
-  currentUser, exportJSON,
+  currentUser, exportJSON, amountToWords,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -206,6 +206,17 @@ export default function Reports() {
                 <F label="Paid"><input className="pill-generated" value={inr(summary.totalPaid)} readOnly data-testid="sum-paid" /></F>
                 <F label="Outstanding"><input className="pill-status" value={inr(summary.totalOutstanding)} readOnly data-testid="sum-outstanding" /></F>
                 <F label="Overdue Bills"><input className="pill-status" value={summary.overdue} readOnly data-testid="sum-overdue" /></F>
+              </div>
+              <div className="row cols-1" style={{ marginTop: 10 }}>
+                <F label="Total Net Payable (In Words)">
+                  <input
+                    className="pill-generated"
+                    value={amountToWords(summary.totalNet)}
+                    readOnly
+                    data-testid="sum-net-words"
+                    style={{ fontStyle: "italic", letterSpacing: ".2px" }}
+                  />
+                </F>
               </div>
             </div>
           </div>

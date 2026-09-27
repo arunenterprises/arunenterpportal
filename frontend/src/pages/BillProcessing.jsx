@@ -9,7 +9,7 @@ import TopActionBar from "../components/TopActionBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
-  BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny,
+  BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords,
 } from "../lib/store";
 
 const GST_SLABS = [0, 5, 12, 18, 28];
@@ -508,6 +508,17 @@ export default function BillProcessing() {
                 </F>
                 <F label="Net Payable Amount (₹)">
                   <input className="pill-generated" value={comp.netPayable.toFixed(2)} readOnly data-testid="calc-net" />
+                </F>
+              </div>
+              <div className="row cols-1" style={{ marginTop: 10 }}>
+                <F label="Net Payable Amount (In Words)">
+                  <input
+                    className="pill-generated"
+                    value={amountToWords(comp.netPayable)}
+                    readOnly
+                    data-testid="calc-net-words"
+                    style={{ fontStyle: "italic", letterSpacing: ".2px" }}
+                  />
                 </F>
               </div>
             </div>

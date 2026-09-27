@@ -362,6 +362,39 @@ export const isAuthed = () => !!read(KEYS.AUTH, null);
 export const currentUser = () => read(KEYS.AUTH, null)?.user || "";
 export const currentUserProfile = () => read(KEYS.AUTH, null);
 
+// ---- Number to Words (Indian numbering system: Lakh / Crore) ----
+export const amountToWords = (num) => {
+  const n = Math.abs(Number(num) || 0);
+  if (n === 0) return "Rupees Zero Only";
+  const rupees = Math.floor(n);
+  const paise = Math.round((n - rupees) * 100);
+  const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+    "Seventeen", "Eighteen", "Nineteen"];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const twoDigit = (x) => x < 20 ? a[x] : b[Math.floor(x / 10)] + (x % 10 ? " " + a[x % 10] : "");
+  const threeDigit = (x) => {
+    const h = Math.floor(x / 100), r = x % 100;
+    return (h ? a[h] + " Hundred" + (r ? " " : "") : "") + (r ? twoDigit(r) : "");
+  };
+  const toWords = (x) => {
+    if (x === 0) return "";
+    const cr = Math.floor(x / 10000000); x %= 10000000;
+    const lk = Math.floor(x / 100000); x %= 100000;
+    const th = Math.floor(x / 1000); x %= 1000;
+    const hu = x;
+    let out = "";
+    if (cr) out += twoDigit(cr) + " Crore ";
+    if (lk) out += twoDigit(lk) + " Lakh ";
+    if (th) out += twoDigit(th) + " Thousand ";
+    if (hu) out += threeDigit(hu);
+    return out.trim();
+  };
+  let result = "Rupees " + (toWords(rupees) || "Zero");
+  if (paise) result += " and " + toWords(paise) + " Paise";
+  return result + " Only";
+};
+
 // ---- Export helpers ----
 export const exportJSON = (data, filename) => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
