@@ -334,14 +334,9 @@ export default function Reports() {
               </p>
             </div>
           </div>
-        </div>
-
-        {/* Payment Voucher Page */}
-        <div className="a4" data-testid="voucher-page">
-          <Header formTitle="PAYMENT VOUCHER" />
 
           <div className="section">
-            <div className="sec-head">Generate Payment Voucher</div>
+            <div className="sec-head">D. Generate Payment Voucher</div>
             <div className="sec-body">
               <div className="row cols-3">
                 <F label="Approved Bill">
@@ -368,7 +363,7 @@ export default function Reports() {
           {pv && (
             <>
               <div className="section">
-                <div className="sec-head">Voucher Details</div>
+                <div className="sec-head">E. Voucher Details</div>
                 <div className="sec-body">
                   <div className="row cols-3">
                     <F label="PV Number"><input className="pill-generated" value={pv.pvNo} readOnly data-testid="pv-no" /></F>
@@ -395,7 +390,7 @@ export default function Reports() {
               </div>
 
               <div className="section">
-                <div className="sec-head">Breakup</div>
+                <div className="sec-head">F. Breakup</div>
                 <div className="sec-body">
                   <div className="compute">
                     <table>
@@ -413,7 +408,7 @@ export default function Reports() {
               </div>
 
               <div className="section">
-                <div className="sec-head">Workflow &amp; Approvals</div>
+                <div className="sec-head">G. Workflow &amp; Approvals (Voucher)</div>
                 <div className="sec-body">
                   <div className="row cols-3">
                     <F label="Created By"><input value={pv.createdByName} onChange={(e) => setPv({ ...pv, createdByName: e.target.value })} /></F>
