@@ -1,0 +1,24 @@
+{
+  "summary": "Retest of Temp Ref ID lazy-generation on /vendor. All 6 checklist items PASS plus both regressions (/final has exactly 1 .a4, /bill Section 2B btn-add-item-row adds a row).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bill Submission - GST slab select", "issues": ["Console hydration warning: <span> cannot be a child of <option>. React warning caused by wrapper span injected around option text. Not blocking, but should be cleaned up."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: after clicking Submit before Save, the earlier 'Vendor / Firm Name is required' toast remained visible when the next Save happened (sonner toast stacking). Not a regression but consider dismissing prior error toasts on success. Verified functionally the Save toast 'Saved (TMP-XXXXXXXX)' is shown."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% (6/6 vendor flow + 2/2 regression)"},
+  "test_credentials": "admin / admin@123",
+  "seed_data_creation": "One vendor RETEST_FIRM approved to AE0001JV2627 (from TMP-A71E78CB) via localStorage.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug fix verified. Fresh /vendor shows 'Generated on First Save'; first save assigns TMP-XXXXXXXX (8 uppercase hex); resave keeps id; submit guards on empty tempRefId; approve keeps original TMP alongside new AE####JV####; New draft resets to placeholder. Login via 2 <input> fields (username, password) + 'Sign in' text button; no data-testid on login form.",
+  "rca of the issue": "N/A — original bug (eager tempRefId generation) already fixed in /app/frontend/src/lib/store.js (createVendorDraft returns tempRefId:'' and generateTempRefId is exported) and /app/frontend/src/pages/VendorRegistration.jsx (lazy assignment in handleSave, guard in handleSubmit, fallback text in field-tempRefId render). Iteration_10 hit a stale bundle; hard reload confirmed fix works."
+}
