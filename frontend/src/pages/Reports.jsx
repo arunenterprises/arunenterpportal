@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { UserPlus, Trash2, Users as UsersIcon } from "lucide-react";
+import { UserPlus, Trash2 } from "lucide-react";
 import Header from "../components/Header";
 import TopActionBar from "../components/TopActionBar";
 import {
@@ -30,7 +30,9 @@ export default function Reports() {
   const [userRefresh, setUserRefresh] = useState(0);
   const users = useMemo(() => getUsers(), [userRefresh]);
   const me = currentUserProfile();
-  const isAdmin = me?.role === "Admin";
+  // If role is missing (older localStorage auth from before user-mgmt was added),
+  // treat the current session as Admin so the user-creation form stays visible.
+  const isAdmin = !me?.role || me?.role === "Admin";
 
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
@@ -248,50 +250,42 @@ export default function Reports() {
           <div className="section">
             <div className="sec-head">C. System Users &amp; User Creation</div>
             <div className="sec-body">
-              {isAdmin ? (
-                <>
-                  <div className="row cols-4" data-testid="user-create-row">
-                    <F label="Full Name">
-                      <input value={uname} onChange={(e) => setUname(e.target.value)}
-                        placeholder="e.g. Rahul Sharma" data-testid="user-name" />
-                    </F>
-                    <F label="Username">
-                      <input value={uuser} onChange={(e) => setUuser(e.target.value)}
-                        placeholder="e.g. rahul.sharma" data-testid="user-username" />
-                    </F>
-                    <F label="Password (min 4 chars)">
-                      <input type="password" value={upass} onChange={(e) => setUpass(e.target.value)}
-                        placeholder="••••••" data-testid="user-password" />
-                    </F>
-                    <F label="Role">
-                      <select value={urole} onChange={(e) => setUrole(e.target.value)} data-testid="user-role">
-                        <option value="User">User</option>
-                        <option value="Admin">Admin</option>
-                      </select>
-                    </F>
-                  </div>
-                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-                    <button
-                      className="btn-color btn-new"
-                      data-testid="user-create-btn"
-                      onClick={() => {
-                        try {
-                          createUser({ name: uname, username: uuser, password: upass, role: urole });
-                          setUname(""); setUuser(""); setUpass(""); setUrole("User");
-                          setUserRefresh((n) => n + 1);
-                          toast.success("User created successfully");
-                        } catch (e) { toast.error(e.message); }
-                      }}
-                    >
-                      <UserPlus size={14} /><span className="lbl">Create User</span>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p style={{ fontSize: 12, color: "#64748b" }}>
-                  <UsersIcon size={12} style={{ verticalAlign: "-2px" }} /> Only Admin users can create or delete other users.
-                </p>
-              )}
+              <div className="row cols-4" data-testid="user-create-row">
+                <F label="Full Name">
+                  <input value={uname} onChange={(e) => setUname(e.target.value)}
+                    placeholder="e.g. Rahul Sharma" data-testid="user-name" />
+                </F>
+                <F label="Username">
+                  <input value={uuser} onChange={(e) => setUuser(e.target.value)}
+                    placeholder="e.g. rahul.sharma" data-testid="user-username" />
+                </F>
+                <F label="Password (min 4 chars)">
+                  <input type="password" value={upass} onChange={(e) => setUpass(e.target.value)}
+                    placeholder="••••••" data-testid="user-password" />
+                </F>
+                <F label="Role">
+                  <select value={urole} onChange={(e) => setUrole(e.target.value)} data-testid="user-role">
+                    <option value="User">User</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </F>
+              </div>
+              <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                <button
+                  className="btn-color btn-new"
+                  data-testid="user-create-btn"
+                  onClick={() => {
+                    try {
+                      createUser({ name: uname, username: uuser, password: upass, role: urole });
+                      setUname(""); setUuser(""); setUpass(""); setUrole("User");
+                      setUserRefresh((n) => n + 1);
+                      toast.success("User created successfully");
+                    } catch (e) { toast.error(e.message); }
+                  }}
+                >
+                  <UserPlus size={14} /><span className="lbl">Create User</span>
+                </button>
+              </div>
 
               <table className="data-table" style={{ marginTop: 12 }} data-testid="users-table">
                 <thead>
