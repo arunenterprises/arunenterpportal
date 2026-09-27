@@ -16,11 +16,20 @@ export default function VendorQueryModal({ open, onClose, initialCode = "", vari
 
   React.useEffect(() => { setQ(initialCode); }, [initialCode]);
 
-  const runQuery = () => {
-    const v = findVendorByAny(q);
+  const runQuery = (term = q) => {
+    if (!term || !term.trim()) { setVendor(null); setNotFound(false); return; }
+    const v = findVendorByAny(term);
     if (!v) { setVendor(null); setNotFound(true); return; }
     setVendor(v); setNotFound(false);
   };
+
+  // Live search as user types
+  React.useEffect(() => {
+    if (!q || !q.trim()) { setVendor(null); setNotFound(false); return; }
+    const t = setTimeout(() => runQuery(q), 200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   const summary = useMemo(() =>
     vendor?.vendorCode ? vendorAccountSummary(vendor.vendorCode) : null,
@@ -88,12 +97,7 @@ export default function VendorQueryModal({ open, onClose, initialCode = "", vari
                variant === "final" ? "Payment & Dues Query" :
                "Vendor Code Query"}
             </div>
-            <div className="modal-title">
-              {variant === "vendor" ? "Vendor Master Details (Primary Key: Vendor Code)" :
-               variant === "bill" ? "Bill History & Amounts (Primary Key: Vendor Code)" :
-               variant === "final" ? "Payment Summary & Due Status (Primary Key: Vendor Code)" :
-               "Vendor Details, Bill History & Payment Summary"}
-            </div>
+            <div className="modal-title">Vendor Details</div>
           </div>
           <button className="modal-close" onClick={onClose} data-testid="query-close">
             <X size={16} />
@@ -101,18 +105,18 @@ export default function VendorQueryModal({ open, onClose, initialCode = "", vari
         </div>
 
         <div className="modal-body">
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input
               className="mono"
               data-testid="query-input"
-              placeholder="Enter Vendor Code (e.g. AE0001JV2627) or Temp ID or Firm Name"
+              placeholder="Type vendor details..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && runQuery()}
-              style={{ flex: 1, padding: "8px 12px", border: "1px solid #cfd8e3", borderRadius: 6, fontSize: 13 }}
+              onKeyDown={(e) => e.key === "Enter" && runQuery(q)}
+              style={{ flex: 1, height: 30, padding: "4px 10px", border: "1px solid #cfd8e3", borderRadius: 5, fontSize: 12 }}
             />
-            <button className="btn-color btn-nav" data-testid="query-run" onClick={runQuery}>
-              <Search size={13} /><span className="lbl">Query</span>
+            <button className="btn-color btn-nav" data-testid="query-run" onClick={() => runQuery(q)} style={{ height: 30 }}>
+              <Search size={12} /><span className="lbl">Query</span>
             </button>
           </div>
 

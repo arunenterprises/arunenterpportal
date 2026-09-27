@@ -125,11 +125,18 @@ export const upsertVendor = (v) => {
 export const findVendorByAny = (q) => {
   if (!q) return null;
   const term = q.trim().toLowerCase();
+  if (!term) return null;
   const list = getVendors();
   return (
     list.find((v) => (v.vendorCode || "").toLowerCase() === term) ||
     list.find((v) => (v.tempRefId || "").toLowerCase() === term) ||
+    list.find((v) => (v.vendorCode || "").toLowerCase().includes(term)) ||
+    list.find((v) => (v.tempRefId || "").toLowerCase().includes(term)) ||
     list.find((v) => (v.firmName || "").toLowerCase().includes(term)) ||
+    list.find((v) => (v.contactPerson || "").toLowerCase().includes(term)) ||
+    list.find((v) => (v.mobileNo || "").toLowerCase().includes(term)) ||
+    list.find((v) => (v.panNo || "").toLowerCase().includes(term)) ||
+    list.find((v) => (v.gstNo || "").toLowerCase().includes(term)) ||
     null
   );
 };
