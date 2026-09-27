@@ -1,50 +1,53 @@
 # Vendor Management — Arun Enterprises
 
-## Original Problem Statement
+## Original problem
 3-page vendor management HTML app for Arun Enterprises. Every page has the same
-7-button footer (New, Save, Edit, Submit, Final Approval, Export JSON/Excel, Print)
-and A4 portrait layout with company header. Data lives 2 years from approval.
+7 workflow buttons (New, Save, Edit, Submit, Final Approval, Export JSON/Excel,
+Print), A4 portrait layout with company header, and a linear approval workflow.
 
-- Page 1 — Vendor Registration: temp code (letter + 4 digits) on create; on Final
-  Approval becomes permanent `AE + 4-digit serial + JV + FY` (e.g. AE0001JV2526),
-  never deleted. Auto Expiry = Approval + 2 years.
-- Page 2 — Bill Processing: enter vendor code → autofill snapshot; capture bill
-  with GST slab (0/5/12/18/28) and TDS; compute Gross & Net Payable.
-- Page 3 — Reports: due list (Excel), summary dashboard, payment voucher export.
-
-## User Choices
+## User choices
 - Storage: browser **localStorage** only (no backend)
-- Auth: simple admin login (admin / admin@123)
-- Exports: Excel + JSON + Print
-- Vendor code format: `AE0001JV2526`
-- Bill fields: standard (Bill No, Date, Amount, GST slab, TDS, Net, Due Date)
+- Auth: **user list with admin/admin@123 seed**; admin can create/delete users
+- Exports: Excel + JSON + Print (all pages)
+- Vendor code: temp `TMP-XXXXXXXX` (issued on first Save) → permanent `AE####JV####` after Final Approval
+- Bill numbering: temp `AE####FY` (on draft) → permanent `BILL####FY` (primary key on Step 5)
+- Bill fields: standard set + full multi-stage approval + Item & Work Scope breakdown
 
 ## Architecture
-- React 19 SPA under `/app/frontend`
-- Router: `react-router-dom` with `RequireAuth` gate
+- React 19 SPA under `/app/frontend`; router: `react-router-dom`
 - State: local component state + `localStorage` via `/src/lib/store.js`
 - Excel: `xlsx` (SheetJS); JSON: browser Blob; Print: `@media print` A4 rules
-- Corporate document look: navy `#0b3d91` + gold accent, Georgia/Cambria serif
-- Every input has `data-testid`
+- **All 7 workflow buttons + Search + Prev/Next nav + Upload Logo + Logout** live
+  in a single fixed-bottom colored footer (`TopActionBar`), one row on desktop
+- Corporate look: navy `#0b3d91` / `#1e3a8a` + gold accent, Georgia/Segoe serif
 
-## What's Implemented (Feb 2026)
-- Login page (admin/admin@123) with route protection
-- Page 1 Vendor Registration (all fields 1.1–4.5, workflow, temp→permanent code)
-- Page 2 Bill Processing (vendor autofill, GST/TDS/Net compute, workflow)
-- Page 3 Reports (summary dashboard, due list, payment voucher, Excel 3-sheet)
-- Global 7-button footer with Export split menu (JSON/Excel)
-- Print-friendly A4 CSS with page-break rules
-- Sonner toasts, DRAFT/SUBMITTED/APPROVED stamps
+## What's implemented (Feb 2026 — iteration 10)
+- Login (admin/admin@123 seed, user list from Page 3, dynamic auth)
+- **Page 1 — Vendor Registration**: temp ID issued on first save, permanent
+  `AE####JV####` on Final Approval, expiry = approval + 2 years, project/site,
+  contact + address (city/state/pincode), bank details, 3-substep workflow with
+  role names, approval banner, colored A/B/C/... sections
+- **Page 2 — Bill Processing**: 5-step workflow (Submission → WO Verify →
+  Accounts Check → Mgmt Approval → Payment Due List), vendor autofill via Fetch
+  button, Work Order + Item summary, **Item & Work Scope Breakdown** with
+  add-row / delete / computed Amount / subtotal → Basic Amount, GST/TDS compute
+  panel, multi-stage substeps with checker/purchaser/accountant/approver names,
+  payment schedule with priority/mode/todo/release status, 4-signature row
+- **Page 3 — Final Processing** (single A4): Summary Dashboard, Due List with
+  overdue pill, **inline** Payment Voucher (D/E/F/G sections + signatures) and
+  **User Management** with create/delete (admin-only, seed admin protected)
+- **Footer bar** on every page: Search input + Search, Prev / Next page, New,
+  Save, Edit, Submit, Final Approval, Export (JSON / Excel), Print, Upload Logo,
+  Logout — all colored, one row, fixed to viewport bottom
+- **Logo upload**: PNG/JPG/SVG/WEBP → base64 in localStorage → visible in every
+  page header
+- Print CSS with A4 page-break rules
 
-## Test Credentials
+## Test credentials
 See `/app/memory/test_credentials.md`.
 
-## P0 Backlog
-- Payment recording against a bill (partial payments, allocations)
-- Vendor list / search directory page
-- Data backup / import (upload the JSON export back into the app)
-
-## P1 Backlog
+## Deferred / backlog
+- Partial payments against a bill (multi-voucher allocation & live balance)
+- Vendor directory listing with filters
 - Aging buckets (0-30 / 31-60 / 61-90 / 90+) on due list
-- Bulk import of vendors via Excel
-- Dark theme + logo upload
+- Excel/JSON import to restore data across browsers

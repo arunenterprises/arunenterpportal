@@ -1,0 +1,33 @@
+{
+  "summary": "Verified the requested Temp Ref ID lazy-generation bug fix on /vendor. The fix described in files_of_reference has NOT been implemented in the current codebase. On a fresh /vendor load (after clearing localStorage and logging in as admin/admin@123), field-tempRefId still shows an auto-generated 'TMP-1147EFB3' value instead of the required placeholder 'Generated on First Save'. Reading /app/frontend/src/lib/store.js confirms createVendorDraft() still generates tempRefId eagerly (lines 72-77), there is no exported generateTempRefId() helper, and /app/frontend/src/pages/VendorRegistration.jsx has no import/usage of generateTempRefId, no empty-check in handleSave, no empty-guard in handleSubmit, and no fallback rendering for empty tempRefId. Since the primary code change is missing, all downstream checklist items (save toast format, submit-without-save guard, resave keeps same id, new-draft resets to placeholder) cannot pass and were not further tested to avoid noise. Main agent must apply the described changes before retest.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorRegistration / store.createVendorDraft", "issue": "tempRefId is eagerly generated on draft creation (TMP-XXXXXXXX shown on fresh load) instead of being empty. Expected: createVendorDraft() sets tempRefId:'' and a separate exported generateTempRefId() helper is used on first Save only.", "selector": "[data-testid=field-tempRefId]", "priority": "HIGH"},
+      {"component": "VendorRegistration.handleSave", "issue": "handleSave does not lazily generate tempRefId when empty (feature not implemented).", "selector": "[data-testid=btn-save]", "priority": "HIGH"},
+      {"component": "VendorRegistration.handleSubmit", "issue": "handleSubmit does not refuse to advance when tempRefId is empty (guard not implemented).", "selector": "[data-testid=btn-submit]", "priority": "HIGH"},
+      {"component": "VendorRegistration field-tempRefId", "issue": "Input has no fallback display of 'Generated on First Save' for empty state — currently binds directly to vendor.tempRefId.", "selector": "[data-testid=field-tempRefId]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In /app/frontend/src/lib/store.js: change createVendorDraft() to set tempRefId:'' and export a new generateTempRefId() helper returning `TMP-${8 uppercase hex chars}`.",
+    "In /app/frontend/src/pages/VendorRegistration.jsx: import generateTempRefId; in handleSave, if !vendor.tempRefId, assign generateTempRefId() before upsert; in handleSubmit, block with toast 'Save the record first (Temp Ref ID required)' when tempRefId is empty; render `value={vendor.tempRefId || 'Generated on First Save'}` for field-tempRefId (or similar fallback).",
+    "Ensure handleNew() (already spreads createVendorDraft) results in blank tempRefId again after approval → new draft.",
+    "After applying, retest full workflow (Save → same id on re-save → Submit → Approve produces AE####JV#### and preserves TMP- id) plus regression: /final single .a4, /bill Section 2B btn-add-item-row."
+  ],
+  "critical_code_review_comments": [
+    "The review request's files_of_reference claims changes that are not present in the actual files — indicates the main agent's edit did not persist or was not made. Verify diff before handing off to testing.",
+    "field-tempRefId is a plain <input> bound to vendor.tempRefId with no placeholder or empty-state handling; use `value={vendor.tempRefId || 'Generated on First Save'}` (readOnly) so React controlled-input warnings are avoided."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "0% (primary change not implemented)"},
+  "test_credentials": "admin / admin@123 (from default seed in store.js)",
+  "seed_data_creation": "",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Once main agent applies the two-file change (store.js createVendorDraft empty tempRefId + export generateTempRefId; VendorRegistration.jsx lazy generation in handleSave, guard in handleSubmit, fallback text in field-tempRefId), rerun the 8-step checklist in the request. Login flow: /login → username 'admin' pw 'admin@123' → navigate to /vendor. Field is readonly — read via get_attribute('value'). Regex for post-save: /^TMP-[0-9A-F]{8}$/.",
+  "rca of the issue": "Root cause: createVendorDraft() in /app/frontend/src/lib/store.js still eagerly generates TMP-XXXXXXXX in its initializer IIFE (lines 72-77). VendorRegistration.jsx never re-generates or clears it. The main agent's stated code changes were not actually applied to the repo. Reproduction: 1) clear localStorage 2) login admin/admin@123 3) go /vendor 4) read field-tempRefId value — observed 'TMP-1147EFB3', expected 'Generated on First Save'. Mitigation: apply the changes listed in action_items."
+}

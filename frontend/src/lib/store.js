@@ -67,14 +67,17 @@ export const BILL_STEP_LABEL = {
 export const getVendors = () => read(KEYS.VENDORS, []);
 export const saveVendors = (list) => write(KEYS.VENDORS, list);
 
+// Generate a Temp Ref ID: TMP-XXXXXXXX (8 hex chars)
+export const generateTempRefId = () => {
+  let s = "";
+  const chars = "0123456789ABCDEF";
+  for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * 16)];
+  return `TMP-${s}`;
+};
+
 export const createVendorDraft = () => ({
   id: `v_${Date.now()}`,
-  tempRefId: (() => {
-    let s = "";
-    const chars = "0123456789ABCDEF";
-    for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * 16)];
-    return `TMP-${s}`;
-  })(),
+  tempRefId: "",
   vendorCode: "",
   step: 1,
   // Project & Site

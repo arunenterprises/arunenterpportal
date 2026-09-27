@@ -8,7 +8,7 @@ import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
-  STEP_LABEL, currentUser, exportJSON,
+  STEP_LABEL, currentUser, exportJSON, generateTempRefId,
 } from "../lib/store";
 
 const ACCOUNT_TYPES = ["Current Account", "Savings Account", "Overdraft (OD)", "Cash Credit (CC)"];
@@ -50,7 +50,11 @@ export default function VendorRegistration() {
   };
   const handleSave = () => {
     if (!validateStep1()) return;
-    const saved = upsertVendor({ ...vendor });
+    // Temp Ref ID is issued at first Save of Step 1 (Creation start)
+    const withTemp = vendor.tempRefId
+      ? { ...vendor }
+      : { ...vendor, tempRefId: generateTempRefId() };
+    const saved = upsertVendor(withTemp);
     setVendor(saved);
     toast.success(`Saved (${saved.tempRefId})`);
   };
@@ -65,6 +69,7 @@ export default function VendorRegistration() {
       return;
     }
     if (!validateStep1()) return;
+    if (!vendor.tempRefId) { toast.error("Please Save the record first — Temp Ref ID is required"); return; }
     if (!vendor.checkedByName.trim()) { toast.error("Enter 'Checked By (Name)' in Step 2 section"); return; }
     const next = advanceVendorStep({ ...vendor });
     setVendor(next);
@@ -131,7 +136,8 @@ export default function VendorRegistration() {
             <div className="sec-body">
               <div className="row cols-3">
                 <F label="Temporary Ref ID (Active till Approval)">
-                  <input className="pill" data-testid="field-tempRefId" value={vendor.tempRefId} readOnly />
+                  <input className="pill" data-testid="field-tempRefId"
+                    value={vendor.tempRefId || "Generated on First Save"} readOnly />
                 </F>
                 <F label="Permanent Vendor Code (Primary Key)">
                   <input className="pill-generated" data-testid="field-vendorCode"
