@@ -6,6 +6,7 @@ const KEYS = {
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
+  USERS: "ae_vm_users",
 };
 
 // ---- Company logo ----
@@ -262,16 +263,64 @@ export const nextPvNo = () => {
   return `PV/${getFY()}/${String(c.pvSerial).padStart(4, "0")}`;
 };
 
-// ---- Auth ----
-const DEFAULT_ADMIN = { username: "admin", password: "admin@123" };
+// ---- Auth & Users ----
+const DEFAULT_ADMIN = { id: "u_admin", name: "Administrator", username: "admin", password: "admin@123", role: "Admin", createdAt: new Date().toISOString() };
+
+const seedAdminIfMissing = () => {
+  const list = read(KEYS.USERS, null);
+  if (!list || !list.length) write(KEYS.USERS, [DEFAULT_ADMIN]);
+};
+seedAdminIfMissing();
+
+export const getUsers = () => {
+  seedAdminIfMissing();
+  return read(KEYS.USERS, []);
+};
+
+export const createUser = ({ name, username, password, role = "User" }) => {
+  const list = getUsers();
+  if (!name?.trim()) throw new Error("Full name is required");
+  if (!username?.trim()) throw new Error("Username is required");
+  if (!password || password.length < 4) throw new Error("Password must be at least 4 characters");
+  if (list.some((u) => u.username.toLowerCase() === username.trim().toLowerCase())) {
+    throw new Error("Username already exists");
+  }
+  const u = {
+    id: `u_${Date.now()}`,
+    name: name.trim(),
+    username: username.trim(),
+    password,
+    role: role === "Admin" ? "Admin" : "User",
+    createdAt: new Date().toISOString(),
+  };
+  list.push(u);
+  write(KEYS.USERS, list);
+  return u;
+};
+
+export const deleteUser = (id) => {
+  const list = getUsers();
+  const target = list.find((u) => u.id === id);
+  if (!target) throw new Error("User not found");
+  if (target.username === "admin") throw new Error("Default admin cannot be deleted");
+  const filtered = list.filter((u) => u.id !== id);
+  if (!filtered.some((u) => u.role === "Admin")) throw new Error("At least one Admin is required");
+  write(KEYS.USERS, filtered);
+};
+
 export const login = (u, p) => {
-  const ok = u === DEFAULT_ADMIN.username && p === DEFAULT_ADMIN.password;
-  if (ok) write(KEYS.AUTH, { user: u, at: Date.now() });
-  return ok;
+  const users = getUsers();
+  const match = users.find((x) => x.username.toLowerCase() === (u || "").toLowerCase() && x.password === p);
+  if (match) {
+    write(KEYS.AUTH, { user: match.username, name: match.name, role: match.role, at: Date.now() });
+    return true;
+  }
+  return false;
 };
 export const logout = () => localStorage.removeItem(KEYS.AUTH);
 export const isAuthed = () => !!read(KEYS.AUTH, null);
 export const currentUser = () => read(KEYS.AUTH, null)?.user || "";
+export const currentUserProfile = () => read(KEYS.AUTH, null);
 
 // ---- Export helpers ----
 export const exportJSON = (data, filename) => {

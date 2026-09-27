@@ -18,7 +18,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/vendor" element={<RequireAuth><VendorRegistration /></RequireAuth>} />
           <Route path="/bill" element={<RequireAuth><BillProcessing /></RequireAuth>} />
-          <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
+          <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />
+          <Route path="/reports" element={<Navigate to="/final" replace />} />
           <Route path="/" element={<Navigate to={isAuthed() ? "/vendor" : "/login"} replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

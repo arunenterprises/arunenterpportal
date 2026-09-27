@@ -101,8 +101,7 @@ export default function VendorRegistration() {
           searchPlaceholder="Search Vendor Code / Temp ID / Name"
           onSearch={handleSearch}
           nextLabel="Page 2 (Bill Processing) →"
-          nextTo="/bill"
-          onNew={handleNew}
+          nextTo="/bill"          onNew={handleNew}
           onSave={handleSave}
           onEdit={handleEdit}
           onSubmit={handleSubmit}

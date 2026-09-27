@@ -173,8 +173,8 @@ export default function BillProcessing() {
           searchPlaceholder="Search Process ID / Bill No / Vendor Code"
           searchLabel="Search Bill"
           onSearch={handleSearch}
-          nextLabel="Page 3 (Reports & Due List) →"
-          nextTo="/reports"
+          nextLabel="Page 3 (Final Processing) →"
+          nextTo="/final"
           onNew={handleNew}
           onSave={handleSave}
           onEdit={handleEdit}

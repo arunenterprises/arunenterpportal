@@ -2,12 +2,12 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { UserPlus, Trash2, Users as UsersIcon } from "lucide-react";
 import Header from "../components/Header";
 import TopActionBar from "../components/TopActionBar";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
-  currentUser, exportJSON,
+  currentUser, exportJSON, getUsers, createUser, deleteUser, currentUserProfile,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -22,6 +22,15 @@ export default function Reports() {
   const [pv, setPv] = useState(null);
   const [refresh, setRefresh] = useState(0);
   const [filter, setFilter] = useState("");
+  // ---- User management state ----
+  const [uname, setUname] = useState("");
+  const [uuser, setUuser] = useState("");
+  const [upass, setUpass] = useState("");
+  const [urole, setUrole] = useState("User");
+  const [userRefresh, setUserRefresh] = useState(0);
+  const users = useMemo(() => getUsers(), [userRefresh]);
+  const me = currentUserProfile();
+  const isAdmin = me?.role === "Admin";
 
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
@@ -180,7 +189,7 @@ export default function Reports() {
         />
 
         <div className="a4" data-testid="reports-page">
-          <Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY" />
+          <Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" />
 
           <div className="section">
             <div className="sec-head">A. Summary Dashboard</div>
@@ -232,6 +241,95 @@ export default function Reports() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+          <div className="section">
+            <div className="sec-head">C. System Users &amp; User Creation</div>
+            <div className="sec-body">
+              {isAdmin ? (
+                <>
+                  <div className="row cols-4" data-testid="user-create-row">
+                    <F label="Full Name">
+                      <input value={uname} onChange={(e) => setUname(e.target.value)}
+                        placeholder="e.g. Rahul Sharma" data-testid="user-name" />
+                    </F>
+                    <F label="Username">
+                      <input value={uuser} onChange={(e) => setUuser(e.target.value)}
+                        placeholder="e.g. rahul.sharma" data-testid="user-username" />
+                    </F>
+                    <F label="Password (min 4 chars)">
+                      <input type="password" value={upass} onChange={(e) => setUpass(e.target.value)}
+                        placeholder="••••••" data-testid="user-password" />
+                    </F>
+                    <F label="Role">
+                      <select value={urole} onChange={(e) => setUrole(e.target.value)} data-testid="user-role">
+                        <option value="User">User</option>
+                        <option value="Admin">Admin</option>
+                      </select>
+                    </F>
+                  </div>
+                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                    <button
+                      className="btn-color btn-new"
+                      data-testid="user-create-btn"
+                      onClick={() => {
+                        try {
+                          createUser({ name: uname, username: uuser, password: upass, role: urole });
+                          setUname(""); setUuser(""); setUpass(""); setUrole("User");
+                          setUserRefresh((n) => n + 1);
+                          toast.success("User created successfully");
+                        } catch (e) { toast.error(e.message); }
+                      }}
+                    >
+                      <UserPlus size={14} /><span className="lbl">Create User</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p style={{ fontSize: 12, color: "#64748b" }}>
+                  <UsersIcon size={12} style={{ verticalAlign: "-2px" }} /> Only Admin users can create or delete other users.
+                </p>
+              )}
+
+              <table className="data-table" style={{ marginTop: 12 }} data-testid="users-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Full Name</th><th>Username</th><th>Role</th>
+                    <th>Created</th><th style={{ textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u, i) => (
+                    <tr key={u.id} data-testid={`user-row-${u.username}`}>
+                      <td>{i + 1}</td>
+                      <td>{u.name}</td>
+                      <td className="mono">{u.username}</td>
+                      <td>
+                        <span className={`pill-tag ${u.role === "Admin" ? "paid" : "due"}`}>{u.role}</span>
+                      </td>
+                      <td style={{ fontSize: 10.5, color: "#64748b" }}>{u.createdAt?.slice(0, 10)}</td>
+                      <td style={{ textAlign: "right" }}>
+                        {isAdmin && u.username !== "admin" && u.username !== me?.user && (
+                          <button
+                            className="btn-color btn-logo-remove"
+                            data-testid={`user-delete-${u.username}`}
+                            onClick={() => {
+                              try { deleteUser(u.id); setUserRefresh((n) => n + 1); toast.success("User deleted"); }
+                              catch (e) { toast.error(e.message); }
+                            }}
+                            title="Delete user"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ fontSize: 10.5, color: "#64748b", marginTop: 8 }}>
+                Default admin (username: <b>admin</b>) is protected and cannot be deleted. Newly created users can log in immediately.
+              </p>
             </div>
           </div>
         </div>
@@ -336,13 +434,6 @@ export default function Reports() {
               </div>
             </>
           )}
-
-          <div className="bottom-actions" style={{ display: "none" }}>
-            <div />
-            <button className="btn-color btn-nav" data-testid="btn-prev-step" onClick={() => nav("/bill")}>
-              <ArrowLeft size={14} /><span className="lbl">← Bill Processing</span>
-            </button>
-          </div>
         </div>
       </div>
     </>
