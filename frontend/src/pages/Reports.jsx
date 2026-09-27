@@ -172,8 +172,10 @@ export default function Reports() {
       <Toaster position="top-center" richColors />
       <div className="app-shell">
         <TopActionBar
-          searchPlaceholder="Search bill in due list (Ref / Vendor / Bill No)"
+          searchPlaceholder="Ref / Vendor / Bill"
           onSearch={handleSearch}
+          prevLabel="Bill Process"
+          prevTo="/bill"
           onNew={handleNew}
           onSave={handleSave}
           onEdit={handleEdit}

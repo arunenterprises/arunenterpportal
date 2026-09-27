@@ -170,10 +170,12 @@ export default function BillProcessing() {
       <div className="app-shell">
         <TopActionBar
           variant="dark"
-          searchPlaceholder="Search Process ID / Bill No / Vendor Code"
-          searchLabel="Search Bill"
+          searchPlaceholder="Process ID / Bill / Vendor"
+          searchLabel="Search"
           onSearch={handleSearch}
-          nextLabel="Page 3 (Final Processing) →"
+          prevLabel="Vendor Reg"
+          prevTo="/vendor"
+          nextLabel="Final Process"
           nextTo="/final"
           onNew={handleNew}
           onSave={handleSave}
@@ -183,7 +185,7 @@ export default function BillProcessing() {
           onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
-          labels={{ new: "New Bill", save: "Save Bill", print: "Print Voucher" }}
+          labels={{ new: "New Bill", save: "Save Bill", print: "Print" }}
           disabled={{ submit: bill.step >= 4, approve: bill.step !== 4 }}
         />
 

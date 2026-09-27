@@ -98,9 +98,9 @@ export default function VendorRegistration() {
       <Toaster position="top-center" richColors />
       <div className="app-shell">
         <TopActionBar
-          searchPlaceholder="Search Vendor Code / Temp ID / Name"
+          searchPlaceholder="Vendor Code / ID / Name"
           onSearch={handleSearch}
-          nextLabel="Page 2 (Bill Processing) →"
+          nextLabel="Bill Process"
           nextTo="/bill"
           onNew={handleNew}
           onSave={handleSave}

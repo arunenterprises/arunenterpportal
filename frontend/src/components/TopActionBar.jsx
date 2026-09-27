@@ -1,25 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, FilePlus2, Save, Pencil, Printer, Download, ArrowRight, ChevronDown,
-  ImageUp, ImageOff, LogOut, User, Send, CheckCircle2,
+  Search, FilePlus2, Save, Pencil, Printer, Download, ChevronDown,
+  ImageUp, ImageOff, LogOut, User, Send, CheckCircle2, ArrowLeft, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  logout, currentUser, setLogo, clearLogo, getLogo,
-} from "../lib/store";
+import { logout, currentUser, setLogo, clearLogo, getLogo } from "../lib/store";
 
-/**
- * Colored top action bar with all 7 workflow buttons:
- * Search + New + Save + Edit + Submit + Final Approval + Export (JSON/Excel) + Print
- * Plus Logo Upload button and user chip (logout).
- */
 export const TopActionBar = ({
-  searchPlaceholder = "Search Vendor Code / Temp ID / Name",
+  searchPlaceholder = "Search...",
   searchLabel = "Search",
   onSearch,
-  nextLabel,
-  nextTo,
+  prevLabel, prevTo,
+  nextLabel, nextTo,
   onNew, onSave, onEdit, onSubmit, onApprove, onPrint,
   onExportJSON, onExportExcel,
   labels = {},
@@ -41,14 +34,11 @@ export const TopActionBar = ({
   }, []);
 
   const submitSearch = (e) => { e?.preventDefault?.(); onSearch?.(q.trim()); };
-
   const pickLogo = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!/^image\/(png|jpe?g|svg\+xml|webp|gif)$/i.test(f.type)) {
-      toast.error("Please choose an image file (PNG/JPG/SVG/WEBP)"); return;
-    }
-    if (f.size > 2 * 1024 * 1024) { toast.error("Logo must be smaller than 2 MB"); return; }
+    if (!/^image\/(png|jpe?g|svg\+xml|webp|gif)$/i.test(f.type)) { toast.error("Choose PNG/JPG/SVG/WEBP"); return; }
+    if (f.size > 2 * 1024 * 1024) { toast.error("Logo must be < 2 MB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setLogo(reader.result); setHasLogo(true);
@@ -76,41 +66,39 @@ export const TopActionBar = ({
         />
       </form>
       <button className="btn-color btn-search" data-testid="btn-search" onClick={submitSearch}>
-        <Search size={14} /><span className="lbl">{searchLabel}</span>
+        <Search size={12} /><span className="lbl">{searchLabel}</span>
       </button>
 
+      {prevLabel && (
+        <button className="btn-color btn-prev" data-testid="btn-prev-page" onClick={() => navigate(prevTo)}>
+          <ArrowLeft size={12} /><span className="lbl">{prevLabel}</span>
+        </button>
+      )}
       {nextLabel && (
-        <button className="btn-color btn-nav" data-testid="btn-page-nav" onClick={() => navigate(nextTo)}>
-          <span className="lbl">{nextLabel}</span>
+        <button className="btn-color btn-nav" data-testid="btn-next-page" onClick={() => navigate(nextTo)}>
+          <span className="lbl">{nextLabel}</span><ArrowRight size={12} />
         </button>
       )}
 
-      {/* 7-button workflow row (colored) */}
       <button className="btn-color btn-new" data-testid="btn-new" disabled={disabled.new} onClick={onNew}>
-        <FilePlus2 size={14} /><span className="lbl">{labels.new || "New"}</span>
+        <FilePlus2 size={12} /><span className="lbl">{labels.new || "New"}</span>
       </button>
       <button className="btn-color btn-save" data-testid="btn-save" disabled={disabled.save} onClick={onSave}>
-        <Save size={14} /><span className="lbl">{labels.save || "Save"}</span>
+        <Save size={12} /><span className="lbl">{labels.save || "Save"}</span>
       </button>
       <button className="btn-color btn-edit" data-testid="btn-edit" disabled={disabled.edit} onClick={onEdit}>
-        <Pencil size={14} /><span className="lbl">{labels.edit || "Edit"}</span>
+        <Pencil size={12} /><span className="lbl">{labels.edit || "Edit"}</span>
       </button>
       <button className="btn-color btn-submit" data-testid="btn-submit" disabled={disabled.submit} onClick={onSubmit}>
-        <Send size={14} /><span className="lbl">{labels.submit || "Submit"}</span>
+        <Send size={12} /><span className="lbl">{labels.submit || "Submit"}</span>
       </button>
       <button className="btn-color btn-approve" data-testid="btn-approve" disabled={disabled.approve} onClick={onApprove}>
-        <CheckCircle2 size={14} /><span className="lbl">{labels.approve || "Final Approval"}</span>
+        <CheckCircle2 size={12} /><span className="lbl">{labels.approve || "Final Approval"}</span>
       </button>
 
       <div className="dd-wrap" ref={ddRef}>
-        <button
-          className="btn-color btn-export"
-          data-testid="btn-export"
-          disabled={disabled.export}
-          onClick={() => setOpenExport((v) => !v)}
-        >
-          <Download size={14} /><span className="lbl">Export<small>JSON / Excel</small></span>
-          <ChevronDown size={12} />
+        <button className="btn-color btn-export" data-testid="btn-export" disabled={disabled.export} onClick={() => setOpenExport((v) => !v)}>
+          <Download size={12} /><span className="lbl">Export</span><ChevronDown size={11} />
         </button>
         {openExport && (
           <div className="dd-menu">
@@ -121,28 +109,24 @@ export const TopActionBar = ({
       </div>
 
       <button className="btn-color btn-print" data-testid="btn-print" disabled={disabled.print} onClick={onPrint}>
-        <Printer size={14} /><span className="lbl">{labels.print || "Print"}</span>
+        <Printer size={12} /><span className="lbl">{labels.print || "Print"}</span>
       </button>
 
-      {/* Logo upload button — visible in header */}
-      <input ref={fileRef} type="file"
-        accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
         style={{ display: "none" }} onChange={pickLogo} data-testid="logo-file-input" />
-      <button className="btn-color btn-logo" data-testid="btn-change-logo"
-        onClick={() => fileRef.current?.click()} title="Upload company logo">
-        <ImageUp size={14} /><span className="lbl">{hasLogo ? "Change Logo" : "Upload Logo"}</span>
+      <button className="btn-color btn-logo" data-testid="btn-change-logo" onClick={() => fileRef.current?.click()} title="Upload company logo">
+        <ImageUp size={12} /><span className="lbl">{hasLogo ? "Logo" : "Logo"}</span>
       </button>
       {hasLogo && (
-        <button className="btn-color btn-logo-remove" data-testid="btn-remove-logo"
-          onClick={removeLogo} title="Remove logo">
-          <ImageOff size={14} />
+        <button className="btn-color btn-logo-remove" data-testid="btn-remove-logo" onClick={removeLogo} title="Remove logo">
+          <ImageOff size={12} />
         </button>
       )}
 
       <div className="user-chip" data-testid="user-chip">
-        <User size={12} /><b>{user || "admin"}</b>
-        <button onClick={doLogout} title="Logout" data-testid="btn-logout">
-          <LogOut size={12} />
+        <User size={11} /><b>{user || "admin"}</b>
+        <button onClick={doLogout} title="Logout" data-testid="btn-logout" style={{ border: "none", background: "transparent", color: "#64748b", cursor: "pointer" }}>
+          <LogOut size={11} />
         </button>
       </div>
     </div>
