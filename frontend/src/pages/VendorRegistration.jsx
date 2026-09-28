@@ -31,9 +31,12 @@ export default function VendorRegistration() {
 
   const allVendors = useMemo(() => getVendors(), [refresh, vendor.id, vendor.step]);
   const loadVendorById = (v) => {
-    setVendor(v);
-    setLocked(v.step === 3);
-    toast.success(`Loaded ${v.firmName || v.tempRefId} · ${v.vendorCode || v.tempRefId}`);
+    // Normalize legacy vendors that may have missing/invalid step
+    const normalized = { ...v, step: [1, 2, 3].includes(v.step) ? v.step : 1 };
+    setVendor(normalized);
+    setLocked(normalized.step === 3);
+    if (normalized.step !== v.step) upsertVendor(normalized); // persist fix
+    toast.success(`Loaded ${normalized.firmName || normalized.tempRefId} · ${normalized.vendorCode || normalized.tempRefId}`);
   };
 
   useEffect(() => {
@@ -96,20 +99,22 @@ export default function VendorRegistration() {
     toast.info("You can edit the form");
   };
   const handleSubmit = () => {
-    if (vendor.step !== 1) {
-      toast.error(vendor.step === 3 ? "Already approved" : "Already submitted for checking");
+    const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
+    if (curStep !== 1) {
+      toast.error(curStep === 3 ? "Already approved" : "Already submitted for checking");
       return;
     }
     if (!validateStep1()) return;
     if (!vendor.tempRefId) { toast.error("Please Save the record first — Temp Ref ID is required"); return; }
     if (!vendor.checkedByName.trim()) { toast.error("Enter 'Checked By (Name)' in Step 2 section"); return; }
-    const next = advanceVendorStep({ ...vendor });
+    const next = advanceVendorStep({ ...vendor, step: curStep });
     setVendor(next);
     toast.success("Submitted for Checking & Verification");
   };
   const handleApprove = () => {
-    if (vendor.step === 3) { toast.info("Already approved"); return; }
-    if (vendor.step === 1) { toast.error("Please Submit for Checking first"); return; }
+    const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
+    if (curStep === 3) { toast.info("Already approved"); return; }
+    if (curStep === 1) { toast.error("Please Submit for Checking first"); return; }
     if (!vendor.approvedByName.trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
     const isReApproval = (vendor.revision || 0) > 0;
     const history = Array.isArray(vendor.history) ? vendor.history : [];
@@ -118,7 +123,7 @@ export default function VendorRegistration() {
       by: currentUser(),
       at: new Date().toISOString(),
     });
-    const next = { ...advanceVendorStep({ ...vendor }), history };
+    const next = { ...advanceVendorStep({ ...vendor, step: curStep }), history };
     setVendor(upsertVendor(next));
     setLocked(true);
     toast.success(
@@ -171,7 +176,7 @@ export default function VendorRegistration() {
           onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
-          disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 && vendor.step !== 3 }}
+          disabled={{ submit: ![1, undefined, null].includes(vendor.step), approve: vendor.step !== 2 && vendor.step !== 3 }}
         />
         <VendorQueryModal
           open={queryOpen}
@@ -345,7 +350,8 @@ export default function VendorRegistration() {
                   </thead>
                   <tbody>
                     {allVendors.map((v) => {
-                      const isApp = v.step === 3;
+                      const stepN = [1, 2, 3].includes(v.step) ? v.step : 1;
+                      const isApp = stepN === 3;
                       const isActive = vendor.id === v.id;
                       return (
                         <tr key={v.id} data-testid={`vendor-row-${v.id}`}
@@ -361,7 +367,7 @@ export default function VendorRegistration() {
                           <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{v.panNo || "—"}</td>
                           <td style={{ padding: "5px 8px", textAlign: "center" }}>
                             <span style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: isApp ? "#dcfce7" : "#fef3c7", color: isApp ? "#166534" : "#92400e", border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}` }}>
-                              {isApp ? "Approved" : `Step ${v.step}`}
+                              {isApp ? "Approved" : `Step ${stepN}`}
                             </span>
                           </td>
                           <td style={{ padding: "5px 8px", textAlign: "center" }}>

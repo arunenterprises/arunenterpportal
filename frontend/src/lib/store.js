@@ -64,7 +64,17 @@ export const BILL_STEP_LABEL = {
 };
 
 // ---- Vendors ----
-export const getVendors = () => read(KEYS.VENDORS, []);
+export const getVendors = () => {
+  // Normalize legacy vendors with missing/invalid step to step 1 (Draft)
+  const list = read(KEYS.VENDORS, []);
+  let changed = false;
+  const fixed = list.map((v) => {
+    if (![1, 2, 3].includes(v.step)) { changed = true; return { ...v, step: 1 }; }
+    return v;
+  });
+  if (changed) write(KEYS.VENDORS, fixed);
+  return fixed;
+};
 export const saveVendors = (list) => write(KEYS.VENDORS, list);
 
 // Generate a Temp Ref ID: TMP-XXXXXXXX (8 hex chars)
