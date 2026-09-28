@@ -132,6 +132,7 @@ async def delete_user(email: str, admin: Dict = Depends(require_admin)):
 
 class ChangePasswordBody(BaseModel):
     new_password: str
+    old_password: Optional[str] = None
     email: Optional[str] = None  # admin can change any user's password; user can change own
 
 
@@ -141,9 +142,18 @@ async def change_password(body: ChangePasswordBody, user: Dict = Depends(get_cur
     if len(new_pass) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
     target_email = (body.email or user["email"]).lower().strip()
-    # Only admin can change another user's password
-    if target_email != user["email"] and (user.get("role") or "").lower() != "admin":
+    is_self = target_email == user["email"]
+    is_admin = (user.get("role") or "").lower() == "admin"
+    if not is_self and not is_admin:
         raise HTTPException(status_code=403, detail="Admin access required to change another user's password")
+    # If changing own password, verify current (old) password
+    if is_self:
+        old = (body.old_password or "").strip()
+        if not old:
+            raise HTTPException(status_code=400, detail="Current password is required")
+        target = await db.users.find_one({"email": target_email})
+        if not target or not verify_password(old, target.get("password_hash", "")):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
     r = await db.users.update_one({"email": target_email}, {"$set": {"password_hash": hash_password(new_pass)}})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")

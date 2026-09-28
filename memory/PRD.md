@@ -22,7 +22,7 @@ Print), A4 portrait layout with company header, and a linear approval workflow.
 - Corporate look: navy `#0b3d91` / `#1e3a8a` + gold accent, Georgia/Segoe serif
 
 ## What's implemented (Feb 2026 — iteration 10)
-- Login (admin/admin@123 seed, user list from Page 3, dynamic auth)
+- Login (admin/**Arun2023@12** seed — updated Feb 2026, cloud-backed; admin can change via `/users`)
 - **Page 1 — Vendor Registration**: temp ID issued on first save, permanent
   `AE####JV####` on Final Approval, expiry = approval + 2 years, project/site,
   contact + address (city/state/pincode), bank details, 3-substep workflow with
@@ -47,7 +47,11 @@ Print), A4 portrait layout with company header, and a linear approval workflow.
 See `/app/memory/test_credentials.md`.
 
 ## Deferred / backlog
+- Change Password from Admin Users panel — **Done Feb 2026** (self-change requires current password; admin can reset any user's password without old)
 - Partial payments against a bill (multi-voucher allocation & live balance)
 - Vendor directory listing with filters
 - Aging buckets (0-30 / 31-60 / 61-90 / 90+) on due list
 - Excel/JSON import to restore data across browsers
+- Favicon replace (Arun logo)
+- Print watermark (faint Arun logo)
+- 1s splash-screen logo

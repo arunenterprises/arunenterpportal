@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
-import { UserPlus, Trash2, Key, ArrowLeft, Shield } from "lucide-react";
+import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock } from "lucide-react";
 import { currentUserProfile, logout } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword } from "../lib/api";
 
 export default function UsersAdmin() {
   const nav = useNavigate();
@@ -12,6 +12,9 @@ export default function UsersAdmin() {
   const [busy, setBusy] = useState(false);
   // Create user form
   const [f, setF] = useState({ name: "", email: "", mobile: "", employee_id: "", designation: "", role: "User", password: "", password2: "" });
+  // Self change-password form
+  const [pw, setPw] = useState({ old_password: "", new_password: "", confirm: "" });
+  const [pwBusy, setPwBusy] = useState(false);
 
   const load = async () => {
     try {
@@ -82,6 +85,24 @@ export default function UsersAdmin() {
     } catch (e) { toast.error(e.message); }
   };
 
+  const submitMyPassword = async (e) => {
+    e.preventDefault();
+    setPwBusy(true);
+    try {
+      if (!pw.old_password.trim()) throw new Error("Current password is required");
+      if ((pw.new_password || "").trim().length < 4) throw new Error("New password min 4 chars");
+      if (pw.new_password !== pw.confirm) throw new Error("New passwords do not match");
+      if (pw.old_password === pw.new_password) throw new Error("New password must be different from current");
+      await apiChangeMyPassword(pw.old_password.trim(), pw.new_password.trim());
+      toast.success("Your password has been updated");
+      setPw({ old_password: "", new_password: "", confirm: "" });
+    } catch (ex) {
+      toast.error(ex.message);
+    } finally {
+      setPwBusy(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#eef2f7", padding: 20 }}>
       <Toaster position="top-center" richColors />
@@ -102,6 +123,58 @@ export default function UsersAdmin() {
               Logout
             </button>
           </div>
+        </div>
+
+        {/* Change My Password */}
+        <div style={{ marginTop: 18, border: "1px solid #cbd5e1", borderRadius: 6 }}>
+          <div style={{ background: "#fef9c3", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#854d0e", display: "flex", alignItems: "center", gap: 6 }}>
+            <Lock size={12} /> CHANGE MY PASSWORD ({me?.email})
+          </div>
+          <form onSubmit={submitMyPassword} style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, alignItems: "end" }}>
+            <div>
+              <label style={{ fontSize: 11, color: "#334155", fontWeight: 600 }}>Current Password *</label>
+              <input
+                data-testid="self-pw-old"
+                type="password"
+                value={pw.old_password}
+                onChange={(e) => setPw((p) => ({ ...p, old_password: e.target.value }))}
+                placeholder="current password"
+                style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12, marginTop: 2 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: "#334155", fontWeight: 600 }}>New Password *</label>
+              <input
+                data-testid="self-pw-new"
+                type="password"
+                value={pw.new_password}
+                onChange={(e) => setPw((p) => ({ ...p, new_password: e.target.value }))}
+                placeholder="min 4 chars"
+                style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12, marginTop: 2 }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: "#334155", fontWeight: 600 }}>Confirm New *</label>
+              <input
+                data-testid="self-pw-confirm"
+                type="password"
+                value={pw.confirm}
+                onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))}
+                placeholder="re-type new"
+                style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12, marginTop: 2 }}
+              />
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <button
+                type="submit"
+                data-testid="self-pw-submit"
+                disabled={pwBusy}
+                style={{ padding: "8px 16px", background: "#d97706", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <Key size={13} /> {pwBusy ? "Updating…" : "Update My Password"}
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Create user form */}

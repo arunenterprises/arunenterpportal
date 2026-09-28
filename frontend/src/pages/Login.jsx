@@ -45,16 +45,16 @@ export default function Login() {
       </div>
 
       <div className="login-card">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#0b3d91" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "#0b3d91" }}>
           <Shield />
-          <div>
+          <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 11, letterSpacing: 2, color: "#55617a" }}>ARUN ENTERPRISES</div>
             <h2 style={{ margin: 0 }}>Sign In</h2>
           </div>
         </div>
 
         <form onSubmit={submitLogin} data-testid="login-form" style={{ marginTop: 14 }}>
-          <p className="hint">Enter the email &amp; password provided by your administrator.</p>
+          <p className="hint" style={{ textAlign: "center" }}>Enter the email &amp; password provided by your administrator.</p>
           <label>Email</label>
           <input data-testid="login-username" value={u} onChange={(e) => setU(e.target.value)} placeholder="you@example.com" autoFocus />
           <label>Password</label>
