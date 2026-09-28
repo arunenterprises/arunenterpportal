@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
@@ -9,7 +9,7 @@ import TopActionBar from "../components/TopActionBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
-  STEP_LABEL, currentUser, exportJSON, generateTempRefId,
+  STEP_LABEL, currentUser, exportJSON, generateTempRefId, getVendors,
 } from "../lib/store";
 
 const ACCOUNT_TYPES = ["Current Account", "Savings Account", "Overdraft (OD)", "Cash Credit (CC)"];
@@ -27,6 +27,14 @@ export default function VendorRegistration() {
   const [locked, setLocked] = useState(false);
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
+  const [refresh, setRefresh] = useState(0);
+
+  const allVendors = useMemo(() => getVendors(), [refresh, vendor.id, vendor.step]);
+  const loadVendorById = (v) => {
+    setVendor(v);
+    setLocked(v.step === 3);
+    toast.success(`Loaded ${v.firmName || v.tempRefId} · ${v.vendorCode || v.tempRefId}`);
+  };
 
   useEffect(() => {
     setVendor((v) => ({ ...v, createdByName: v.createdByName || currentUser() }));
@@ -176,6 +184,51 @@ export default function VendorRegistration() {
         <div className="a4" data-testid="vendor-page">
           <Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" />
           <StepTabs step={vendor.step} />
+
+          {/* Vendors Register Tabs — Temp ID till Final Approval · Vendor Code after */}
+          {allVendors.length > 0 && (
+            <div className="section" data-testid="vendors-register">
+              <div className="sec-head">Vendors Register · Click to Load (Temp ID till Approval · Vendor Code after)</div>
+              <div className="sec-body">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {allVendors.map((v) => {
+                    const isApp = v.step === 3;
+                    const isActive = vendor.id === v.id;
+                    const label = isApp
+                      ? `${v.vendorCode} · ${v.firmName || "—"}`
+                      : `${v.tempRefId || "TEMP–"} · ${v.firmName || "Draft"}`;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => loadVendorById(v)}
+                        data-testid={`vendor-tab-${v.id}`}
+                        title={isApp ? `Approved · ${v.vendorType || "Vendor"}` : `Draft · Step ${v.step}`}
+                        style={{
+                          padding: "5px 10px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}`,
+                          background: isActive ? (isApp ? "#166534" : "#92400e") : (isApp ? "#dcfce7" : "#fef3c7"),
+                          color: isActive ? "#fff" : (isApp ? "#166534" : "#92400e"),
+                          borderRadius: 999,
+                          cursor: "pointer",
+                          fontFamily: "monospace",
+                          letterSpacing: ".3px",
+                        }}
+                      >
+                        {isApp ? "✓ " : "⏳ "}{label}
+                        {v.revision > 0 && (
+                          <span style={{ marginLeft: 4, padding: "0 4px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontSize: 8, fontWeight: 700 }}>
+                            R{v.revision}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {vendor.step === 3 && vendor.vendorCode && (
             <div className="approval-banner" data-testid="approval-banner">
