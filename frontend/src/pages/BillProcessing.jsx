@@ -9,7 +9,7 @@ import TopActionBar from "../components/TopActionBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
-  BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords,
+  BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
 } from "../lib/store";
 
 const GST_SLABS = [0, 5, 12, 18, 28];
@@ -42,6 +42,14 @@ export default function BillProcessing() {
   const [vendorInput, setVendorInput] = useState("");
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
+  const [refresh, setRefresh] = useState(0);
+
+  const allBills = useMemo(() => getBills(), [refresh, bill.id]);
+  const loadBill = (b) => {
+    setBill(b);
+    setLocked(b.step === 5);
+    toast.success(`Loaded ${b.permanentBillNo || b.refNo}`);
+  };
 
   useEffect(() => {
     setBill((b) => ({ ...b, createdByName: b.createdByName || currentUser() }));
@@ -249,6 +257,46 @@ export default function BillProcessing() {
               <span>· NET PAYABLE:</span>
               <span className="code">₹ {comp.netPayable.toFixed(2)}</span>
               <span className="exp">SCHEDULED: {bill.scheduledDueDate || bill.dueDate}</span>
+            </div>
+          )}
+
+          {/* Bills Register Tabs — TempID before approval, Vendor Code/Bill No after approval */}
+          {allBills.length > 0 && (
+            <div className="section" data-testid="bills-register">
+              <div className="sec-head">Bills Register · Click to Load (Temp ID till Approval · Vendor Code + Bill No after)</div>
+              <div className="sec-body">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {allBills.map((b) => {
+                    const isApp = b.step === 5;
+                    const isActive = bill.id === b.id;
+                    const label = isApp
+                      ? `${b.permanentBillNo} · ${b.vendorCode} · Bill: ${b.billNo || "—"}`
+                      : `${b.refNo} · ${b.vendorSnapshot?.firmName || b.vendorCode || "Draft"}`;
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => loadBill(b)}
+                        data-testid={`bill-tab-${b.id}`}
+                        title={isApp ? "Approved bill" : `Draft · Step ${b.step}`}
+                        style={{
+                          padding: "5px 10px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}`,
+                          background: isActive ? (isApp ? "#166534" : "#92400e") : (isApp ? "#dcfce7" : "#fef3c7"),
+                          color: isActive ? "#fff" : (isApp ? "#166534" : "#92400e"),
+                          borderRadius: 999,
+                          cursor: "pointer",
+                          fontFamily: "monospace",
+                          letterSpacing: ".3px",
+                        }}
+                      >
+                        {isApp ? "✓ " : "⏳ "}{label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
