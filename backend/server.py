@@ -55,6 +55,12 @@ async def get_current_user(request: Request) -> Dict[str, Any]:
     return user
 
 
+async def require_admin(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
+    if (user.get("role") or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
 # ==================== AUTH MODELS ====================
 class RegisterBody(BaseModel):
     email: EmailStr
@@ -73,7 +79,8 @@ class LoginBody(BaseModel):
 
 # ==================== AUTH ROUTES ====================
 @api_router.post("/auth/register")
-async def register(body: RegisterBody):
+async def register(body: RegisterBody, admin: Dict = Depends(require_admin)):
+    """Admin-only: register new employees. Public registration is disabled."""
     email = body.email.lower().strip()
     password = body.password.strip()
     name = body.name.strip()
@@ -92,16 +99,55 @@ async def register(body: RegisterBody):
         "designation": (body.designation or "").strip(),
         "password_hash": hash_password(password),
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": admin.get("email"),
     }
     await db.users.insert_one(doc)
-    token = create_access_token(email, email)
     return {
-        "token": token,
         "user": {
             "email": email, "name": name, "role": role,
             "mobile": doc["mobile"], "employee_id": doc["employee_id"], "designation": doc["designation"],
         },
     }
+
+
+# ---- Users Management (admin-only) ----
+@api_router.get("/users")
+async def list_users(admin: Dict = Depends(require_admin)):
+    items = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(500)
+    return items
+
+
+@api_router.delete("/users/{email}")
+async def delete_user(email: str, admin: Dict = Depends(require_admin)):
+    email = email.lower().strip()
+    if email == (admin.get("email") or "").lower():
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    if email == os.environ.get("ADMIN_EMAIL", "").lower():
+        raise HTTPException(status_code=400, detail="Primary admin account cannot be deleted")
+    r = await db.users.delete_one({"email": email})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"deleted": r.deleted_count}
+
+
+class ChangePasswordBody(BaseModel):
+    new_password: str
+    email: Optional[str] = None  # admin can change any user's password; user can change own
+
+
+@api_router.post("/users/change-password")
+async def change_password(body: ChangePasswordBody, user: Dict = Depends(get_current_user)):
+    new_pass = (body.new_password or "").strip()
+    if len(new_pass) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+    target_email = (body.email or user["email"]).lower().strip()
+    # Only admin can change another user's password
+    if target_email != user["email"] and (user.get("role") or "").lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required to change another user's password")
+    r = await db.users.update_one({"email": target_email}, {"$set": {"password_hash": hash_password(new_pass)}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True, "email": target_email}
 
 
 @api_router.post("/auth/login")
@@ -277,21 +323,31 @@ async def seed_admin():
     if not admin_email or not admin_password:
         logger.warning("ADMIN_EMAIL/ADMIN_PASSWORD not set — skipping admin seed")
         return
+    # Cleanup any legacy admin accounts specified via LEGACY_ADMIN_EMAILS (comma-separated)
+    legacy = [e.strip().lower() for e in (os.environ.get("LEGACY_ADMIN_EMAILS", "") or "").split(",") if e.strip()]
+    for old in legacy:
+        if old and old != admin_email:
+            r = await db.users.delete_one({"email": old})
+            if r.deleted_count:
+                logger.info(f"Removed legacy admin: {old}")
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:
         await db.users.insert_one({
             "email": admin_email,
             "name": admin_name,
             "role": "Admin",
+            "mobile": "",
+            "employee_id": "AE-ADMIN-001",
+            "designation": "Administrator",
             "password_hash": hash_password(admin_password),
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         logger.info(f"Seeded admin: {admin_email}")
     else:
-        # Idempotent: update password hash & name if env changed
+        # Keep name/role in sync with env; do NOT overwrite password if already changed by admin
         await db.users.update_one(
             {"email": admin_email},
-            {"$set": {"password_hash": hash_password(admin_password), "name": admin_name, "role": "Admin"}},
+            {"$set": {"name": admin_name, "role": "Admin"}},
         )
 
 

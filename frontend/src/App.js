@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import VendorRegistration from "./pages/VendorRegistration";
 import BillProcessing from "./pages/BillProcessing";
 import Reports from "./pages/Reports";
+import UsersAdmin from "./pages/UsersAdmin";
 import { isAuthed } from "./lib/store";
 
 const RequireAuth = ({ children }) => {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/bill" element={<RequireAuth><BillProcessing /></RequireAuth>} />
           <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/reports" element={<Navigate to="/final" replace />} />
+          <Route path="/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
           <Route path="/" element={<Navigate to={isAuthed() ? "/vendor" : "/login"} replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

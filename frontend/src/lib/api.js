@@ -58,6 +58,15 @@ export const apiDeleteBill = (id) =>
 export const apiPushPayments = (items) =>
   req("/payments/bulk", { method: "POST", body: JSON.stringify({ items }) });
 
+// ---- Users management (admin only) ----
+export const apiListUsers = () => req("/users");
+export const apiRegisterUser = (body) =>
+  req("/auth/register", { method: "POST", body: JSON.stringify(body) });
+export const apiDeleteUser = (email) =>
+  req(`/users/${encodeURIComponent(email)}`, { method: "DELETE" });
+export const apiChangePassword = (email, new_password) =>
+  req("/users/change-password", { method: "POST", body: JSON.stringify({ email, new_password }) });
+
 export const apiGetCounters = () => req("/counters");
 export const apiSetCounters = (c) =>
   req("/counters", { method: "POST", body: JSON.stringify(c) });

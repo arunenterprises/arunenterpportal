@@ -7,7 +7,7 @@ import {
   FileSearch,
 } from "lucide-react";
 import { toast } from "sonner";
-import { logout, currentUser, setLogo, clearLogo, getLogo } from "../lib/store";
+import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo } from "../lib/store";
 
 export const TopActionBar = ({
   searchPlaceholder = "Vendor Code / ID / Name",
@@ -157,6 +157,16 @@ export const TopActionBar = ({
 
       <div className="user-chip" data-testid="user-chip">
         <User size={11} /><b>{user || "admin"}</b>
+        {(currentUserProfile()?.role || "").toLowerCase() === "admin" && (
+          <button
+            onClick={() => navigate("/users")}
+            title="Users Admin Panel"
+            data-testid="btn-users-admin"
+            style={{ border: "none", background: "transparent", color: "#0b3d91", cursor: "pointer", fontWeight: 700, fontSize: 10, marginLeft: 4 }}
+          >
+            USERS
+          </button>
+        )}
         <button onClick={doLogout} title="Logout" data-testid="btn-logout" style={{ border: "none", background: "transparent", color: "#64748b", cursor: "pointer" }}>
           <LogOut size={11} />
         </button>
