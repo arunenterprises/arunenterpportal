@@ -106,7 +106,7 @@ export default function VendorRegistration() {
     }
     if (!validateStep1()) return;
     if (!vendor.tempRefId) { toast.error("Please Save the record first — Temp Ref ID is required"); return; }
-    if (!vendor.checkedByName.trim()) { toast.error("Enter 'Checked By (Name)' in Step 2 section"); return; }
+    if (!(vendor.checkedByName || "").trim()) { toast.error("Enter 'Checked By (Name)' in Step 2 section"); return; }
     const next = advanceVendorStep({ ...vendor, step: curStep });
     setVendor(next);
     toast.success("Submitted for Checking & Verification");
@@ -115,7 +115,7 @@ export default function VendorRegistration() {
     const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
     if (curStep === 3) { toast.info("Already approved"); return; }
     if (curStep === 1) { toast.error("Please Submit for Checking first"); return; }
-    if (!vendor.approvedByName.trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
+    if (!(vendor.approvedByName || "").trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
     const isReApproval = (vendor.revision || 0) > 0;
     const history = Array.isArray(vendor.history) ? vendor.history : [];
     history.push({
@@ -176,7 +176,7 @@ export default function VendorRegistration() {
           onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
-          disabled={{ submit: ![1, undefined, null].includes(vendor.step), approve: vendor.step !== 2 && vendor.step !== 3 }}
+          disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 && vendor.step !== 3 }}
         />
         <VendorQueryModal
           open={queryOpen}
