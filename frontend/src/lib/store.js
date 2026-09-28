@@ -1,4 +1,10 @@
-// LocalStorage-backed data store for Vendor Management
+// LocalStorage-backed data store for Vendor Management (+ cloud sync via /api)
+import {
+  apiUpsertVendor, apiUpsertBill, apiPushPayments,
+  apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
+  apiLogin, apiRegister, setToken, clearToken, getToken,
+} from "./api";
+
 const KEYS = {
   VENDORS: "ae_vm_vendors",
   BILLS: "ae_vm_bills",
@@ -13,7 +19,10 @@ const KEYS = {
 export const getLogo = () => {
   try { return localStorage.getItem(KEYS.LOGO) || ""; } catch { return ""; }
 };
-export const setLogo = (dataUrl) => localStorage.setItem(KEYS.LOGO, dataUrl);
+export const setLogo = (dataUrl) => {
+  localStorage.setItem(KEYS.LOGO, dataUrl);
+  if (getToken()) apiSetLogo(dataUrl).catch(() => {});
+};
 export const clearLogo = () => localStorage.removeItem(KEYS.LOGO);
 
 const read = (k, fallback) => {
@@ -34,7 +43,10 @@ export const getFY = (date = new Date()) => {
 // ---- Counters ----
 export const getCounters = () =>
   read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0 });
-export const saveCounters = (c) => write(KEYS.COUNTERS, c);
+export const saveCounters = (c) => {
+  write(KEYS.COUNTERS, c);
+  if (getToken()) apiSetCounters(c).catch(() => {});
+};
 
 // Temp Bill Ref: AE + 4-digit + FY (before final approval)
 const buildTempBillRef = (serial) => `AE${String(serial).padStart(4, "0")}${getFY()}`;
@@ -130,6 +142,8 @@ export const upsertVendor = (v) => {
   v.updatedAt = new Date().toISOString();
   if (idx >= 0) list[idx] = v; else list.push(v);
   saveVendors(list);
+  // fire-and-forget cloud sync
+  if (getToken()) apiUpsertVendor(v).catch(() => {});
   return v;
 };
 
@@ -263,6 +277,7 @@ export const upsertBill = (b) => {
   b.updatedAt = new Date().toISOString();
   if (idx >= 0) list[idx] = b; else list.push(b);
   saveBills(list);
+  if (getToken()) apiUpsertBill(b).catch(() => {});
   return b;
 };
 
@@ -283,7 +298,10 @@ export const advanceBillStep = (b) => {
 
 // ---- Payment vouchers ----
 export const getPayments = () => read(KEYS.PAYMENTS, []);
-export const savePayments = (list) => write(KEYS.PAYMENTS, list);
+export const savePayments = (list) => {
+  write(KEYS.PAYMENTS, list);
+  if (getToken()) apiPushPayments(list).catch(() => {});
+};
 
 export const nextPvNo = () => {
   const c = getCounters();
@@ -319,67 +337,66 @@ export const vendorAccountSummary = (vendorCode) => {
   };
 };
 
-// ---- Auth & Users ----
-const DEFAULT_ADMIN = { id: "u_admin", name: "Administrator", username: "admin", password: "admin@123", role: "Admin", createdAt: new Date().toISOString() };
-
-const seedAdminIfMissing = () => {
-  const list = read(KEYS.USERS, null);
-  if (!list || !list.length) write(KEYS.USERS, [DEFAULT_ADMIN]);
-};
-seedAdminIfMissing();
-
-export const getUsers = () => {
-  seedAdminIfMissing();
-  return read(KEYS.USERS, []);
-};
-
-export const createUser = ({ name, username, password, role = "User" }) => {
-  const list = getUsers();
-  if (!name?.trim()) throw new Error("Full name is required");
-  if (!username?.trim()) throw new Error("Username is required");
+// ---- Auth & Users (cloud-backed via /api/auth) ----
+export const createUser = async ({ name, email, username, password, role = "User" }) => {
+  // Accepts either email or username; if only username provided, treat as email
+  const identifier = (email || username || "").trim().toLowerCase();
+  if (!identifier) throw new Error("Email is required");
+  if (!identifier.includes("@")) throw new Error("Please use a valid email address");
   const trimmedPass = (password || "").trim();
-  if (!trimmedPass || trimmedPass.length < 4) throw new Error("Password must be at least 4 characters (spaces will be trimmed)");
-  if (list.some((u) => u.username.toLowerCase() === username.trim().toLowerCase())) {
-    throw new Error("Username already exists");
-  }
-  const u = {
-    id: `u_${Date.now()}`,
-    name: name.trim(),
-    username: username.trim(),
-    password: trimmedPass,
-    role: role === "Admin" ? "Admin" : "User",
-    createdAt: new Date().toISOString(),
-  };
-  list.push(u);
-  write(KEYS.USERS, list);
-  return u;
+  const trimmedName = (name || "").trim();
+  if (!trimmedName) throw new Error("Full name is required");
+  if (trimmedPass.length < 4) throw new Error("Password must be at least 4 characters");
+  const { token, user } = await apiRegister(identifier, trimmedPass, trimmedName, role);
+  setToken(token);
+  write(KEYS.AUTH, { user: user.email, name: user.name, role: user.role, at: Date.now() });
+  return user;
 };
 
-export const deleteUser = (id) => {
-  const list = getUsers();
-  const target = list.find((u) => u.id === id);
-  if (!target) throw new Error("User not found");
-  if (target.username === "admin") throw new Error("Default admin cannot be deleted");
-  const filtered = list.filter((u) => u.id !== id);
-  if (!filtered.some((u) => u.role === "Admin")) throw new Error("At least one Admin is required");
-  write(KEYS.USERS, filtered);
-};
-
-export const login = (u, p) => {
-  const users = getUsers();
-  const uTrim = (u || "").trim().toLowerCase();
-  const pTrim = (p || "").trim();
-  const match = users.find((x) => (x.username || "").toLowerCase() === uTrim && (x.password || "") === pTrim);
-  if (match) {
-    write(KEYS.AUTH, { user: match.username, name: match.name, role: match.role, at: Date.now() });
+export const login = async (u, p) => {
+  const identifier = (u || "").trim();
+  const password = (p || "").trim();
+  try {
+    const { token, user } = await apiLogin(identifier, password);
+    setToken(token);
+    write(KEYS.AUTH, { user: user.email, name: user.name, role: user.role, at: Date.now() });
+    // Pull cloud snapshot after successful login so this device has latest data
+    try { await syncFromCloud(); } catch (e) { /* silent — offline OK */ }
     return true;
+  } catch (e) {
+    return false;
   }
-  return false;
 };
-export const logout = () => localStorage.removeItem(KEYS.AUTH);
-export const isAuthed = () => !!read(KEYS.AUTH, null);
+
+export const logout = () => {
+  localStorage.removeItem(KEYS.AUTH);
+  clearToken();
+};
+export const isAuthed = () => !!read(KEYS.AUTH, null) && !!getToken();
 export const currentUser = () => read(KEYS.AUTH, null)?.user || "";
 export const currentUserProfile = () => read(KEYS.AUTH, null);
+
+// ---- Cloud Sync helpers ----
+export const syncFromCloud = async () => {
+  const snap = await apiFetchSnapshot();
+  if (Array.isArray(snap.vendors)) write(KEYS.VENDORS, snap.vendors);
+  if (Array.isArray(snap.bills)) write(KEYS.BILLS, snap.bills);
+  if (Array.isArray(snap.payments)) write(KEYS.PAYMENTS, snap.payments);
+  if (snap.counters) write(KEYS.COUNTERS, { vendorSerial: snap.counters.vendorSerial || 0, billSerial: snap.counters.billSerial || 0, pvSerial: snap.counters.pvSerial || 0 });
+  if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
+  return snap;
+};
+
+export const syncToCloud = async () => {
+  const payload = {
+    vendors: read(KEYS.VENDORS, []),
+    bills: read(KEYS.BILLS, []),
+    payments: read(KEYS.PAYMENTS, []),
+    counters: read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0 }),
+    logo: localStorage.getItem(KEYS.LOGO) || "",
+  };
+  return await apiPushSnapshot(payload);
+};
 
 // ---- Number to Words (Indian numbering system: Lakh / Crore) ----
 export const amountToWords = (num) => {

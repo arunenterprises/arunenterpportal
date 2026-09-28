@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, createUser } from "../lib/store";
-import { Shield, UserPlus, LogIn } from "lucide-react";
+import { login, createUser, syncFromCloud } from "../lib/store";
+import { Shield, UserPlus, LogIn, Cloud } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export default function Login() {
@@ -10,39 +10,48 @@ export default function Login() {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
   // Create-user state
   const [cname, setCname] = useState("");
-  const [cuser, setCuser] = useState("");
+  const [cemail, setCemail] = useState("");
   const [cpass, setCpass] = useState("");
   const [crole, setCrole] = useState("User");
   const nav = useNavigate();
 
-  const submitLogin = (e) => {
+  const submitLogin = async (e) => {
     e.preventDefault();
-    if (login(u, p)) {
-      nav("/vendor");
-    } else {
-      const list = (typeof window !== "undefined")
-        ? JSON.parse(localStorage.getItem("ae_vm_users") || "[]").map((x) => x.username).join(", ")
-        : "";
-      setErr(`Invalid credentials. Registered users: ${list || "admin"}. Tip: passwords are case-sensitive, spaces are trimmed.`);
+    setErr("");
+    setBusy(true);
+    try {
+      const ok = await login(u, p);
+      if (ok) {
+        toast.success("Signed in · Cloud data synced");
+        nav("/vendor");
+      } else {
+        setErr("Invalid email or password. Please try again.");
+      }
+    } catch (ex) {
+      setErr(ex.message || "Login failed");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const submitCreate = (e) => {
+  const submitCreate = async (e) => {
     e.preventDefault();
+    setBusy(true);
     try {
+      const trimmedEmail = (cemail || "").trim().toLowerCase();
       const trimmedPass = (cpass || "").trim();
-      const trimmedUser = (cuser || "").trim();
-      createUser({ name: cname, username: trimmedUser, password: trimmedPass, role: crole });
-      toast.success(`User "${trimmedUser}" created — you can log in now with password: ${trimmedPass}`);
-      // Prefill login and switch tab
-      setU(trimmedUser);
-      setP("");
-      setCname(""); setCuser(""); setCpass(""); setCrole("User");
-      setTab("login");
+      await createUser({ name: cname, email: trimmedEmail, password: trimmedPass, role: crole });
+      // Auto-sync (empty on new account is fine)
+      try { await syncFromCloud(); } catch {}
+      toast.success(`Account created · Signed in as ${trimmedEmail}`);
+      nav("/vendor");
     } catch (ex) {
       toast.error(ex.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -56,7 +65,7 @@ export default function Login() {
         <div className="hero-text">
           <div className="hero-eyebrow">ARUN ENTERPRISES</div>
           <h1 className="hero-title">Welcome to Arun Enterprises</h1>
-          <div className="hero-sub">Vendor Management &amp; Bill Processing Portal</div>
+          <div className="hero-sub">Vendor Management &amp; Bill Processing Portal · <Cloud size={12} style={{verticalAlign:"middle"}}/> Cloud Synced</div>
         </div>
       </div>
 
@@ -83,28 +92,29 @@ export default function Login() {
             onClick={() => setTab("create")}
             data-testid="tab-create"
           >
-            <UserPlus size={13} /> Create User
+            <UserPlus size={13} /> Create Account
           </button>
         </div>
 
         {tab === "login" ? (
           <form onSubmit={submitLogin} data-testid="login-form">
-            <p className="hint">Sign in with your administrator credentials to continue.</p>
-            <label>Username</label>
-            <input data-testid="login-username" value={u} onChange={(e) => setU(e.target.value)} placeholder="admin" autoFocus />
+            <p className="hint">Sign in with your email address to access data across all your devices.</p>
+            <label>Email</label>
+            <input data-testid="login-username" value={u} onChange={(e) => setU(e.target.value)} placeholder="you@example.com" autoFocus />
             <label>Password</label>
             <input data-testid="login-password" type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" />
             {err && <div className="err" data-testid="login-error">{err}</div>}
-            <button className="submit" data-testid="login-submit">Sign in</button>
-            <p className="hint" style={{ marginTop: 12 }}>Default: <b>admin</b> / <b>admin@123</b></p>
+            <button className="submit" data-testid="login-submit" disabled={busy}>
+              {busy ? "Signing in…" : "Sign in"}
+            </button>
           </form>
         ) : (
           <form onSubmit={submitCreate} data-testid="create-form">
-            <p className="hint">Register a new user. They can log in immediately.</p>
+            <p className="hint">Register a new account. Your data will sync across devices via secure cloud.</p>
             <label>Full Name</label>
             <input data-testid="create-name" value={cname} onChange={(e) => setCname(e.target.value)} placeholder="e.g. Rahul Sharma" autoFocus />
-            <label>Username</label>
-            <input data-testid="create-username" value={cuser} onChange={(e) => setCuser(e.target.value)} placeholder="e.g. rahul.sharma" />
+            <label>Email</label>
+            <input data-testid="create-username" type="email" value={cemail} onChange={(e) => setCemail(e.target.value)} placeholder="you@example.com" />
             <label>Password (min 4 chars)</label>
             <input data-testid="create-password" type="password" value={cpass} onChange={(e) => setCpass(e.target.value)} placeholder="••••••" />
             <label>Role</label>
@@ -112,7 +122,9 @@ export default function Login() {
               <option value="User">User</option>
               <option value="Admin">Admin</option>
             </select>
-            <button className="submit" data-testid="create-submit">Create User</button>
+            <button className="submit" data-testid="create-submit" disabled={busy}>
+              {busy ? "Creating…" : "Create Account"}
+            </button>
             <p className="hint" style={{ marginTop: 12 }}>Already registered? <span style={{ color: "#1d4ed8", cursor: "pointer" }} onClick={() => setTab("login")} data-testid="switch-to-login">Sign in instead</span></p>
           </form>
         )}
