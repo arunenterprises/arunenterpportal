@@ -62,7 +62,28 @@ export default function VendorRegistration() {
     toast.success(`Saved (${saved.tempRefId})`);
   };
   const handleEdit = () => {
-    if (vendor.step === 3) { toast.error("Approved vendor cannot be edited"); return; }
+    if (vendor.step === 3) {
+      if (!window.confirm(`Reopen approved vendor ${vendor.vendorCode} for editing? This requires Re-Approval.`)) return;
+      const history = Array.isArray(vendor.history) ? vendor.history : [];
+      history.push({
+        action: "Reopened",
+        from: "Approved",
+        by: currentUser(),
+        at: new Date().toISOString(),
+      });
+      const next = {
+        ...vendor,
+        step: 2,
+        revision: (vendor.revision || 0) + 1,
+        reopenedAt: new Date().toISOString(),
+        reopenedBy: currentUser(),
+        history,
+      };
+      setVendor(upsertVendor(next));
+      setLocked(false);
+      toast.success(`${vendor.vendorCode} reopened (Rev ${next.revision}) · Awaiting Re-Approval`);
+      return;
+    }
     setLocked(false);
     toast.info("You can edit the form");
   };
@@ -82,10 +103,21 @@ export default function VendorRegistration() {
     if (vendor.step === 3) { toast.info("Already approved"); return; }
     if (vendor.step === 1) { toast.error("Please Submit for Checking first"); return; }
     if (!vendor.approvedByName.trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
-    const next = advanceVendorStep({ ...vendor });
-    setVendor(next);
+    const isReApproval = (vendor.revision || 0) > 0;
+    const history = Array.isArray(vendor.history) ? vendor.history : [];
+    history.push({
+      action: isReApproval ? "Re-Approved" : "Approved",
+      by: currentUser(),
+      at: new Date().toISOString(),
+    });
+    const next = { ...advanceVendorStep({ ...vendor }), history };
+    setVendor(upsertVendor(next));
     setLocked(true);
-    toast.success(`Final Approval done · Vendor Code: ${next.vendorCode}`);
+    toast.success(
+      isReApproval
+        ? `Re-Approved (Rev ${next.revision}) · Vendor Code: ${next.vendorCode}`
+        : `Final Approval done · Vendor Code: ${next.vendorCode}`
+    );
   };
   const handleSearch = (q) => {
     const v = findVendorByAny(q);
@@ -124,9 +156,15 @@ export default function VendorRegistration() {
           onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
-          disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 }}
+          disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 && vendor.step !== 3 }}
         />
-        <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="vendor" />
+        <VendorQueryModal
+          open={queryOpen}
+          onClose={() => setQueryOpen(false)}
+          initialCode={queryCode}
+          variant="vendor"
+          onLoad={(v) => { setVendor(v); setLocked(v.step === 3); toast.success(`Loaded ${v.firmName || v.tempRefId}`); }}
+        />
 
         <div className="a4" data-testid="vendor-page">
           <Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" />
@@ -137,6 +175,15 @@ export default function VendorRegistration() {
               <CheckCircle2 size={18} />
               <span>VENDOR APPROVED · PERMANENT VENDOR CODE:</span>
               <span className="code" data-testid="approved-vendor-code">{vendor.vendorCode}</span>
+              {vendor.revision > 0 && (
+                <span
+                  data-testid="vendor-rev-badge"
+                  style={{ padding: "2px 8px", fontSize: 10, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontWeight: 700, marginLeft: 8 }}
+                  title={`Reopened & Re-Approved ${vendor.revision} time(s)`}
+                >
+                  REV {vendor.revision}
+                </span>
+              )}
               <span className="exp">VALID TILL: {vendor.expiryDate}</span>
             </div>
           )}

@@ -9,7 +9,7 @@ import {
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function VendorQueryModal({ open, onClose, initialCode = "", variant = "full" }) {
+export default function VendorQueryModal({ open, onClose, initialCode = "", variant = "full", onLoad }) {
   const [q, setQ] = useState(initialCode);
   const [vendor, setVendor] = useState(null);
   const [notFound, setNotFound] = useState(false);
@@ -255,7 +255,17 @@ export default function VendorQueryModal({ open, onClose, initialCode = "", vari
                 </div>
               )}
 
-              <div style={{ marginTop: 10, textAlign: "right" }}>
+              <div style={{ marginTop: 10, textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                {onLoad && vendor && (
+                  <button
+                    className="btn-color btn-nav"
+                    data-testid="query-load"
+                    onClick={() => { onLoad(vendor); onClose?.(); }}
+                    title="Load this vendor into the form for editing"
+                  >
+                    <span className="lbl">Load into Form</span>
+                  </button>
+                )}
                 <button className="btn-color btn-export" data-testid="query-export" onClick={exportHistory}>
                   <span className="lbl">Export Bill History (Excel)</span>
                 </button>
