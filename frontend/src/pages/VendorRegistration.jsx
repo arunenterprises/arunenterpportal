@@ -249,14 +249,14 @@ export default function VendorRegistration() {
           )}
 
           <div className="section">
-            <div className="sec-head">System Reference &amp; Primary Key</div>
+            <div className="sec-head">System Reference &amp; Vendor / Supplier Code</div>
             <div className="sec-body">
               <div className="row cols-3">
                 <F label="Temporary Ref ID (Active till Approval)">
                   <input className="pill" data-testid="field-tempRefId"
                     value={vendor.tempRefId || "Generated on First Save"} readOnly />
                 </F>
-                <F label="Permanent Vendor Code (Primary Key)">
+                <F label="Permanent Vendor / Supplier Code">
                   <input className="pill-generated" data-testid="field-vendorCode"
                     value={vendor.vendorCode || "Generated on Step 3 Approval"} readOnly />
                 </F>
