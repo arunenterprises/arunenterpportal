@@ -25,6 +25,13 @@ export const setLogo = (dataUrl) => {
 };
 export const clearLogo = () => localStorage.removeItem(KEYS.LOGO);
 
+// ---- Wipe local cache (used after admin "Reset All Data") ----
+export const resetLocalCache = () => {
+  [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
+    try { localStorage.removeItem(k); } catch {}
+  });
+};
+
 const read = (k, fallback) => {
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }
   catch { return fallback; }

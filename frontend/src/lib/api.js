@@ -76,3 +76,7 @@ export const apiSetCounters = (c) =>
 export const apiGetLogo = () => req("/logo");
 export const apiSetLogo = (logo) =>
   req("/logo", { method: "POST", body: JSON.stringify({ logo }) });
+
+// ---- Danger zone (admin only) ----
+export const apiResetData = (wipe_users = false) =>
+  req("/admin/reset-data", { method: "POST", body: JSON.stringify({ wipe_users }) });

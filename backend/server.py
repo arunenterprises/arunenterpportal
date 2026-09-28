@@ -319,6 +319,37 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
     }
 
 
+# ==================== DANGER ZONE: RESET ALL DATA ====================
+@api_router.post("/admin/reset-data")
+async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(require_admin)):
+    """Admin-only: wipe all business data (vendors, bills, payments, counters, logo).
+    Optionally also wipe non-admin users when `wipe_users` is true.
+    The primary admin account is always preserved.
+    """
+    wipe_users = bool(body.get("wipe_users", False))
+    v = await db.vendors.delete_many({})
+    b = await db.bills.delete_many({})
+    p = await db.payments.delete_many({})
+    c = await db.counters.delete_many({})
+    logo = await db.settings.delete_many({"key": "logo"})
+    users_removed = 0
+    if wipe_users:
+        admin_email = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+        # Keep primary admin + the caller (in case caller is a different admin)
+        keep = {e for e in [admin_email, (admin.get("email") or "").lower()] if e}
+        r = await db.users.delete_many({"email": {"$nin": list(keep)}})
+        users_removed = r.deleted_count
+    return {
+        "ok": True,
+        "vendors": v.deleted_count,
+        "bills": b.deleted_count,
+        "payments": p.deleted_count,
+        "counters": c.deleted_count,
+        "logo": logo.deleted_count,
+        "users_removed": users_removed,
+    }
+
+
 # ==================== ROOT ====================
 @api_router.get("/")
 async def root():

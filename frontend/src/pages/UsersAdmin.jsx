@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
-import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock } from "lucide-react";
-import { currentUserProfile, logout } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword } from "../lib/api";
+import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle } from "lucide-react";
+import { currentUserProfile, logout, resetLocalCache } from "../lib/store";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData } from "../lib/api";
 
 export default function UsersAdmin() {
   const nav = useNavigate();
@@ -15,6 +15,10 @@ export default function UsersAdmin() {
   // Self change-password form
   const [pw, setPw] = useState({ old_password: "", new_password: "", confirm: "" });
   const [pwBusy, setPwBusy] = useState(false);
+  // Reset data
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetPhrase, setResetPhrase] = useState("");
+  const [wipeUsers, setWipeUsers] = useState(false);
 
   const load = async () => {
     try {
@@ -100,6 +104,29 @@ export default function UsersAdmin() {
       toast.error(ex.message);
     } finally {
       setPwBusy(false);
+    }
+  };
+
+  const submitReset = async (e) => {
+    e.preventDefault();
+    if (resetPhrase.trim() !== "RESET") {
+      toast.error('Type RESET (in caps) to confirm');
+      return;
+    }
+    const scope = wipeUsers ? "all data + non-admin users" : "all vendors, bills, payments";
+    if (!window.confirm(`This will permanently delete ${scope}. Continue?`)) return;
+    setResetBusy(true);
+    try {
+      const r = await apiResetData(wipeUsers);
+      resetLocalCache();
+      toast.success(`Reset done · vendors:${r.vendors} bills:${r.bills} payments:${r.payments}${wipeUsers ? ` users:${r.users_removed}` : ""}`);
+      setResetPhrase("");
+      setWipeUsers(false);
+      await load();
+    } catch (ex) {
+      toast.error(ex.message);
+    } finally {
+      setResetBusy(false);
     }
   };
 
@@ -279,6 +306,49 @@ export default function UsersAdmin() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Danger Zone - Reset all data */}
+        <div style={{ marginTop: 16, border: "1.5px solid #fca5a5", borderRadius: 6, background: "#fef2f2" }}>
+          <div style={{ background: "#fee2e2", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#991b1b", display: "flex", alignItems: "center", gap: 6 }}>
+            <AlertTriangle size={12} /> DANGER ZONE — RESET ALL DATA
+          </div>
+          <form onSubmit={submitReset} style={{ padding: 12, display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
+            <div style={{ fontSize: 11, color: "#7f1d1d", lineHeight: 1.5 }}>
+              Yeh permanently delete karega: <b>vendors, bills, payments, counters, logo</b>.
+              <br />Optionally non-admin employees bhi delete kar sakte hain. Admin account safe rahega.
+              <br />Confirm karne ke liye niche box me <b>RESET</b> type karein.
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: "#334155", fontWeight: 600 }}>Type "RESET" to confirm *</label>
+              <input
+                data-testid="reset-confirm-phrase"
+                value={resetPhrase}
+                onChange={(e) => setResetPhrase(e.target.value)}
+                placeholder="RESET"
+                style={{ width: "100%", padding: "6px 8px", border: "1px solid #fca5a5", borderRadius: 4, fontSize: 12, marginTop: 2, background: "#fff" }}
+              />
+            </div>
+            <label style={{ fontSize: 11, color: "#7f1d1d", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                data-testid="reset-wipe-users"
+                type="checkbox"
+                checked={wipeUsers}
+                onChange={(e) => setWipeUsers(e.target.checked)}
+              />
+              Also delete non-admin employees
+            </label>
+            <div style={{ textAlign: "right" }}>
+              <button
+                type="submit"
+                data-testid="reset-data-submit"
+                disabled={resetBusy || resetPhrase.trim() !== "RESET"}
+                style={{ padding: "8px 16px", background: resetPhrase.trim() === "RESET" ? "#dc2626" : "#fca5a5", color: "#fff", border: "none", borderRadius: 5, cursor: resetPhrase.trim() === "RESET" ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <Trash2 size={13} /> {resetBusy ? "Resetting…" : "Reset All Data"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
