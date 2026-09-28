@@ -19,23 +19,25 @@ export default function Login() {
 
   const submitLogin = (e) => {
     e.preventDefault();
-    if (login(u.trim(), p)) {
+    if (login(u, p)) {
       nav("/vendor");
     } else {
       const list = (typeof window !== "undefined")
         ? JSON.parse(localStorage.getItem("ae_vm_users") || "[]").map((x) => x.username).join(", ")
         : "";
-      setErr(`Invalid credentials. Registered users: ${list || "admin"}`);
+      setErr(`Invalid credentials. Registered users: ${list || "admin"}. Tip: passwords are case-sensitive, spaces are trimmed.`);
     }
   };
 
   const submitCreate = (e) => {
     e.preventDefault();
     try {
-      createUser({ name: cname, username: cuser, password: cpass, role: crole });
-      toast.success(`User "${cuser}" created — you can log in now`);
+      const trimmedPass = (cpass || "").trim();
+      const trimmedUser = (cuser || "").trim();
+      createUser({ name: cname, username: trimmedUser, password: trimmedPass, role: crole });
+      toast.success(`User "${trimmedUser}" created — you can log in now with password: ${trimmedPass}`);
       // Prefill login and switch tab
-      setU(cuser);
+      setU(trimmedUser);
       setP("");
       setCname(""); setCuser(""); setCpass(""); setCrole("User");
       setTab("login");

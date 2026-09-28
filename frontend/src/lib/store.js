@@ -337,7 +337,8 @@ export const createUser = ({ name, username, password, role = "User" }) => {
   const list = getUsers();
   if (!name?.trim()) throw new Error("Full name is required");
   if (!username?.trim()) throw new Error("Username is required");
-  if (!password || password.length < 4) throw new Error("Password must be at least 4 characters");
+  const trimmedPass = (password || "").trim();
+  if (!trimmedPass || trimmedPass.length < 4) throw new Error("Password must be at least 4 characters (spaces will be trimmed)");
   if (list.some((u) => u.username.toLowerCase() === username.trim().toLowerCase())) {
     throw new Error("Username already exists");
   }
@@ -345,7 +346,7 @@ export const createUser = ({ name, username, password, role = "User" }) => {
     id: `u_${Date.now()}`,
     name: name.trim(),
     username: username.trim(),
-    password,
+    password: trimmedPass,
     role: role === "Admin" ? "Admin" : "User",
     createdAt: new Date().toISOString(),
   };
@@ -366,7 +367,9 @@ export const deleteUser = (id) => {
 
 export const login = (u, p) => {
   const users = getUsers();
-  const match = users.find((x) => x.username.toLowerCase() === (u || "").toLowerCase() && x.password === p);
+  const uTrim = (u || "").trim().toLowerCase();
+  const pTrim = (p || "").trim();
+  const match = users.find((x) => (x.username || "").toLowerCase() === uTrim && (x.password || "") === pTrim);
   if (match) {
     write(KEYS.AUTH, { user: match.username, name: match.name, role: match.role, at: Date.now() });
     return true;
