@@ -600,6 +600,62 @@ export default function Reports() {
               </div>
             </>
           )}
+
+          {/* Vouchers Data Sheet — bottom of page, all payment vouchers */}
+          {payments.length > 0 && (
+            <div className="section" data-testid="vouchers-data-sheet" style={{ marginTop: 14 }}>
+              <div className="sec-head">Payment Vouchers Data Sheet · Click to Load</div>
+              <div className="sec-body">
+                <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9" }}>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>PV No</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Vendor</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Bill No</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Date</th>
+                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid #cbd5e1" }}>Amount (₹)</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Mode</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Status</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((p) => {
+                      const isApp = p.status === "Approved";
+                      return (
+                        <tr key={p.pvNo} data-testid={`voucher-row-${p.pvNo}`}
+                          style={{ background: "#fff", borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "5px 8px", fontFamily: "monospace", fontWeight: 700, color: isApp ? "#166534" : "#92400e" }}>
+                            {isApp ? `✓ ${p.pvNo}` : `⏳ ${p.pvNo}`}
+                            {p.revision > 0 && <span style={{ marginLeft: 6, padding: "1px 6px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontSize: 9, fontWeight: 700 }}>R{p.revision}</span>}
+                          </td>
+                          <td style={{ padding: "5px 8px" }}>{p.vendorName || p.vendorCode}</td>
+                          <td style={{ padding: "5px 8px" }}>{p.billNo || "—"}</td>
+                          <td style={{ padding: "5px 8px" }}>{p.date || "—"}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right", fontFamily: "monospace" }}>{Number(p.amount || 0).toFixed(2)}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>{p.mode || "—"}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <span style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: isApp ? "#dcfce7" : "#fef3c7", color: isApp ? "#166534" : "#92400e", border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}` }}>
+                              {p.status || "Draft"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <button
+                              onClick={() => loadVoucher(p.pvNo)}
+                              data-testid={`voucher-load-${p.pvNo}`}
+                              style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                            >
+                              Load
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

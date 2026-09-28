@@ -185,51 +185,6 @@ export default function VendorRegistration() {
           <Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" />
           <StepTabs step={vendor.step} />
 
-          {/* Vendors Register Tabs — Temp ID till Final Approval · Vendor Code after */}
-          {allVendors.length > 0 && (
-            <div className="section" data-testid="vendors-register">
-              <div className="sec-head">Vendors Register · Click to Load (Temp ID till Approval · Vendor Code after)</div>
-              <div className="sec-body">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {allVendors.map((v) => {
-                    const isApp = v.step === 3;
-                    const isActive = vendor.id === v.id;
-                    const label = isApp
-                      ? `${v.vendorCode} · ${v.firmName || "—"}`
-                      : `${v.tempRefId || "TEMP–"} · ${v.firmName || "Draft"}`;
-                    return (
-                      <button
-                        key={v.id}
-                        onClick={() => loadVendorById(v)}
-                        data-testid={`vendor-tab-${v.id}`}
-                        title={isApp ? `Approved · ${v.vendorType || "Vendor"}` : `Draft · Step ${v.step}`}
-                        style={{
-                          padding: "5px 10px",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}`,
-                          background: isActive ? (isApp ? "#166534" : "#92400e") : (isApp ? "#dcfce7" : "#fef3c7"),
-                          color: isActive ? "#fff" : (isApp ? "#166534" : "#92400e"),
-                          borderRadius: 999,
-                          cursor: "pointer",
-                          fontFamily: "monospace",
-                          letterSpacing: ".3px",
-                        }}
-                      >
-                        {isApp ? "✓ " : "⏳ "}{label}
-                        {v.revision > 0 && (
-                          <span style={{ marginLeft: 4, padding: "0 4px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontSize: 8, fontWeight: 700 }}>
-                            R{v.revision}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
           {vendor.step === 3 && vendor.vendorCode && (
             <div className="approval-banner" data-testid="approval-banner">
               <CheckCircle2 size={18} />
@@ -369,6 +324,63 @@ export default function VendorRegistration() {
             <div className="sig"><div className="title">Checked By</div><div className="role">(Audit &amp; Verification)</div></div>
             <div className="sig"><div className="title">Approved By</div><div className="role">(Account Manager / Partner)</div></div>
           </div>
+
+          {/* Vendors Data Sheet — bottom of page, all vendors listed */}
+          {allVendors.length > 0 && (
+            <div className="section" data-testid="vendors-data-sheet" style={{ marginTop: 14 }}>
+              <div className="sec-head">Vendors Data Sheet · Click to Load (⏳ Temp ID till Approval · ✓ Vendor Code after)</div>
+              <div className="sec-body">
+                <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9" }}>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Code / Temp ID</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Vendor / Supplier Name</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Type</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Mobile</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>GST No</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>PAN</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Status</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allVendors.map((v) => {
+                      const isApp = v.step === 3;
+                      const isActive = vendor.id === v.id;
+                      return (
+                        <tr key={v.id} data-testid={`vendor-row-${v.id}`}
+                          style={{ background: isActive ? "#eef4ff" : "#fff", borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "5px 8px", fontFamily: "monospace", fontWeight: 700, color: isApp ? "#166534" : "#92400e" }}>
+                            {isApp ? `✓ ${v.vendorCode}` : `⏳ ${v.tempRefId || "—"}`}
+                            {v.revision > 0 && <span style={{ marginLeft: 6, padding: "1px 6px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontSize: 9, fontWeight: 700 }}>R{v.revision}</span>}
+                          </td>
+                          <td style={{ padding: "5px 8px" }}>{v.firmName || "—"}</td>
+                          <td style={{ padding: "5px 8px" }}>{v.vendorType || "Vendor"}</td>
+                          <td style={{ padding: "5px 8px" }}>{v.mobileNo || "—"}</td>
+                          <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{v.gstNo || "—"}</td>
+                          <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{v.panNo || "—"}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <span style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: isApp ? "#dcfce7" : "#fef3c7", color: isApp ? "#166534" : "#92400e", border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}` }}>
+                              {isApp ? "Approved" : `Step ${v.step}`}
+                            </span>
+                          </td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <button
+                              onClick={() => loadVendorById(v)}
+                              data-testid={`vendor-load-${v.id}`}
+                              style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                            >
+                              Load
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

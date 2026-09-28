@@ -260,46 +260,6 @@ export default function BillProcessing() {
             </div>
           )}
 
-          {/* Bills Register Tabs — TempID before approval, Vendor Code/Bill No after approval */}
-          {allBills.length > 0 && (
-            <div className="section" data-testid="bills-register">
-              <div className="sec-head">Bills Register · Click to Load (Temp ID till Approval · Vendor Code + Bill No after)</div>
-              <div className="sec-body">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {allBills.map((b) => {
-                    const isApp = b.step === 5;
-                    const isActive = bill.id === b.id;
-                    const label = isApp
-                      ? `${b.permanentBillNo} · ${b.vendorCode} · Bill: ${b.billNo || "—"}`
-                      : `${b.refNo} · ${b.vendorSnapshot?.firmName || b.vendorCode || "Draft"}`;
-                    return (
-                      <button
-                        key={b.id}
-                        onClick={() => loadBill(b)}
-                        data-testid={`bill-tab-${b.id}`}
-                        title={isApp ? "Approved bill" : `Draft · Step ${b.step}`}
-                        style={{
-                          padding: "5px 10px",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}`,
-                          background: isActive ? (isApp ? "#166534" : "#92400e") : (isApp ? "#dcfce7" : "#fef3c7"),
-                          color: isActive ? "#fff" : (isApp ? "#166534" : "#92400e"),
-                          borderRadius: 999,
-                          cursor: "pointer",
-                          fontFamily: "monospace",
-                          letterSpacing: ".3px",
-                        }}
-                      >
-                        {isApp ? "✓ " : "⏳ "}{label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Bill Process Reference */}
           <div className="section">
             <div className="sec-head">Bill Process Reference</div>
@@ -664,6 +624,63 @@ export default function BillProcessing() {
             <div className="sig"><div className="title">Account Manager</div></div>
             <div className="sig"><div className="title">Authorized Signatory</div></div>
           </div>
+
+          {/* Bills Data Sheet — bottom of page, all bills listed */}
+          {allBills.length > 0 && (
+            <div className="section" data-testid="bills-data-sheet" style={{ marginTop: 14 }}>
+              <div className="sec-head">Bills Data Sheet · Click to Load (⏳ Temp ID till Approval · ✓ Vendor Code + Bill No after)</div>
+              <div className="sec-body">
+                <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9" }}>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Bill Ref / Permanent No</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Vendor Code</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Vendor Name</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Bill No</th>
+                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Bill Date</th>
+                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid #cbd5e1" }}>Net Payable (₹)</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Status</th>
+                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allBills.map((b) => {
+                      const isApp = b.step === 5;
+                      const isActive = bill.id === b.id;
+                      const c = computeBill(b);
+                      return (
+                        <tr key={b.id} data-testid={`bill-row-${b.id}`}
+                          style={{ background: isActive ? "#eef4ff" : "#fff", borderBottom: "1px solid #e2e8f0" }}>
+                          <td style={{ padding: "5px 8px", fontFamily: "monospace", fontWeight: 700, color: isApp ? "#166534" : "#92400e" }}>
+                            {isApp ? `✓ ${b.permanentBillNo}` : `⏳ ${b.refNo}`}
+                          </td>
+                          <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{b.vendorCode || "—"}</td>
+                          <td style={{ padding: "5px 8px" }}>{b.vendorSnapshot?.firmName || "—"}</td>
+                          <td style={{ padding: "5px 8px" }}>{b.billNo || "—"}</td>
+                          <td style={{ padding: "5px 8px" }}>{b.billDate || "—"}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "right", fontFamily: "monospace" }}>{c.netPayable.toFixed(2)}</td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <span style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: isApp ? "#dcfce7" : "#fef3c7", color: isApp ? "#166534" : "#92400e", border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}` }}>
+                              {isApp ? "Approved" : BILL_STEP_LABEL[b.step] || `Step ${b.step}`}
+                            </span>
+                          </td>
+                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                            <button
+                              onClick={() => loadBill(b)}
+                              data-testid={`bill-load-${b.id}`}
+                              style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                            >
+                              Load
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
