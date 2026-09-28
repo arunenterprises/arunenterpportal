@@ -121,8 +121,14 @@ export default function VendorRegistration() {
   };
   const handleSearch = (q) => {
     const v = findVendorByAny(q);
-    if (v) { setVendor(v); setLocked(v.step === 3); toast.success(`Loaded ${v.firmName || v.tempRefId}`); }
-    else toast.error("Vendor not found");
+    if (v) {
+      setVendor(v);
+      setLocked(v.step === 3);
+      toast.success(`Loaded ${v.firmName || v.tempRefId} · ${v.vendorCode || v.tempRefId}`);
+      return true;
+    }
+    toast.error("Vendor not found · Opening Query lookup");
+    return false;
   };
   const openQuery = (q) => { setQueryCode(q || ""); setQueryOpen(true); };
   const handleExportJSON = () => {
@@ -143,8 +149,9 @@ export default function VendorRegistration() {
       <Toaster position="top-center" richColors />
       <div className="app-shell">
         <TopActionBar
-          searchPlaceholder="Vendor Code / ID / Name"
-          searchLabel="Query"
+          searchPlaceholder="Vendor Code / Temp ID / Firm Name / Mobile"
+          searchLabel="Search"
+          onSearch={handleSearch}
           onQuery={openQuery}
           nextLabel="Bill Process"
           nextTo="/bill"

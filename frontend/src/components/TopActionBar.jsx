@@ -53,8 +53,12 @@ export const TopActionBar = ({
 
   const submitSearch = (e) => {
     e?.preventDefault?.();
-    if (onQuery) onQuery(q.trim());
-    else onSearch?.(q.trim());
+    const term = q.trim();
+    if (!term) return;
+    // Try direct load first via onSearch; if it returns false (not found), open onQuery modal as fallback
+    const loaded = onSearch ? onSearch(term) : null;
+    if (loaded === false && onQuery) onQuery(term);
+    else if (loaded == null && onQuery) onQuery(term);
   };
   const pickLogo = (e) => {
     const f = e.target.files?.[0];

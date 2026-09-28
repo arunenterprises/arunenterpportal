@@ -68,7 +68,7 @@ body {
   flex: 0 0 auto;
   align-self: center;
   height: 32px;
-  width: 180px; min-width: 140px;
+  width: 220px; min-width: 160px;
   display: flex; align-items: stretch;
   border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
   background: #fff;
@@ -97,7 +97,7 @@ body {
 .top-action.dark .user-chip { color: #fff; border-color: #1e3a8a; background: rgba(255,255,255,.05); }
 .top-action.dark .user-chip button { color: #cbd5e1; }
 .search-wrap {
-  display: none;
+  display: flex;
 }
 .btn-color:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .btn-color:active { transform: translateY(0); }
@@ -143,17 +143,18 @@ body {
 }
 .user-chip button:hover { color: var(--danger); }
 
-/* ---- A4 page ---- */
+/* ---- A4 page (LANDSCAPE) ---- */
 .a4 {
-  width: 210mm;
-  min-height: 297mm;
+  width: 297mm;
+  min-height: 210mm;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 6px;
   box-shadow: 0 10px 40px rgba(15, 23, 42, .07);
-  padding: 12mm 12mm 16mm;
+  padding: 10mm 12mm 14mm;
   position: relative;
   color: var(--ink);
+  margin: 0 auto;
 }
 .a4 + .a4 { margin-top: 20px; }
 
@@ -646,15 +647,16 @@ body {
   font-weight: 600;
 }
 
-/* ---- Print ---- */
+/* ---- Print (LANDSCAPE) ---- */
+@page { size: A4 landscape; margin: 8mm; }
 @media print {
   body, html, #root, .app-shell { background: #fff; }
   .app-shell { padding: 0; }
   .top-action, .bottom-actions { display: none !important; }
   .a4 {
     box-shadow: none; border: none;
-    width: 210mm; min-height: 297mm;
-    padding: 12mm; page-break-after: always;
+    width: 297mm; min-height: 210mm;
+    padding: 8mm; page-break-after: always;
   }
   .a4:last-child { page-break-after: auto; }
   input, select, textarea { color: #000 !important; background: #fff !important; }
