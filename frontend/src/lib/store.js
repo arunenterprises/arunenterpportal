@@ -159,12 +159,18 @@ export const advanceVendorStep = (v) => {
     next.step = 2;
   } else if (next.step === 2) {
     next.step = 3;
-    next.vendorCode = nextVendorCode();
-    const today = new Date();
-    next.approvalDate = today.toISOString().slice(0, 10);
-    const exp = new Date(today);
-    exp.setFullYear(exp.getFullYear() + 2);
-    next.expiryDate = exp.toISOString().slice(0, 10);
+    // Preserve existing vendorCode on Re-Approval; only generate a new one for first approval
+    if (!next.vendorCode) {
+      next.vendorCode = nextVendorCode();
+      const today = new Date();
+      next.approvalDate = today.toISOString().slice(0, 10);
+      const exp = new Date(today);
+      exp.setFullYear(exp.getFullYear() + 2);
+      next.expiryDate = exp.toISOString().slice(0, 10);
+    } else {
+      // Re-Approval: keep vendorCode & expiryDate, only refresh approvalDate
+      next.approvalDate = new Date().toISOString().slice(0, 10);
+    }
   }
   upsertVendor(next);
   return next;
