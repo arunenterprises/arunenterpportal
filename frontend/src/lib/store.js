@@ -338,7 +338,7 @@ export const vendorAccountSummary = (vendorCode) => {
 };
 
 // ---- Auth & Users (cloud-backed via /api/auth) ----
-export const createUser = async ({ name, email, username, password, role = "User" }) => {
+export const createUser = async ({ name, email, username, password, role = "User", mobile = "", employeeId = "", designation = "" }) => {
   // Accepts either email or username; if only username provided, treat as email
   const identifier = (email || username || "").trim().toLowerCase();
   if (!identifier) throw new Error("Email is required");
@@ -347,7 +347,11 @@ export const createUser = async ({ name, email, username, password, role = "User
   const trimmedName = (name || "").trim();
   if (!trimmedName) throw new Error("Full name is required");
   if (trimmedPass.length < 4) throw new Error("Password must be at least 4 characters");
-  const { token, user } = await apiRegister(identifier, trimmedPass, trimmedName, role);
+  const { token, user } = await apiRegister(identifier, trimmedPass, trimmedName, role, {
+    mobile: (mobile || "").trim(),
+    employeeId: (employeeId || "").trim(),
+    designation: (designation || "").trim(),
+  });
   setToken(token);
   write(KEYS.AUTH, { user: user.email, name: user.name, role: user.role, at: Date.now() });
   return user;

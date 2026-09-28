@@ -14,7 +14,11 @@ export default function Login() {
   // Create-user state
   const [cname, setCname] = useState("");
   const [cemail, setCemail] = useState("");
+  const [cmobile, setCmobile] = useState("");
+  const [cempid, setCempid] = useState("");
+  const [cdesig, setCdesig] = useState("");
   const [cpass, setCpass] = useState("");
+  const [cpass2, setCpass2] = useState("");
   const [crole, setCrole] = useState("User");
   const nav = useNavigate();
 
@@ -43,8 +47,19 @@ export default function Login() {
     try {
       const trimmedEmail = (cemail || "").trim().toLowerCase();
       const trimmedPass = (cpass || "").trim();
-      await createUser({ name: cname, email: trimmedEmail, password: trimmedPass, role: crole });
-      // Auto-sync (empty on new account is fine)
+      const trimmedPass2 = (cpass2 || "").trim();
+      if (!cname.trim()) throw new Error("Full Name is required");
+      if (!trimmedEmail) throw new Error("Email is required");
+      if (!cmobile.trim()) throw new Error("Mobile No is required");
+      if (!/^\d{10}$/.test(cmobile.trim())) throw new Error("Mobile No must be exactly 10 digits");
+      if (!cempid.trim()) throw new Error("Employee ID is required");
+      if (!cdesig.trim()) throw new Error("Designation is required");
+      if (trimmedPass.length < 4) throw new Error("Password must be at least 4 characters");
+      if (trimmedPass !== trimmedPass2) throw new Error("Passwords do not match");
+      await createUser({
+        name: cname, email: trimmedEmail, password: trimmedPass, role: crole,
+        mobile: cmobile.trim(), employeeId: cempid.trim(), designation: cdesig.trim(),
+      });
       try { await syncFromCloud(); } catch {}
       toast.success(`Account created · Signed in as ${trimmedEmail}`);
       nav("/vendor");
@@ -110,19 +125,45 @@ export default function Login() {
           </form>
         ) : (
           <form onSubmit={submitCreate} data-testid="create-form">
-            <p className="hint">Register a new account. Your data will sync across devices via secure cloud.</p>
-            <label>Full Name</label>
-            <input data-testid="create-name" value={cname} onChange={(e) => setCname(e.target.value)} placeholder="e.g. Rahul Sharma" autoFocus />
-            <label>Email</label>
-            <input data-testid="create-username" type="email" value={cemail} onChange={(e) => setCemail(e.target.value)} placeholder="you@example.com" />
-            <label>Password (min 4 chars)</label>
-            <input data-testid="create-password" type="password" value={cpass} onChange={(e) => setCpass(e.target.value)} placeholder="••••••" />
-            <label>Role</label>
-            <select data-testid="create-role" value={crole} onChange={(e) => setCrole(e.target.value)}>
-              <option value="User">User</option>
-              <option value="Admin">Admin</option>
-            </select>
-            <button className="submit" data-testid="create-submit" disabled={busy}>
+            <p className="hint">Register a new employee account. Your data will sync across devices via secure cloud.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label>Full Name <span style={{ color: "#dc2626" }}>*</span></label>
+                <input data-testid="create-name" value={cname} onChange={(e) => setCname(e.target.value)} placeholder="e.g. Rahul Sharma" autoFocus />
+              </div>
+              <div>
+                <label>Email ID <span style={{ color: "#dc2626" }}>*</span></label>
+                <input data-testid="create-username" type="email" value={cemail} onChange={(e) => setCemail(e.target.value)} placeholder="you@example.com" />
+              </div>
+              <div>
+                <label>Mobile No <span style={{ color: "#dc2626" }}>*</span></label>
+                <input data-testid="create-mobile" value={cmobile} onChange={(e) => setCmobile(e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10-digit mobile" />
+              </div>
+              <div>
+                <label>Employee ID <span style={{ color: "#dc2626" }}>*</span></label>
+                <input data-testid="create-empid" value={cempid} onChange={(e) => setCempid(e.target.value)} placeholder="e.g. AE-EMP-001" />
+              </div>
+              <div>
+                <label>Designation <span style={{ color: "#dc2626" }}>*</span></label>
+                <input data-testid="create-designation" value={cdesig} onChange={(e) => setCdesig(e.target.value)} placeholder="e.g. Purchase Manager" />
+              </div>
+              <div>
+                <label>Role</label>
+                <select data-testid="create-role" value={crole} onChange={(e) => setCrole(e.target.value)}>
+                  <option value="User">User</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              <div>
+                <label>Password <span style={{ color: "#dc2626" }}>*</span></label>
+                <input data-testid="create-password" type="password" value={cpass} onChange={(e) => setCpass(e.target.value)} placeholder="min 4 chars" />
+              </div>
+              <div>
+                <label>Confirm Password <span style={{ color: "#dc2626" }}>*</span></label>
+                <input data-testid="create-password2" type="password" value={cpass2} onChange={(e) => setCpass2(e.target.value)} placeholder="re-type password" />
+              </div>
+            </div>
+            <button className="submit" data-testid="create-submit" disabled={busy} style={{ marginTop: 12 }}>
               {busy ? "Creating…" : "Create Account"}
             </button>
             <p className="hint" style={{ marginTop: 12 }}>Already registered? <span style={{ color: "#1d4ed8", cursor: "pointer" }} onClick={() => setTab("login")} data-testid="switch-to-login">Sign in instead</span></p>

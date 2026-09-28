@@ -61,6 +61,9 @@ class RegisterBody(BaseModel):
     password: str
     name: str
     role: str = "User"
+    mobile: str = ""
+    employee_id: str = ""
+    designation: str = ""
 
 
 class LoginBody(BaseModel):
@@ -84,6 +87,9 @@ async def register(body: RegisterBody):
         "email": email,
         "name": name,
         "role": role,
+        "mobile": (body.mobile or "").strip(),
+        "employee_id": (body.employee_id or "").strip(),
+        "designation": (body.designation or "").strip(),
         "password_hash": hash_password(password),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -91,7 +97,10 @@ async def register(body: RegisterBody):
     token = create_access_token(email, email)
     return {
         "token": token,
-        "user": {"email": email, "name": name, "role": role},
+        "user": {
+            "email": email, "name": name, "role": role,
+            "mobile": doc["mobile"], "employee_id": doc["employee_id"], "designation": doc["designation"],
+        },
     }
 
 

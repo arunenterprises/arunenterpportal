@@ -26,8 +26,16 @@ const req = async (path, opts = {}) => {
 export const apiLogin = (identifier, password) =>
   req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
 
-export const apiRegister = (email, password, name, role = "User") =>
-  req("/auth/register", { method: "POST", body: JSON.stringify({ email, password, name, role }) });
+export const apiRegister = (email, password, name, role = "User", extra = {}) =>
+  req("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({
+      email, password, name, role,
+      mobile: extra.mobile || "",
+      employee_id: extra.employeeId || "",
+      designation: extra.designation || "",
+    }),
+  });
 
 export const apiMe = () => req("/auth/me");
 
