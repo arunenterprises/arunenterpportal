@@ -630,7 +630,7 @@ body {
   justify-content: center;
   align-items: stretch;
 }
-.home-a4 .doc-header { flex: 0 0 auto; min-height: 130px; padding-bottom: 12px; }
+.home-a4 .doc-header { flex: 0 0 auto; min-height: 160px; padding-bottom: 14px; }
 .home-a4 .doc-header .brand-logo {
   width: 130px;
   height: 130px;
@@ -640,8 +640,9 @@ body {
   left: 6px;
   top: 4px;
 }
-.home-a4 .doc-header h1 { font-size: 28px; letter-spacing: 4px; margin-top: 8px; }
-.home-a4 .doc-header p { font-size: 12.5px; }
+.home-a4 .doc-header h1 { font-size: 34px; letter-spacing: 5px; margin-top: 10px; margin-bottom: 8px; }
+.home-a4 .doc-header p { font-size: 15px; line-height: 1.7; margin: 3px 0; }
+.home-a4 .doc-header p b { color: #0b1a4d; }
 .home-a4 .dept-grid,
 .home-a4 .home-super-row { flex: 0 0 auto; }
 .home-a4 .doc-header { margin-bottom: 8px; }
