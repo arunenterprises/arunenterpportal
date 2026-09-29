@@ -153,8 +153,11 @@ async def change_password(body: ChangePasswordBody, user: Dict = Depends(get_cur
     target_email = (body.email or user["email"]).lower().strip()
     is_self = target_email == user["email"]
     is_admin = (user.get("role") or "").lower() == "admin"
-    if not is_self and not is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required to change another user's password")
+    primary_admin = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    is_super_admin = bool(primary_admin) and (user.get("email") or "").lower().strip() == primary_admin
+    # Cross-user password change is restricted to the Super Admin
+    if not is_self and not is_super_admin:
+        raise HTTPException(status_code=403, detail="Only Super Admin can change another user's password")
     # If changing own password, verify current (old) password
     if is_self:
         old = (body.old_password or "").strip()
