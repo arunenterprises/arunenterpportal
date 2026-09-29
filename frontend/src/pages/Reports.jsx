@@ -24,6 +24,7 @@ export default function Reports() {
   const [filter, setFilter] = useState("");
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
+  const [selectedPvs, setSelectedPvs] = useState(() => new Set());
 
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
@@ -230,6 +231,7 @@ export default function Reports() {
       bankName: b.vendorSnapshot?.bankName || "",
       basic: c.basic, gst: c.gst, tds: c.tds, net: c.netPayable,
       amount: balance, mode: "NEFT", remarks: "",
+      utrNo: "",
       status: "Draft",
       createdByName: currentUser(),
       preparedByName: "", checkedByName: "", approvedByName: "", approvalDate: "",
@@ -254,7 +256,8 @@ export default function Reports() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(payments.map((p) => ({
       "PV No": p.pvNo, Date: p.date, "Bill Ref": p.billRefNo, "Bill No": p.billNo,
       "Vendor Code": p.vendorCode, "Vendor Name": p.vendorName,
-      Amount: p.amount, Mode: p.mode, Bank: p.bankName, IFSC: p.ifscCode,
+      Amount: p.amount, Mode: p.mode, "UTR / Ref No": p.utrNo || "",
+      Bank: p.bankName, IFSC: p.ifscCode,
       "Account No": p.accountNumber, Status: p.status,
     }))), "Payment Vouchers");
     XLSX.writeFile(wb, `vendor_reports_${today}.xlsx`);
@@ -264,6 +267,75 @@ export default function Reports() {
   const handleExportJSON = () => {
     exportJSON({ dueRows, summary, payments, generatedAt: new Date().toISOString() }, `vendor_reports_${today}.json`);
     toast.success("Reports exported as JSON");
+  };
+
+  // ---- Approved Voucher export (selected or all) ----
+  const approvedPayments = useMemo(
+    () => payments.filter((p) => p.status === "Approved"),
+    [payments]
+  );
+  const toggleSelectPv = (pvNo) => {
+    setSelectedPvs((prev) => {
+      const n = new Set(prev);
+      if (n.has(pvNo)) n.delete(pvNo); else n.add(pvNo);
+      return n;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelectedPvs((prev) => {
+      const allApproved = approvedPayments.map((p) => p.pvNo);
+      const allSelected = allApproved.length > 0 && allApproved.every((n) => prev.has(n));
+      return allSelected ? new Set() : new Set(allApproved);
+    });
+  };
+  const exportApprovedVouchers = () => {
+    if (approvedPayments.length === 0) {
+      toast.error("No approved vouchers to export");
+      return;
+    }
+    const toExport = selectedPvs.size === 0
+      ? approvedPayments
+      : approvedPayments.filter((p) => selectedPvs.has(p.pvNo));
+    if (toExport.length === 0) {
+      toast.error("Please select at least one voucher (or clear selection to export all)");
+      return;
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(toExport.map((p) => ({
+        "PV No": p.pvNo,
+        "Date": p.date,
+        "Bill Ref": p.billRefNo,
+        "Bill No": p.billNo,
+        "Vendor Code": p.vendorCode,
+        "Vendor Name": p.vendorName,
+        "Bill Basic": Number(p.basic || 0),
+        "GST": Number(p.gst || 0),
+        "TDS": Number(p.tds || 0),
+        "Bill Net": Number(p.net || 0),
+        "Voucher Amount": Number(p.amount || 0),
+        "Mode": p.mode,
+        "UTR / Ref No": p.utrNo || "",
+        "Bank": p.bankName,
+        "IFSC": p.ifscCode,
+        "Account Holder": p.accountName,
+        "Account Number": p.accountNumber,
+        "Status": p.status,
+        "Approval Date": p.approvalDate || "",
+        "Approved By": p.approvedByName || "",
+        "Prepared By": p.preparedByName || "",
+        "Checked By": p.checkedByName || "",
+        "Remarks": p.remarks || "",
+      }))),
+      "Approved Vouchers"
+    );
+    const scope = selectedPvs.size === 0 ? "all" : `${toExport.length}`;
+    const filename = toExport.length === 1
+      ? `voucher_${toExport[0].pvNo.replace(/[\/\\]/g, "_")}.xlsx`
+      : `approved_vouchers_${today}_${scope}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    toast.success(`Exported ${toExport.length} approved voucher${toExport.length > 1 ? "s" : ""}`);
   };
   const handlePrint = () => window.print();
   const handleSearch = (q) => setFilter(q);
@@ -340,13 +412,18 @@ export default function Reports() {
                   <th style={{ textAlign: "right" }}>Net</th>
                   <th style={{ textAlign: "right" }}>Paid</th>
                   <th style={{ textAlign: "right" }}>Balance</th>
+                  <th>UTR / Ref</th>
+                  <th>WO Copy</th>
                   <th>Status</th>
                 </tr></thead>
                 <tbody>
                   {filtered.length === 0 && (
-                    <tr><td colSpan={9} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No approved bills</td></tr>
+                    <tr><td colSpan={11} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No approved bills</td></tr>
                   )}
-                  {filtered.map((r) => (
+                  {filtered.map((r) => {
+                    const billObj = bills.find((b) => b.id === r.id);
+                    const pvForBill = payments.find((p) => p.billId === r.id);
+                    return (
                     <tr key={r.id} data-testid={`due-row-${r.refNo}`}>
                       <td className="mono">{r.refNo}</td>
                       <td>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
@@ -356,17 +433,42 @@ export default function Reports() {
                       <td className="num">{r.net.toFixed(2)}</td>
                       <td className="num">{r.paid.toFixed(2)}</td>
                       <td className="num"><b>{r.balance.toFixed(2)}</b></td>
+                      <td style={{ fontFamily: "monospace", fontSize: 10.5 }} data-testid={`due-utr-${r.refNo}`}>
+                        {pvForBill?.utrNo ? (
+                          <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 700 }}>{pvForBill.utrNo}</span>
+                        ) : "—"}
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {billObj?.workOrderFile ? (
+                          <a href={billObj.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
+                            data-testid={`due-wo-file-${r.refNo}`}
+                            title={billObj.workOrderFile.name}
+                            style={{ padding: "2px 8px", background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, fontWeight: 600, fontSize: 10.5, textDecoration: "none" }}>
+                            📎 View
+                          </a>
+                        ) : <span style={{ color: "#94a3b8" }}>—</span>}
+                      </td>
                       <td>
                         <span className={`pill-tag ${r.status === "Overdue" ? "overdue" : r.status === "Paid" ? "paid" : "due"}`}>{r.status}</span>
                       </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>
           </div>
           <div className="section">
-            <div className="sec-head">C. Payments Register · Edit / Delete / Reschedule</div>
+            <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>C. Payments Register · Edit / Delete / Reschedule</span>
+              <button
+                onClick={exportApprovedVouchers}
+                data-testid="export-approved-vouchers"
+                style={{ padding: "4px 12px", fontSize: 11, background: "#166534", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, letterSpacing: 0.3 }}
+                title={selectedPvs.size === 0 ? "Export all approved vouchers to Excel" : `Export ${selectedPvs.size} selected voucher(s) to Excel`}
+              >
+                📥 Export Approved to Excel {selectedPvs.size > 0 ? `(${selectedPvs.size})` : "(All)"}
+              </button>
+            </div>
             <div className="sec-body">
               {payments.length === 0 ? (
                 <div style={{ padding: 14, color: "#64748b", fontSize: 12, textAlign: "center" }}>
@@ -374,19 +476,42 @@ export default function Reports() {
                 </div>
               ) : (
                 <table className="data-table" data-testid="payments-register">
-                  <thead><tr>
-                    <th>PV No</th>
-                    <th>Vendor</th>
-                    <th>Bill No</th>
-                    <th>Payment Date</th>
-                    <th style={{ textAlign: "right" }}>Amount (₹)</th>
-                    <th>Mode</th>
-                    <th>Status</th>
-                    <th style={{ minWidth: 260 }}>Actions</th>
-                  </tr></thead>
+                  <thead>
+                    <tr style={{ background: "#f1f5f9" }}>
+                      <th style={{ width: 34, textAlign: "center" }} title="Select approved voucher for export">
+                        <input
+                          type="checkbox"
+                          data-testid="export-select-all"
+                          disabled={approvedPayments.length === 0}
+                          checked={approvedPayments.length > 0 && approvedPayments.every((p) => selectedPvs.has(p.pvNo))}
+                          onChange={toggleSelectAll}
+                          title="Select / Deselect all approved vouchers"
+                        />
+                      </th>
+                      <th>PV No</th>
+                      <th>Vendor</th>
+                      <th>Bill No</th>
+                      <th>Payment Date</th>
+                      <th style={{ textAlign: "right" }}>Amount (₹)</th>
+                      <th>Mode</th>
+                      <th>UTR / Ref</th>
+                      <th>Status</th>
+                      <th style={{ minWidth: 260 }}>Actions</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {payments.map((p) => (
                       <tr key={p.pvNo} data-testid={`pay-row-${p.pvNo}`}>
+                        <td style={{ textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            data-testid={`export-select-${p.pvNo}`}
+                            disabled={p.status !== "Approved"}
+                            checked={selectedPvs.has(p.pvNo)}
+                            onChange={() => toggleSelectPv(p.pvNo)}
+                            title={p.status === "Approved" ? "Select for Excel export" : "Only approved vouchers can be exported"}
+                          />
+                        </td>
                         <td className="mono">
                           <button
                             onClick={() => loadVoucher(p.pvNo)}
@@ -420,6 +545,7 @@ export default function Reports() {
                         </td>
                         <td className="num">{Number(p.amount || 0).toFixed(2)}</td>
                         <td>{p.mode}</td>
+                        <td style={{ fontFamily: "monospace", fontSize: 10.5 }} data-testid={`pay-utr-${p.pvNo}`}>{p.utrNo || "—"}</td>
                         <td>
                           <span className={`pill-tag ${p.status === "Approved" ? "paid" : "due"}`}>{p.status}</span>
                         </td>
@@ -527,10 +653,25 @@ export default function Reports() {
                     <F label="Account Holder"><input value={pv.accountName} readOnly /></F>
                     <F label="Account Number"><input value={pv.accountNumber} readOnly /></F>
                   </div>
-                  <div className="row cols-1" style={{ marginTop: 10 }}>
+                  <div className="row cols-2" style={{ marginTop: 10 }}>
                     <F label="Amount (₹)">
                       <input type="number" step="0.01" min="0" value={pv.amount}
                         onChange={(e) => setPv({ ...pv, amount: e.target.value })} data-testid="pv-amount" />
+                    </F>
+                    <F label="UTR / Reference No (Post-payment)">
+                      <input
+                        value={pv.utrNo || ""}
+                        onChange={(e) => setPv({ ...pv, utrNo: e.target.value.toUpperCase().slice(0, 32) })}
+                        placeholder={pv.status === "Approved" ? "Enter UTR after transfer — appears in vendor's Due List" : "Available after voucher is approved"}
+                        data-testid="pv-utr"
+                        style={{
+                          fontFamily: "monospace",
+                          letterSpacing: ".3px",
+                          background: pv.status === "Approved" ? "#fef9c3" : "#fff",
+                          borderColor: pv.status === "Approved" ? "#facc15" : undefined,
+                          fontWeight: pv.utrNo ? 700 : 400,
+                        }}
+                      />
                     </F>
                   </div>
                   <div className="row cols-1" style={{ marginTop: 10 }}>

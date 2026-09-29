@@ -11,15 +11,16 @@ import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
 } from "../lib/store";
-
 const GST_SLABS = [0, 5, 12, 18, 28];
-const UOMS = ["Nos", "Kg", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
+const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
 const CATEGORY_SCOPES = [
   "Civil Work", "Electrical Work", "Plumbing & Sanitary", "Steel & Fabrication",
   "Painting & Finishing", "Interior / Woodwork", "Material Supply",
-  "Labour / Manpower", "Consulting / Design", "Other",
+  "Labour / Manpower", "Consulting / Design",
+  "Transportation", "Loading / Unloading",
+  "Other",
 ];
-const ITEM_UNITS = ["Sft/MT", "Nos", "Kg", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
+const ITEM_UNITS = ["Sft/MT", "Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
 const MEASUREMENT_OPTIONS = ["Verified & OK", "Pending", "Rejected"];
 const WO_RATE_OPTIONS = ["Matched with WO", "Rate Deviation", "Not Verified"];
 const GST_TDS_OPTIONS = ["TDS & GST Verified", "Pending", "Discrepancy Found"];
@@ -64,6 +65,7 @@ export default function BillProcessing() {
       id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       categoryScope: "Civil Work",
       description: "",
+      hsn: "",
       woQty: 0,
       unit: "Sft/MT",
       woRate: 0,
@@ -72,15 +74,66 @@ export default function BillProcessing() {
     setBill({ ...bill, items: list });
   };
   const updateItem = (id, patch) => {
-    const list = items.map((r) => r.id === id ? { ...r, ...patch } : r);
+    const list = items.map((r) => {
+      if (r.id !== id) return r;
+      const next = { ...r, ...patch };
+      // Auto-select unit for Transportation
+      if (patch.categoryScope === "Transportation" && !next.unit) next.unit = "Km";
+      if (patch.categoryScope === "Transportation" && next.unit === "Sft/MT") next.unit = "Km";
+      // Clamp billedQty to woQty
+      if (patch.billedQty !== undefined) {
+        const bq = Number(patch.billedQty) || 0;
+        const wq = Number(next.woQty) || 0;
+        if (wq > 0 && bq > wq) {
+          toast.error(`Billed Qty (${bq}) cannot exceed WO Qty (${wq})`);
+          next.billedQty = wq;
+        }
+      }
+      return next;
+    });
     setBill({ ...bill, items: list });
   };
   const removeItem = (id) => {
     setBill({ ...bill, items: items.filter((r) => r.id !== id) });
   };
+  // Cumulative totals across items in current bill
+  const totals = items.reduce((acc, r) => {
+    const woQty = Number(r.woQty) || 0;
+    const billed = Number(r.billedQty) || 0;
+    const woRate = Number(r.woRate) || 0;
+    acc.woQty += woQty;
+    acc.billed += billed;
+    acc.balance += Math.max(0, woQty - billed);
+    acc.woValue += woQty * woRate;
+    acc.amount += billed * woRate;
+    return acc;
+  }, { woQty: 0, billed: 0, balance: 0, woValue: 0, amount: 0 });
   const useItemsSumAsBasic = () => {
     setBill({ ...bill, basicAmount: +itemsTotal.toFixed(2) });
     toast.success(`Basic Amount set to ₹${itemsTotal.toFixed(2)}`);
+  };
+
+  // ---- Work Order file upload (max 300 KB) ----
+  const handleWoFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 300 * 1024) {
+      toast.error(`File size ${Math.round(f.size / 1024)} KB exceeds 300 KB limit`);
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBill({ ...bill, workOrderFile: { name: f.name, size: f.size, type: f.type, dataUrl: reader.result } });
+      toast.success(`Uploaded ${f.name} (${Math.round(f.size / 1024)} KB)`);
+    };
+    reader.onerror = () => toast.error("Failed to read file");
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+  const removeWoFile = () => {
+    setBill({ ...bill, workOrderFile: null });
+    toast.success("Work Order file removed");
   };
 
   const bind = (k, extra = {}) => ({
@@ -145,7 +198,29 @@ export default function BillProcessing() {
   };
 
   const handleEdit = () => {
-    if (bill.step === 5) { toast.error("Approved bill cannot be edited"); return; }
+    if (bill.step === 5) {
+      if (!window.confirm(`Reopen approved bill ${bill.permanentBillNo || bill.refNo} for editing? This requires Re-Approval.`)) return;
+      const history = Array.isArray(bill.history) ? bill.history : [];
+      history.push({
+        action: "Reopened",
+        from: "Approved",
+        by: currentUser(),
+        at: new Date().toISOString(),
+      });
+      const next = {
+        ...bill,
+        step: 4,
+        revision: (bill.revision || 0) + 1,
+        reopenedAt: new Date().toISOString(),
+        reopenedBy: currentUser(),
+        history,
+      };
+      const saved = upsertBill(next);
+      setBill(saved);
+      setLocked(false);
+      toast.success(`${bill.permanentBillNo || bill.refNo} reopened (Rev ${next.revision}) · Awaiting Re-Approval`);
+      return;
+    }
     setLocked(false); toast.info("Editable");
   };
 
@@ -174,10 +249,22 @@ export default function BillProcessing() {
     if (bill.step !== 4) { toast.error("Complete all approval steps first (use Submit)"); return; }
     if (!validate()) return;
     if (!bill.approverName.trim()) { toast.error("Enter Approver Name first"); return; }
-    const next = advanceBillStep({ ...bill });
-    setBill(next);
+    const isReApproval = (bill.revision || 0) > 0;
+    const history = Array.isArray(bill.history) ? bill.history : [];
+    history.push({
+      action: isReApproval ? "Re-Approved" : "Approved",
+      by: currentUser(),
+      at: new Date().toISOString(),
+    });
+    const next = { ...advanceBillStep({ ...bill }), history };
+    const saved = upsertBill(next);
+    setBill(saved);
     setLocked(true);
-    toast.success(`Final Approval · Added to Due List · Net ₹${comp.netPayable}`);
+    toast.success(
+      isReApproval
+        ? `Re-Approved (Rev ${saved.revision}) · Bill No: ${saved.permanentBillNo} · Net ₹${comp.netPayable}`
+        : `Final Approval · Added to Due List · Net ₹${comp.netPayable}`
+    );
   };
 
   const handleExportJSON = () => {
@@ -352,12 +439,12 @@ export default function BillProcessing() {
                 <F label="Total Work Order Value (₹)">
                   <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("totalWOValue")} />
                 </F>
-                <F label="Previous Advance / Paid Amount (₹)">
-                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("previousAdvance")} />
+                <F label="Previous Bill & Amount (info only)">
+                  <input type="text" placeholder="e.g. BILL0003/2526 - ₹50,000" {...bind("previousAdvance")} />
                 </F>
               </div>
               <div className="row cols-3" style={{ marginTop: 10 }}>
-                <F label="Item Description (Summary)">
+                <F label="Item Summary">
                   <input placeholder="Item / Service" {...bind("itemDescription")} />
                 </F>
                 <F label="Quantity (Summary)">
@@ -367,6 +454,37 @@ export default function BillProcessing() {
                   <select {...bind("uom")}>
                     {UOMS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
+                </F>
+              </div>
+              <div className="row cols-2" style={{ marginTop: 10 }}>
+                <F label="Work Order Copy (Upload · Max 300 KB · PDF/Image)">
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input
+                      type="file"
+                      accept="application/pdf,image/*"
+                      onChange={handleWoFile}
+                      disabled={locked}
+                      data-testid="wo-file-input"
+                      style={{ flex: 1, padding: "4px", fontSize: 11, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff" }}
+                    />
+                    {bill.workOrderFile && !locked && (
+                      <button type="button" onClick={removeWoFile} data-testid="wo-file-remove"
+                        style={{ padding: "4px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </F>
+                <F label="Uploaded WO File">
+                  {bill.workOrderFile ? (
+                    <a href={bill.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
+                      data-testid="wo-file-link"
+                      style={{ display: "inline-block", padding: "6px 10px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 600, fontSize: 11.5, textDecoration: "none" }}>
+                      📎 {bill.workOrderFile.name} ({Math.round(bill.workOrderFile.size / 1024)} KB)
+                    </a>
+                  ) : (
+                    <input value="No file uploaded" readOnly style={{ fontStyle: "italic", color: "#64748b" }} data-testid="wo-file-empty" />
+                  )}
                 </F>
               </div>
             </div>
@@ -389,19 +507,25 @@ export default function BillProcessing() {
               <table className="items-table" data-testid="items-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "18%" }}>Category Scope</th>
+                    <th style={{ width: "13%" }}>Category Scope</th>
                     <th>Item Description</th>
-                    <th style={{ width: "9%" }}>WO Qty</th>
-                    <th style={{ width: "9%" }}>Unit</th>
-                    <th style={{ width: "11%" }}>WO Rate (₹)</th>
-                    <th style={{ width: "9%" }}>Billed Qty</th>
-                    <th style={{ width: "11%" }}>Amount (₹)</th>
+                    <th style={{ width: "9%" }}>HSN / SAC</th>
+                    <th style={{ width: "6%" }}>WO Qty</th>
+                    <th style={{ width: "7%" }}>Unit</th>
+                    <th style={{ width: "9%" }}>WO Rate (₹)</th>
+                    <th style={{ width: "6%" }}>Billed Qty</th>
+                    <th style={{ width: "6%", background: "#f0f9ff" }} title="WO Qty - Billed Qty">Balance</th>
+                    <th style={{ width: "10%" }}>Amount (₹)</th>
                     <th className="col-del">X</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((r, i) => {
-                    const amount = (Number(r.woRate) || 0) * (Number(r.billedQty) || 0);
+                    const woQty = Number(r.woQty) || 0;
+                    const billed = Number(r.billedQty) || 0;
+                    const balance = Math.max(0, woQty - billed);
+                    const amount = (Number(r.woRate) || 0) * billed;
+                    const overbill = billed > woQty && woQty > 0;
                     return (
                       <tr key={r.id} data-testid={`item-row-${i}`}>
                         <td>
@@ -416,6 +540,13 @@ export default function BillProcessing() {
                             value={r.description}
                             onChange={(e) => updateItem(r.id, { description: e.target.value })}
                             readOnly={locked} data-testid={`item-desc-${i}`} />
+                        </td>
+                        <td>
+                          <input placeholder="HSN/SAC"
+                            value={r.hsn || ""}
+                            onChange={(e) => updateItem(r.id, { hsn: e.target.value.replace(/[^0-9]/g, "").slice(0, 8) })}
+                            readOnly={locked} data-testid={`item-hsn-${i}`}
+                            className="num" />
                         </td>
                         <td>
                           <input type="number" step="0.01" min="0" placeholder="0"
@@ -440,7 +571,15 @@ export default function BillProcessing() {
                           <input type="number" step="0.01" min="0" placeholder="0"
                             value={r.billedQty}
                             onChange={(e) => updateItem(r.id, { billedQty: e.target.value })}
-                            readOnly={locked} data-testid={`item-billedQty-${i}`} className="num" />
+                            readOnly={locked} data-testid={`item-billedQty-${i}`}
+                            className="num"
+                            style={overbill ? { background: "#fee2e2", color: "#991b1b" } : {}} />
+                        </td>
+                        <td>
+                          <input value={balance.toFixed(2)} readOnly
+                            data-testid={`item-balance-${i}`}
+                            className="num"
+                            style={{ background: balance === 0 && woQty > 0 ? "#dcfce7" : "#f0f9ff", fontWeight: 700 }} />
                         </td>
                         <td>
                           <input value={amount.toFixed(2)} readOnly
@@ -457,9 +596,14 @@ export default function BillProcessing() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: "right" }}>Items Subtotal (Basic Amount)</td>
-                    <td className="num" data-testid="items-subtotal">{itemsTotal.toFixed(2)}</td>
+                  <tr style={{ background: "#f8fafc" }}>
+                    <td colSpan={3} style={{ textAlign: "right", fontWeight: 700 }}>Cumulative Totals →</td>
+                    <td className="num" data-testid="total-wo-qty" style={{ fontWeight: 700 }}>{totals.woQty.toFixed(2)}</td>
+                    <td></td>
+                    <td className="num" data-testid="total-wo-value" style={{ fontWeight: 700 }} title="Total WO Value (WO Qty × WO Rate)">₹{totals.woValue.toFixed(2)}</td>
+                    <td className="num" data-testid="total-billed-qty" style={{ fontWeight: 700 }}>{totals.billed.toFixed(2)}</td>
+                    <td className="num" data-testid="total-balance-qty" style={{ fontWeight: 700, background: "#f0f9ff", color: "#0369a1" }}>{totals.balance.toFixed(2)}</td>
+                    <td className="num" data-testid="items-subtotal" style={{ fontWeight: 700 }}>{itemsTotal.toFixed(2)}</td>
                     <td className="col-del">
                       <button className="btn-color btn-save" data-testid="btn-use-items-total"
                         onClick={useItemsSumAsBasic} disabled={locked}
@@ -665,13 +809,42 @@ export default function BillProcessing() {
                             </span>
                           </td>
                           <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                            <button
-                              onClick={() => loadBill(b)}
-                              data-testid={`bill-load-${b.id}`}
-                              style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                            >
-                              Load
-                            </button>
+                            <div style={{ display: "inline-flex", gap: 4 }}>
+                              <button
+                                onClick={() => loadBill(b)}
+                                data-testid={`bill-load-${b.id}`}
+                                style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                              >
+                                Load
+                              </button>
+                              {isApp && (
+                                <button
+                                  onClick={() => {
+                                    if (!window.confirm(`Reopen approved bill ${b.permanentBillNo}? This requires Re-Approval.`)) return;
+                                    const history = Array.isArray(b.history) ? b.history : [];
+                                    history.push({ action: "Reopened", from: "Approved", by: currentUser(), at: new Date().toISOString() });
+                                    const next = { ...b, step: 4, revision: (b.revision || 0) + 1, reopenedAt: new Date().toISOString(), reopenedBy: currentUser(), history };
+                                    const saved = upsertBill(next);
+                                    setBill(saved); setLocked(false); setRefresh((n) => n + 1);
+                                    toast.success(`${b.permanentBillNo} reopened (Rev ${next.revision}) · Awaiting Re-Approval`);
+                                  }}
+                                  data-testid={`bill-reopen-${b.id}`}
+                                  style={{ padding: "3px 10px", fontSize: 10.5, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                                  title="Reopen for edit (requires Re-Approval)"
+                                >
+                                  Reopen
+                                </button>
+                              )}
+                              {b.revision > 0 && (
+                                <span
+                                  data-testid={`bill-rev-${b.id}`}
+                                  style={{ padding: "1px 6px", fontSize: 9, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontWeight: 700, alignSelf: "center" }}
+                                  title={`Reopened ${b.revision} time(s)`}
+                                >
+                                  REV {b.revision}
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );

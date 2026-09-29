@@ -47,7 +47,17 @@ Print), A4 portrait layout with company header, and a linear approval workflow.
 See `/app/memory/test_credentials.md`.
 
 ## Deferred / backlog
-- Change Password from Admin Users panel — **Done Feb 2026** (self-change requires current password; admin can reset any user's password without old)
+- Approved Voucher Excel export (single or multi-select) — **Done Feb 2026** (per-row checkbox + Select-All + green "📥 Export Approved to Excel" button in Payments Register header)
+- Category Scope: Transportation & Loading/Unloading added; **Km** unit added — **Done Feb 2026**
+- "Item Description (Summary)" → "**Item Summary**" label rename — **Done Feb 2026**
+- "Previous Advance / Paid Amount" → "**Previous Bill & Amount**" (info only, not adjusted) — **Done Feb 2026**
+- Billed Qty ≤ WO Qty clamp + per-row Balance column + cumulative WO/Billed/Balance/WO-Value totals — **Done Feb 2026**
+- Work Order file upload (PDF/image, max 300 KB) + View link on Reports Due List (vendor-facing view) — **Done Feb 2026**
+- UTR/Ref appears on Reports Due List (`due-utr-*`) — vendor sees UTR after voucher approval — **Done Feb 2026**
+- HSN/SAC per-item field on Bill page — **Done Feb 2026**
+- Approved Bill Re-Approve — **Done Feb 2026**
+- Change Password from Admin Users panel — **Done Feb 2026**
+- Reset All Data (Danger Zone) — **Done Feb 2026**
 - Partial payments against a bill (multi-voucher allocation & live balance)
 - Vendor directory listing with filters
 - Aging buckets (0-30 / 31-60 / 61-90 / 90+) on due list
