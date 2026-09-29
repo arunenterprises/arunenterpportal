@@ -142,10 +142,10 @@ export default function UsersAdmin() {
             <Shield />
             <div>
               <div style={{ fontSize: 11, letterSpacing: 2, color: "#55617a" }}>
-                {isSuperAdmin(me?.email) ? "SUPER ADMIN PANEL" : "ADMIN PANEL"}
+                {isSuperAdmin(me?.user) ? "SUPER ADMIN PANEL" : "ADMIN PANEL"}
               </div>
               <h2 style={{ margin: 0 }}>
-                {isSuperAdmin(me?.email) ? "Super Admin — Users Management" : "Users Management"}
+                {isSuperAdmin(me?.user) ? "Super Admin — Users Management" : "Users Management"}
               </h2>
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function UsersAdmin() {
         {/* Change My Password */}
         <div style={{ marginTop: 18, border: "1px solid #cbd5e1", borderRadius: 6 }}>
           <div style={{ background: "#fef9c3", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#854d0e", display: "flex", alignItems: "center", gap: 6 }}>
-            <Lock size={12} /> CHANGE MY PASSWORD ({me?.email})
+            <Lock size={12} /> CHANGE MY PASSWORD ({me?.user})
           </div>
           <form onSubmit={submitMyPassword} style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, alignItems: "end" }}>
             <div>
@@ -307,7 +307,7 @@ export default function UsersAdmin() {
                     )}
                   </td>
                   <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                    {isSuperAdmin(me?.email) && (
+                    {isSuperAdmin(me?.user) && (
                       <button
                         data-testid={`user-changepw-${u.email}`}
                         onClick={() => handleChangePassword(u.email)}
@@ -317,7 +317,7 @@ export default function UsersAdmin() {
                         <Key size={11} /> Password
                       </button>
                     )}
-                    {!isSuperAdmin(u.email) && isSuperAdmin(me?.email) && (
+                    {!isSuperAdmin(u.email) && isSuperAdmin(me?.user) && (
                       <button
                         data-testid={`user-delete-${u.email}`}
                         onClick={() => handleDelete(u.email)}
@@ -327,7 +327,7 @@ export default function UsersAdmin() {
                         <Trash2 size={11} /> Delete
                       </button>
                     )}
-                    {!isSuperAdmin(me?.email) && (
+                    {!isSuperAdmin(me?.user) && (
                       <span style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic" }}>read-only</span>
                     )}
                   </td>
@@ -338,7 +338,7 @@ export default function UsersAdmin() {
         </div>
 
         {/* Danger Zone - Reset all data (SUPER ADMIN ONLY) */}
-        {isSuperAdmin(me?.email) && (
+        {isSuperAdmin(me?.user) && (
         <div style={{ marginTop: 16, border: "1.5px solid #fca5a5", borderRadius: 6, background: "#fef2f2" }}>
           <div style={{ background: "#fee2e2", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#991b1b", display: "flex", alignItems: "center", gap: 6 }}>
             <AlertTriangle size={12} /> DANGER ZONE — RESET ALL DATA · SUPER ADMIN ONLY

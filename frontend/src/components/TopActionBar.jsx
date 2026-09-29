@@ -146,7 +146,7 @@ export const TopActionBar = ({
 
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
         style={{ display: "none" }} onChange={pickLogo} data-testid="logo-file-input" />
-      {isSuperAdmin(currentUserProfile()?.email) && (
+      {isSuperAdmin(currentUserProfile()?.user) && (
         <>
           <button className="btn-color btn-logo" data-testid="btn-change-logo" onClick={() => fileRef.current?.click()} title="Upload company logo (Super Admin only)">
             <ImageUp size={14} /><span className="lbl">{hasLogo ? "Logo" : "Logo"}</span>

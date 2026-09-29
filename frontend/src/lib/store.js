@@ -405,7 +405,7 @@ export const canFinalApprove = (email) => {
   const e = (email || "").toLowerCase().trim();
   return e === SUPER_ADMIN_EMAIL || e === APPROVER_EMAIL;
 };
-export const currentUserEmail = () => (read(KEYS.AUTH, null)?.email || "").toLowerCase().trim();
+export const currentUserEmail = () => (read(KEYS.AUTH, null)?.user || "").toLowerCase().trim();
 
 // ---- Cloud Sync helpers ----
 export const syncFromCloud = async () => {

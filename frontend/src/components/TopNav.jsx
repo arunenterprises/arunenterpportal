@@ -64,7 +64,7 @@ export const TopNav = () => {
           onChange={onPickFile}
           data-testid="logo-file-input"
         />
-        {isSuperAdmin(currentUserProfile()?.email) && (
+        {isSuperAdmin(currentUserProfile()?.user) && (
           <>
             <button onClick={() => fileRef.current?.click()} data-testid="btn-change-logo" title="Upload company logo (Super Admin only)">
               <ImageUp size={11} /> {hasLogo ? "Change Logo" : "Upload Logo"}
