@@ -421,7 +421,7 @@ export default function BillProcessing() {
           <div className="section">
             <div className="sec-head">2. Work Order &amp; Project Allocation</div>
             <div className="sec-body">
-              <div className="row cols-3">
+              <div className="row cols-4">
                 <F label="Work Order No." req>
                   <input placeholder="WO Number" {...bind("workOrderNo")} />
                 </F>
@@ -431,19 +431,14 @@ export default function BillProcessing() {
                 <F label="Project Code &amp; Location">
                   <input placeholder="Project Code / Site Name" {...bind("projectCodeLocation")} />
                 </F>
-              </div>
-              <div className="row cols-3" style={{ marginTop: 10 }}>
-                <F label="Work Scope / Description">
-                  <input placeholder="Description of executed work" {...bind("workScope")} />
-                </F>
                 <F label="Total Work Order Value (₹)">
                   <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("totalWOValue")} />
                 </F>
-                <F label="Previous Bill & Amount (info only)">
-                  <input type="text" placeholder="e.g. BILL0003/2526 - ₹50,000" {...bind("previousAdvance")} />
-                </F>
               </div>
-              <div className="row cols-3" style={{ marginTop: 10 }}>
+              <div className="row cols-4" style={{ marginTop: 10 }}>
+                <F label="Work Scope / Description">
+                  <input placeholder="Description of executed work" {...bind("workScope")} />
+                </F>
                 <F label="Item Summary">
                   <input placeholder="Item / Service" {...bind("itemDescription")} />
                 </F>
@@ -457,16 +452,27 @@ export default function BillProcessing() {
                 </F>
               </div>
               <div className="row cols-2" style={{ marginTop: 10 }}>
-                <F label="Work Order Copy (Upload · Max 300 KB · PDF/Image)">
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <F label="Previous Bill & Amount (info only)">
+                  <input type="text" placeholder="e.g. BILL0003/2526 - ₹50,000" {...bind("previousAdvance")} />
+                </F>
+                <F label="Work Order Copy (PDF/Image · Max 300 KB)">
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                     <input
                       type="file"
                       accept="application/pdf,image/*"
                       onChange={handleWoFile}
                       disabled={locked}
                       data-testid="wo-file-input"
-                      style={{ maxWidth: 220, padding: "2px 4px", fontSize: 10, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff" }}
+                      style={{ maxWidth: 200, padding: "3px 4px", fontSize: 10.5, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff", flex: "0 0 auto" }}
                     />
+                    {bill.workOrderFile && (
+                      <a href={bill.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
+                        data-testid="wo-file-link"
+                        style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 600, fontSize: 10.5, textDecoration: "none", whiteSpace: "nowrap", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis" }}
+                        title={bill.workOrderFile.name}>
+                        📎 {bill.workOrderFile.name} ({Math.round(bill.workOrderFile.size / 1024)}KB)
+                      </a>
+                    )}
                     {bill.workOrderFile && !locked && (
                       <button type="button" onClick={removeWoFile} data-testid="wo-file-remove"
                         style={{ padding: "3px 8px", fontSize: 10, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
@@ -474,17 +480,6 @@ export default function BillProcessing() {
                       </button>
                     )}
                   </div>
-                </F>
-                <F label="Uploaded WO File">
-                  {bill.workOrderFile ? (
-                    <a href={bill.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
-                      data-testid="wo-file-link"
-                      style={{ display: "inline-block", padding: "6px 10px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 600, fontSize: 11.5, textDecoration: "none" }}>
-                      📎 {bill.workOrderFile.name} ({Math.round(bill.workOrderFile.size / 1024)} KB)
-                    </a>
-                  ) : (
-                    <input value="No file uploaded" readOnly style={{ fontStyle: "italic", color: "#64748b" }} data-testid="wo-file-empty" />
-                  )}
                 </F>
               </div>
             </div>
