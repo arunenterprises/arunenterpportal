@@ -428,14 +428,35 @@ export default function BillProcessing() {
                 <F label="Work Order Date">
                   <input type="date" {...bind("workOrderDate")} />
                 </F>
-                <F label="Project Code &amp; Location">
-                  <input placeholder="Project Code / Site Name" {...bind("projectCodeLocation")} />
+                <F label="Work Order Expiry Date">
+                  <input type="date"
+                    {...bind("workOrderExpiryDate")}
+                    min={bill.workOrderDate || undefined}
+                    data-testid="field-workOrderExpiryDate"
+                    style={
+                      bill.workOrderExpiryDate &&
+                      bill.workOrderExpiryDate < new Date().toISOString().slice(0, 10)
+                        ? { background: "#fee2e2", color: "#991b1b", fontWeight: 700 }
+                        : bill.workOrderExpiryDate
+                          ? { background: "#f0fdf4" }
+                          : {}
+                    }
+                    title={
+                      bill.workOrderExpiryDate &&
+                      bill.workOrderExpiryDate < new Date().toISOString().slice(0, 10)
+                        ? "Work Order EXPIRED"
+                        : "Validity end date"
+                    }
+                  />
                 </F>
                 <F label="Total Work Order Value (₹)">
                   <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("totalWOValue")} />
                 </F>
               </div>
               <div className="row cols-4" style={{ marginTop: 10 }}>
+                <F label="Project Code &amp; Location">
+                  <input placeholder="Project Code / Site Name" {...bind("projectCodeLocation")} />
+                </F>
                 <F label="Work Scope / Description">
                   <input placeholder="Description of executed work" {...bind("workScope")} />
                 </F>
@@ -445,13 +466,13 @@ export default function BillProcessing() {
                 <F label="Quantity (Summary)">
                   <input type="number" step="0.01" min="0" placeholder="0" {...bind("quantity")} />
                 </F>
+              </div>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="UOM (Unit of Measure)">
                   <select {...bind("uom")}>
                     {UOMS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </F>
-              </div>
-              <div className="row cols-2" style={{ marginTop: 10 }}>
                 <F label="Previous Bill & Amount (info only)">
                   <input type="text" placeholder="e.g. BILL0003/2526 - ₹50,000" {...bind("previousAdvance")} />
                 </F>

@@ -230,6 +230,7 @@ export const createBillDraft = () => {
     // Work Order
     workOrderNo: "",
     workOrderDate: "",
+    workOrderExpiryDate: "",
     projectCodeLocation: "",
     workScope: "",
     totalWOValue: 0,
