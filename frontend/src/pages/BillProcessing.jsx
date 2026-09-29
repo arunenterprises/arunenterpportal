@@ -6,6 +6,7 @@ import { CheckCircle2, Search, Plus, X } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
@@ -315,6 +316,7 @@ export default function BillProcessing() {
   const isApproved = bill.step === 5;  return (
     <>
       <Toaster position="top-center" richColors />
+      <HomeNavBar />
       <div className="app-shell">
         <TopActionBar
           variant="dark"

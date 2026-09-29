@@ -5,6 +5,7 @@ import { Wallet, Search } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import HomeNavBar from "../components/HomeNavBar";
 import {
   createExpenseDraft, computeExpense, upsertExpense, advanceExpenseStep,
   EXPENSE_STEP_LABEL, currentUser, exportJSON, getExpenses, amountToWords,
@@ -187,6 +188,7 @@ export default function ExpenseProcess() {
   return (
     <>
       <Toaster richColors position="top-right" />
+      <HomeNavBar />
       <TopActionBar
         onNew={handleNew} onSave={handleSave} onEdit={handleEdit}
         onSubmit={handleSubmit} onApprove={handleApprove}

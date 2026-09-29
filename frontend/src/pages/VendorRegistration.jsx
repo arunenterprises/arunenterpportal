@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
@@ -197,6 +198,7 @@ export default function VendorRegistration() {
   return (
     <>
       <Toaster position="top-center" richColors />
+      <HomeNavBar />
       <div className="app-shell">
         <TopActionBar
           searchPlaceholder="Vendor Code / Temp ID / Firm Name / Mobile"

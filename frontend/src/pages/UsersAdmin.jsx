@@ -4,6 +4,7 @@ import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData } from "../lib/api";
+import HomeNavBar from "../components/HomeNavBar";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
@@ -136,6 +137,7 @@ export default function UsersAdmin() {
   return (
     <div style={{ minHeight: "100vh", background: "#eef2f7", padding: 20 }}>
       <Toaster position="top-center" richColors />
+      <HomeNavBar />
       <div style={{ maxWidth: 1200, margin: "0 auto", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #0b3d91", paddingBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#0b3d91" }}>

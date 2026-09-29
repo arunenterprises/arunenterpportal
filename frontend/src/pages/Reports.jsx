@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
 import Header from "../components/Header";
 import TopActionBar from "../components/TopActionBar";
+import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
@@ -350,6 +351,7 @@ export default function Reports() {
   return (
     <>
       <Toaster position="top-center" richColors />
+      <HomeNavBar />
       <div className="app-shell">
         <TopActionBar
           searchPlaceholder="Vendor Code / Firm / Bill Ref"
