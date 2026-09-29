@@ -612,29 +612,59 @@ export default function Reports() {
                   <input className="pill-status" value={pv?.status || "—"} readOnly data-testid="pv-status" />
                 </F>
               </div>
-              <div className="row" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr auto", gap: "8px 12px", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6 }}>
-                <div style={{ fontSize: 11.5, color: "#166534", lineHeight: 1.4 }}>
+              <div className="row" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1.4fr 1.4fr auto", gap: "8px 12px", alignItems: "end", padding: "10px 12px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6 }}>
+                <div style={{ fontSize: 11.5, color: "#166534", lineHeight: 1.4, gridColumn: "1 / -1" }} data-testid="export-info">
                   <b>Approved Voucher Excel Export</b> — {approvedPayments.length} approved voucher{approvedPayments.length !== 1 ? "s" : ""} available.
                   {selectedPvs.size > 0
-                    ? <> Selected <b>{selectedPvs.size}</b> voucher(s) will be exported.</>
-                    : <> No selection — all approved vouchers will be exported. (Tick specific rows in Payments Register above to export just those.)</>}
+                    ? <> · <b>{selectedPvs.size}</b> selected for export.</>
+                    : <> · Pick "All Approved" ya niche se koi specific voucher choose karein.</>}
                 </div>
-                <button
-                  onClick={exportApprovedVouchers}
-                  data-testid="export-approved-vouchers"
-                  disabled={approvedPayments.length === 0}
-                  style={{
-                    padding: "8px 16px", fontSize: 12,
-                    background: approvedPayments.length === 0 ? "#94a3b8" : "#166534",
-                    color: "#fff", border: "none", borderRadius: 5,
-                    cursor: approvedPayments.length === 0 ? "not-allowed" : "pointer",
-                    fontWeight: 700, letterSpacing: 0.3,
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                  }}
-                  title={selectedPvs.size === 0 ? "Export all approved vouchers to Excel" : `Export ${selectedPvs.size} selected voucher(s) to Excel`}
-                >
-                  📥 Export Approved to Excel {selectedPvs.size > 0 ? `(${selectedPvs.size} selected)` : "(All)"}
-                </button>
+                <F label="Export Selection">
+                  <select
+                    data-testid="export-pv-select"
+                    value={selectedPvs.size === 0 ? "__ALL__" : (selectedPvs.size === 1 ? Array.from(selectedPvs)[0] : "__MULTI__")}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "__ALL__") setSelectedPvs(new Set());
+                      else if (v === "__MULTI__") { /* preserve current multi-selection made via row checkboxes */ }
+                      else setSelectedPvs(new Set([v]));
+                    }}
+                    disabled={approvedPayments.length === 0}
+                  >
+                    <option value="__ALL__">All Approved Vouchers ({approvedPayments.length})</option>
+                    {selectedPvs.size > 1 && (
+                      <option value="__MULTI__">Multiple Selected ({selectedPvs.size}) · via row checkboxes</option>
+                    )}
+                    {approvedPayments.map((p) => (
+                      <option key={p.pvNo} value={p.pvNo}>
+                        {p.pvNo} · {p.vendorName || p.vendorCode} · ₹{Number(p.amount || 0).toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                </F>
+                <div className="field-b">
+                  <label>&nbsp;</label>
+                  <button
+                    onClick={exportApprovedVouchers}
+                    data-testid="export-approved-vouchers"
+                    disabled={approvedPayments.length === 0}
+                    style={{
+                      padding: "8px 16px", fontSize: 12,
+                      background: approvedPayments.length === 0 ? "#94a3b8" : "#166534",
+                      color: "#fff", border: "none", borderRadius: 5,
+                      cursor: approvedPayments.length === 0 ? "not-allowed" : "pointer",
+                      fontWeight: 700, letterSpacing: 0.3,
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      height: 30,
+                    }}
+                    title={selectedPvs.size === 0 ? "Export all approved vouchers to Excel" : `Export ${selectedPvs.size} selected voucher(s) to Excel`}
+                  >
+                    📥 Export to Excel
+                  </button>
+                </div>
+                <div style={{ gridColumn: "1 / -1", fontSize: 10.5, color: "#166534", opacity: 0.85, fontStyle: "italic" }}>
+                  💡 Tip: multiple voucher select karne ke liye upar Payments Register table me har row ke checkbox tick karein.
+                </div>
               </div>
             </div>
           </div>
