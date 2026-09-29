@@ -465,11 +465,11 @@ export default function BillProcessing() {
                       onChange={handleWoFile}
                       disabled={locked}
                       data-testid="wo-file-input"
-                      style={{ flex: 1, padding: "4px", fontSize: 11, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff" }}
+                      style={{ maxWidth: 220, padding: "2px 4px", fontSize: 10, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff" }}
                     />
                     {bill.workOrderFile && !locked && (
                       <button type="button" onClick={removeWoFile} data-testid="wo-file-remove"
-                        style={{ padding: "4px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
+                        style={{ padding: "3px 8px", fontSize: 10, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
                         Remove
                       </button>
                     )}
