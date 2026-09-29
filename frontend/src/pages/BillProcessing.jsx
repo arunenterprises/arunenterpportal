@@ -47,9 +47,11 @@ export default function BillProcessing() {
 
   const allBills = useMemo(() => getBills(), [refresh, bill.id]);
   const loadBill = (b) => {
-    setBill(b);
-    setLocked(b.step === 5);
-    toast.success(`Loaded ${b.permanentBillNo || b.refNo}`);
+    // Normalize step in case it was serialised as string
+    const normalized = { ...b, step: Number(b.step) || 1 };
+    setBill(normalized);
+    setLocked(normalized.step === 5);
+    toast.success(`Loaded ${normalized.permanentBillNo || normalized.refNo}`);
   };
 
   useEffect(() => {
@@ -198,8 +200,13 @@ export default function BillProcessing() {
   };
 
   const handleEdit = () => {
-    if (bill.step === 5) {
-      if (!window.confirm(`Reopen approved bill ${bill.permanentBillNo || bill.refNo} for editing? This requires Re-Approval.`)) return;
+    // Coerce step (handles legacy bills where step got serialised as string)
+    const step = Number(bill.step) || 1;
+    // Treat as approved if step===5 OR permanent bill no was already issued
+    const isApproved = step === 5 || !!bill.permanentBillNo;
+    if (isApproved) {
+      const label = bill.permanentBillNo || bill.refNo || "this bill";
+      if (!window.confirm(`Reopen approved bill ${label} for editing? This requires Re-Approval.`)) return;
       const history = Array.isArray(bill.history) ? bill.history : [];
       history.push({
         action: "Reopened",
@@ -218,7 +225,8 @@ export default function BillProcessing() {
       const saved = upsertBill(next);
       setBill(saved);
       setLocked(false);
-      toast.success(`${bill.permanentBillNo || bill.refNo} reopened (Rev ${next.revision}) · Awaiting Re-Approval`);
+      setRefresh((n) => n + 1);
+      toast.success(`${label} reopened (Rev ${next.revision}) · Awaiting Re-Approval`);
       return;
     }
     setLocked(false); toast.info("Editable");
@@ -245,8 +253,9 @@ export default function BillProcessing() {
   };
 
   const handleApprove = () => {
-    if (bill.step === 5) { toast.info("Already in Payment Due List"); return; }
-    if (bill.step !== 4) { toast.error("Complete all approval steps first (use Submit)"); return; }
+    const step = Number(bill.step) || 1;
+    if (step === 5) { toast.info("Already in Payment Due List"); return; }
+    if (step !== 4) { toast.error("Complete all approval steps first (use Submit)"); return; }
     if (!validate()) return;
     if (!bill.approverName.trim()) { toast.error("Enter Approver Name first"); return; }
     const isReApproval = (bill.revision || 0) > 0;
@@ -805,7 +814,8 @@ export default function BillProcessing() {
                   </thead>
                   <tbody>
                     {allBills.map((b) => {
-                      const isApp = b.step === 5;
+                      const bStep = Number(b.step) || 1;
+                      const isApp = bStep === 5 || !!b.permanentBillNo;
                       const isActive = bill.id === b.id;
                       const c = computeBill(b);
                       return (
@@ -836,13 +846,15 @@ export default function BillProcessing() {
                               {isApp && (
                                 <button
                                   onClick={() => {
-                                    if (!window.confirm(`Reopen approved bill ${b.permanentBillNo}? This requires Re-Approval.`)) return;
+                                    const label = b.permanentBillNo || b.refNo;
+                                    if (!window.confirm(`Reopen approved bill ${label}? This requires Re-Approval.`)) return;
                                     const history = Array.isArray(b.history) ? b.history : [];
                                     history.push({ action: "Reopened", from: "Approved", by: currentUser(), at: new Date().toISOString() });
                                     const next = { ...b, step: 4, revision: (b.revision || 0) + 1, reopenedAt: new Date().toISOString(), reopenedBy: currentUser(), history };
                                     const saved = upsertBill(next);
-                                    setBill(saved); setLocked(false); setRefresh((n) => n + 1);
-                                    toast.success(`${b.permanentBillNo} reopened (Rev ${next.revision}) · Awaiting Re-Approval`);
+                                    setBill({ ...saved, step: Number(saved.step) || 4 });
+                                    setLocked(false); setRefresh((n) => n + 1);
+                                    toast.success(`${label} reopened (Rev ${next.revision}) · Awaiting Re-Approval`);
                                   }}
                                   data-testid={`bill-reopen-${b.id}`}
                                   style={{ padding: "3px 10px", fontSize: 10.5, background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
