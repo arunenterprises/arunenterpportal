@@ -5,6 +5,9 @@ import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle } from "l
 import { currentUserProfile, logout, resetLocalCache } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData } from "../lib/api";
 
+const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
+const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
+
 export default function UsersAdmin() {
   const nav = useNavigate();
   const me = currentUserProfile();
@@ -138,8 +141,12 @@ export default function UsersAdmin() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#0b3d91" }}>
             <Shield />
             <div>
-              <div style={{ fontSize: 11, letterSpacing: 2, color: "#55617a" }}>ADMIN PANEL</div>
-              <h2 style={{ margin: 0 }}>Users Management</h2>
+              <div style={{ fontSize: 11, letterSpacing: 2, color: "#55617a" }}>
+                {isSuperAdmin(me?.email) ? "SUPER ADMIN PANEL" : "ADMIN PANEL"}
+              </div>
+              <h2 style={{ margin: 0 }}>
+                {isSuperAdmin(me?.email) ? "Super Admin — Users Management" : "Users Management"}
+              </h2>
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -282,9 +289,22 @@ export default function UsersAdmin() {
                   <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{u.employee_id || "—"}</td>
                   <td style={{ padding: "5px 8px" }}>{u.designation || "—"}</td>
                   <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                    <span style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: u.role === "Admin" ? "#dbeafe" : "#e2e8f0", color: u.role === "Admin" ? "#1e40af" : "#334155" }}>
-                      {u.role}
-                    </span>
+                    {isSuperAdmin(u.email) ? (
+                      <span
+                        data-testid={`user-role-${u.email}`}
+                        style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: "#f3e8ff", color: "#6b21a8", border: "1px solid #d8b4fe", letterSpacing: 0.4 }}
+                        title="Primary Super Admin — full access including Reset All Data"
+                      >
+                        SUPERADMIN
+                      </span>
+                    ) : (
+                      <span
+                        data-testid={`user-role-${u.email}`}
+                        style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: u.role === "Admin" ? "#dbeafe" : "#e2e8f0", color: u.role === "Admin" ? "#1e40af" : "#334155" }}
+                      >
+                        {(u.role || "User").toUpperCase()}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: "5px 8px", textAlign: "center" }}>
                     <button
@@ -308,10 +328,11 @@ export default function UsersAdmin() {
           </table>
         </div>
 
-        {/* Danger Zone - Reset all data */}
+        {/* Danger Zone - Reset all data (SUPER ADMIN ONLY) */}
+        {isSuperAdmin(me?.email) && (
         <div style={{ marginTop: 16, border: "1.5px solid #fca5a5", borderRadius: 6, background: "#fef2f2" }}>
           <div style={{ background: "#fee2e2", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#991b1b", display: "flex", alignItems: "center", gap: 6 }}>
-            <AlertTriangle size={12} /> DANGER ZONE — RESET ALL DATA
+            <AlertTriangle size={12} /> DANGER ZONE — RESET ALL DATA · SUPER ADMIN ONLY
           </div>
           <form onSubmit={submitReset} style={{ padding: 12, display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
             <div style={{ fontSize: 11, color: "#7f1d1d", lineHeight: 1.5 }}>
@@ -350,6 +371,7 @@ export default function UsersAdmin() {
             </div>
           </form>
         </div>
+        )}
       </div>
     </div>
   );

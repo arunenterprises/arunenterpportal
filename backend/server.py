@@ -61,6 +61,15 @@ async def require_admin(user: Dict = Depends(get_current_user)) -> Dict[str, Any
     return user
 
 
+async def require_super_admin(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
+    """Only the primary admin (env ADMIN_EMAIL) can perform destructive/global actions."""
+    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    email = (user.get("email") or "").lower().strip()
+    if not primary or email != primary:
+        raise HTTPException(status_code=403, detail="Super Admin access required (primary admin only)")
+    return user
+
+
 # ==================== AUTH MODELS ====================
 class RegisterBody(BaseModel):
     email: EmailStr
@@ -321,7 +330,7 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
 
 # ==================== DANGER ZONE: RESET ALL DATA ====================
 @api_router.post("/admin/reset-data")
-async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(require_admin)):
+async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(require_super_admin)):
     """Admin-only: wipe all business data (vendors, bills, payments, counters, logo).
     Optionally also wipe non-admin users when `wipe_users` is true.
     The primary admin account is always preserved.
