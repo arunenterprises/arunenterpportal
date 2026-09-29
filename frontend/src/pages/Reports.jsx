@@ -79,10 +79,6 @@ export default function Reports() {
 
   // ---- Payment management (Edit / Delete / Reschedule after approval) ----
   const reopenPayment = (pvNo) => {
-    if (!canFinalApprove(currentUserEmail())) {
-      toast.error(`Reopen permission only for ${APPROVER_EMAIL} or Super Admin`);
-      return;
-    }
     const list = getPayments();
     const idx = list.findIndex((x) => x.pvNo === pvNo);
     if (idx < 0) return;
@@ -112,10 +108,6 @@ export default function Reports() {
     toast.success(`${pvNo} reopened (Rev ${list[idx].revision}) · Awaiting Re-Approval`);
   };
   const reApprovePayment = (pvNo) => {
-    if (!canFinalApprove(currentUserEmail())) {
-      toast.error(`Re-Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
-      return;
-    }
     const list = getPayments();
     const idx = list.findIndex((x) => x.pvNo === pvNo);
     if (idx < 0) return;
@@ -199,13 +191,9 @@ export default function Reports() {
     if (!pv) { toast.error("Generate a voucher first"); return; }
     if (pv.status === "Approved") { toast.info("Already approved"); return; }
     if (pv.status !== "Submitted") { toast.error("Submit the voucher first"); return; }
-    if (!canFinalApprove(currentUserEmail())) {
-      toast.error(`Voucher Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
-      return;
-    }
     const next = {
       ...pv, status: "Approved",
-      approvedByName: APPROVER_NAME,
+      approvedByName: pv.approvedByName || currentUser(),
       approvalDate: new Date().toISOString().slice(0, 10),
     };
     setPv(next);

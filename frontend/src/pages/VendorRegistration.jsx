@@ -111,10 +111,6 @@ export default function VendorRegistration() {
   };
   const handleEdit = () => {
     if (vendor.step === 3) {
-      if (!canFinalApprove(currentUserEmail())) {
-        toast.error(`Re-Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
-        return;
-      }
       if (!window.confirm(`Reopen approved vendor ${vendor.vendorCode} for editing? This requires Re-Approval.`)) return;
       const history = Array.isArray(vendor.history) ? vendor.history : [];
       history.push({
@@ -156,12 +152,7 @@ export default function VendorRegistration() {
     const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
     if (curStep === 3) { toast.info("Already approved"); return; }
     if (curStep === 1) { toast.error("Please Submit for Checking first"); return; }
-    if (!canFinalApprove(currentUserEmail())) {
-      toast.error(`Final Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
-      return;
-    }
-    // Auto-force approver name to canonical value (K L Srivastava)
-    const approverForced = APPROVER_NAME;
+    if (!(vendor.approvedByName || "").trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
     const isReApproval = (vendor.revision || 0) > 0;
     const history = Array.isArray(vendor.history) ? vendor.history : [];
     history.push({
@@ -169,7 +160,7 @@ export default function VendorRegistration() {
       by: currentUser(),
       at: new Date().toISOString(),
     });
-    const next = { ...advanceVendorStep({ ...vendor, step: curStep, approvedByName: approverForced }), history };
+    const next = { ...advanceVendorStep({ ...vendor, step: curStep }), history };
     setVendor(upsertVendor(next));
     setLocked(true);
     toast.success(

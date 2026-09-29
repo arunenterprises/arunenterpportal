@@ -206,10 +206,6 @@ export default function BillProcessing() {
     // Treat as approved if step===5 OR permanent bill no was already issued
     const isApproved = step === 5 || !!bill.permanentBillNo;
     if (isApproved) {
-      if (!canFinalApprove(currentUserEmail())) {
-        toast.error(`Re-Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
-        return;
-      }
       const label = bill.permanentBillNo || bill.refNo || "this bill";
       if (!window.confirm(`Reopen approved bill ${label} for editing? This requires Re-Approval.`)) return;
       const history = Array.isArray(bill.history) ? bill.history : [];
@@ -261,13 +257,8 @@ export default function BillProcessing() {
     const step = Number(bill.step) || 1;
     if (step === 5) { toast.info("Already in Payment Due List"); return; }
     if (step !== 4) { toast.error("Complete all approval steps first (use Submit)"); return; }
-    if (!canFinalApprove(currentUserEmail())) {
-      toast.error(`Final Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
-      return;
-    }
     if (!validate()) return;
-    // Auto-force approver name to canonical value (K L Srivastava)
-    const forcedApproverName = APPROVER_NAME;
+    if (!bill.approverName.trim()) { toast.error("Enter Approver Name first"); return; }
     const isReApproval = (bill.revision || 0) > 0;
     const history = Array.isArray(bill.history) ? bill.history : [];
     history.push({
@@ -275,7 +266,7 @@ export default function BillProcessing() {
       by: currentUser(),
       at: new Date().toISOString(),
     });
-    const next = { ...advanceBillStep({ ...bill, approverName: forcedApproverName }), history };
+    const next = { ...advanceBillStep({ ...bill }), history };
     const saved = upsertBill(next);
     setBill(saved);
     setLocked(true);
@@ -869,10 +860,6 @@ export default function BillProcessing() {
                               {isApp && (
                                 <button
                                   onClick={() => {
-                                    if (!canFinalApprove(currentUserEmail())) {
-                                      toast.error(`Re-Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
-                                      return;
-                                    }
                                     const label = b.permanentBillNo || b.refNo;
                                     if (!window.confirm(`Reopen approved bill ${label}? This requires Re-Approval.`)) return;
                                     const history = Array.isArray(b.history) ? b.history : [];
