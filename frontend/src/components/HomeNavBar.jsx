@@ -18,28 +18,28 @@ const HomeNavBar = () => {
   return (
     <div className="home-navbar" data-testid="home-navbar">
       <div className="hn-brand" onClick={() => navigate("/home")} data-testid="hn-brand">
-        <HomeIcon size={14} /> <span>ARUN ENTERPRISES</span>
+        <HomeIcon size={16} /> <span>ARUN ENTERPRISES</span>
       </div>
 
       <nav className="hn-links">
         <NavLink to="/home" className={link} data-testid="hn-home">
-          <HomeIcon size={13} /> Home
+          <HomeIcon size={15} /> Home
         </NavLink>
         <NavLink to="/vendor" className={link} data-testid="hn-vendor">
-          <Users size={13} /> Vendor
+          <Users size={15} /> Vendor
         </NavLink>
         <NavLink to="/bill" className={link} data-testid="hn-bill">
-          <ShoppingCart size={13} /> Bill
+          <ShoppingCart size={15} /> Bill
         </NavLink>
         <NavLink to="/expense" className={link} data-testid="hn-expense">
-          <Wallet size={13} /> Expense
+          <Wallet size={15} /> Expense
         </NavLink>
         <NavLink to="/final" className={link} data-testid="hn-reports">
-          <FileBarChart size={13} /> Reports
+          <FileBarChart size={15} /> Reports
         </NavLink>
         {superAdmin && (
           <NavLink to="/users" className={link} data-testid="hn-users">
-            <UserCog size={13} /> Users
+            <UserCog size={15} /> Users
           </NavLink>
         )}
       </nav>

@@ -630,38 +630,41 @@ body {
   justify-content: center;
   align-items: stretch;
 }
-.home-a4 .doc-header { flex: 0 0 auto; min-height: 190px; padding-bottom: 14px; padding-left: 220px; padding-top: 8px; }
+.home-a4 .doc-header { flex: 0 0 auto; min-height: 190px; padding-bottom: 14px; padding-left: 240px; padding-top: 8px; }
 .home-a4 .doc-header .brand-logo {
-  width: 200px;
+  width: 220px;
   height: 170px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: none;
   box-shadow: 0 6px 18px rgba(15, 23, 42, .18);
   left: 0;
   top: 4px;
-  background: #fff;
-  padding: 6px;
+  background: #ffffff;
+  padding: 4px;
+  overflow: hidden;
 }
 .home-a4 .doc-header .brand-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
   transform: none;
 }
 .home-a4 .doc-header h1 {
-  font-family: "Oswald", "Archivo Narrow", Impact, "Arial Narrow", sans-serif;
+  font-family: "Archivo Black", "Arial Black", "Helvetica Neue", sans-serif;
   font-size: 46px;
-  letter-spacing: 4px;
+  letter-spacing: 2px;
   margin-top: 6px;
   margin-bottom: 12px;
-  color: #1d4ed8;
-  font-weight: 800;
-  font-style: italic;
+  color: #1e3a8a;
+  font-weight: 900;
+  font-style: normal;
   text-transform: uppercase;
+  line-height: 1.05;
   text-shadow:
-    1px 1px 0 #1e3a8a,
-    2px 2px 0 rgba(30, 58, 138, 0.6),
-    3px 3px 6px rgba(15, 23, 42, .25);
+    2px 2px 0 #1e40af,
+    3px 3px 0 rgba(30, 58, 138, 0.55),
+    4px 4px 8px rgba(15, 23, 42, .25);
 }
 .home-a4 .doc-header p { font-size: 15px; line-height: 1.7; margin: 3px 0; }
 .home-a4 .doc-header p b { color: #0b1a4d; }
@@ -779,39 +782,39 @@ body {
   z-index: 50;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
+  gap: 14px;
+  padding: 10px 20px;
   background: linear-gradient(90deg, #0f172a 0%, #1e3a8a 60%, #0f172a 100%);
   color: #fff;
   border-bottom: 2px solid #1d4ed8;
   box-shadow: 0 2px 10px rgba(15, 23, 42, .18);
-  min-height: 44px;
-  font-size: 12px;
+  min-height: 56px;
+  font-size: 14px;
 }
 .home-navbar .hn-brand {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-weight: 800; letter-spacing: .5px;
-  padding: 4px 10px;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 800; letter-spacing: .6px;
+  padding: 6px 14px;
   cursor: pointer;
   border-right: 1px solid rgba(255,255,255,.2);
-  padding-right: 14px;
-  font-size: 12px;
+  padding-right: 18px;
+  font-size: 14px;
 }
 .home-navbar .hn-brand:hover { color: #93c5fd; }
 .home-navbar .hn-links {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 6px;
   flex: 1;
   flex-wrap: wrap;
 }
 .home-navbar .hn-link {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 6px 12px;
-  border-radius: 5px;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px;
+  border-radius: 6px;
   color: #cbd5e1;
   text-decoration: none;
-  font-weight: 600;
-  font-size: 11.5px;
-  letter-spacing: .3px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: .4px;
   transition: all .15s ease;
   border: 1px solid transparent;
 }
@@ -826,28 +829,28 @@ body {
   box-shadow: 0 2px 6px rgba(0,0,0,.15);
 }
 .home-navbar .hn-right {
-  display: inline-flex; align-items: center; gap: 10px;
+  display: inline-flex; align-items: center; gap: 12px;
 }
 .home-navbar .hn-user {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; color: #e2e8f0;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; color: #e2e8f0;
 }
 .home-navbar .hn-user b { color: #fff; font-weight: 700; }
 .home-navbar .hn-role {
-  padding: 2px 8px; border-radius: 999px;
-  font-size: 9px; font-weight: 800; letter-spacing: .4px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .5px;
 }
 .home-navbar .hn-role.sa { background: #fde68a; color: #78350f; }
 .home-navbar .hn-role.usr { background: #dbeafe; color: #1e3a8a; }
 .home-navbar .hn-logout {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 6px 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px;
   background: #fee2e2; color: #991b1b;
   border: 1px solid #fca5a5;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: 700; font-size: 11px;
-  letter-spacing: .3px;
+  font-weight: 800; font-size: 13px;
+  letter-spacing: .4px;
 }
 .home-navbar .hn-logout:hover { background: #fecaca; }
 
