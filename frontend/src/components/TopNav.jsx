@@ -73,7 +73,26 @@ export const TopNav = () => {
           </button>
         )}
         <span><User size={12} style={{ verticalAlign: "-2px" }} /> <b>{user}</b></span>
-        <button onClick={doLogout} data-testid="btn-logout"><LogOut size={11} /> Logout</button>
+        <button
+          onClick={doLogout}
+          data-testid="btn-logout"
+          style={{
+            border: "1px solid #fca5a5",
+            background: "#fee2e2",
+            color: "#991b1b",
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: 12,
+            padding: "6px 14px",
+            borderRadius: 5,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            letterSpacing: 0.3,
+          }}
+        >
+          <LogOut size={14} /> Logout
+        </button>
       </div>
     </div>
   );

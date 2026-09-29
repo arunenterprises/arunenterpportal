@@ -571,10 +571,13 @@ body {
 .login-card input:focus { border-color: var(--brand-2); box-shadow: 0 0 0 3px rgba(29, 78, 216, .15); }
 .login-card .err { color: var(--danger); font-size: 11.5px; margin-top: 8px; }
 .login-card .submit {
-  width: 100%; margin-top: 16px; padding: 10px;
-  border: none; background: var(--brand-2); color: #fff; font-weight: 700;
-  border-radius: 6px; cursor: pointer; font-size: 13px; letter-spacing: 1px;
+  width: 100%; margin-top: 18px; padding: 14px 20px;
+  border: none; background: var(--brand-2); color: #fff; font-weight: 800;
+  border-radius: 8px; cursor: pointer; font-size: 15px; letter-spacing: 1.2px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .08s ease, background .15s ease;
 }
+.login-card .submit:active { transform: translateY(1px); }
 .login-card .submit:hover { background: var(--brand); }
 
 /* ---- Vendor Query Modal ---- */

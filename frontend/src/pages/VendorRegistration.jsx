@@ -10,6 +10,7 @@ import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
   STEP_LABEL, currentUser, exportJSON, generateTempRefId, getVendors,
+  canFinalApprove, currentUserEmail, APPROVER_EMAIL,
 } from "../lib/store";
 
 const ACCOUNT_TYPES = ["Current Account", "Savings Account", "Overdraft (OD)", "Cash Credit (CC)"];
@@ -110,6 +111,10 @@ export default function VendorRegistration() {
   };
   const handleEdit = () => {
     if (vendor.step === 3) {
+      if (!canFinalApprove(currentUserEmail())) {
+        toast.error(`Re-Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
+        return;
+      }
       if (!window.confirm(`Reopen approved vendor ${vendor.vendorCode} for editing? This requires Re-Approval.`)) return;
       const history = Array.isArray(vendor.history) ? vendor.history : [];
       history.push({
@@ -151,6 +156,10 @@ export default function VendorRegistration() {
     const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
     if (curStep === 3) { toast.info("Already approved"); return; }
     if (curStep === 1) { toast.error("Please Submit for Checking first"); return; }
+    if (!canFinalApprove(currentUserEmail())) {
+      toast.error(`Final Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
+      return;
+    }
     if (!(vendor.approvedByName || "").trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
     const isReApproval = (vendor.revision || 0) > 0;
     const history = Array.isArray(vendor.history) ? vendor.history : [];

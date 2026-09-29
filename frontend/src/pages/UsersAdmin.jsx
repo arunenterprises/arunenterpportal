@@ -153,7 +153,7 @@ export default function UsersAdmin() {
             <button data-testid="btn-back-vendor" onClick={() => nav("/vendor")} style={{ padding: "6px 12px", background: "#e2e8f0", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <ArrowLeft size={13} /> Back to App
             </button>
-            <button data-testid="btn-logout-admin" onClick={() => { logout(); nav("/login"); }} style={{ padding: "6px 12px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12 }}>
+            <button data-testid="btn-logout-admin" onClick={() => { logout(); nav("/login"); }} style={{ padding: "9px 18px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 13, letterSpacing: 0.4 }}>
               Logout
             </button>
           </div>

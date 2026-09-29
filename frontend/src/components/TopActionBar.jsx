@@ -167,8 +167,27 @@ export const TopActionBar = ({
             USERS
           </button>
         )}
-        <button onClick={doLogout} title="Logout" data-testid="btn-logout" style={{ border: "none", background: "transparent", color: "#64748b", cursor: "pointer" }}>
-          <LogOut size={11} />
+        <button
+          onClick={doLogout}
+          title="Logout"
+          data-testid="btn-logout"
+          style={{
+            border: "1px solid #fca5a5",
+            background: "#fee2e2",
+            color: "#991b1b",
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: 12,
+            padding: "6px 14px",
+            borderRadius: 5,
+            marginLeft: 6,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            letterSpacing: 0.3,
+          }}
+        >
+          <LogOut size={14} /> Logout
         </button>
       </div>
     </div>

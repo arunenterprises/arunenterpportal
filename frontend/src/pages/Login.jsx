@@ -61,8 +61,8 @@ export default function Login() {
           <input data-testid="login-password" type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" />
           {err && <div className="err" data-testid="login-error">{err}</div>}
           <button className="submit" data-testid="login-submit" disabled={busy}>
-            <LogIn size={13} style={{ verticalAlign: "middle", marginRight: 6 }} />
-            {busy ? "Signing in…" : "Sign in"}
+            <LogIn size={18} />
+            {busy ? "Signing in…" : "Sign In"}
           </button>
           <p className="hint" style={{ marginTop: 14, fontSize: 10.5, textAlign: "center" }}>
             Employee accounts are created only by the Admin.

@@ -391,6 +391,20 @@ export const isAuthed = () => !!read(KEYS.AUTH, null) && !!getToken();
 export const currentUser = () => read(KEYS.AUTH, null)?.user || "";
 export const currentUserProfile = () => read(KEYS.AUTH, null);
 
+// ---- Permission model ----
+// Primary Super Admin — has ALL powers including Final Approval / Re-Approval / Reset All Data
+export const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
+// Designated Final Approver — the only "role: Admin" user (besides Super Admin) allowed
+// to perform Final Approval / Re-Approval on Vendors, Bills and Payment Vouchers.
+export const APPROVER_EMAIL = "kl.srivastava@arunenterprises.online";
+export const isSuperAdmin = (email) =>
+  (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
+export const canFinalApprove = (email) => {
+  const e = (email || "").toLowerCase().trim();
+  return e === SUPER_ADMIN_EMAIL || e === APPROVER_EMAIL;
+};
+export const currentUserEmail = () => (read(KEYS.AUTH, null)?.email || "").toLowerCase().trim();
+
 // ---- Cloud Sync helpers ----
 export const syncFromCloud = async () => {
   const snap = await apiFetchSnapshot();
