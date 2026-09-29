@@ -458,17 +458,7 @@ export default function Reports() {
             </div>
           </div>
           <div className="section">
-            <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span>C. Payments Register · Edit / Delete / Reschedule</span>
-              <button
-                onClick={exportApprovedVouchers}
-                data-testid="export-approved-vouchers"
-                style={{ padding: "4px 12px", fontSize: 11, background: "#166534", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, letterSpacing: 0.3 }}
-                title={selectedPvs.size === 0 ? "Export all approved vouchers to Excel" : `Export ${selectedPvs.size} selected voucher(s) to Excel`}
-              >
-                📥 Export Approved to Excel {selectedPvs.size > 0 ? `(${selectedPvs.size})` : "(All)"}
-              </button>
-            </div>
+            <div className="sec-head">C. Payments Register · Edit / Delete / Reschedule</div>
             <div className="sec-body">
               {payments.length === 0 ? (
                 <div style={{ padding: 14, color: "#64748b", fontSize: 12, textAlign: "center" }}>
@@ -621,6 +611,30 @@ export default function Reports() {
                 <F label="Voucher Status">
                   <input className="pill-status" value={pv?.status || "—"} readOnly data-testid="pv-status" />
                 </F>
+              </div>
+              <div className="row" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr auto", gap: "8px 12px", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6 }}>
+                <div style={{ fontSize: 11.5, color: "#166534", lineHeight: 1.4 }}>
+                  <b>Approved Voucher Excel Export</b> — {approvedPayments.length} approved voucher{approvedPayments.length !== 1 ? "s" : ""} available.
+                  {selectedPvs.size > 0
+                    ? <> Selected <b>{selectedPvs.size}</b> voucher(s) will be exported.</>
+                    : <> No selection — all approved vouchers will be exported. (Tick specific rows in Payments Register above to export just those.)</>}
+                </div>
+                <button
+                  onClick={exportApprovedVouchers}
+                  data-testid="export-approved-vouchers"
+                  disabled={approvedPayments.length === 0}
+                  style={{
+                    padding: "8px 16px", fontSize: 12,
+                    background: approvedPayments.length === 0 ? "#94a3b8" : "#166534",
+                    color: "#fff", border: "none", borderRadius: 5,
+                    cursor: approvedPayments.length === 0 ? "not-allowed" : "pointer",
+                    fontWeight: 700, letterSpacing: 0.3,
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                  }}
+                  title={selectedPvs.size === 0 ? "Export all approved vouchers to Excel" : `Export ${selectedPvs.size} selected voucher(s) to Excel`}
+                >
+                  📥 Export Approved to Excel {selectedPvs.size > 0 ? `(${selectedPvs.size} selected)` : "(All)"}
+                </button>
               </div>
             </div>
           </div>
