@@ -671,3 +671,77 @@ body {
   .a4:last-child { page-break-after: auto; }
   input, select, textarea { color: #000 !important; background: #fff !important; }
 }
+
+/* ---- Home / Departmental Control Panel ---- */
+.home-shell {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 0 0 40px 0;
+}
+.home-topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 24px;
+  background: #0f172a; color: #fff;
+  border-bottom: 3px solid #1e3a8a;
+}
+.home-brand {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 700; letter-spacing: .5px; font-size: 13px;
+}
+.dept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 24px;
+  max-width: 1400px; margin: 0 auto;
+}
+.dept-card {
+  border: none; border-radius: 14px;
+  color: #fff; text-align: left; padding: 22px 20px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, .18);
+  transition: transform .15s ease, box-shadow .15s ease;
+  min-height: 260px;
+  display: flex; flex-direction: column; gap: 10px;
+  font: inherit;
+}
+.dept-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .25);
+}
+.dept-card-header {
+  display: flex; align-items: center; gap: 14px;
+}
+.dept-title {
+  font-size: 20px; font-weight: 800; letter-spacing: .3px; line-height: 1.15;
+}
+.dept-sub {
+  font-size: 11px; opacity: .85; letter-spacing: .5px; text-transform: uppercase;
+  margin-top: 2px;
+}
+.dept-lines {
+  list-style: disc; padding-left: 20px; margin: 8px 0 0 0;
+  font-size: 12.5px; line-height: 1.6; opacity: .96;
+}
+.dept-cta {
+  margin-top: auto; padding: 8px 12px;
+  background: rgba(255, 255, 255, .18);
+  border-radius: 6px; font-weight: 700; font-size: 12px;
+  text-align: center; letter-spacing: .4px;
+}
+.home-flow {
+  max-width: 1400px; margin: 20px auto 0 auto;
+  padding: 20px 24px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+}
+.home-flow-title {
+  font-size: 14px; font-weight: 800; color: #0f172a;
+  margin-bottom: 12px; letter-spacing: .3px;
+}
+.home-flow-legend {
+  margin-top: 12px; padding: 12px 14px;
+  background: #f1f5f9; border-radius: 6px;
+  font-size: 12px; line-height: 1.6; color: #334155;
+}
+@media print {
+  .home-shell { display: none; }
+}

@@ -9,6 +9,7 @@ const KEYS = {
   VENDORS: "ae_vm_vendors",
   BILLS: "ae_vm_bills",
   PAYMENTS: "ae_vm_payments",
+  EXPENSES: "ae_vm_expenses",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
@@ -27,7 +28,7 @@ export const clearLogo = () => localStorage.removeItem(KEYS.LOGO);
 
 // ---- Wipe local cache (used after admin "Reset All Data") ----
 export const resetLocalCache = () => {
-  [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
+  [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.EXPENSES, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
     try { localStorage.removeItem(k); } catch {}
   });
 };
@@ -80,6 +81,93 @@ export const BILL_STEP_LABEL = {
   3: "3. Accounts Check",
   4: "4. Mgmt Approval",
   5: "5. Payment Due List",
+};
+
+export const EXPENSE_STEP_LABEL = {
+  1: "1. Draft",
+  2: "2. Prepared",
+  3: "3. Checked",
+  4: "4. Approved & Paid",
+};
+
+// ---- Expenses ----
+const buildExpenseTempRef = (serial) => `EXR${String(serial).padStart(4, "0")}${getFY()}`;
+const buildExpensePermNo = (serial) => `EXP${String(serial).padStart(4, "0")}${getFY()}`;
+
+export const getExpenses = () => read(KEYS.EXPENSES, []);
+export const saveExpenses = (list) => {
+  write(KEYS.EXPENSES, list);
+};
+
+export const createExpenseDraft = () => {
+  const c = getCounters();
+  c.expenseSerial = (c.expenseSerial || 0) + 1;
+  saveCounters(c);
+  return {
+    id: `x_${Date.now()}`,
+    expenseSerial: c.expenseSerial,
+    refNo: buildExpenseTempRef(c.expenseSerial),
+    permanentExpenseNo: "",
+    step: 1,
+    date: new Date().toISOString().slice(0, 10),
+    category: "Office Expense",
+    description: "",
+    paidToName: "",
+    paymentMode: "Cash",
+    // Amount
+    basicAmount: 0,
+    gstSlab: 0,
+    tdsRate: 0,
+    otherDeductions: 0,
+    // File
+    receiptFile: null,
+    // Approvals
+    preparedByName: "",
+    checkedByName: "",
+    approvedByName: "",
+    approvalDate: "",
+    remarks: "",
+    // Meta
+    revision: 0,
+    history: [],
+    createdByName: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+export const computeExpense = (e) => {
+  const basic = Number(e.basicAmount) || 0;
+  const gst = +(basic * (Number(e.gstSlab) || 0) / 100).toFixed(2);
+  const gross = +(basic + gst).toFixed(2);
+  const tds = +(basic * (Number(e.tdsRate) || 0) / 100).toFixed(2);
+  const other = Number(e.otherDeductions) || 0;
+  const netPayable = +(gross - tds - other).toFixed(2);
+  return { basic, gst, gross, tds, other, netPayable };
+};
+
+export const upsertExpense = (e) => {
+  const list = getExpenses();
+  const idx = list.findIndex((x) => x.id === e.id);
+  e.updatedAt = new Date().toISOString();
+  if (idx >= 0) list[idx] = e; else list.push(e);
+  saveExpenses(list);
+  return e;
+};
+
+export const advanceExpenseStep = (e) => {
+  const next = { ...e };
+  if (next.step < 4) {
+    next.step += 1;
+    if (next.step === 4) {
+      next.approvalDate = new Date().toISOString().slice(0, 10);
+      if (!next.permanentExpenseNo && next.expenseSerial) {
+        next.permanentExpenseNo = buildExpensePermNo(next.expenseSerial);
+      }
+    }
+  }
+  upsertExpense(next);
+  return next;
 };
 
 // ---- Vendors ----

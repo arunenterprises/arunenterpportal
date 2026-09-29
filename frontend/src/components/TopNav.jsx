@@ -51,8 +51,11 @@ export const TopNav = () => {
         <NavLink to="/bill" className={({ isActive }) => isActive ? "active" : ""} data-testid="nav-bill">
           Page 2 · Bill Processing
         </NavLink>
+        <NavLink to="/expense" className={({ isActive }) => isActive ? "active" : ""} data-testid="nav-expense">
+          Page 3 · Expense Process
+        </NavLink>
         <NavLink to="/reports" className={({ isActive }) => isActive ? "active" : ""} data-testid="nav-reports">
-          Page 3 · Reports & Voucher
+          Page 4 · Reports & Voucher
         </NavLink>
       </div>
       <div className="who">
