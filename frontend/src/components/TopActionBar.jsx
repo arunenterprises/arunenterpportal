@@ -156,13 +156,27 @@ export const TopActionBar = ({
       )}
 
       <div className="user-chip" data-testid="user-chip">
-        <User size={11} /><b>{user || "admin"}</b>
+        <User size={14} /><b style={{ fontSize: 13, letterSpacing: 0.3 }}>{user || "admin"}</b>
         {(currentUserProfile()?.role || "").toLowerCase() === "admin" && (
           <button
             onClick={() => navigate("/users")}
             title="Users Admin Panel"
             data-testid="btn-users-admin"
-            style={{ border: "none", background: "transparent", color: "#0b3d91", cursor: "pointer", fontWeight: 700, fontSize: 10, marginLeft: 4 }}
+            style={{
+              border: "1px solid #93c5fd",
+              background: "#dbeafe",
+              color: "#0b3d91",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: 12,
+              padding: "6px 12px",
+              borderRadius: 5,
+              marginLeft: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              letterSpacing: 0.4,
+            }}
           >
             USERS
           </button>
