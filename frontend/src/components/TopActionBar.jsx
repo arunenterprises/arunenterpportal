@@ -92,39 +92,39 @@ export const TopActionBar = ({
         />
       </form>
       <button className="btn-color btn-search" data-testid="btn-search" onClick={submitSearch}>
-        <FileSearch size={12} /><span className="lbl">{searchLabel}</span>
+        <FileSearch size={14} /><span className="lbl">{searchLabel}</span>
       </button>
 
       {prevLabel && (
         <button className="btn-color btn-prev" data-testid="btn-prev-page" onClick={() => navigate(prevTo)}>
-          <ArrowLeft size={12} /><span className="lbl">{prevLabel}</span>
+          <ArrowLeft size={14} /><span className="lbl">{prevLabel}</span>
         </button>
       )}
       {nextLabel && (
         <button className="btn-color btn-nav" data-testid="btn-next-page" onClick={() => navigate(nextTo)}>
-          <span className="lbl">{nextLabel}</span><ArrowRight size={12} />
+          <span className="lbl">{nextLabel}</span><ArrowRight size={14} />
         </button>
       )}
 
       <button className="btn-color btn-new" data-testid="btn-new" disabled={disabled.new} onClick={onNew}>
-        <FilePlus2 size={12} /><span className="lbl">{labels.new || "New"}</span>
+        <FilePlus2 size={14} /><span className="lbl">{labels.new || "New"}</span>
       </button>
       <button className="btn-color btn-save" data-testid="btn-save" disabled={disabled.save} onClick={onSave}>
-        <Save size={12} /><span className="lbl">{labels.save || "Save"}</span>
+        <Save size={14} /><span className="lbl">{labels.save || "Save"}</span>
       </button>
       <button className="btn-color btn-edit" data-testid="btn-edit" disabled={disabled.edit} onClick={onEdit}>
-        <Pencil size={12} /><span className="lbl">{labels.edit || "Edit"}</span>
+        <Pencil size={14} /><span className="lbl">{labels.edit || "Edit"}</span>
       </button>
       <button className="btn-color btn-submit" data-testid="btn-submit" disabled={disabled.submit} onClick={onSubmit}>
-        <Send size={12} /><span className="lbl">{labels.submit || "Submit"}</span>
+        <Send size={14} /><span className="lbl">{labels.submit || "Submit"}</span>
       </button>
       <button className="btn-color btn-approve" data-testid="btn-approve" disabled={disabled.approve} onClick={onApprove}>
-        <CheckCircle2 size={12} /><span className="lbl">{labels.approve || "Final Approval"}</span>
+        <CheckCircle2 size={14} /><span className="lbl">{labels.approve || "Final Approval"}</span>
       </button>
 
       <div className="dd-wrap" ref={ddRef}>
         <button ref={exportBtnRef} className="btn-color btn-export" data-testid="btn-export" disabled={disabled.export} onClick={toggleExport}>
-          <Download size={12} /><span className="lbl">Export</span><ChevronDown size={11} />
+          <Download size={14} /><span className="lbl">Export</span><ChevronDown size={12} />
         </button>
         {openExport && createPortal(
           <div
@@ -141,17 +141,17 @@ export const TopActionBar = ({
       </div>
 
       <button className="btn-color btn-print" data-testid="btn-print" disabled={disabled.print} onClick={onPrint}>
-        <Printer size={12} /><span className="lbl">{labels.print || "Print"}</span>
+        <Printer size={14} /><span className="lbl">{labels.print || "Print"}</span>
       </button>
 
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
         style={{ display: "none" }} onChange={pickLogo} data-testid="logo-file-input" />
       <button className="btn-color btn-logo" data-testid="btn-change-logo" onClick={() => fileRef.current?.click()} title="Upload company logo">
-        <ImageUp size={12} /><span className="lbl">{hasLogo ? "Logo" : "Logo"}</span>
+        <ImageUp size={14} /><span className="lbl">{hasLogo ? "Logo" : "Logo"}</span>
       </button>
       {hasLogo && (
         <button className="btn-color btn-logo-remove" data-testid="btn-remove-logo" onClick={removeLogo} title="Remove logo">
-          <ImageOff size={12} />
+          <ImageOff size={14} />
         </button>
       )}
 
