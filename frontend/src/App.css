@@ -113,7 +113,7 @@ body {
 .btn-save     { background: #0891b2; }   /* cyan */
 .btn-edit     { background: #ca8a04; }   /* amber */
 .btn-submit   { background: #0d9488; }   /* teal */
-.btn-approve  { background: #7c3aed; box-shadow: 0 2px 8px rgba(124,58,237,.35); }   /* violet — Final Approval stands out */
+.btn-approve  { background: #dc2626; box-shadow: 0 2px 8px rgba(220,38,38,.35); }   /* red — Final Approval stands out */
 .btn-print    { background: #0f172a; }   /* slate-dark */
 .btn-export   { background: #ea580c; }   /* orange */
 .btn-workflow { background: #0d9488; }   /* teal (alias) */
