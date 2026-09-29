@@ -8,7 +8,7 @@ import VendorQueryModal from "../components/VendorQueryModal";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON, amountToWords,
-  canFinalApprove, currentUserEmail, APPROVER_EMAIL,
+  canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -205,7 +205,7 @@ export default function Reports() {
     }
     const next = {
       ...pv, status: "Approved",
-      approvedByName: pv.approvedByName || currentUser(),
+      approvedByName: APPROVER_NAME,
       approvalDate: new Date().toISOString().slice(0, 10),
     };
     setPv(next);

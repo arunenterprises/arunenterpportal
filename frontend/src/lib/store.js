@@ -397,6 +397,8 @@ export const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 // Designated Final Approver — the only "role: Admin" user (besides Super Admin) allowed
 // to perform Final Approval / Re-Approval on Vendors, Bills and Payment Vouchers.
 export const APPROVER_EMAIL = "kl.srivastava@arunenterprises.online";
+// Canonical display name used everywhere Final Approval / Re-Approval signs off
+export const APPROVER_NAME = "K L Srivastava";
 export const isSuperAdmin = (email) =>
   (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
 export const canFinalApprove = (email) => {

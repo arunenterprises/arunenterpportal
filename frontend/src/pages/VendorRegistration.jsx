@@ -10,7 +10,7 @@ import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
   STEP_LABEL, currentUser, exportJSON, generateTempRefId, getVendors,
-  canFinalApprove, currentUserEmail, APPROVER_EMAIL,
+  canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
 } from "../lib/store";
 
 const ACCOUNT_TYPES = ["Current Account", "Savings Account", "Overdraft (OD)", "Cash Credit (CC)"];
@@ -160,7 +160,8 @@ export default function VendorRegistration() {
       toast.error(`Final Approval permission only for ${APPROVER_EMAIL} or Super Admin`);
       return;
     }
-    if (!(vendor.approvedByName || "").trim()) { toast.error("Enter 'Approved By' name in Step 3 section"); return; }
+    // Auto-force approver name to canonical value (K L Srivastava)
+    const approverForced = APPROVER_NAME;
     const isReApproval = (vendor.revision || 0) > 0;
     const history = Array.isArray(vendor.history) ? vendor.history : [];
     history.push({
@@ -168,7 +169,7 @@ export default function VendorRegistration() {
       by: currentUser(),
       at: new Date().toISOString(),
     });
-    const next = { ...advanceVendorStep({ ...vendor, step: curStep }), history };
+    const next = { ...advanceVendorStep({ ...vendor, step: curStep, approvedByName: approverForced }), history };
     setVendor(upsertVendor(next));
     setLocked(true);
     toast.success(

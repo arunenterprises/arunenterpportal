@@ -10,7 +10,7 @@ import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
-  canFinalApprove, currentUserEmail, APPROVER_EMAIL,
+  canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
 } from "../lib/store";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
@@ -266,7 +266,8 @@ export default function BillProcessing() {
       return;
     }
     if (!validate()) return;
-    if (!bill.approverName.trim()) { toast.error("Enter Approver Name first"); return; }
+    // Auto-force approver name to canonical value (K L Srivastava)
+    const forcedApproverName = APPROVER_NAME;
     const isReApproval = (bill.revision || 0) > 0;
     const history = Array.isArray(bill.history) ? bill.history : [];
     history.push({
@@ -274,7 +275,7 @@ export default function BillProcessing() {
       by: currentUser(),
       at: new Date().toISOString(),
     });
-    const next = { ...advanceBillStep({ ...bill }), history };
+    const next = { ...advanceBillStep({ ...bill, approverName: forcedApproverName }), history };
     const saved = upsertBill(next);
     setBill(saved);
     setLocked(true);

@@ -7,7 +7,7 @@ import {
   FileSearch,
 } from "lucide-react";
 import { toast } from "sonner";
-import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo } from "../lib/store";
+import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo, isSuperAdmin } from "../lib/store";
 
 export const TopActionBar = ({
   searchPlaceholder = "Vendor Code / ID / Name",
@@ -146,13 +146,17 @@ export const TopActionBar = ({
 
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
         style={{ display: "none" }} onChange={pickLogo} data-testid="logo-file-input" />
-      <button className="btn-color btn-logo" data-testid="btn-change-logo" onClick={() => fileRef.current?.click()} title="Upload company logo">
-        <ImageUp size={14} /><span className="lbl">{hasLogo ? "Logo" : "Logo"}</span>
-      </button>
-      {hasLogo && (
-        <button className="btn-color btn-logo-remove" data-testid="btn-remove-logo" onClick={removeLogo} title="Remove logo">
-          <ImageOff size={14} />
-        </button>
+      {isSuperAdmin(currentUserProfile()?.email) && (
+        <>
+          <button className="btn-color btn-logo" data-testid="btn-change-logo" onClick={() => fileRef.current?.click()} title="Upload company logo (Super Admin only)">
+            <ImageUp size={14} /><span className="lbl">{hasLogo ? "Logo" : "Logo"}</span>
+          </button>
+          {hasLogo && (
+            <button className="btn-color btn-logo-remove" data-testid="btn-remove-logo" onClick={removeLogo} title="Remove logo (Super Admin only)">
+              <ImageOff size={14} />
+            </button>
+          )}
+        </>
       )}
 
       <div className="user-chip" data-testid="user-chip">

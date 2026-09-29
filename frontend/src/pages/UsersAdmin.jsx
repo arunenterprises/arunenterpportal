@@ -314,13 +314,15 @@ export default function UsersAdmin() {
                     >
                       <Key size={11} /> Password
                     </button>
-                    <button
-                      data-testid={`user-delete-${u.email}`}
-                      onClick={() => handleDelete(u.email)}
-                      style={{ padding: "3px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}
-                    >
-                      <Trash2 size={11} /> Delete
-                    </button>
+                    {!isSuperAdmin(u.email) && (
+                      <button
+                        data-testid={`user-delete-${u.email}`}
+                        onClick={() => handleDelete(u.email)}
+                        style={{ padding: "3px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}
+                      >
+                        <Trash2 size={11} /> Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

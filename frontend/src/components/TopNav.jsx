@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { logout, currentUser, setLogo, clearLogo, getLogo } from "../lib/store";
+import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo, isSuperAdmin } from "../lib/store";
 import { LogOut, User, ImageUp, ImageOff } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,13 +64,17 @@ export const TopNav = () => {
           onChange={onPickFile}
           data-testid="logo-file-input"
         />
-        <button onClick={() => fileRef.current?.click()} data-testid="btn-change-logo" title="Upload company logo">
-          <ImageUp size={11} /> {hasLogo ? "Change Logo" : "Upload Logo"}
-        </button>
-        {hasLogo && (
-          <button onClick={removeLogo} data-testid="btn-remove-logo" title="Remove logo">
-            <ImageOff size={11} /> Remove
-          </button>
+        {isSuperAdmin(currentUserProfile()?.email) && (
+          <>
+            <button onClick={() => fileRef.current?.click()} data-testid="btn-change-logo" title="Upload company logo (Super Admin only)">
+              <ImageUp size={11} /> {hasLogo ? "Change Logo" : "Upload Logo"}
+            </button>
+            {hasLogo && (
+              <button onClick={removeLogo} data-testid="btn-remove-logo" title="Remove logo (Super Admin only)">
+                <ImageOff size={11} /> Remove
+              </button>
+            )}
+          </>
         )}
         <span><User size={12} style={{ verticalAlign: "-2px" }} /> <b>{user}</b></span>
         <button
