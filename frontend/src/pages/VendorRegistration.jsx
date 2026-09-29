@@ -341,22 +341,22 @@ export default function VendorRegistration() {
                   <input placeholder="Auto-filled from IFSC lookup" {...bind("bankAddress")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} data-testid="field-bankAddress" />
                 </F>
               </div>
-              <div className="row cols-2" style={{ marginTop: 10 }}>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="Bank City (auto)">
                   <input placeholder="City" {...bind("bankCity")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} data-testid="field-bankCity" />
                 </F>
                 <F label="Bank State (auto)">
                   <input placeholder="State" {...bind("bankState")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} data-testid="field-bankState" />
                 </F>
-              </div>
-              <div className="row cols-3" style={{ marginTop: 10 }}>
-                <F label="Account Holder Name"><input placeholder="Name as per Bank" {...bind("accountHolder")} /></F>
-                <F label="Account Number"><input placeholder="Bank Account Number" {...bind("accountNumber")} /></F>
                 <F label="Account Type">
                   <select {...bind("accountType")}>
                     {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </F>
+              </div>
+              <div className="row cols-2" style={{ marginTop: 10 }}>
+                <F label="Account Holder Name"><input placeholder="Name as per Bank" {...bind("accountHolder")} /></F>
+                <F label="Account Number"><input placeholder="Bank Account Number" {...bind("accountNumber")} /></F>
               </div>
             </div>
           </div>

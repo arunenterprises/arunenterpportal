@@ -460,21 +460,21 @@ export default function BillProcessing() {
                 <F label="Work Scope / Description">
                   <input placeholder="Description of executed work" {...bind("workScope")} />
                 </F>
-                <F label="Item Summary">
-                  <input placeholder="Item / Service" {...bind("itemDescription")} />
+                <F label="Previous Bill & Amount (info only)">
+                  <input type="text" placeholder="e.g. BILL0003/2526 - ₹50,000" {...bind("previousAdvance")} />
                 </F>
-                <F label="Quantity (Summary)">
-                  <input type="number" step="0.01" min="0" placeholder="0" {...bind("quantity")} />
-                </F>
-              </div>
-              <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="UOM (Unit of Measure)">
                   <select {...bind("uom")}>
                     {UOMS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </F>
-                <F label="Previous Bill & Amount (info only)">
-                  <input type="text" placeholder="e.g. BILL0003/2526 - ₹50,000" {...bind("previousAdvance")} />
+              </div>
+              <div className="row" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "3fr 1fr 2fr", gap: "8px 12px" }}>
+                <F label="Item Summary">
+                  <input placeholder="Item / Service description (multi-word ok)" {...bind("itemDescription")} />
+                </F>
+                <F label="Quantity (Summary)">
+                  <input type="number" step="0.01" min="0" placeholder="0" {...bind("quantity")} />
                 </F>
                 <F label="Work Order Copy (PDF/Image · Max 300 KB)">
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -523,15 +523,15 @@ export default function BillProcessing() {
               <table className="items-table" data-testid="items-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "13%" }}>Category Scope</th>
-                    <th>Item Description</th>
-                    <th style={{ width: "9%" }}>HSN / SAC</th>
+                    <th style={{ width: "11%" }}>Category Scope</th>
+                    <th style={{ minWidth: 220 }}>Item Description</th>
+                    <th style={{ width: "8%" }}>HSN / SAC</th>
                     <th style={{ width: "6%" }}>WO Qty</th>
-                    <th style={{ width: "7%" }}>Unit</th>
-                    <th style={{ width: "9%" }}>WO Rate (₹)</th>
+                    <th style={{ width: "6%" }}>Unit</th>
+                    <th style={{ width: "8%" }}>WO Rate (₹)</th>
                     <th style={{ width: "6%" }}>Billed Qty</th>
                     <th style={{ width: "6%", background: "#f0f9ff" }} title="WO Qty - Billed Qty">Balance</th>
-                    <th style={{ width: "10%" }}>Amount (₹)</th>
+                    <th style={{ width: "9%" }}>Amount (₹)</th>
                     <th className="col-del">X</th>
                   </tr>
                 </thead>
@@ -551,8 +551,8 @@ export default function BillProcessing() {
                             {CATEGORY_SCOPES.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </td>
-                        <td>
-                          <input placeholder="Work Item Name"
+                        <td style={{ minWidth: 220 }}>
+                          <input placeholder="Detailed work item name / description"
                             value={r.description}
                             onChange={(e) => updateItem(r.id, { description: e.target.value })}
                             readOnly={locked} data-testid={`item-desc-${i}`} />
