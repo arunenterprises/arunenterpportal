@@ -442,27 +442,37 @@ export default function BillProcessing() {
                     {...bind("workOrderExpiryDate")}
                     min={bill.workOrderDate || undefined}
                     data-testid="field-workOrderExpiryDate"
-                    style={
-                      bill.workOrderExpiryDate &&
-                      bill.workOrderExpiryDate < new Date().toISOString().slice(0, 10)
-                        ? { background: "#fee2e2", color: "#991b1b", fontWeight: 700 }
-                        : bill.workOrderExpiryDate
-                          ? { background: "#f0fdf4" }
-                          : {}
-                    }
-                    title={
-                      bill.workOrderExpiryDate &&
-                      bill.workOrderExpiryDate < new Date().toISOString().slice(0, 10)
-                        ? "Work Order EXPIRED"
-                        : "Validity end date"
-                    }
                   />
                 </F>
-                <F label="Total Work Order Value (₹)">
-                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("totalWOValue")} />
+                <F label="Work Order Status (auto)">
+                  {(() => {
+                    const today = new Date().toISOString().slice(0, 10);
+                    const exp = bill.workOrderExpiryDate;
+                    let label = "— (No Expiry Set)";
+                    let bg = "#f1f5f9", fg = "#475569", border = "#cbd5e1";
+                    if (exp) {
+                      const daysLeft = Math.floor((new Date(exp) - new Date(today)) / 86400000);
+                      if (daysLeft < 0) { label = `EXPIRED (${Math.abs(daysLeft)}d ago)`; bg = "#fee2e2"; fg = "#991b1b"; border = "#fca5a5"; }
+                      else if (daysLeft === 0) { label = "EXPIRES TODAY"; bg = "#fef3c7"; fg = "#92400e"; border = "#fcd34d"; }
+                      else if (daysLeft <= 30) { label = `Expiring in ${daysLeft}d`; bg = "#fef3c7"; fg = "#92400e"; border = "#fcd34d"; }
+                      else { label = `All OK ✓ (${daysLeft}d left)`; bg = "#dcfce7"; fg = "#166534"; border = "#86efac"; }
+                    }
+                    return (
+                      <input
+                        readOnly
+                        value={label}
+                        data-testid="wo-status"
+                        title={exp ? `Work Order valid till ${exp}` : "Set Work Order Expiry Date to compute status"}
+                        style={{ background: bg, color: fg, borderColor: border, fontWeight: 700, letterSpacing: ".3px", textAlign: "center" }}
+                      />
+                    );
+                  })()}
                 </F>
               </div>
               <div className="row cols-4" style={{ marginTop: 10 }}>
+                <F label="Total Work Order Value (₹)">
+                  <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("totalWOValue")} />
+                </F>
                 <F label="Project Code &amp; Location">
                   <input placeholder="Project Code / Site Name" {...bind("projectCodeLocation")} />
                 </F>
@@ -472,42 +482,45 @@ export default function BillProcessing() {
                 <F label="Previous Bill & Amount (info only)">
                   <input type="text" placeholder="e.g. BILL0003/2526 - ₹50,000" {...bind("previousAdvance")} />
                 </F>
-                <F label="UOM (Unit of Measure)">
-                  <select {...bind("uom")}>
-                    {UOMS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </F>
               </div>
-              <div className="row" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "3fr 1fr 2fr", gap: "8px 12px" }}>
+              <div className="row" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "2fr 1fr 1fr 2fr", gap: "8px 12px" }}>
                 <F label="Item Summary">
                   <input placeholder="Item / Service description (multi-word ok)" {...bind("itemDescription")} />
                 </F>
                 <F label="Quantity (Summary)">
                   <input type="number" step="0.01" min="0" placeholder="0" {...bind("quantity")} />
                 </F>
-                <F label="Work Order Copy (PDF/Image · Max 300 KB)">
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                    <input
-                      type="file"
-                      accept="application/pdf,image/*"
-                      onChange={handleWoFile}
-                      disabled={locked}
-                      data-testid="wo-file-input"
-                      style={{ maxWidth: 200, padding: "3px 4px", fontSize: 10.5, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff", flex: "0 0 auto" }}
-                    />
-                    {bill.workOrderFile && (
-                      <a href={bill.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
-                        data-testid="wo-file-link"
-                        style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 600, fontSize: 10.5, textDecoration: "none", whiteSpace: "nowrap", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis" }}
-                        title={bill.workOrderFile.name}>
-                        📎 {bill.workOrderFile.name} ({Math.round(bill.workOrderFile.size / 1024)}KB)
-                      </a>
-                    )}
-                    {bill.workOrderFile && !locked && (
-                      <button type="button" onClick={removeWoFile} data-testid="wo-file-remove"
-                        style={{ padding: "3px 8px", fontSize: 10, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
-                        Remove
-                      </button>
+                <F label="UOM (Unit of Measure)">
+                  <select {...bind("uom")}>
+                    {UOMS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </F>
+                <F label="Work Order Copy (PDF / Image · Max 300 KB)">
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {!bill.workOrderFile ? (
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        onChange={handleWoFile}
+                        disabled={locked}
+                        data-testid="wo-file-input"
+                        style={{ flex: 1, padding: "4px 6px", fontSize: 10.5, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff", minWidth: 0 }}
+                      />
+                    ) : (
+                      <>
+                        <a href={bill.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
+                          data-testid="wo-file-link"
+                          style={{ flex: 1, padding: "6px 10px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 600, fontSize: 11, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}
+                          title={`${bill.workOrderFile.name} · ${Math.round(bill.workOrderFile.size / 1024)}KB`}>
+                          📎 {bill.workOrderFile.name}
+                        </a>
+                        {!locked && (
+                          <button type="button" onClick={removeWoFile} data-testid="wo-file-remove"
+                            style={{ padding: "5px 10px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600, flex: "0 0 auto" }}>
+                            Remove
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </F>
