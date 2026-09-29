@@ -12,14 +12,13 @@ export const Header = ({ formTitle }) => {
       window.removeEventListener("storage", sync);
     };
   }, []);
+  const shownLogo = logo || "/arun-logo.jpg";
   return (
     <>
       <div className="doc-header" data-testid="doc-header">
-        {logo && (
-          <div className="brand-logo" data-testid="doc-logo">
-            <img src={logo} alt="Company logo" data-testid="doc-logo-img" />
-          </div>
-        )}
+        <div className="brand-logo" data-testid="doc-logo">
+          <img src={shownLogo} alt="Company logo" data-testid="doc-logo-img" />
+        </div>
         <h1>ARUN ENTERPRISES</h1>
         <p><b>Address:</b> 209H/1F/1 Ops Nagar Kalindipuram Prayagraj UP 211011</p>
         <p>
