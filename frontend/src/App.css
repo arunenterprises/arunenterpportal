@@ -622,40 +622,24 @@ body {
 .modal-close:hover { color: #fbbf24; }
 .modal-body { padding: 16px 18px 20px; }
 
-/* ---- Home welcome banner ---- */
+/* ---- Home / Departmental Control Panel (A4 landscape) ---- */
 .home-a4 {
-  display: flex; flex-direction: column;
+  padding: 12mm 14mm;
 }
-.home-a4 .welcome {
-  margin: auto;
+.home-a4 .doc-header { margin-bottom: 8px; }
+.home-a4 .dept-grid {
+  padding: 0; max-width: none; margin: 12px 0 0 0;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
-.welcome {
-  margin: 40px auto 0;
-  padding: 44px 32px;
-  max-width: 640px;
-  border: 1px dashed #1e3a8a;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #eef4fb 0%, #fef7e0 100%);
-  text-align: center;
-}
-.welcome-lead {
-  font-size: 12px; letter-spacing: 4px;
-  color: var(--muted); text-transform: uppercase;
-  font-weight: 600;
-}
-.welcome-title {
-  margin-top: 6px;
-  font-size: 34px; letter-spacing: 6px;
-  color: var(--brand);
-  font-weight: 800;
-  font-family: "Georgia", "Cambria", serif;
-}
-.welcome-sub {
-  margin-top: 6px;
-  font-size: 15px; letter-spacing: 2px;
-  color: var(--brand-2);
-  font-weight: 600;
-}
+.home-a4 .dept-card { min-height: 200px; padding: 14px 12px; border-radius: 10px; }
+.home-a4 .dept-title { font-size: 15px; }
+.home-a4 .dept-sub { font-size: 9.5px; }
+.home-a4 .dept-lines { font-size: 10.5px; line-height: 1.45; padding-left: 18px; }
+.home-a4 .dept-cta { font-size: 10.5px; padding: 6px 10px; }
+.home-a4 .home-flow { max-width: none; margin: 12px 0 0 0; padding: 10px 12px; }
+.home-a4 .home-flow-title { font-size: 13px; margin-bottom: 8px; }
+.home-a4 .home-flow-legend { font-size: 10.5px; line-height: 1.5; padding: 8px 10px; }
 
 /* ---- Print (LANDSCAPE) ---- */
 @page { size: A4 landscape; margin: 8mm; }

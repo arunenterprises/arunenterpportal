@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Users, ShoppingCart, Wallet, UserCog, LogOut, Home as HomeIcon } from "lucide-react";
 import Header from "../components/Header";
-import { logout, currentUser, currentUserProfile, isSuperAdmin } from "../lib/store";
+import { logout, currentUser, currentUserProfile, isSuperAdmin, getVendors, getBills, getPayments, getExpenses } from "../lib/store";
 
 const DEPARTMENTS = [
   {
@@ -72,7 +72,7 @@ const DEPARTMENTS = [
   },
 ];
 
-const DepartmentCard = ({ dept, onClick, disabled }) => {
+const DepartmentCard = ({ dept, onClick, disabled, badge }) => {
   const Icon = dept.icon;
   return (
     <button
@@ -84,8 +84,16 @@ const DepartmentCard = ({ dept, onClick, disabled }) => {
         background: `linear-gradient(135deg, ${dept.color} 0%, ${dept.dark} 100%)`,
         opacity: disabled ? 0.55 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
+        position: "relative",
       }}
     >
+      {badge != null && !disabled && (
+        <div data-testid={`dept-badge-${dept.id}`}
+          style={{ position: "absolute", top: 10, right: 12, background: "rgba(255,255,255,.22)", padding: "3px 10px", borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, border: "1px solid rgba(255,255,255,.35)" }}
+          title={badge.title}>
+          {badge.text}
+        </div>
+      )}
       <div className="dept-card-header">
         <Icon size={44} strokeWidth={1.8} />
         <div>
@@ -189,6 +197,18 @@ export default function Home() {
   const superAdmin = isSuperAdmin(me?.user);
   const doLogout = () => { logout(); nav("/login"); };
 
+  // Live counts for dept mini-dashboard badges
+  const vendors = getVendors();
+  const bills = getBills();
+  const payments = getPayments();
+  const expenses = getExpenses();
+  const badges = {
+    vendor: { text: `${vendors.filter((v) => v.step === 3).length} approved · ${vendors.length} total`, title: `${vendors.filter((v) => v.step === 3).length} approved vendors of ${vendors.length}` },
+    purchase: { text: `${bills.filter((b) => Number(b.step) === 5).length} bills · ${expenses.length} expenses`, title: `${bills.filter((b) => Number(b.step) === 5).length} approved bills · ${expenses.length} expenses recorded` },
+    account: { text: `${payments.filter((p) => p.status === "Approved").length} paid · ${payments.filter((p) => p.status !== "Approved").length} pending`, title: `${payments.filter((p) => p.status === "Approved").length} approved vouchers · ${payments.filter((p) => p.status !== "Approved").length} pending` },
+    users: null,
+  };
+
   return (
     <>
       <Toaster position="top-center" richColors />
@@ -217,27 +237,30 @@ export default function Home() {
           </div>
         </div>
 
-        <Header formTitle="Departmental Control Panel" />
+        <div className="a4 home-a4" data-testid="home-a4">
+          <Header formTitle="Departmental Control Panel" />
 
-        <div className="dept-grid" data-testid="dept-grid">
-          {DEPARTMENTS.map((d) => (
-            <DepartmentCard
-              key={d.id}
-              dept={d}
-              disabled={d.superOnly && !superAdmin}
-              onClick={() => {
-                if (d.superOnly && !superAdmin) return;
-                nav(d.to);
-              }}
-            />
-          ))}
-        </div>
+          <div className="dept-grid" data-testid="dept-grid">
+            {DEPARTMENTS.map((d) => (
+              <DepartmentCard
+                key={d.id}
+                dept={d}
+                badge={badges[d.id]}
+                disabled={d.superOnly && !superAdmin}
+                onClick={() => {
+                  if (d.superOnly && !superAdmin) return;
+                  nav(d.to);
+                }}
+              />
+            ))}
+          </div>
 
-        <div className="home-flow" data-testid="home-flow">
-          <div className="home-flow-title">🗺️ System Flow · Department Interconnection</div>
-          <FlowDiagram />
-          <div className="home-flow-legend">
-            <b>How they link:</b> Vendor Management me approved vendors → Purchase Management me un vendors ke against Bills / Work Orders / Expenses create hote hain → Account Management me un approved bills ke Payment Vouchers + UTR track hote hain aur reports generate hote hain. User Management (SuperAdmin only) sabhi 3 departments ke actors ko roles + permissions issue karta hai.
+          <div className="home-flow" data-testid="home-flow">
+            <div className="home-flow-title">🗺️ System Flow · Department Interconnection</div>
+            <FlowDiagram />
+            <div className="home-flow-legend">
+              <b>How they link:</b> Vendor Management me approved vendors → Purchase Management me un vendors ke against Bills / Work Orders / Expenses create hote hain → Account Management me un approved bills ke Payment Vouchers + UTR track hote hain aur reports generate hote hain. User Management (SuperAdmin only) sabhi 3 departments ke actors ko roles + permissions issue karta hai.
+            </div>
           </div>
         </div>
       </div>

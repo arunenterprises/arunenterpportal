@@ -1,6 +1,6 @@
 // LocalStorage-backed data store for Vendor Management (+ cloud sync via /api)
 import {
-  apiUpsertVendor, apiUpsertBill, apiPushPayments,
+  apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiPushPayments,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
@@ -152,6 +152,7 @@ export const upsertExpense = (e) => {
   e.updatedAt = new Date().toISOString();
   if (idx >= 0) list[idx] = e; else list.push(e);
   saveExpenses(list);
+  if (getToken()) apiUpsertExpense(e).catch(() => {});
   return e;
 };
 
@@ -501,7 +502,13 @@ export const syncFromCloud = async () => {
   if (Array.isArray(snap.vendors)) write(KEYS.VENDORS, snap.vendors);
   if (Array.isArray(snap.bills)) write(KEYS.BILLS, snap.bills);
   if (Array.isArray(snap.payments)) write(KEYS.PAYMENTS, snap.payments);
-  if (snap.counters) write(KEYS.COUNTERS, { vendorSerial: snap.counters.vendorSerial || 0, billSerial: snap.counters.billSerial || 0, pvSerial: snap.counters.pvSerial || 0 });
+  if (Array.isArray(snap.expenses)) write(KEYS.EXPENSES, snap.expenses);
+  if (snap.counters) write(KEYS.COUNTERS, {
+    vendorSerial: snap.counters.vendorSerial || 0,
+    billSerial: snap.counters.billSerial || 0,
+    pvSerial: snap.counters.pvSerial || 0,
+    expenseSerial: snap.counters.expenseSerial || 0,
+  });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
   return snap;
 };
@@ -511,7 +518,8 @@ export const syncToCloud = async () => {
     vendors: read(KEYS.VENDORS, []),
     bills: read(KEYS.BILLS, []),
     payments: read(KEYS.PAYMENTS, []),
-    counters: read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0 }),
+    expenses: read(KEYS.EXPENSES, []),
+    counters: read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0, expenseSerial: 0 }),
     logo: localStorage.getItem(KEYS.LOGO) || "",
   };
   return await apiPushSnapshot(payload);

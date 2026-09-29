@@ -300,7 +300,8 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "vendors": await _list_collection("vendors"),
         "bills": await _list_collection("bills"),
         "payments": await _list_collection("payments"),
-        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0},
+        "expenses": await _list_collection("expenses"),
+        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
     }
 
@@ -311,7 +312,8 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
     vendors = body.get("vendors", [])
     bills = body.get("bills", [])
     payments = body.get("payments", [])
-    counters = body.get("counters", {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0})
+    expenses = body.get("expenses", [])
+    counters = body.get("counters", {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0})
     logo = body.get("logo", "")
     # Merge (upsert by id) instead of replace, to avoid data loss across devices
     for v in vendors:
@@ -320,6 +322,9 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
     for b in bills:
         if b.get("id"):
             await db.bills.update_one({"id": b["id"]}, {"$set": b}, upsert=True)
+    for x in expenses:
+        if x.get("id"):
+            await db.expenses.update_one({"id": x["id"]}, {"$set": x}, upsert=True)
     if payments:
         await _replace_collection("payments", payments)
     counters["key"] = "global"
@@ -327,8 +332,24 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
     if logo:
         await db.settings.update_one({"key": "logo"}, {"$set": {"value": logo}}, upsert=True)
     return {
-        "vendors": len(vendors), "bills": len(bills), "payments": len(payments),
+        "vendors": len(vendors), "bills": len(bills), "payments": len(payments), "expenses": len(expenses),
     }
+
+
+# ==================== EXPENSES (single-record upsert) ====================
+@api_router.post("/expenses")
+async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    xid = body.get("id")
+    if not xid:
+        raise HTTPException(status_code=400, detail="id is required")
+    await db.expenses.update_one({"id": xid}, {"$set": body}, upsert=True)
+    return {"ok": True, "id": xid}
+
+
+@api_router.delete("/expenses/{xid}")
+async def delete_expense(xid: str, user: Dict = Depends(get_current_user)):
+    r = await db.expenses.delete_one({"id": xid})
+    return {"ok": True, "deleted": r.deleted_count}
 
 
 # ==================== DANGER ZONE: RESET ALL DATA ====================
@@ -342,6 +363,7 @@ async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(re
     v = await db.vendors.delete_many({})
     b = await db.bills.delete_many({})
     p = await db.payments.delete_many({})
+    x = await db.expenses.delete_many({})
     c = await db.counters.delete_many({})
     logo = await db.settings.delete_many({"key": "logo"})
     users_removed = 0
@@ -356,6 +378,7 @@ async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(re
         "vendors": v.deleted_count,
         "bills": b.deleted_count,
         "payments": p.deleted_count,
+        "expenses": x.deleted_count,
         "counters": c.deleted_count,
         "logo": logo.deleted_count,
         "users_removed": users_removed,

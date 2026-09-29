@@ -55,6 +55,11 @@ export const apiUpsertBill = (b) =>
 export const apiDeleteBill = (id) =>
   req(`/bills/${encodeURIComponent(id)}`, { method: "DELETE" });
 
+export const apiUpsertExpense = (x) =>
+  req("/expenses", { method: "POST", body: JSON.stringify(x) });
+export const apiDeleteExpense = (id) =>
+  req(`/expenses/${encodeURIComponent(id)}`, { method: "DELETE" });
+
 export const apiPushPayments = (items) =>
   req("/payments/bulk", { method: "POST", body: JSON.stringify({ items }) });
 
