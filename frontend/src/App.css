@@ -52,13 +52,14 @@ body {
   border: none;
   border-top: 1px solid var(--line);
   border-radius: 0;
-  padding: 8px 14px;
-  display: flex; align-items: center; gap: 8px;
-  flex-wrap: wrap;
+  padding: 6px 10px;
+  display: flex; align-items: center; gap: 5px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   justify-content: center;
   box-shadow: 0 -6px 18px rgba(15, 23, 42, .08);
   margin: 0;
-  min-height: 52px;
+  min-height: 46px;
 }
 .top-action.dark {
   background: #0f2b6b;
@@ -81,17 +82,17 @@ body {
 .search-wrap input::placeholder { color: #94a3b8; font-size: 10.5px; }
 
 .btn-color {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 14px; font-weight: 700; letter-spacing: .3px;
-  border: none; border-radius: 6px; cursor: pointer;
-  color: #fff; font-size: 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 6px 10px; font-weight: 700; letter-spacing: .2px;
+  border: none; border-radius: 5px; cursor: pointer;
+  color: #fff; font-size: 11px;
   transition: transform .1s ease, filter .12s ease, box-shadow .12s ease;
-  min-width: 92px; flex: 0 0 auto;
+  min-width: 68px; flex: 0 0 auto;
   white-space: nowrap;
   line-height: 1.15;
   box-shadow: 0 1px 2px rgba(0,0,0,.08);
 }
-.btn-color .lbl { line-height: 1.05; font-size: 11.5px; }
+.btn-color .lbl { line-height: 1.05; font-size: 10.5px; }
 .btn-color .lbl small { display: block; font-size: 9px; font-weight: 500; opacity: .9; }
 .top-action.dark .search-wrap { background: #0b224f; border-color: #1e3a8a; }
 .top-action.dark .search-wrap input { color: #fff; }
