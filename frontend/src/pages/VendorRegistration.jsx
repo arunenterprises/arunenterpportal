@@ -51,6 +51,42 @@ export default function VendorRegistration() {
     ...extra,
   });
 
+  // ---- IFSC → auto-fetch bank details (Razorpay's free public API) ----
+  const [ifscBusy, setIfscBusy] = useState(false);
+  const [ifscOk, setIfscOk] = useState(false);
+  useEffect(() => {
+    const code = (vendor.ifscCode || "").toUpperCase().trim();
+    if (code.length !== 11 || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(code)) {
+      setIfscOk(false);
+      return;
+    }
+    let cancelled = false;
+    setIfscBusy(true);
+    fetch(`https://ifsc.razorpay.com/${code}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data) => {
+        if (cancelled) return;
+        setVendor((prev) => ({
+          ...prev,
+          bankName: data.BANK || prev.bankName,
+          branchName: data.BRANCH || prev.branchName,
+          bankAddress: data.ADDRESS || prev.bankAddress,
+          bankCity: data.CITY || prev.bankCity,
+          bankState: data.STATE || prev.bankState,
+        }));
+        setIfscOk(true);
+        toast.success(`Bank: ${data.BANK} · ${data.BRANCH}`);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIfscOk(false);
+        toast.error(`IFSC "${code}" not found`);
+      })
+      .finally(() => { if (!cancelled) setIfscBusy(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendor.ifscCode]);
+
   const validateStep1 = () => {
     if (!String(vendor.firmName || "").trim()) { toast.error("Vendor / Firm Name is required"); return false; }
     if (!String(vendor.mobileNo || "").trim()) { toast.error("Mobile Number is required"); return false; }
@@ -277,11 +313,40 @@ export default function VendorRegistration() {
             <div className="sec-head">2. Vendor Bank Details</div>
             <div className="sec-body">
               <div className="row cols-3">
-                <F label="Bank Name"><input placeholder="Bank Name" {...bind("bankName")} /></F>
-                <F label="Branch Name"><input placeholder="Branch Name / City" {...bind("branchName")} /></F>
-                <F label="IFSC Code">
-                  <input placeholder="IFSC CODE (E.G. SBIN0001234)" maxLength={11}
-                    {...bind("ifscCode", { style: { textTransform: "uppercase" } })} />
+                <F label="IFSC Code (Primary — auto-fills bank details)" req>
+                  <div style={{ position: "relative" }}>
+                    <input placeholder="IFSC CODE (E.G. SBIN0001234)" maxLength={11}
+                      {...bind("ifscCode", { style: { textTransform: "uppercase", paddingRight: 60 } })} />
+                    <span style={{
+                      position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                      fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                      background: ifscBusy ? "#fef3c7" : ifscOk ? "#dcfce7" : "#fee2e2",
+                      color: ifscBusy ? "#92400e" : ifscOk ? "#166534" : "#991b1b",
+                      border: `1px solid ${ifscBusy ? "#fcd34d" : ifscOk ? "#86efac" : "#fca5a5"}`,
+                      display: (vendor.ifscCode || "").length === 11 ? "inline-block" : "none",
+                    }} data-testid="ifsc-status">
+                      {ifscBusy ? "…" : ifscOk ? "✓" : "✗"}
+                    </span>
+                  </div>
+                </F>
+                <F label="Bank Name (auto)">
+                  <input placeholder="Bank Name" {...bind("bankName")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} />
+                </F>
+                <F label="Branch Name (auto)">
+                  <input placeholder="Branch Name / City" {...bind("branchName")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} />
+                </F>
+              </div>
+              <div className="row cols-1" style={{ marginTop: 10 }}>
+                <F label="Bank Branch Address (auto)">
+                  <input placeholder="Auto-filled from IFSC lookup" {...bind("bankAddress")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} data-testid="field-bankAddress" />
+                </F>
+              </div>
+              <div className="row cols-2" style={{ marginTop: 10 }}>
+                <F label="Bank City (auto)">
+                  <input placeholder="City" {...bind("bankCity")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} data-testid="field-bankCity" />
+                </F>
+                <F label="Bank State (auto)">
+                  <input placeholder="State" {...bind("bankState")} readOnly={locked || ifscOk} style={ifscOk ? { background: "#f0fdf4" } : {}} data-testid="field-bankState" />
                 </F>
               </div>
               <div className="row cols-3" style={{ marginTop: 10 }}>
