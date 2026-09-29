@@ -47,6 +47,8 @@ Print), A4 portrait layout with company header, and a linear approval workflow.
 See `/app/memory/test_credentials.md`.
 
 ## Deferred / backlog
+- Departmental Control Panel Home (4 big dept cards + SVG flow diagram) — **Done Feb 2026** (`/home` route after login; cards for Vendor, Purchase, Account, User Management; User Management gated to Super Admin)
+- Expense Process page (`/expense`) — **Done Feb 2026** (4-step workflow: Draft → Prepared → Checked → Approved & Paid; categories/payment modes/GST-TDS compute; receipt upload 300 KB; expenses register data sheet)
 - Approved Voucher Excel export (single or multi-select) — **Done Feb 2026** (per-row checkbox + Select-All + green "📥 Export Approved to Excel" button in Payments Register header)
 - Category Scope: Transportation & Loading/Unloading added; **Km** unit added — **Done Feb 2026**
 - "Item Description (Summary)" → "**Item Summary**" label rename — **Done Feb 2026**
