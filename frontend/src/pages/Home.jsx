@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog } from "lucide-react";
+import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import {
@@ -80,6 +80,23 @@ const DEPARTMENTS = [
       "Reports across departments",
     ],
     roles: ALL_ROLES,
+  },
+  {
+    id: "hr",
+    title: "HR Management",
+    subtitle: "Employees · Attendance · Payroll (Draft)",
+    to: "/hr",
+    icon: UserCheck,
+    color: "#db2777",
+    dark: "#9d174d",
+    lines: [
+      "Employee master + KYC vault",
+      "Attendance · Leave · Shift roster",
+      "Payroll · PF · ESIC · TDS",
+      "Recruitment · Appraisal · Exit F&F",
+    ],
+    roles: ALL_ROLES,
+    badge: "DRAFT",
   },
   {
     id: "reports",

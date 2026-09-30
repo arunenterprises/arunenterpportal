@@ -9,6 +9,7 @@ import Reports from "./pages/Reports";
 import UsersAdmin from "./pages/UsersAdmin";
 import PurchaseManagement from "./pages/PurchaseManagement";
 import GeneralManager from "./pages/GeneralManager";
+import HRManagement from "./pages/HRManagement";
 import SplashScreen from "./components/SplashScreen";
 import { isAuthed } from "./lib/store";
 
@@ -30,6 +31,7 @@ function App() {
           <Route path="/accounts" element={<Navigate to="/bill" replace />} />
           <Route path="/expense" element={<RequireAuth><ExpenseProcess /></RequireAuth>} />
           <Route path="/gm" element={<RequireAuth><GeneralManager /></RequireAuth>} />
+          <Route path="/hr" element={<RequireAuth><HRManagement /></RequireAuth>} />
           <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/reports" element={<Navigate to="/final" replace />} />
           <Route path="/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
