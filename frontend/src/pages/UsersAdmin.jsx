@@ -9,6 +9,26 @@ import HomeNavBar from "../components/HomeNavBar";
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
 
+// Static role → permissions matrix used purely for display in the Users list.
+// Actual enforcement is done by canCreate / canApprove in store.js.
+const rolePerms = (email, role) => {
+  const isSA = (email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
+  const r = isSA ? "SuperAdmin" : role || "User";
+  const base = { create: false, edit: false, submit: false, approve: false };
+  if (r === "SuperAdmin" || r === "Admin" || r === "GM") return { create: true, edit: true, submit: true, approve: true };
+  if (r === "Purchase" || r === "Accounts" || r === "User") return { create: true, edit: true, submit: true, approve: false };
+  if (r === "Viewer") return base;
+  return base;
+};
+
+const PermChip = ({ label, on }) => (
+  <span style={{
+    padding: "1px 6px", fontSize: 9.5, fontWeight: 700, borderRadius: 3, marginRight: 3,
+    background: on ? "#dcfce7" : "#f1f5f9", color: on ? "#166534" : "#94a3b8",
+    border: `1px solid ${on ? "#86efac" : "#cbd5e1"}`, letterSpacing: .3, whiteSpace: "nowrap",
+  }}>{on ? "✓" : "✕"} {label}</span>
+);
+
 export default function UsersAdmin() {
   const nav = useNavigate();
   const me = currentUserProfile();
@@ -255,6 +275,20 @@ export default function UsersAdmin() {
                 <option value="GM">General Manager (all + final approve)</option>
                 <option value="Admin">Admin (full access)</option>
               </select>
+              {/* Live permissions preview for the selected role */}
+              <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 2 }} data-testid="admin-role-perms-preview">
+                {(() => {
+                  const p = rolePerms(f.email, f.role);
+                  return (
+                    <>
+                      <PermChip label="Create" on={p.create} />
+                      <PermChip label="Edit" on={p.edit} />
+                      <PermChip label="Submit (Under-Approval)" on={p.submit} />
+                      <PermChip label="Approve" on={p.approve} />
+                    </>
+                  );
+                })()}
+              </div>
             </div>
             <div style={{ gridColumn: "1 / -1", textAlign: "right" }}>
               <button
@@ -283,6 +317,7 @@ export default function UsersAdmin() {
                 <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Emp ID</th>
                 <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Designation</th>
                 <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #e2e8f0" }}>Role</th>
+                <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Permissions</th>
                 <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #e2e8f0" }}>Actions</th>
               </tr>
             </thead>
@@ -311,6 +346,19 @@ export default function UsersAdmin() {
                         {(u.role || "User").toUpperCase()}
                       </span>
                     )}
+                  </td>
+                  <td style={{ padding: "5px 8px" }} data-testid={`user-perms-${u.email}`}>
+                    {(() => {
+                      const p = rolePerms(u.email, u.role);
+                      return (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                          <PermChip label="Create" on={p.create} />
+                          <PermChip label="Edit" on={p.edit} />
+                          <PermChip label="Submit" on={p.submit} />
+                          <PermChip label="Approve" on={p.approve} />
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: "5px 8px", textAlign: "center" }}>
                     {isSuperAdmin(me?.user) && (

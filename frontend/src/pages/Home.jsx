@@ -14,6 +14,8 @@ import {
   getExpenses,
 } from "../lib/store";
 
+const ALL_ROLES = ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
+
 const DEPARTMENTS = [
   {
     id: "vendor",
@@ -29,7 +31,7 @@ const DEPARTMENTS = [
       "Auto Vendor Code (AE####JV{FY})",
       "IFSC auto-fill bank details",
     ],
-    roles: ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts", "Viewer", "User"],
+    roles: ALL_ROLES,
   },
   {
     id: "purchase",
@@ -45,7 +47,7 @@ const DEPARTMENTS = [
       "Billing: create + WO + invoice attach",
       "Expense: create → submit",
     ],
-    roles: ["SuperAdmin", "Admin", "GM", "Purchase", "Viewer"],
+    roles: ALL_ROLES,
   },
   {
     id: "accounts",
@@ -61,7 +63,7 @@ const DEPARTMENTS = [
       "Bill / Expense approval + re-approval",
       "Payment voucher preparation",
     ],
-    roles: ["SuperAdmin", "Admin", "GM", "Accounts", "Viewer"],
+    roles: ALL_ROLES,
   },
   {
     id: "gm",
@@ -77,7 +79,7 @@ const DEPARTMENTS = [
       "Final Approval + Re-Approval",
       "Reports across departments",
     ],
-    roles: ["SuperAdmin", "Admin", "GM", "Viewer"],
+    roles: ALL_ROLES,
   },
   {
     id: "reports",
@@ -93,7 +95,7 @@ const DEPARTMENTS = [
       "Due list & aging report",
       "Excel / JSON / Print export",
     ],
-    roles: ["SuperAdmin", "Admin", "GM", "Accounts", "Viewer", "User"],
+    roles: ALL_ROLES,
   },
   {
     id: "users",
