@@ -27,6 +27,7 @@ export default function Reports() {
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
   const [selectedPvs, setSelectedPvs] = useState(() => new Set());
+  const [reportsTab, setReportsTab] = useState("vouchers");
 
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
@@ -377,6 +378,115 @@ export default function Reports() {
         <div className="a4" data-testid="reports-page">
           <Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" />
 
+          {/* Reports Tabs */}
+          <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8 }} data-testid="reports-tabs">
+            {[
+              { id: "vouchers", label: "💳 Payment Vouchers", tone: "#7c3aed" },
+              { id: "due", label: "📋 Due List", tone: "#0ea5e9" },
+              { id: "aging", label: "⏱️ Aging", tone: "#ea580c" },
+              { id: "gsttds", label: "🧾 GST-TDS Register", tone: "#16a34a" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                data-testid={`reports-tab-${t.id}`}
+                onClick={() => setReportsTab(t.id)}
+                style={{
+                  padding: "8px 16px",
+                  background: reportsTab === t.id ? t.tone : "transparent",
+                  color: reportsTab === t.id ? "#fff" : "#334155",
+                  border: "none",
+                  borderRadius: "6px 6px 0 0",
+                  cursor: "pointer",
+                  fontWeight: 700, fontSize: 12,
+                  letterSpacing: .3,
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Aging & GST-TDS Register (conditional simple tables) */}
+          {reportsTab === "aging" && (
+            <div className="section" data-testid="reports-aging">
+              <div className="sec-head">Aging Report — Outstanding Balances by Bucket</div>
+              <div className="sec-body" style={{ padding: 0 }}>
+                <table className="data-table">
+                  <thead><tr><th>Bucket</th><th style={{ textAlign: "right" }}>Bills</th><th style={{ textAlign: "right" }}>Outstanding</th></tr></thead>
+                  <tbody>
+                    {(() => {
+                      const buckets = { "0–30 days": [], "31–60 days": [], "61–90 days": [], "90+ days": [] };
+                      const now = new Date();
+                      dueRows.forEach((r) => {
+                        if (r.balance <= 0) return;
+                        const due = r.dueDate ? new Date(r.dueDate) : now;
+                        const days = Math.floor((now - due) / (1000 * 60 * 60 * 24));
+                        const key = days <= 30 ? "0–30 days" : days <= 60 ? "31–60 days" : days <= 90 ? "61–90 days" : "90+ days";
+                        buckets[key].push(r);
+                      });
+                      return Object.entries(buckets).map(([k, arr]) => (
+                        <tr key={k} data-testid={`aging-${k.replace(/[^a-z0-9]/gi, "")}`}>
+                          <td><b>{k}</b></td>
+                          <td className="num">{arr.length}</td>
+                          <td className="num"><b>{inr(arr.reduce((s, r) => s + r.balance, 0))}</b></td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {reportsTab === "gsttds" && (
+            <div className="section" data-testid="reports-gsttds">
+              <div className="sec-head">GST-TDS Register — Approved Bills</div>
+              <div className="sec-body" style={{ padding: 0 }}>
+                <table className="data-table">
+                  <thead><tr>
+                    <th>Ref No</th><th>Vendor</th><th>GST No</th><th>PAN</th>
+                    <th style={{ textAlign: "right" }}>Basic</th>
+                    <th style={{ textAlign: "right" }}>GST</th>
+                    <th style={{ textAlign: "right" }}>TDS</th>
+                    <th style={{ textAlign: "right" }}>Net</th>
+                  </tr></thead>
+                  <tbody>
+                    {approvedBills.length === 0 && (
+                      <tr><td colSpan={8} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No approved bills</td></tr>
+                    )}
+                    {approvedBills.map((b) => {
+                      const c = computeBill(b);
+                      const v = b.vendorSnapshot || vendors.find((x) => x.vendorCode === b.vendorCode) || {};
+                      return (
+                        <tr key={b.id} data-testid={`gsttds-row-${b.refNo}`}>
+                          <td className="mono">{b.permanentBillNo || b.refNo}</td>
+                          <td>{v.firmName || b.vendorCode}</td>
+                          <td className="mono" style={{ fontSize: 11 }}>{v.gstNo || "-"}</td>
+                          <td className="mono" style={{ fontSize: 11 }}>{v.panNo || "-"}</td>
+                          <td className="num">{c.basic.toFixed(2)}</td>
+                          <td className="num">{c.gst.toFixed(2)}</td>
+                          <td className="num">{c.tds.toFixed(2)}</td>
+                          <td className="num"><b>{c.netPayable.toFixed(2)}</b></td>
+                        </tr>
+                      );
+                    })}
+                    {approvedBills.length > 0 && (
+                      <tr style={{ background: "#f1f5f9", fontWeight: 800 }}>
+                        <td colSpan={4} style={{ textAlign: "right" }}>TOTAL</td>
+                        <td className="num">{approvedBills.reduce((s, b) => s + computeBill(b).basic, 0).toFixed(2)}</td>
+                        <td className="num">{approvedBills.reduce((s, b) => s + computeBill(b).gst, 0).toFixed(2)}</td>
+                        <td className="num">{approvedBills.reduce((s, b) => s + computeBill(b).tds, 0).toFixed(2)}</td>
+                        <td className="num">{approvedBills.reduce((s, b) => s + computeBill(b).netPayable, 0).toFixed(2)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {(reportsTab === "vouchers" || reportsTab === "due") && (
+          <>
           <div className="section">
             <div className="sec-head">A. Summary Dashboard</div>
             <div className="sec-body">
@@ -843,6 +953,8 @@ export default function Reports() {
                 </table>
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
       </div>

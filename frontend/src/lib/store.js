@@ -233,13 +233,48 @@ export const upsertBOQ = (b) => {
 
 export const advanceBOQStep = (b) => {
   const next = { ...b };
+  const me = read(KEYS.AUTH, null);
+  const approver = (me?.name || me?.user || "").trim();
   if (next.step < 4) {
     next.step += 1;
     if (next.step === 3 && !next.submittedDate) {
       next.submittedDate = new Date().toISOString().slice(0, 10);
     }
+    if (next.step === 4 && approver) {
+      next.approvedByName = approver;
+      next.approvalDate = new Date().toISOString().slice(0, 10);
+    }
   }
   return upsertBOQ(next);
+};
+
+// ---- Re-approval helpers (bump approver name + approvalDate on already-approved items) ----
+const _me = () => {
+  const p = read(KEYS.AUTH, null) || {};
+  return (p.name || p.user || "").trim();
+};
+export const reapproveVendor = (v) => {
+  const next = { ...v, approvedByName: _me(), approvalDate: new Date().toISOString().slice(0, 10), reapprovedAt: new Date().toISOString() };
+  return upsertVendor(next);
+};
+export const reapproveBill = (b) => {
+  const next = { ...b, approverName: _me(), approvalDate: new Date().toISOString().slice(0, 10), reapprovedAt: new Date().toISOString() };
+  return upsertBill(next);
+};
+export const reapproveExpense = (e) => {
+  const next = { ...e, approvedByName: _me(), approvalDate: new Date().toISOString().slice(0, 10), reapprovedAt: new Date().toISOString() };
+  return upsertExpense(next);
+};
+export const reapproveBOQ = (b) => {
+  const next = { ...b, approvedByName: _me(), approvalDate: new Date().toISOString().slice(0, 10), reapprovedAt: new Date().toISOString() };
+  return upsertBOQ(next);
+};
+export const reapproveVoucher = (p) => {
+  const list = getPayments().map((x) => x.id === p.id
+    ? { ...x, approvedByName: _me(), approvalDate: new Date().toISOString().slice(0, 10), reapprovedAt: new Date().toISOString() }
+    : x);
+  savePayments(list);
+  return list.find((x) => x.id === p.id);
 };
 
 // ---- Vendors ----
