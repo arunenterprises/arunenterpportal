@@ -256,7 +256,28 @@ export const WO_STEP_LABEL = {
 };
 
 const buildWONo = (serial) => `AE${String(serial).padStart(6, "0")}JV${getFY()}`;
-export const UNITS_DEFAULT = ["Nos", "Kg", "Mtr", "Sq.Mtr", "Cu.Mtr", "Lump", "Tonne", "Ltr", "Hour", "Day", "Set", "Roll", "Box", "Bag", "Job"];
+export const UNITS_DEFAULT = [
+  // Count / piece
+  "Nos", "Pcs", "Set", "Pair", "Unit", "Dozen", "Gross",
+  // Weight
+  "Kg", "Gram", "Quintal", "Tonne", "MT", "LB",
+  // Length
+  "mm", "cm", "Mtr", "Km", "Inch", "Feet", "Yard", "RMT", "Running Mtr",
+  // Area
+  "Sq.mm", "Sq.cm", "Sq.Mtr", "Sq.Ft", "Sq.Yard", "Sq.Inch", "Acre", "Hectare",
+  // Volume
+  "Cu.cm", "Cu.Mtr", "Cu.Ft", "Cu.Yard", "Ltr", "ML",
+  // Time
+  "Hour", "Day", "Week", "Month", "Year", "Shift", "Man-Day", "Man-Hour",
+  // Packaging
+  "Bag", "Box", "Carton", "Crate", "Roll", "Bundle", "Coil", "Drum", "Can", "Bottle", "Pack", "Packet", "Case", "Pallet", "Sack",
+  // Trade / bulk
+  "Lot", "Job", "Lump", "Lumpsum", "LS", "Trip", "Load", "Truck", "Tanker",
+  // Electrical / mechanical
+  "KW", "KWH", "HP", "Amp", "Volt", "KVA", "MVA",
+  // Percentage / ratio
+  "%", "Per 100", "Per 1000",
+];
 
 export const getWOs = () => read(KEYS.WOS, []);
 export const saveWOs = (list) => write(KEYS.WOS, list);
