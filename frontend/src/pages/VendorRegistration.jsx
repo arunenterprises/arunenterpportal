@@ -243,7 +243,7 @@ export default function VendorRegistration() {
                   REV {vendor.revision}
                 </span>
               )}
-              <span className="exp">VALID TILL: {vendor.expiryDate}</span>
+              <span className="exp">VALID TILL: {fmtDMY(vendor.expiryDate)}</span>
             </div>
           )}
 
@@ -385,8 +385,8 @@ export default function VendorRegistration() {
                 <div className="substep-title">[STEP 3] FINAL APPROVAL &amp; EXPIRY</div>
                 <div className="row cols-3">
                   <F label="Approved By (Name with Account Manager)"><input placeholder="e.g. Komal Srivastava (Account Manager)" {...bind("approvedByName")} /></F>
-                  <F label="Date of Approval"><input className="date-highlight" value={vendor.approvalDate || ""} readOnly placeholder="dd / mm / yyyy" /></F>
-                  <F label="Expiry Date (2 Years Valid)"><input className="date-highlight" value={vendor.expiryDate || ""} readOnly placeholder="dd / mm / yyyy" /></F>
+                  <F label="Date of Approval"><input className="date-highlight" value={fmtDMY(vendor.approvalDate) || ""} readOnly placeholder="dd / mm / yyyy" /></F>
+                  <F label="Expiry Date (2 Years Valid)"><input className="date-highlight" value={fmtDMY(vendor.expiryDate) || ""} readOnly placeholder="dd / mm / yyyy" /></F>
                 </div>
               </div>
             </div>

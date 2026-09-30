@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
@@ -30,10 +31,11 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
   const [saved, setSaved] = useState(false);
   const [locked, setLocked] = useState(false);
   const [list, setList] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const refresh = () => setList(getBOQs());
+  const refresh = () => { setList(getBOQs()); setVendors(getVendors().filter((v) => v.step === 3)); };
   useEffect(() => { refresh(); }, []);
 
   const startNew = () => {
@@ -122,6 +124,28 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
           <div><label>Project / Site *</label><input data-testid="boq-project" value={boq.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} placeholder="e.g. Kalindipuram Site A" /></div>
           <div><label>Client Name</label><input data-testid="boq-client" value={boq.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
           <div><label>Reference No.</label><input data-testid="boq-ref" value={boq.refNo} onChange={(e) => set("refNo", e.target.value)} disabled={locked} /></div>
+          <div>
+            <label>Vendor Code (optional · approved only)</label>
+            <select
+              data-testid="boq-vendor-select"
+              value={boq.vendorCode || ""}
+              onChange={(e) => {
+                const code = e.target.value;
+                if (!code) { setBoq((p) => ({ ...p, vendorCode: "", vendorName: "" })); return; }
+                const v = vendors.find((x) => x.vendorCode === code);
+                if (v) setBoq((p) => ({ ...p, vendorCode: v.vendorCode, vendorName: v.firmName || "" }));
+              }}
+              disabled={locked}
+            >
+              <option value="">— None —</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.vendorCode}>
+                  {v.vendorCode} · {v.firmName}{v.gstNo ? ` · GST ${v.gstNo}` : ""}{v.contactPerson ? ` · ${v.contactPerson}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div><label>Vendor Name (auto)</label><input data-testid="boq-vendor-name" value={boq.vendorName || ""} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
           <div><label>Prepared By</label><input data-testid="boq-prepared" value={boq.preparedBy} onChange={(e) => set("preparedBy", e.target.value)} disabled={locked} /></div>
           <div><label>Submitted Date</label><input data-testid="boq-submitted" value={boq.submittedDate ? fmtDMY(boq.submittedDate) : "—"} readOnly style={{ background: "#f8fafc" }} /></div>
           <div><label>Status</label><input data-testid="boq-status" value={BOQ_STEP_LABEL[boq.step] || "-"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
@@ -501,6 +525,53 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
     toast.success(`Work Order ${done.woNo} issued & approved by ${done.approvedByName}`);
   };
   const handlePrint = () => window.print();
+  const downloadWOExcel = (target = wo) => {
+    if (!target || (!target.woNo && !target.id)) { toast.error("Save WO first"); return; }
+    const wb = XLSX.utils.book_new();
+    const meta = [
+      ["Work Order No", target.woNo || "— pending approval —"],
+      ["WO Date", fmtDMY(target.woDate)],
+      ["Expiry Date", fmtDMY(target.expiryDate)],
+      ["BOQ Reference", target.boqRefNo || ""],
+      ["Project / Site", target.projectSite || ""],
+      ["Client", target.clientName || ""],
+      ["Vendor Code", target.vendorCode || ""],
+      ["Vendor Name", target.vendorName || ""],
+      ["GST Slab %", target.gstSlab],
+      ["Retention %", target.retentionPct],
+      ["Total (₹)", Number(target.total || 0)],
+      ["Status", WO_STEP_LABEL[target.step] || ""],
+      ["Prepared By", target.preparedBy || ""],
+      ["Submitted Date", fmtDMY(target.submittedDate)],
+      ["Approved By", target.approvedByName || ""],
+      ["Approval Date", fmtDMY(target.approvalDate)],
+      [],
+      ["Scope of Work"],
+      [target.scopeOfWork || ""],
+      [],
+      ["Payment Terms"], [target.paymentTerms || ""],
+      ["Delivery Terms"], [target.deliveryTerms || ""],
+      ["Penalty Clause"], [target.penaltyClause || ""],
+      ["Warranty Clause"], [target.warrantyClause || ""],
+      ["General Terms"], [target.termsAndConditions || ""],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(meta), "Work Order");
+    const items = (target.items || []).map((it, i) => ({
+      "#": i + 1,
+      Description: it.description,
+      Qty: it.qty,
+      Unit: it.unit,
+      "Rate (₹)": Number(it.rate || 0),
+      "Amount (₹)": Number(it.amount || 0),
+    }));
+    if (items.length) {
+      items.push({ "#": "", Description: "TOTAL", Qty: "", Unit: "", "Rate (₹)": "", "Amount (₹)": Number(target.total || 0) });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(items), "Line Items");
+    }
+    const fname = `${target.woNo || `WO-${target.id}`}.xlsx`;
+    XLSX.writeFile(wb, fname);
+    toast.success(`Downloaded ${fname}`);
+  };
   const loadWO = (w) => { setWo(w); setSaved(true); setLocked(w.step >= 3); };
 
   if (!wo) return null;
@@ -534,7 +605,9 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
             <select data-testid="wo-vendor-select" value={wo.vendorCode} onChange={(e) => pickVendor(e.target.value)} disabled={locked}>
               <option value="">— Select Vendor —</option>
               {vendors.map((v) => (
-                <option key={v.id} value={v.vendorCode}>{v.vendorCode} · {v.firmName}</option>
+                <option key={v.id} value={v.vendorCode}>
+                  {v.vendorCode} · {v.firmName}{v.gstNo ? ` · GST ${v.gstNo}` : ""}{v.contactPerson ? ` · ${v.contactPerson}` : ""}
+                </option>
               ))}
             </select>
           </div>
@@ -649,6 +722,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         <button data-testid="wo-btn-save" onClick={handleSave} disabled={!writeAllowed || locked} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Save size={13} /> Save</button>
         <button data-testid="wo-btn-submit" onClick={handleSubmit} disabled={!writeAllowed || locked || wo.step >= 3} style={{ padding: "8px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && wo.step < 3 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Send size={13} /> Submit</button>
         <button data-testid="wo-btn-approve" onClick={handleApprove} disabled={!approveAllowed || wo.step < 3 || wo.step >= 4} style={{ padding: "8px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed && wo.step >= 3 && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>Final Approval (issue WO No.)</button>
+        <button data-testid="wo-btn-download" onClick={() => downloadWOExcel()} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>⬇ Download Excel</button>
         <button data-testid="wo-btn-print" onClick={handlePrint} style={{ padding: "8px 14px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Printer size={13} /> Print</button>
       </div>
 
@@ -680,7 +754,10 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{fmtDMY(w.expiryDate) || "—"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{WO_STEP_LABEL[w.step] || "-"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", color: "#166534", fontWeight: 700 }}>{w.approvedByName || "—"}</td>
-                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}><button onClick={() => loadWO(w)} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Open</button></td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}>
+                      <button onClick={() => loadWO(w)} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Open</button>
+                      <button data-testid={`wo-list-download-${w.id}`} onClick={() => downloadWOExcel(w)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>⬇ Excel</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
