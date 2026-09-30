@@ -140,6 +140,41 @@ export default function BillProcessing() {
     toast.success("Work Order file removed");
   };
 
+  // ---- Vendor Invoice file upload (max 500 KB) ----
+  const handleInvoiceFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 500 * 1024) {
+      toast.error(`File size ${Math.round(f.size / 1024)} KB exceeds 500 KB limit`);
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBill({ ...bill, invoiceFile: { name: f.name, size: f.size, type: f.type, dataUrl: reader.result } });
+      toast.success(`Uploaded ${f.name} (${Math.round(f.size / 1024)} KB)`);
+    };
+    reader.onerror = () => toast.error("Failed to read file");
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+  const removeInvoiceFile = () => {
+    setBill({ ...bill, invoiceFile: null });
+    toast.success("Invoice file removed");
+  };
+
+  // ---- Force-download any file stored as data URL ----
+  const downloadDataUrl = (dataUrl, name) => {
+    if (!dataUrl) { toast.error("No file to download"); return; }
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = name || "download";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success(`Downloaded ${name}`);
+  };
+
   const bind = (k, extra = {}) => ({
     value: bill[k] ?? "",
     onChange: (e) => setBill({ ...bill, [k]: e.target.value }),
@@ -517,6 +552,15 @@ export default function BillProcessing() {
                           title={`${bill.workOrderFile.name} · ${Math.round(bill.workOrderFile.size / 1024)}KB`}>
                           📎 {bill.workOrderFile.name}
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => downloadDataUrl(bill.workOrderFile.dataUrl, bill.workOrderFile.name)}
+                          data-testid="wo-file-download"
+                          title="Download Work Order"
+                          style={{ padding: "5px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 700, flex: "0 0 auto" }}
+                        >
+                          ⬇ Download
+                        </button>
                         {!locked && (
                           <button type="button" onClick={removeWoFile} data-testid="wo-file-remove"
                             style={{ padding: "5px 10px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600, flex: "0 0 auto" }}>
@@ -712,6 +756,48 @@ export default function BillProcessing() {
                     data-testid="calc-net-words"
                     style={{ fontStyle: "italic", letterSpacing: ".2px" }}
                   />
+                </F>
+              </div>
+              <div className="row cols-1" style={{ marginTop: 10 }}>
+                <F label="Vendor Bill / Invoice Copy (PDF / Image · Max 500 KB)">
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {!bill.invoiceFile ? (
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        onChange={handleInvoiceFile}
+                        disabled={locked}
+                        data-testid="invoice-file-input"
+                        style={{ flex: 1, padding: "4px 6px", fontSize: 10.5, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff", minWidth: 0 }}
+                      />
+                    ) : (
+                      <>
+                        <a
+                          href={bill.invoiceFile.dataUrl} target="_blank" rel="noreferrer"
+                          data-testid="invoice-file-link"
+                          style={{ flex: 1, padding: "6px 10px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 4, fontWeight: 600, fontSize: 11, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}
+                          title={`${bill.invoiceFile.name} · ${Math.round(bill.invoiceFile.size / 1024)}KB`}
+                        >
+                          🧾 {bill.invoiceFile.name}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => downloadDataUrl(bill.invoiceFile.dataUrl, bill.invoiceFile.name)}
+                          data-testid="invoice-file-download"
+                          title="Download Invoice"
+                          style={{ padding: "5px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 700, flex: "0 0 auto" }}
+                        >
+                          ⬇ Download
+                        </button>
+                        {!locked && (
+                          <button type="button" onClick={removeInvoiceFile} data-testid="invoice-file-remove"
+                            style={{ padding: "5px 10px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600, flex: "0 0 auto" }}>
+                            Remove
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </F>
               </div>
             </div>
