@@ -60,6 +60,12 @@ export const apiUpsertExpense = (x) =>
 export const apiDeleteExpense = (id) =>
   req(`/expenses/${encodeURIComponent(id)}`, { method: "DELETE" });
 
+export const apiUpsertBOQ = (b) =>
+  req("/boqs", { method: "POST", body: JSON.stringify(b) });
+export const apiDeleteBOQ = (id) =>
+  req(`/boqs/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const apiListBOQs = () => req("/boqs");
+
 export const apiPushPayments = (items) =>
   req("/payments/bulk", { method: "POST", body: JSON.stringify({ items }) });
 

@@ -1,6 +1,6 @@
 // LocalStorage-backed data store for Vendor Management (+ cloud sync via /api)
 import {
-  apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiPushPayments,
+  apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiUpsertBOQ, apiPushPayments,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
@@ -10,6 +10,7 @@ const KEYS = {
   BILLS: "ae_vm_bills",
   PAYMENTS: "ae_vm_payments",
   EXPENSES: "ae_vm_expenses",
+  BOQS: "ae_vm_boqs",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
@@ -158,10 +159,13 @@ export const upsertExpense = (e) => {
 
 export const advanceExpenseStep = (e) => {
   const next = { ...e };
+  const me = read(KEYS.AUTH, null);
+  const approver = (me?.name || me?.user || "").trim();
   if (next.step < 4) {
     next.step += 1;
     if (next.step === 4) {
       next.approvalDate = new Date().toISOString().slice(0, 10);
+      if (approver) next.approvedByName = approver;
       if (!next.permanentExpenseNo && next.expenseSerial) {
         next.permanentExpenseNo = buildExpensePermNo(next.expenseSerial);
       }
@@ -169,6 +173,73 @@ export const advanceExpenseStep = (e) => {
   }
   upsertExpense(next);
   return next;
+};
+
+// ---- BOQ (Purchase Management — Bill of Quantity) ----
+export const BOQ_STEP_LABEL = {
+  1: "1. Draft",
+  2: "2. Prepared",
+  3: "3. Submitted (→ Accounts)",
+  4: "4. Approved",
+};
+
+const buildBOQNo = (serial) => `BOQ${String(serial).padStart(4, "0")}${getFY()}`;
+
+export const getBOQs = () => read(KEYS.BOQS, []);
+export const saveBOQs = (list) => write(KEYS.BOQS, list);
+
+export const createBOQDraft = () => {
+  const c = getCounters();
+  c.boqSerial = (c.boqSerial || 0) + 1;
+  saveCounters(c);
+  return {
+    id: `boq_${Date.now()}`,
+    boqSerial: c.boqSerial,
+    boqNo: buildBOQNo(c.boqSerial),
+    step: 1,
+    date: new Date().toISOString().slice(0, 10),
+    projectSite: "",
+    clientName: "",
+    refNo: "",
+    items: [
+      { id: `it_${Date.now()}`, description: "", qty: 0, unit: "Nos", rate: 0, amount: 0 },
+    ],
+    total: 0,
+    attachmentName: "",
+    attachmentData: "",
+    preparedBy: (read(KEYS.AUTH, null)?.name) || (read(KEYS.AUTH, null)?.user) || "",
+    submittedDate: "",
+    remarks: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+export const computeBOQTotal = (b) => {
+  const items = Array.isArray(b.items) ? b.items : [];
+  return items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+};
+
+export const upsertBOQ = (b) => {
+  const list = getBOQs();
+  const idx = list.findIndex((x) => x.id === b.id);
+  b.updatedAt = new Date().toISOString();
+  b.total = computeBOQTotal(b);
+  if (idx >= 0) list[idx] = b; else list.push(b);
+  saveBOQs(list);
+  if (getToken()) apiUpsertBOQ(b).catch(() => {});
+  return b;
+};
+
+export const advanceBOQStep = (b) => {
+  const next = { ...b };
+  if (next.step < 4) {
+    next.step += 1;
+    if (next.step === 3 && !next.submittedDate) {
+      next.submittedDate = new Date().toISOString().slice(0, 10);
+    }
+  }
+  return upsertBOQ(next);
 };
 
 // ---- Vendors ----
@@ -278,10 +349,13 @@ export const findVendorByCode = (code) => {
 
 export const advanceVendorStep = (v) => {
   const next = { ...v };
+  const me = read(KEYS.AUTH, null);
+  const approver = (me?.name || me?.user || "").trim();
   if (next.step === 1) {
     next.step = 2;
   } else if (next.step === 2) {
     next.step = 3;
+    if (approver) next.approvedByName = approver;
     // Preserve existing vendorCode on Re-Approval; only generate a new one for first approval
     if (!next.vendorCode) {
       next.vendorCode = nextVendorCode();
@@ -383,10 +457,13 @@ export const upsertBill = (b) => {
 
 export const advanceBillStep = (b) => {
   const next = { ...b };
+  const me = read(KEYS.AUTH, null);
+  const approver = (me?.name || me?.user || "").trim();
   if (next.step < 5) {
     next.step += 1;
     if (next.step === 5) {
       next.approvalDate = new Date().toISOString().slice(0, 10);
+      if (approver) next.approverName = approver;
       if (!next.permanentBillNo && next.billSerial) {
         next.permanentBillNo = buildPermanentBillNo(next.billSerial);
       }
@@ -536,11 +613,13 @@ export const syncFromCloud = async () => {
   if (Array.isArray(snap.bills)) write(KEYS.BILLS, snap.bills);
   if (Array.isArray(snap.payments)) write(KEYS.PAYMENTS, snap.payments);
   if (Array.isArray(snap.expenses)) write(KEYS.EXPENSES, snap.expenses);
+  if (Array.isArray(snap.boqs)) write(KEYS.BOQS, snap.boqs);
   if (snap.counters) write(KEYS.COUNTERS, {
     vendorSerial: snap.counters.vendorSerial || 0,
     billSerial: snap.counters.billSerial || 0,
     pvSerial: snap.counters.pvSerial || 0,
     expenseSerial: snap.counters.expenseSerial || 0,
+    boqSerial: snap.counters.boqSerial || 0,
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
   return snap;
@@ -552,7 +631,8 @@ export const syncToCloud = async () => {
     bills: read(KEYS.BILLS, []),
     payments: read(KEYS.PAYMENTS, []),
     expenses: read(KEYS.EXPENSES, []),
-    counters: read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0, expenseSerial: 0 }),
+    boqs: read(KEYS.BOQS, []),
+    counters: read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0, expenseSerial: 0, boqSerial: 0 }),
     logo: localStorage.getItem(KEYS.LOGO) || "",
   };
   return await apiPushSnapshot(payload);

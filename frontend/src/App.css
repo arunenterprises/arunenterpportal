@@ -698,6 +698,20 @@ body {
   }
   .a4:last-child { page-break-after: auto; }
   input, select, textarea { color: #000 !important; background: #fff !important; }
+  /* Faint centered logo watermark on every printed A4 sheet */
+  .a4::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("./assets/arun-logo.jpg");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 55% auto;
+    opacity: 0.06;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .a4 > * { position: relative; z-index: 1; }
 }
 
 /* ---- Home / Departmental Control Panel ---- */

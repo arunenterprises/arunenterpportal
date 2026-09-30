@@ -301,7 +301,8 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "bills": await _list_collection("bills"),
         "payments": await _list_collection("payments"),
         "expenses": await _list_collection("expenses"),
-        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0},
+        "boqs": await _list_collection("boqs"),
+        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
     }
 
@@ -349,6 +350,28 @@ async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(get_curren
 @api_router.delete("/expenses/{xid}")
 async def delete_expense(xid: str, user: Dict = Depends(get_current_user)):
     r = await db.expenses.delete_one({"id": xid})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
+# ==================== BOQs (Purchase Management — Bill of Quantity) ====================
+@api_router.get("/boqs")
+async def list_boqs(user: Dict = Depends(get_current_user)):
+    return await _list_collection("boqs")
+
+
+@api_router.post("/boqs")
+async def upsert_boq(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    bid = body.get("id")
+    if not bid:
+        raise HTTPException(status_code=400, detail="id is required")
+    body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.boqs.update_one({"id": bid}, {"$set": body}, upsert=True)
+    return {"ok": True, "id": bid}
+
+
+@api_router.delete("/boqs/{bid}")
+async def delete_boq(bid: str, user: Dict = Depends(get_current_user)):
+    r = await db.boqs.delete_one({"id": bid})
     return {"ok": True, "deleted": r.deleted_count}
 
 
