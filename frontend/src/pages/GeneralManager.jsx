@@ -171,7 +171,7 @@ export default function GeneralManager() {
   const DeptGroup = ({ title, tone, children }) => (
     <div style={{ background: "#f8fafc", border: `1px solid #e2e8f0`, borderLeft: `4px solid ${tone}`, borderRadius: 6, padding: 10, marginBottom: 10 }}>
       <div style={{ fontSize: 11, fontWeight: 800, color: tone, letterSpacing: .5, textTransform: "uppercase", marginBottom: 8 }}>{title}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 10 }}>{children}</div>
     </div>
   );
 
@@ -179,7 +179,6 @@ export default function GeneralManager() {
     <div style={{ marginTop: 8 }} data-testid="gm-inbox-pending">
       <DeptGroup title="1. Vendor Management" tone="#0369a1">
         <InboxSection testid="inbox-vendors" title="Vendors pending" tone="#0369a1" items={stats.vendorPending} onOpen={() => nav("/vendor")} onApprove={approveVendor} colLabels={["Firm", "Contact", "PAN"]} rowRender={(v) => [v.firmName || v.tempRefId, v.contactPerson || "-", v.panNo || "-"]} />
-        <div />
       </DeptGroup>
 
       <DeptGroup title="2. Purchase Department — BOQ & Work Orders" tone="#0ea5e9">
@@ -189,17 +188,14 @@ export default function GeneralManager() {
 
       <DeptGroup title="3. Accounts Department — Bills" tone="#16a34a">
         <InboxSection testid="inbox-bills" title="Bills pending" tone="#16a34a" items={stats.billsPending} onOpen={() => nav("/bill")} onApprove={approveBill} colLabels={["Bill Ref", "Vendor", "Amount"]} rowRender={(b) => [b.refNo || b.permanentBillNo, b.vendorSnapshot?.firmName || b.vendorCode, `₹ ${Number(b.basicAmount || 0).toLocaleString("en-IN")}`]} />
-        <div />
       </DeptGroup>
 
       <DeptGroup title="4. Expenses Department" tone="#f59e0b">
         <InboxSection testid="inbox-expenses" title="Expenses pending" tone="#f59e0b" items={stats.expensesPending} onOpen={() => nav("/expense")} onApprove={approveExpense} colLabels={["Ref No.", "Paid To", "Amount"]} rowRender={(x) => [x.refNo || x.permanentExpenseNo, x.paidToName || "-", `₹ ${Number(x.basicAmount || 0).toLocaleString("en-IN")}`]} />
-        <div />
       </DeptGroup>
 
       <DeptGroup title="5. Payment Vouchers" tone="#7c3aed">
         <InboxSection testid="inbox-vouchers" title="Payment Vouchers pending" tone="#7c3aed" items={stats.vouchersPending} onOpen={() => nav("/final")} onApprove={approveVoucher} colLabels={["PV No.", "Vendor", "Amount"]} rowRender={(p) => [p.pvNo, p.vendorSnapshot?.firmName || p.vendorCode, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`]} />
-        <div />
       </DeptGroup>
     </div>
   );
@@ -208,7 +204,6 @@ export default function GeneralManager() {
     <div style={{ marginTop: 8 }} data-testid="gm-inbox-approved">
       <DeptGroup title="1. Vendor Management" tone="#0369a1">
         <InboxSection testid="reap-vendors" title="Vendors approved" tone="#0369a1" items={stats.vendorApproved} onOpen={() => nav("/vendor")} onApprove={doReapproveVendor} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Vendor Code", "Firm", "Approved By"]} rowRender={(v) => [v.vendorCode, v.firmName, v.approvedByName || "-"]} />
-        <div />
       </DeptGroup>
 
       <DeptGroup title="2. Purchase Department — BOQ & Work Orders" tone="#0ea5e9">
@@ -218,17 +213,14 @@ export default function GeneralManager() {
 
       <DeptGroup title="3. Accounts Department — Bills" tone="#16a34a">
         <InboxSection testid="reap-bills" title="Bills approved" tone="#16a34a" items={stats.billsApproved} onOpen={() => nav("/bill")} onApprove={doReapproveBill} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Bill No.", "Vendor", "Approved By"]} rowRender={(b) => [b.permanentBillNo || b.refNo, b.vendorSnapshot?.firmName || b.vendorCode, b.approverName || "-"]} />
-        <div />
       </DeptGroup>
 
       <DeptGroup title="4. Expenses Department" tone="#f59e0b">
         <InboxSection testid="reap-expenses" title="Expenses approved" tone="#f59e0b" items={stats.expensesApproved} onOpen={() => nav("/expense")} onApprove={doReapproveExpense} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Ref No.", "Paid To", "Approved By"]} rowRender={(x) => [x.permanentExpenseNo || x.refNo, x.paidToName || "-", x.approvedByName || "-"]} />
-        <div />
       </DeptGroup>
 
       <DeptGroup title="5. Payment Vouchers" tone="#7c3aed">
         <InboxSection testid="reap-vouchers" title="Payment Vouchers approved" tone="#7c3aed" items={stats.vouchersApproved} onOpen={() => nav("/final")} onApprove={doReapproveVoucher} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["PV No.", "Amount", "Approved By"]} rowRender={(p) => [p.pvNo, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`, p.approvedByName || "-"]} />
-        <div />
       </DeptGroup>
     </div>
   );
