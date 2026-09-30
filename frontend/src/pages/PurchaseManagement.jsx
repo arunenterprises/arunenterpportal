@@ -117,38 +117,36 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
       {/* Header row */}
       <div className="section">
         <div className="sec-head">A. BOQ Details</div>
-        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: "6px 10px" }}>
+        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px 10px" }}>
           {/* Row 1 — Identifiers */}
-          <div className="field-b" style={{ gridColumn: "span 3" }}>
+          <div className="field-b">
             <label>BOQ No.</label>
             <input data-testid="boq-no" value={boq.boqNo} readOnly style={{ background: "#eef2ff", fontWeight: 700, color: "#1e3a8a" }} />
           </div>
-          <div className="field-b" style={{ gridColumn: "span 3" }}>
+          <div className="field-b">
             <label>Date</label>
             <input data-testid="boq-date" type="date" value={boq.date} onChange={(e) => set("date", e.target.value)} disabled={locked} />
           </div>
-          <div className="field-b" style={{ gridColumn: "span 3" }}>
+          <div className="field-b">
             <label>Reference No.</label>
             <input data-testid="boq-ref" value={boq.refNo} onChange={(e) => set("refNo", e.target.value)} disabled={locked} placeholder="Optional" />
           </div>
-          <div className="field-b" style={{ gridColumn: "span 3" }}>
+          <div className="field-b">
             <label>Status</label>
             <input data-testid="boq-status" value={BOQ_STEP_LABEL[boq.step] || "-"} readOnly style={{ background: "#f0fdf4", fontWeight: 700, color: "#166534" }} />
           </div>
 
-          {/* Row 2 — Project details */}
-          <div className="field-b" style={{ gridColumn: "span 6" }}>
+          {/* Row 2 — Project + Vendor */}
+          <div className="field-b">
             <label>Project / Site <span className="req">*</span></label>
             <input data-testid="boq-project" value={boq.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} placeholder="e.g. Kalindipuram Site A" />
           </div>
-          <div className="field-b" style={{ gridColumn: "span 6" }}>
+          <div className="field-b">
             <label>Client Name</label>
-            <input data-testid="boq-client" value={boq.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} placeholder="e.g. XYZ Constructions Pvt Ltd" />
+            <input data-testid="boq-client" value={boq.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} placeholder="e.g. XYZ Constructions" />
           </div>
-
-          {/* Row 3 — Vendor mapping */}
-          <div className="field-b" style={{ gridColumn: "span 6", minWidth: 0 }}>
-            <label>Vendor Code <span style={{ color: "#64748b", fontWeight: 400 }}>(optional · approved only)</span></label>
+          <div className="field-b" style={{ minWidth: 0 }}>
+            <label>Vendor Code <span style={{ color: "#64748b", fontWeight: 400 }}>(optional)</span></label>
             <select
               data-testid="boq-vendor-select"
               value={boq.vendorCode || ""}
@@ -164,25 +162,27 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               <option value="">— None —</option>
               {vendors.map((v) => (
                 <option key={v.id} value={v.vendorCode}>
-                  {v.vendorCode} · {v.firmName}{v.gstNo ? ` · GST ${v.gstNo}` : ""}{v.contactPerson ? ` · ${v.contactPerson}` : ""}
+                  {v.vendorCode} · {v.firmName}
                 </option>
               ))}
             </select>
           </div>
-          <div className="field-b" style={{ gridColumn: "span 6" }}>
+          <div className="field-b">
             <label>Vendor Name <span style={{ color: "#64748b", fontWeight: 400 }}>(auto)</span></label>
             <input data-testid="boq-vendor-name" value={boq.vendorName || ""} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} placeholder="—" />
           </div>
 
-          {/* Row 4 — Preparation info */}
-          <div className="field-b" style={{ gridColumn: "span 6" }}>
+          {/* Row 3 — Preparation info */}
+          <div className="field-b">
             <label>Prepared By</label>
             <input data-testid="boq-prepared" value={boq.preparedBy} onChange={(e) => set("preparedBy", e.target.value)} disabled={locked} placeholder="Employee name" />
           </div>
-          <div className="field-b" style={{ gridColumn: "span 6" }}>
+          <div className="field-b">
             <label>Submitted Date</label>
             <input data-testid="boq-submitted" value={boq.submittedDate ? fmtDMY(boq.submittedDate) : "—"} readOnly style={{ background: "#f8fafc" }} />
           </div>
+          <div className="field-b" />
+          <div className="field-b" />
         </div>
       </div>
 
