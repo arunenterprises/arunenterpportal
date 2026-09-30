@@ -488,6 +488,11 @@ export const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 export const APPROVER_EMAIL = "kl.srivastava@arunenterprises.online";
 // Canonical display name used everywhere Final Approval / Re-Approval signs off
 export const APPROVER_NAME = "K L Srivastava";
+
+// All roles supported in the app. SuperAdmin is not assignable — it is fixed to
+// the SUPER_ADMIN_EMAIL constant above.
+export const ROLES = ["Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
+
 export const isSuperAdmin = (email) =>
   (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
 export const canFinalApprove = (email) => {
@@ -495,6 +500,32 @@ export const canFinalApprove = (email) => {
   return e === SUPER_ADMIN_EMAIL || e === APPROVER_EMAIL;
 };
 export const currentUserEmail = () => (read(KEYS.AUTH, null)?.user || "").toLowerCase().trim();
+
+// Effective role for the currently signed-in user. SuperAdmin is derived from email,
+// everything else is read from the stored profile role.
+export const currentRole = () => {
+  const p = read(KEYS.AUTH, null) || {};
+  if (isSuperAdmin(p.user)) return "SuperAdmin";
+  return (p.role || "User");
+};
+
+// Departmental permission helpers.
+// - canCreate: allowed to New/Save/Edit/Submit inside a department page
+// - canApprove: allowed to Final Approval / Re-Approval on a department page
+// - canView: allowed to open the department at all
+export const canCreate = () => {
+  const r = currentRole();
+  return ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts"].includes(r);
+};
+export const canApproveAccounts = () => {
+  const r = currentRole();
+  return ["SuperAdmin", "Admin", "GM", "Accounts"].includes(r);
+};
+export const canApproveGM = () => {
+  const r = currentRole();
+  return ["SuperAdmin", "Admin", "GM"].includes(r);
+};
+export const isReadOnly = () => currentRole() === "Viewer";
 
 // ---- Cloud Sync helpers ----
 export const syncFromCloud = async () => {

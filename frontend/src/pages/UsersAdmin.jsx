@@ -249,7 +249,11 @@ export default function UsersAdmin() {
                 style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12, marginTop: 2 }}
               >
                 <option value="User">User</option>
-                <option value="Admin">Admin</option>
+                <option value="Viewer">Viewer (read-only)</option>
+                <option value="Purchase">Purchase (create only)</option>
+                <option value="Accounts">Accounts (check + approve)</option>
+                <option value="GM">General Manager (all + final approve)</option>
+                <option value="Admin">Admin (full access)</option>
               </select>
             </div>
             <div style={{ gridColumn: "1 / -1", textAlign: "right" }}>

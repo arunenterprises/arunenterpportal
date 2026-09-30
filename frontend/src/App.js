@@ -7,6 +7,8 @@ import BillProcessing from "./pages/BillProcessing";
 import ExpenseProcess from "./pages/ExpenseProcess";
 import Reports from "./pages/Reports";
 import UsersAdmin from "./pages/UsersAdmin";
+import PurchaseManagement from "./pages/PurchaseManagement";
+import GeneralManager from "./pages/GeneralManager";
 import { isAuthed } from "./lib/store";
 
 const RequireAuth = ({ children }) => {
@@ -21,8 +23,11 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
           <Route path="/vendor" element={<RequireAuth><VendorRegistration /></RequireAuth>} />
+          <Route path="/purchase" element={<RequireAuth><PurchaseManagement /></RequireAuth>} />
           <Route path="/bill" element={<RequireAuth><BillProcessing /></RequireAuth>} />
+          <Route path="/accounts" element={<Navigate to="/bill" replace />} />
           <Route path="/expense" element={<RequireAuth><ExpenseProcess /></RequireAuth>} />
+          <Route path="/gm" element={<RequireAuth><GeneralManager /></RequireAuth>} />
           <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/reports" element={<Navigate to="/final" replace />} />
           <Route path="/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />

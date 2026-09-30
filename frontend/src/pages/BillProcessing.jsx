@@ -341,7 +341,7 @@ export default function BillProcessing() {
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 
         <div className="a4" data-testid="bill-page">
-          <Header formTitle="VENDOR BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />
+          <Header formTitle="ACCOUNTS DEPARTMENT · BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />
           <StepTabs
             step={bill.step}
             labels={[BILL_STEP_LABEL[1], BILL_STEP_LABEL[2], BILL_STEP_LABEL[3], BILL_STEP_LABEL[4], BILL_STEP_LABEL[5]]}
