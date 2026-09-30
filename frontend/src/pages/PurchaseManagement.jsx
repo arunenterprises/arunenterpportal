@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash2, Save, Send, FilePlus2, Paperclip, Printer } from "lucide-react";
-import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import {
   currentRole, canCreate, canApprove,
@@ -118,14 +117,38 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
       {/* Header row */}
       <div className="section">
         <div className="sec-head">A. BOQ Details</div>
-        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-          <div><label>BOQ No.</label><input data-testid="boq-no" value={boq.boqNo} readOnly style={{ background: "#eef2ff", fontWeight: 700 }} /></div>
-          <div><label>Date</label><input data-testid="boq-date" type="date" value={boq.date} onChange={(e) => set("date", e.target.value)} disabled={locked} /></div>
-          <div><label>Project / Site *</label><input data-testid="boq-project" value={boq.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} placeholder="e.g. Kalindipuram Site A" /></div>
-          <div><label>Client Name</label><input data-testid="boq-client" value={boq.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
-          <div><label>Reference No.</label><input data-testid="boq-ref" value={boq.refNo} onChange={(e) => set("refNo", e.target.value)} disabled={locked} /></div>
-          <div>
-            <label>Vendor Code (optional · approved only)</label>
+        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 10, rowGap: 12 }}>
+          {/* Row 1 — Identifiers */}
+          <div style={{ gridColumn: "span 3" }}>
+            <label>BOQ No.</label>
+            <input data-testid="boq-no" value={boq.boqNo} readOnly style={{ background: "#eef2ff", fontWeight: 700, color: "#1e3a8a" }} />
+          </div>
+          <div style={{ gridColumn: "span 3" }}>
+            <label>Date</label>
+            <input data-testid="boq-date" type="date" value={boq.date} onChange={(e) => set("date", e.target.value)} disabled={locked} />
+          </div>
+          <div style={{ gridColumn: "span 3" }}>
+            <label>Reference No.</label>
+            <input data-testid="boq-ref" value={boq.refNo} onChange={(e) => set("refNo", e.target.value)} disabled={locked} placeholder="Optional" />
+          </div>
+          <div style={{ gridColumn: "span 3" }}>
+            <label>Status</label>
+            <input data-testid="boq-status" value={BOQ_STEP_LABEL[boq.step] || "-"} readOnly style={{ background: "#f0fdf4", fontWeight: 700, color: "#166534" }} />
+          </div>
+
+          {/* Row 2 — Project details */}
+          <div style={{ gridColumn: "span 6" }}>
+            <label>Project / Site <span style={{ color: "#dc2626" }}>*</span></label>
+            <input data-testid="boq-project" value={boq.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} placeholder="e.g. Kalindipuram Site A" />
+          </div>
+          <div style={{ gridColumn: "span 6" }}>
+            <label>Client Name</label>
+            <input data-testid="boq-client" value={boq.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} placeholder="e.g. XYZ Constructions Pvt Ltd" />
+          </div>
+
+          {/* Row 3 — Vendor mapping */}
+          <div style={{ gridColumn: "span 6", minWidth: 0 }}>
+            <label>Vendor Code <span style={{ color: "#64748b", fontWeight: 400 }}>(optional · approved only)</span></label>
             <select
               data-testid="boq-vendor-select"
               value={boq.vendorCode || ""}
@@ -136,6 +159,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                 if (v) setBoq((p) => ({ ...p, vendorCode: v.vendorCode, vendorName: v.firmName || "" }));
               }}
               disabled={locked}
+              style={{ width: "100%", maxWidth: "100%", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}
             >
               <option value="">— None —</option>
               {vendors.map((v) => (
@@ -145,10 +169,20 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               ))}
             </select>
           </div>
-          <div><label>Vendor Name (auto)</label><input data-testid="boq-vendor-name" value={boq.vendorName || ""} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
-          <div><label>Prepared By</label><input data-testid="boq-prepared" value={boq.preparedBy} onChange={(e) => set("preparedBy", e.target.value)} disabled={locked} /></div>
-          <div><label>Submitted Date</label><input data-testid="boq-submitted" value={boq.submittedDate ? fmtDMY(boq.submittedDate) : "—"} readOnly style={{ background: "#f8fafc" }} /></div>
-          <div><label>Status</label><input data-testid="boq-status" value={BOQ_STEP_LABEL[boq.step] || "-"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
+          <div style={{ gridColumn: "span 6" }}>
+            <label>Vendor Name <span style={{ color: "#64748b", fontWeight: 400 }}>(auto)</span></label>
+            <input data-testid="boq-vendor-name" value={boq.vendorName || ""} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} placeholder="—" />
+          </div>
+
+          {/* Row 4 — Preparation info */}
+          <div style={{ gridColumn: "span 6" }}>
+            <label>Prepared By</label>
+            <input data-testid="boq-prepared" value={boq.preparedBy} onChange={(e) => set("preparedBy", e.target.value)} disabled={locked} placeholder="Employee name" />
+          </div>
+          <div style={{ gridColumn: "span 6" }}>
+            <label>Submitted Date</label>
+            <input data-testid="boq-submitted" value={boq.submittedDate ? fmtDMY(boq.submittedDate) : "—"} readOnly style={{ background: "#f8fafc" }} />
+          </div>
         </div>
       </div>
 
@@ -785,8 +819,6 @@ export default function PurchaseManagement() {
       <HomeNavBar />
       <div className="app-shell">
         <div className="a4" data-testid="purchase-page">
-          <Header formTitle="PURCHASE MANAGEMENT · CREATE / PREPARE / SUBMIT" />
-
           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }} data-testid="purchase-tabs">
             {TABS.map((t) => {
               const Icon = t.icon;
