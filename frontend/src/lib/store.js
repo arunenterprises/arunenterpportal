@@ -258,25 +258,39 @@ export const WO_STEP_LABEL = {
 const buildWONo = (serial) => `AE${String(serial).padStart(6, "0")}JV${getFY()}`;
 export const UNITS_DEFAULT = [
   // Count / piece
-  "Nos", "Pcs", "Set", "Pair", "Unit", "Dozen", "Gross",
+  "Nos", "No.", "Pcs", "Piece", "Each", "Ea", "Set", "Pair", "Unit", "Dozen", "Gross", "Score", "Item",
   // Weight
-  "Kg", "Gram", "Quintal", "Tonne", "MT", "LB",
+  "Kg", "Kilogram", "Gram", "gm", "mg", "Quintal", "Qtl", "Tonne", "Ton", "MT", "LB", "Pound", "Ounce", "Oz", "Carat",
   // Length
-  "mm", "cm", "Mtr", "Km", "Inch", "Feet", "Yard", "RMT", "Running Mtr",
+  "mm", "cm", "Mtr", "Meter", "Km", "Inch", "in", "Feet", "Ft", "Yard", "Yd", "Mile", "RMT", "Running Mtr", "Running Ft", "Furlong",
   // Area
-  "Sq.mm", "Sq.cm", "Sq.Mtr", "Sq.Ft", "Sq.Yard", "Sq.Inch", "Acre", "Hectare",
+  "Sq.mm", "Sq.cm", "Sq.Mtr", "Sqm", "Sq.Ft", "Sft", "Sq.Yard", "Sq.Inch", "Sq.Km", "Acre", "Hectare", "Bigha", "Kattha", "Marla",
   // Volume
-  "Cu.cm", "Cu.Mtr", "Cu.Ft", "Cu.Yard", "Ltr", "ML",
-  // Time
-  "Hour", "Day", "Week", "Month", "Year", "Shift", "Man-Day", "Man-Hour",
+  "Cu.mm", "Cu.cm", "Cu.Mtr", "Cum", "Cu.Ft", "Cft", "Cu.Yard", "Cu.Inch", "Ltr", "Litre", "ML", "Millilitre", "Gallon", "Barrel", "Pint",
+  // Time & labour
+  "Sec", "Min", "Hour", "Hr", "Day", "Week", "Month", "Year", "Shift", "Man-Day", "Man-Hour", "Man-Month", "Man-Year",
   // Packaging
-  "Bag", "Box", "Carton", "Crate", "Roll", "Bundle", "Coil", "Drum", "Can", "Bottle", "Pack", "Packet", "Case", "Pallet", "Sack",
-  // Trade / bulk
-  "Lot", "Job", "Lump", "Lumpsum", "LS", "Trip", "Load", "Truck", "Tanker",
-  // Electrical / mechanical
-  "KW", "KWH", "HP", "Amp", "Volt", "KVA", "MVA",
-  // Percentage / ratio
-  "%", "Per 100", "Per 1000",
+  "Bag", "Box", "Carton", "Crate", "Roll", "Bundle", "Coil", "Drum", "Can", "Bottle", "Pack", "Packet", "Case", "Pallet", "Sack", "Sheet", "Reel", "Tin", "Container", "Truckload",
+  // Trade / bulk / project
+  "Lot", "Job", "Lump", "Lumpsum", "LS", "Trip", "Load", "Truck", "Tanker", "Container", "Consignment", "Batch", "Session", "Round", "Cycle",
+  // Building materials (India-specific)
+  "Brass", "Ghan Ft", "Ghan Mtr", "Rft", "Rmtr", "Sqm-Mtr", "Cu Mtr-Km", "Ton-Km",
+  // Rebar / steel
+  "Rod", "Bar", "Angle", "Channel", "Plate", "Strip", "Wire",
+  // Cement / concrete
+  "Cement Bag", "50Kg Bag", "25Kg Bag", "Mix", "Cum Concrete",
+  // Electrical / mechanical / energy
+  "KW", "KWH", "MW", "MWH", "HP", "Amp", "Volt", "KVA", "MVA", "KVAR", "MVAR", "Watt", "Unit (Elec.)",
+  // Pressure / flow
+  "Bar", "PSI", "Pa", "kPa", "MPa", "LPM", "LPS", "CFM", "CFS",
+  // Temperature ref
+  "°C", "°F",
+  // Data / IT
+  "MB", "GB", "TB", "License", "User (License)", "Seat", "Node",
+  // Percentage / ratio / misc
+  "%", "Per 100", "Per 1000", "Ratio", "As per Actual", "AS-Actual", "Contract",
+  // Service / travel
+  "Km-Trip", "Km-Ride", "Km-Ton", "Passenger-Km", "Seat-Km",
 ];
 
 export const getWOs = () => read(KEYS.WOS, []);
