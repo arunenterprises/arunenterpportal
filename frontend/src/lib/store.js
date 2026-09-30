@@ -353,7 +353,41 @@ export const upsertWO = (w) => {
   if (idx >= 0) list[idx] = w; else list.push(w);
   saveWOs(list);
   if (getToken()) apiUpsertWO(w).catch(() => {});
+  // External: auto-sync approved Work Orders to the Vendor Portal
+  if (Number(w.step) >= 4 && w.woNo) _syncWOToVendorPortal(w);
   return w;
+};
+
+// Fire-and-forget POST to the external Vendor Portal so vendors see live WOs.
+// Endpoint can be overridden via REACT_APP_VENDOR_PORTAL_URL.
+const _vendorPortalUrl = (typeof process !== "undefined" && process.env && process.env.REACT_APP_VENDOR_PORTAL_URL)
+  || "https://vendor-portal-458.emergent.host";
+const _syncWOToVendorPortal = (wo) => {
+  try {
+    fetch(`${_vendorPortalUrl}/api/work_orders/sync`, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: "arun-enterprises",
+        id: wo.id,
+        woNo: wo.woNo,
+        boqRefNo: wo.boqRefNo || "",
+        vendorCode: wo.vendorCode || "",
+        vendorName: wo.vendorName || "",
+        projectSite: wo.projectSite || "",
+        scopeOfWork: wo.scopeOfWork || "",
+        woDate: wo.woDate || "",
+        expiryDate: wo.expiryDate || "",
+        total: Number(wo.total) || 0,
+        items: wo.items || [],
+        approvedByName: wo.approvedByName || "",
+        approvalDate: wo.approvalDate || "",
+        step: Number(wo.step) || 0,
+        syncedAt: new Date().toISOString(),
+      }),
+    }).catch(() => { /* silent — portal offline OK */ });
+  } catch { /* silent */ }
 };
 
 export const advanceWOStep = (w) => {

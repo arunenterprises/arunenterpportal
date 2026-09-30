@@ -977,14 +977,6 @@ export default function BillProcessing() {
             </div>
           </div>
 
-          {/* Signatures - 4 columns */}
-          <div className="signs cols-4">
-            <div className="sig"><div className="title">Site Engineer</div></div>
-            <div className="sig"><div className="title">Purchase Manager</div></div>
-            <div className="sig"><div className="title">Account Manager</div></div>
-            <div className="sig"><div className="title">Authorized Signatory</div></div>
-          </div>
-
           {/* Bills Data Sheet — bottom of page, all bills listed */}
           {allBills.length > 0 && (
             <div className="section" data-testid="bills-data-sheet" style={{ marginTop: 14 }}>

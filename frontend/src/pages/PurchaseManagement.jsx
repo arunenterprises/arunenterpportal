@@ -302,34 +302,6 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
         </div>
       </div>
 
-      {/* Signature block (print-friendly) */}
-      <div className="section boq-signblock" data-testid="boq-signature">
-        <div className="sec-head">E. Signatures</div>
-        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, padding: "20px 14px" }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}>
-              <b style={{ fontSize: 12 }}>Prepared By</b>
-              <div style={{ fontSize: 11, marginTop: 2 }}>{boq.preparedBy || "—"}</div>
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Purchase Department</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}>
-              <b style={{ fontSize: 12 }}>Checked By</b>
-              <div style={{ fontSize: 11, marginTop: 2 }}>{boq.step >= 2 ? "________________" : "—"}</div>
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Accounts Department</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}>
-              <b style={{ fontSize: 12 }}>Approved By</b>
-              <div style={{ fontSize: 11, marginTop: 2, color: "#166534", fontWeight: 700 }}>{boq.approvedByName || "—"}</div>
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{boq.approvalDate ? `Date: ${fmtDMY(boq.approvalDate)}` : "General Manager / Admin"}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Actions */}
       <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}>
         <button data-testid="boq-btn-search" onClick={() => setSearchOpen(true)} style={{ padding: "8px 14px", background: "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>

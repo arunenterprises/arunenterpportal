@@ -963,11 +963,6 @@ export default function Reports() {
                 </div>
               </div>
 
-              <div className="signs">
-                <div className="sig"><div className="title">Prepared By</div><div className="role">(Purchase Dept.)</div></div>
-                <div className="sig"><div className="title">Checked By</div><div className="role">(Audit &amp; Verification)</div></div>
-                <div className="sig"><div className="title">Approved By</div><div className="role">(Account Manager / Partner)</div></div>
-              </div>
             </>
           )}
 
