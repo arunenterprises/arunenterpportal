@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
@@ -21,12 +21,35 @@ const rolePerms = (email, role) => {
   return base;
 };
 
-const PermChip = ({ label, on }) => (
-  <span style={{
-    padding: "1px 6px", fontSize: 9.5, fontWeight: 700, borderRadius: 3, marginRight: 3,
-    background: on ? "#dcfce7" : "#f1f5f9", color: on ? "#166534" : "#94a3b8",
-    border: `1px solid ${on ? "#86efac" : "#cbd5e1"}`, letterSpacing: .3, whiteSpace: "nowrap",
-  }}>{on ? "✓" : "✕"} {label}</span>
+// Effective per-user permissions: custom overrides win over role defaults.
+const effectivePerms = (u) => {
+  if (u?.permissions && typeof u.permissions === "object") {
+    const def = rolePerms(u.email, u.role);
+    return {
+      create: typeof u.permissions.create === "boolean" ? u.permissions.create : def.create,
+      edit: typeof u.permissions.edit === "boolean" ? u.permissions.edit : def.edit,
+      submit: typeof u.permissions.submit === "boolean" ? u.permissions.submit : def.submit,
+      approve: typeof u.permissions.approve === "boolean" ? u.permissions.approve : def.approve,
+    };
+  }
+  return rolePerms(u?.email, u?.role);
+};
+
+const PermChip = ({ label, on, onClick, disabled }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    title={disabled ? "Only Super Admin can toggle" : `Click to ${on ? "revoke" : "grant"} ${label}`}
+    style={{
+      padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 4, marginRight: 3, marginBottom: 3,
+      background: on ? "#dcfce7" : "#f1f5f9", color: on ? "#166534" : "#94a3b8",
+      border: `1px solid ${on ? "#86efac" : "#cbd5e1"}`, letterSpacing: .3, whiteSpace: "nowrap",
+      cursor: disabled ? "default" : "pointer",
+      opacity: disabled ? .8 : 1,
+      transition: "all .15s ease",
+    }}
+  >{on ? "✓" : "✕"} {label}</button>
 );
 
 export default function UsersAdmin() {
@@ -349,13 +372,23 @@ export default function UsersAdmin() {
                   </td>
                   <td style={{ padding: "5px 8px" }} data-testid={`user-perms-${u.email}`}>
                     {(() => {
-                      const p = rolePerms(u.email, u.role);
+                      const p = effectivePerms(u);
+                      const canToggle = isSuperAdmin(me?.user) && !isSuperAdmin(u.email);
+                      const togglePerm = async (key) => {
+                        if (!canToggle) return;
+                        try {
+                          const next = { ...p, [key]: !p[key] };
+                          await apiUpdateUserPermissions(u.email, { [key]: next[key] });
+                          toast.success(`${key.toUpperCase()} ${next[key] ? "granted" : "revoked"} for ${u.name}`);
+                          await load();
+                        } catch (ex) { toast.error(ex.message); }
+                      };
                       return (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                          <PermChip label="Create" on={p.create} />
-                          <PermChip label="Edit" on={p.edit} />
-                          <PermChip label="Submit" on={p.submit} />
-                          <PermChip label="Approve" on={p.approve} />
+                          <PermChip label="Create"  on={p.create}  disabled={!canToggle} onClick={() => togglePerm("create")} />
+                          <PermChip label="Edit"    on={p.edit}    disabled={!canToggle} onClick={() => togglePerm("edit")} />
+                          <PermChip label="Submit"  on={p.submit}  disabled={!canToggle} onClick={() => togglePerm("submit")} />
+                          <PermChip label="Approve" on={p.approve} disabled={!canToggle} onClick={() => togglePerm("approve")} />
                         </div>
                       );
                     })()}

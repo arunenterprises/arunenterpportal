@@ -729,7 +729,11 @@ export const login = async (u, p) => {
   try {
     const { token, user } = await apiLogin(identifier, password);
     setToken(token);
-    write(KEYS.AUTH, { user: user.email, name: user.name, role: user.role, at: Date.now() });
+    write(KEYS.AUTH, {
+      user: user.email, name: user.name, role: user.role,
+      permissions: user.permissions || null,
+      at: Date.now(),
+    });
     // Pull cloud snapshot after successful login so this device has latest data
     try { await syncFromCloud(); } catch (e) { /* silent — offline OK */ }
     return true;
@@ -779,14 +783,34 @@ export const currentRole = () => {
 // - User / Purchase / Accounts / GM (creator-tier): Create / Edit / Submit / Download
 // - Admin / SuperAdmin (approver-tier): everything above + Final Approval / Re-Approval
 // - Viewer: read-only + download
-export const canCreate = () => {
-  const r = currentRole();
-  return r !== "Viewer";
+// If a per-user override exists in auth profile (`permissions` map), it wins over the role default.
+const _myPerms = () => {
+  const p = read(KEYS.AUTH, null) || {};
+  return p.permissions && typeof p.permissions === "object" ? p.permissions : null;
 };
-export const canEdit = () => canCreate();
-export const canSubmit = () => canCreate();
+export const canCreate = () => {
+  if (isSuperAdmin(currentUserEmail())) return true;
+  const p = _myPerms();
+  if (p && typeof p.create === "boolean") return p.create;
+  return currentRole() !== "Viewer";
+};
+export const canEdit = () => {
+  if (isSuperAdmin(currentUserEmail())) return true;
+  const p = _myPerms();
+  if (p && typeof p.edit === "boolean") return p.edit;
+  return canCreate();
+};
+export const canSubmit = () => {
+  if (isSuperAdmin(currentUserEmail())) return true;
+  const p = _myPerms();
+  if (p && typeof p.submit === "boolean") return p.submit;
+  return canCreate();
+};
 export const canDownload = () => true; // everyone (including Viewer) can download
 export const canApprove = () => {
+  if (isSuperAdmin(currentUserEmail())) return true;
+  const p = _myPerms();
+  if (p && typeof p.approve === "boolean") return p.approve;
   const r = currentRole();
   return ["SuperAdmin", "Admin"].includes(r);
 };

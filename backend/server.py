@@ -180,10 +180,55 @@ async def login(body: LoginBody):
     if not user or not verify_password(password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token(user["email"], user["email"])
+    perms = user.get("permissions") or _role_default_perms(user.get("role"))
+    # SuperAdmin always gets full permissions
+    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    if primary and user["email"].lower().strip() == primary:
+        perms = {"create": True, "edit": True, "submit": True, "approve": True}
     return {
         "token": token,
-        "user": {"email": user["email"], "name": user["name"], "role": user["role"]},
+        "user": {
+            "email": user["email"], "name": user["name"], "role": user["role"],
+            "permissions": perms,
+        },
     }
+
+
+# ---- Per-user permission override (Super Admin only) ----
+class PermsBody(BaseModel):
+    create: Optional[bool] = None
+    edit: Optional[bool] = None
+    submit: Optional[bool] = None
+    approve: Optional[bool] = None
+
+
+def _role_default_perms(role: Optional[str]) -> Dict[str, bool]:
+    r = (role or "User").strip()
+    if r in ("Admin", "GM"):
+        return {"create": True, "edit": True, "submit": True, "approve": True}
+    if r in ("Purchase", "Accounts", "User"):
+        return {"create": True, "edit": True, "submit": True, "approve": False}
+    if r == "Viewer":
+        return {"create": False, "edit": False, "submit": False, "approve": False}
+    return {"create": True, "edit": True, "submit": True, "approve": False}
+
+
+@api_router.patch("/users/{email}/permissions")
+async def update_user_permissions(email: str, body: PermsBody, admin: Dict = Depends(require_super_admin)):
+    email = email.lower().strip()
+    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    if email == primary:
+        raise HTTPException(status_code=400, detail="Super Admin permissions cannot be modified")
+    target = await db.users.find_one({"email": email})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    current = dict(target.get("permissions") or _role_default_perms(target.get("role")))
+    for k in ("create", "edit", "submit", "approve"):
+        v = getattr(body, k)
+        if v is not None:
+            current[k] = bool(v)
+    await db.users.update_one({"email": email}, {"$set": {"permissions": current}})
+    return {"ok": True, "email": email, "permissions": current}
 
 
 @api_router.get("/auth/me")
