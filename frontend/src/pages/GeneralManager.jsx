@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
-import { Briefcase, ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
+import { ArrowRight, CheckCircle2, RefreshCw } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import {
-  getVendors, getBills, getPayments, getExpenses, getBOQs,
-  currentRole, canApprove,
-  advanceVendorStep, advanceBillStep, advanceExpenseStep, advanceBOQStep,
-  reapproveVendor, reapproveBill, reapproveExpense, reapproveBOQ, reapproveVoucher,
+  getVendors, getBills, getPayments, getExpenses, getBOQs, getWOs,
+  canApprove,
+  advanceVendorStep, advanceBillStep, advanceExpenseStep, advanceBOQStep, advanceWOStep,
+  reapproveVendor, reapproveBill, reapproveExpense, reapproveBOQ, reapproveVoucher, reapproveWO,
   savePayments,
   currentUserProfile,
 } from "../lib/store";
@@ -64,7 +64,6 @@ const InboxSection = ({ title, tone, items, onApprove, onOpen, colLabels, rowRen
 
 export default function GeneralManager() {
   const nav = useNavigate();
-  const role = currentRole();
   const canDo = canApprove();
   const me = currentUserProfile();
   const gmName = (me?.name || me?.user || "").trim();
@@ -78,6 +77,7 @@ export default function GeneralManager() {
   const payments = getPayments();
   const expenses = getExpenses();
   const boqs = getBOQs();
+  const wos = getWOs();
 
   const stats = useMemo(() => {
     const vendorPending = vendors.filter((v) => v.step === 2);
@@ -90,11 +90,13 @@ export default function GeneralManager() {
     const expensesApproved = expenses.filter((x) => Number(x.step) === 4);
     const boqsPending = boqs.filter((b) => Number(b.step) === 3);
     const boqsApproved = boqs.filter((b) => Number(b.step) === 4);
-    return { vendorPending, vendorApproved, billsPending, billsApproved, vouchersPending, vouchersApproved, expensesPending, expensesApproved, boqsPending, boqsApproved };
-  }, [vendors, bills, payments, expenses, boqs, tick]);
+    const wosPending = wos.filter((w) => Number(w.step) === 3);
+    const wosApproved = wos.filter((w) => Number(w.step) === 4);
+    return { vendorPending, vendorApproved, billsPending, billsApproved, vouchersPending, vouchersApproved, expensesPending, expensesApproved, boqsPending, boqsApproved, wosPending, wosApproved };
+  }, [vendors, bills, payments, expenses, boqs, wos, tick]);
 
-  const totalPending = stats.vendorPending.length + stats.billsPending.length + stats.vouchersPending.length + stats.expensesPending.length + stats.boqsPending.length;
-  const totalApproved = stats.vendorApproved.length + stats.billsApproved.length + stats.vouchersApproved.length + stats.expensesApproved.length + stats.boqsApproved.length;
+  const totalPending = stats.vendorPending.length + stats.billsPending.length + stats.vouchersPending.length + stats.expensesPending.length + stats.boqsPending.length + stats.wosPending.length;
+  const totalApproved = stats.vendorApproved.length + stats.billsApproved.length + stats.vouchersApproved.length + stats.expensesApproved.length + stats.boqsApproved.length + stats.wosApproved.length;
 
   const approveVendor = (v) => {
     if (!canDo) return toast.error("Not permitted");
@@ -128,30 +130,74 @@ export default function GeneralManager() {
     toast.success(`BOQ ${done.boqNo} approved by ${done.approvedByName}`);
     bump();
   };
+  const approveWO = (w) => {
+    if (!canDo) return toast.error("Not permitted");
+    // ensure step ≥ 3 first, then advance to 4 to issue permanent woNo + approver name
+    const staged = advanceWOStep({ ...w, step: Math.max(Number(w.step) || 1, 2) });
+    const done = advanceWOStep(staged);
+    toast.success(`Work Order ${done.woNo} approved by ${done.approvedByName}`);
+    bump();
+  };
 
   const doReapproveVendor = (v) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveVendor(v); toast.success(`Vendor ${n.firmName} re-approved by ${n.approvedByName}`); bump(); };
   const doReapproveBill = (b) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveBill(b); toast.success(`Bill ${n.permanentBillNo || n.refNo} re-approved by ${n.approverName}`); bump(); };
   const doReapproveVoucher = (p) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveVoucher(p); toast.success(`Voucher ${n.pvNo} re-approved by ${n.approvedByName}`); bump(); };
   const doReapproveExpense = (x) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveExpense(x); toast.success(`Expense ${n.permanentExpenseNo || n.refNo} re-approved by ${n.approvedByName}`); bump(); };
   const doReapproveBOQ = (b) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveBOQ(b); toast.success(`BOQ ${n.boqNo} re-approved by ${n.approvedByName}`); bump(); };
+  const doReapproveWO = (w) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveWO(w); toast.success(`Work Order ${n.woNo} re-approved by ${n.approvedByName}`); bump(); };
+
+  const DeptGroup = ({ title, tone, children }) => (
+    <div style={{ background: "#f8fafc", border: `1px solid #e2e8f0`, borderLeft: `4px solid ${tone}`, borderRadius: 6, padding: 10, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: tone, letterSpacing: .5, textTransform: "uppercase", marginBottom: 8 }}>{title}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>
+    </div>
+  );
 
   const pendingInbox = (
-    <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} data-testid="gm-inbox-pending">
-      <InboxSection testid="inbox-boq" title="BOQ pending" tone="#0ea5e9" items={stats.boqsPending} onOpen={() => nav("/purchase")} onApprove={approveBOQ} colLabels={["BOQ No.", "Project", "Total"]} rowRender={(b) => [b.boqNo, b.projectSite, `₹ ${Number(b.total || 0).toLocaleString("en-IN")}`]} />
-      <InboxSection testid="inbox-vendors" title="Vendors pending" tone="#0369a1" items={stats.vendorPending} onOpen={() => nav("/vendor")} onApprove={approveVendor} colLabels={["Firm", "Contact", "PAN"]} rowRender={(v) => [v.firmName || v.tempRefId, v.contactPerson || "-", v.panNo || "-"]} />
-      <InboxSection testid="inbox-bills" title="Bills pending" tone="#16a34a" items={stats.billsPending} onOpen={() => nav("/bill")} onApprove={approveBill} colLabels={["Bill Ref", "Vendor", "Amount"]} rowRender={(b) => [b.refNo || b.permanentBillNo, b.vendorSnapshot?.firmName || b.vendorCode, `₹ ${Number(b.basicAmount || 0).toLocaleString("en-IN")}`]} />
-      <InboxSection testid="inbox-vouchers" title="Payment Vouchers pending" tone="#7c3aed" items={stats.vouchersPending} onOpen={() => nav("/final")} onApprove={approveVoucher} colLabels={["PV No.", "Vendor", "Amount"]} rowRender={(p) => [p.pvNo, p.vendorSnapshot?.firmName || p.vendorCode, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`]} />
-      <InboxSection testid="inbox-expenses" title="Expenses pending" tone="#f59e0b" items={stats.expensesPending} onOpen={() => nav("/expense")} onApprove={approveExpense} colLabels={["Ref No.", "Paid To", "Amount"]} rowRender={(x) => [x.refNo || x.permanentExpenseNo, x.paidToName || "-", `₹ ${Number(x.basicAmount || 0).toLocaleString("en-IN")}`]} />
+    <div style={{ marginTop: 8 }} data-testid="gm-inbox-pending">
+      <DeptGroup title="Purchase Department — BOQ & Work Orders" tone="#0ea5e9">
+        <InboxSection testid="inbox-boq" title="BOQ pending" tone="#0ea5e9" items={stats.boqsPending} onOpen={() => nav("/purchase")} onApprove={approveBOQ} colLabels={["BOQ No.", "Project", "Total"]} rowRender={(b) => [b.boqNo, b.projectSite, `₹ ${Number(b.total || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-wo" title="Work Orders pending" tone="#15803d" items={stats.wosPending} onOpen={() => nav("/purchase")} onApprove={approveWO} colLabels={["Ref (BOQ)", "Vendor", "Total"]} rowRender={(w) => [w.boqRefNo || "—", w.vendorName || w.vendorCode || "—", `₹ ${Number(w.total || 0).toLocaleString("en-IN")}`]} />
+      </DeptGroup>
+
+      <DeptGroup title="Vendor Management" tone="#0369a1">
+        <InboxSection testid="inbox-vendors" title="Vendors pending" tone="#0369a1" items={stats.vendorPending} onOpen={() => nav("/vendor")} onApprove={approveVendor} colLabels={["Firm", "Contact", "PAN"]} rowRender={(v) => [v.firmName || v.tempRefId, v.contactPerson || "-", v.panNo || "-"]} />
+        <div />
+      </DeptGroup>
+
+      <DeptGroup title="Accounts Department — Bills & Payment Vouchers" tone="#16a34a">
+        <InboxSection testid="inbox-bills" title="Bills pending" tone="#16a34a" items={stats.billsPending} onOpen={() => nav("/bill")} onApprove={approveBill} colLabels={["Bill Ref", "Vendor", "Amount"]} rowRender={(b) => [b.refNo || b.permanentBillNo, b.vendorSnapshot?.firmName || b.vendorCode, `₹ ${Number(b.basicAmount || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-vouchers" title="Payment Vouchers pending" tone="#7c3aed" items={stats.vouchersPending} onOpen={() => nav("/final")} onApprove={approveVoucher} colLabels={["PV No.", "Vendor", "Amount"]} rowRender={(p) => [p.pvNo, p.vendorSnapshot?.firmName || p.vendorCode, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`]} />
+      </DeptGroup>
+
+      <DeptGroup title="Expense Department" tone="#f59e0b">
+        <InboxSection testid="inbox-expenses" title="Expenses pending" tone="#f59e0b" items={stats.expensesPending} onOpen={() => nav("/expense")} onApprove={approveExpense} colLabels={["Ref No.", "Paid To", "Amount"]} rowRender={(x) => [x.refNo || x.permanentExpenseNo, x.paidToName || "-", `₹ ${Number(x.basicAmount || 0).toLocaleString("en-IN")}`]} />
+        <div />
+      </DeptGroup>
     </div>
   );
 
   const approvedInbox = (
-    <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }} data-testid="gm-inbox-approved">
-      <InboxSection testid="reap-boq" title="BOQ approved" tone="#0ea5e9" items={stats.boqsApproved} onOpen={() => nav("/purchase")} onApprove={doReapproveBOQ} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["BOQ No.", "Approved By", "Date"]} rowRender={(b) => [b.boqNo, b.approvedByName || "-", b.approvalDate || "-"]} />
-      <InboxSection testid="reap-vendors" title="Vendors approved" tone="#0369a1" items={stats.vendorApproved} onOpen={() => nav("/vendor")} onApprove={doReapproveVendor} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Vendor Code", "Firm", "Approved By"]} rowRender={(v) => [v.vendorCode, v.firmName, v.approvedByName || "-"]} />
-      <InboxSection testid="reap-bills" title="Bills approved" tone="#16a34a" items={stats.billsApproved} onOpen={() => nav("/bill")} onApprove={doReapproveBill} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Bill No.", "Vendor", "Approved By"]} rowRender={(b) => [b.permanentBillNo || b.refNo, b.vendorSnapshot?.firmName || b.vendorCode, b.approverName || "-"]} />
-      <InboxSection testid="reap-vouchers" title="Payment Vouchers approved" tone="#7c3aed" items={stats.vouchersApproved} onOpen={() => nav("/final")} onApprove={doReapproveVoucher} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["PV No.", "Amount", "Approved By"]} rowRender={(p) => [p.pvNo, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`, p.approvedByName || "-"]} />
-      <InboxSection testid="reap-expenses" title="Expenses approved" tone="#f59e0b" items={stats.expensesApproved} onOpen={() => nav("/expense")} onApprove={doReapproveExpense} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Ref No.", "Paid To", "Approved By"]} rowRender={(x) => [x.permanentExpenseNo || x.refNo, x.paidToName || "-", x.approvedByName || "-"]} />
+    <div style={{ marginTop: 8 }} data-testid="gm-inbox-approved">
+      <DeptGroup title="Purchase Department — BOQ & Work Orders" tone="#0ea5e9">
+        <InboxSection testid="reap-boq" title="BOQ approved" tone="#0ea5e9" items={stats.boqsApproved} onOpen={() => nav("/purchase")} onApprove={doReapproveBOQ} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["BOQ No.", "Approved By", "Date"]} rowRender={(b) => [b.boqNo, b.approvedByName || "-", b.approvalDate || "-"]} />
+        <InboxSection testid="reap-wo" title="Work Orders approved" tone="#15803d" items={stats.wosApproved} onOpen={() => nav("/purchase")} onApprove={doReapproveWO} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["WO No.", "Vendor", "Approved By"]} rowRender={(w) => [w.woNo || "—", w.vendorName || w.vendorCode || "—", w.approvedByName || "-"]} />
+      </DeptGroup>
+
+      <DeptGroup title="Vendor Management" tone="#0369a1">
+        <InboxSection testid="reap-vendors" title="Vendors approved" tone="#0369a1" items={stats.vendorApproved} onOpen={() => nav("/vendor")} onApprove={doReapproveVendor} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Vendor Code", "Firm", "Approved By"]} rowRender={(v) => [v.vendorCode, v.firmName, v.approvedByName || "-"]} />
+        <div />
+      </DeptGroup>
+
+      <DeptGroup title="Accounts Department — Bills & Payment Vouchers" tone="#16a34a">
+        <InboxSection testid="reap-bills" title="Bills approved" tone="#16a34a" items={stats.billsApproved} onOpen={() => nav("/bill")} onApprove={doReapproveBill} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Bill No.", "Vendor", "Approved By"]} rowRender={(b) => [b.permanentBillNo || b.refNo, b.vendorSnapshot?.firmName || b.vendorCode, b.approverName || "-"]} />
+        <InboxSection testid="reap-vouchers" title="Payment Vouchers approved" tone="#7c3aed" items={stats.vouchersApproved} onOpen={() => nav("/final")} onApprove={doReapproveVoucher} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["PV No.", "Amount", "Approved By"]} rowRender={(p) => [p.pvNo, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`, p.approvedByName || "-"]} />
+      </DeptGroup>
+
+      <DeptGroup title="Expense Department" tone="#f59e0b">
+        <InboxSection testid="reap-expenses" title="Expenses approved" tone="#f59e0b" items={stats.expensesApproved} onOpen={() => nav("/expense")} onApprove={doReapproveExpense} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Ref No.", "Paid To", "Approved By"]} rowRender={(x) => [x.permanentExpenseNo || x.refNo, x.paidToName || "-", x.approvedByName || "-"]} />
+        <div />
+      </DeptGroup>
     </div>
   );
 
@@ -163,15 +209,11 @@ export default function GeneralManager() {
         <div className="a4" data-testid="gm-page">
           <Header formTitle="GENERAL MANAGER · CONSOLIDATED DASHBOARD" />
 
-          <div style={{ marginTop: 10, padding: "10px 14px", background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 6, display: "flex", alignItems: "center", gap: 10, fontSize: 12 }} data-testid="gm-role-note">
-            <Briefcase size={14} />
-            <span>Signed in as <b>{role} — {gmName || "unknown"}</b> · {canDo ? "Aap Approve / Re-Approve kar sakte hain, aapka naam Approved-By box me auto-fill hoga." : "Aap sirf view kar sakte hain (Admin/SuperAdmin only can approve)."}</span>
-          </div>
-
           <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }} data-testid="gm-stat-row">
             <StatTile testid="stat-total-pending" label="Total Pending" value={totalPending} tone="#ea580c" />
             <StatTile testid="stat-total-approved" label="Total Approved" value={totalApproved} tone="#16a34a" />
             <StatTile testid="stat-boqs" label="BOQs" value={`${stats.boqsApproved.length} / ${boqs.length}`} tone="#0ea5e9" />
+            <StatTile testid="stat-wos" label="Work Orders" value={`${stats.wosApproved.length} / ${wos.length}`} tone="#15803d" />
             <StatTile testid="stat-vendors" label="Vendors" value={`${stats.vendorApproved.length} / ${vendors.length}`} tone="#0369a1" />
             <StatTile testid="stat-bills" label="Bills" value={`${stats.billsApproved.length} / ${bills.length}`} tone="#16a34a" />
             <StatTile testid="stat-vouchers" label="Vouchers" value={`${stats.vouchersApproved.length} / ${payments.length}`} tone="#7c3aed" />

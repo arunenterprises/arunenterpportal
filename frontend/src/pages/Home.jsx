@@ -190,9 +190,12 @@ export default function Home() {
     users: null,
   };
 
+  // Every authed user sees all department cards on Home so they can navigate to
+  // read-only / creator-tier pages. Per-page RBAC gates what they can DO inside.
+  // Only the "User Management" tile stays SuperAdmin-only.
   const visibleDepts = DEPARTMENTS.filter((d) => {
     if (d.id === "users") return superAdmin;
-    return d.roles.includes(role);
+    return true;
   });
 
   return (

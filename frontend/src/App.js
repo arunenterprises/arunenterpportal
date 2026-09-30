@@ -9,6 +9,7 @@ import Reports from "./pages/Reports";
 import UsersAdmin from "./pages/UsersAdmin";
 import PurchaseManagement from "./pages/PurchaseManagement";
 import GeneralManager from "./pages/GeneralManager";
+import SplashScreen from "./components/SplashScreen";
 import { isAuthed } from "./lib/store";
 
 const RequireAuth = ({ children }) => {
@@ -18,6 +19,7 @@ const RequireAuth = ({ children }) => {
 function App() {
   return (
     <div className="App">
+      <SplashScreen />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />

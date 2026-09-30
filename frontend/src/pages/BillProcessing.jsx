@@ -12,6 +12,7 @@ import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
+  getWOs,
 } from "../lib/store";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
@@ -182,6 +183,46 @@ export default function BillProcessing() {
     "data-testid": `field-${k}`,
     ...extra,
   });
+
+  // Approved WOs list (memoised) — used both for datalist and lookup on WO No entry
+  const approvedWOs = useMemo(
+    () => getWOs().filter((w) => Number(w.step) >= 4 && (w.woNo || "").trim()),
+    [refresh]
+  );
+
+  // When user types / picks a Work Order No, auto-fetch its full data set
+  const fillFromWorkOrder = (woNoRaw) => {
+    const norm = (woNoRaw || "").trim();
+    if (!norm) return;
+    const w = approvedWOs.find((x) => (x.woNo || "").trim() === norm);
+    if (!w) return; // free-text ignored — let user type manually
+    const v = w.vendorCode ? findVendorByCode(w.vendorCode) : null;
+    setBill((prev) => ({
+      ...prev,
+      workOrderNo: w.woNo,
+      workOrderDate: w.woDate || prev.workOrderDate,
+      workOrderExpiryDate: w.expiryDate || prev.workOrderExpiryDate,
+      totalWOValue: Number(w.total) || prev.totalWOValue,
+      projectCodeLocation: w.projectSite || prev.projectCodeLocation,
+      workScope: w.scopeOfWork || prev.workScope,
+      vendorCode: v?.vendorCode || prev.vendorCode,
+      vendorSnapshot: v || prev.vendorSnapshot,
+      items: (w.items && w.items.length > 0)
+        ? w.items.map((it) => ({
+            id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            categoryScope: "Civil Work",
+            description: it.description || "",
+            hsn: "",
+            woQty: Number(it.qty) || 0,
+            unit: it.unit || "Nos",
+            woRate: Number(it.rate) || 0,
+            billedQty: 0,
+          }))
+        : prev.items,
+    }));
+    if (v?.vendorCode) setVendorInput(v.vendorCode);
+    toast.success(`Auto-filled from ${w.woNo}${v ? ` · vendor ${v.vendorCode}` : ""}`);
+  };
 
   const vendor = bill.vendorSnapshot;
   const comp = useMemo(() => computeBill(bill), [bill]);
@@ -470,7 +511,29 @@ export default function BillProcessing() {
             <div className="sec-body">
               <div className="row cols-4">
                 <F label="Work Order No." req>
-                  <input placeholder="WO Number" {...bind("workOrderNo")} />
+                  <input
+                    placeholder="Type or pick WO No…"
+                    value={bill.workOrderNo ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBill({ ...bill, workOrderNo: val });
+                      // If value matches an approved WO exactly (from datalist pick), auto-fetch
+                      if (approvedWOs.some((w) => (w.woNo || "").trim() === val.trim())) {
+                        fillFromWorkOrder(val);
+                      }
+                    }}
+                    onBlur={(e) => fillFromWorkOrder(e.target.value)}
+                    readOnly={locked}
+                    list="wo-approved-list"
+                    data-testid="field-workOrderNo"
+                  />
+                  <datalist id="wo-approved-list">
+                    {approvedWOs.map((w) => (
+                      <option key={w.id} value={w.woNo}>
+                        {w.vendorName || w.vendorCode || ""} · {w.projectSite || ""} · ₹{Number(w.total || 0).toLocaleString("en-IN")}
+                      </option>
+                    ))}
+                  </datalist>
                 </F>
                 <F label="Work Order Date">
                   <input type="date" {...bind("workOrderDate")} />

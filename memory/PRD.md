@@ -22,6 +22,12 @@ Print), A4 portrait layout with company header, and a linear approval workflow.
 - Corporate look: navy `#0b3d91` / `#1e3a8a` + gold accent, Georgia/Segoe serif
 
 ## What's implemented (Feb 2026 — iteration 10)
+- **Feb 2026 Session Updates**:
+  - GeneralManager: added Work Order Approve / Re-Approve module (parity with BOQ) grouped department-wise (Purchase · Vendor · Accounts · Expense); removed redundant "Signed in as" role banner.
+  - BillProcessing: Work Order No. field now auto-fetches full WO data (vendor, dates, project, scope, line items) from approved Work Orders via datalist + onBlur lookup.
+  - Home page: all authed users (User / Purchase / Accounts / GM / Viewer) now see all department cards; only User Management stays SuperAdmin-only.
+  - App root: 1-second Arun Enterprises brand splash on first mount (session-scoped, does not repeat).
+  - PurchaseManagement: `A. BOQ Details` layout redesigned to a 12-col grid with 4 logical rows; removed the extra branded Header strip; BOQ subtitle `Bid of Quantity`; WO subtitle removed `(4-step)`.
 - Login (admin/**Arun2023@12** seed — updated Feb 2026, cloud-backed; admin can change via `/users`)
 - **Page 1 — Vendor Registration**: temp ID issued on first save, permanent
   `AE####JV####` on Final Approval, expiry = approval + 2 years, project/site,
