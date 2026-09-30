@@ -656,7 +656,7 @@ export default function BillProcessing() {
                 <thead>
                   <tr>
                     <th style={{ width: "11%" }}>Category Scope</th>
-                    <th style={{ minWidth: 220 }}>Item Description</th>
+                    <th style={{ minWidth: 220, textAlign: "center" }}>Item Description</th>
                     <th style={{ width: "8%" }}>HSN / SAC</th>
                     <th style={{ width: "6%" }}>WO Qty</th>
                     <th style={{ width: "6%" }}>Unit</th>
