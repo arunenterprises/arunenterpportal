@@ -1,6 +1,7 @@
 // LocalStorage-backed data store for Vendor Management (+ cloud sync via /api)
 import {
   apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments,
+  apiDeleteBOQ, apiDeleteWO,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
@@ -195,7 +196,10 @@ export const createBOQDraft = () => {
   return {
     id: `boq_${Date.now()}`,
     boqSerial: c.boqSerial,
-    boqNo: buildBOQNo(c.boqSerial),
+    // Permanent BOQ No is issued only on approval (step === 4).
+    // Until then a temp reference identifies the draft.
+    boqNo: "",
+    tempRefId: `TEMP-BOQ-${String(c.boqSerial).padStart(4, "0")}`,
     step: 1,
     date: new Date().toISOString().slice(0, 10),
     projectSite: "",
@@ -231,6 +235,13 @@ export const upsertBOQ = (b) => {
   return b;
 };
 
+export const deleteBOQ = (id) => {
+  const list = getBOQs().filter((x) => x.id !== id);
+  saveBOQs(list);
+  if (getToken()) apiDeleteBOQ(id).catch(() => {});
+  return list;
+};
+
 export const advanceBOQStep = (b) => {
   const next = { ...b };
   const approver = _me();
@@ -239,9 +250,24 @@ export const advanceBOQStep = (b) => {
     if (next.step === 3 && !next.submittedDate) {
       next.submittedDate = new Date().toISOString().slice(0, 10);
     }
-    if (next.step === 4 && approver) {
-      next.approvedByName = approver;
-      next.approvalDate = new Date().toISOString().slice(0, 10);
+    if (next.step === 4) {
+      // Issue permanent BOQ No on approval (auto-generate + green in UI)
+      if (!next.boqNo) {
+        // Use existing boqSerial if present, else allocate a fresh one
+        let serial = Number(next.boqSerial) || 0;
+        if (!serial) {
+          const c = getCounters();
+          c.boqSerial = (c.boqSerial || 0) + 1;
+          saveCounters(c);
+          serial = c.boqSerial;
+          next.boqSerial = serial;
+        }
+        next.boqNo = buildBOQNo(serial);
+      }
+      if (approver) {
+        next.approvedByName = approver;
+        next.approvalDate = new Date().toISOString().slice(0, 10);
+      }
     }
   }
   return upsertBOQ(next);
@@ -356,6 +382,13 @@ export const upsertWO = (w) => {
   // External: auto-sync approved Work Orders to the Vendor Portal
   if (Number(w.step) >= 4 && w.woNo) _syncWOToVendorPortal(w);
   return w;
+};
+
+export const deleteWO = (id) => {
+  const list = getWOs().filter((x) => x.id !== id);
+  saveWOs(list);
+  if (getToken()) apiDeleteWO(id).catch(() => {});
+  return list;
 };
 
 // Fire-and-forget POST to the external Vendor Portal so vendors see live WOs.

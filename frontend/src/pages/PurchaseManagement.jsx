@@ -6,8 +6,8 @@ import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash
 import HomeNavBar from "../components/HomeNavBar";
 import {
   currentRole, canCreate, canApprove,
-  getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL,
-  getWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL,
+  getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
+  getWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL, deleteWO,
   UNITS_DEFAULT, fmtDMY, getVendors,
 } from "../lib/store";
 
@@ -120,8 +120,18 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
         <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px 10px" }}>
           {/* Row 1 — Identifiers */}
           <div className="field-b">
-            <label>BOQ No.</label>
-            <input data-testid="boq-no" value={boq.boqNo} readOnly style={{ background: "#eef2ff", fontWeight: 700, color: "#1e3a8a" }} />
+            <label>BOQ No. {Number(boq.step) >= 4 && <span style={{ color: "#16a34a", fontSize: 10, marginLeft: 4 }}>✓ auto-issued</span>}</label>
+            <input
+              data-testid="boq-no"
+              value={boq.boqNo || boq.tempRefId || ""}
+              readOnly
+              placeholder="Will auto-generate on approval"
+              style={
+                Number(boq.step) >= 4 && boq.boqNo
+                  ? { background: "#dcfce7", fontWeight: 800, color: "#166534", border: "1.5px solid #16a34a" }
+                  : { background: "#fef9c3", fontWeight: 700, color: "#78716c", fontStyle: boq.boqNo ? "normal" : "italic" }
+              }
+            />
           </div>
           <div className="field-b">
             <label>Date</label>
@@ -338,20 +348,52 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                   <th style={{ padding: 6, textAlign: "right", border: "1px solid #cbd5e1" }}>Total</th>
                   <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Status</th>
                   <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Approved By</th>
-                  <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 60 }} />
+                  <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 160 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((b) => (
                   <tr key={b.id} data-testid={`boq-list-row-${b.id}`}>
-                    <td style={{ padding: 5, border: "1px solid #cbd5e1", fontWeight: 700 }}>{b.boqNo}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", fontWeight: 700 }}>{b.boqNo || b.tempRefId || "—"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{b.projectSite}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{b.clientName || "—"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "right" }}>₹ {Number(b.total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{BOQ_STEP_LABEL[b.step] || "-"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", color: "#166534", fontWeight: 700 }}>{b.approvedByName || "—"}</td>
-                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}>
-                      <button onClick={() => loadBOQ(b)} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Open</button>
+                    <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "center", whiteSpace: "nowrap" }}>
+                      <button
+                        data-testid={`boq-list-edit-${b.id}`}
+                        onClick={() => loadBOQ(b)}
+                        title="Edit / Open this BOQ"
+                        style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}
+                      >
+                        ✏ Edit
+                      </button>
+                      <button
+                        data-testid={`boq-list-delete-${b.id}`}
+                        onClick={() => {
+                          if (!writeAllowed) { toast.error("Not permitted"); return; }
+                          if (Number(b.step) >= 4) { toast.error("Approved BOQ delete nahi kar sakte"); return; }
+                          if (!window.confirm(`Delete BOQ ${b.boqNo || b.tempRefId || b.projectSite}?`)) return;
+                          deleteBOQ(b.id);
+                          toast.success("BOQ deleted");
+                          setList(getBOQs());
+                          if (boq && boq.id === b.id) startNew();
+                        }}
+                        title={Number(b.step) >= 4 ? "Approved BOQ cannot be deleted" : "Delete this BOQ"}
+                        disabled={!writeAllowed || Number(b.step) >= 4}
+                        style={{
+                          padding: "3px 8px",
+                          background: (!writeAllowed || Number(b.step) >= 4) ? "#f1f5f9" : "#fee2e2",
+                          color: (!writeAllowed || Number(b.step) >= 4) ? "#94a3b8" : "#991b1b",
+                          border: `1px solid ${(!writeAllowed || Number(b.step) >= 4) ? "#cbd5e1" : "#fca5a5"}`,
+                          borderRadius: 3,
+                          cursor: (!writeAllowed || Number(b.step) >= 4) ? "not-allowed" : "pointer",
+                          fontSize: 10, fontWeight: 700,
+                        }}
+                      >
+                        🗑 Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -747,7 +789,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                   <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Expiry</th>
                   <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Status</th>
                   <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Approved By</th>
-                  <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 60 }} />
+                  <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 190 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -760,9 +802,34 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{fmtDMY(w.expiryDate) || "—"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{WO_STEP_LABEL[w.step] || "-"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", color: "#166534", fontWeight: 700 }}>{w.approvedByName || "—"}</td>
-                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}>
-                      <button onClick={() => loadWO(w)} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Open</button>
-                      <button data-testid={`wo-list-download-${w.id}`} onClick={() => downloadWOExcel(w)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>⬇ Excel</button>
+                    <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "center", whiteSpace: "nowrap" }}>
+                      <button data-testid={`wo-list-edit-${w.id}`} onClick={() => loadWO(w)} title="Edit / Open this WO" style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✏ Edit</button>
+                      <button data-testid={`wo-list-download-${w.id}`} onClick={() => downloadWOExcel(w)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>⬇ Excel</button>
+                      <button
+                        data-testid={`wo-list-delete-${w.id}`}
+                        onClick={() => {
+                          if (!writeAllowed) { toast.error("Not permitted"); return; }
+                          if (Number(w.step) >= 4) { toast.error("Approved Work Order delete nahi kar sakte"); return; }
+                          if (!window.confirm(`Delete Work Order ${w.woNo || w.boqRefNo || w.vendorName || ""}?`)) return;
+                          deleteWO(w.id);
+                          toast.success("Work Order deleted");
+                          setList(getWOs());
+                          if (wo && wo.id === w.id) startNew();
+                        }}
+                        title={Number(w.step) >= 4 ? "Approved WO cannot be deleted" : "Delete this WO"}
+                        disabled={!writeAllowed || Number(w.step) >= 4}
+                        style={{
+                          padding: "3px 8px",
+                          background: (!writeAllowed || Number(w.step) >= 4) ? "#f1f5f9" : "#fee2e2",
+                          color: (!writeAllowed || Number(w.step) >= 4) ? "#94a3b8" : "#991b1b",
+                          border: `1px solid ${(!writeAllowed || Number(w.step) >= 4) ? "#cbd5e1" : "#fca5a5"}`,
+                          borderRadius: 3,
+                          cursor: (!writeAllowed || Number(w.step) >= 4) ? "not-allowed" : "pointer",
+                          fontSize: 10, fontWeight: 700,
+                        }}
+                      >
+                        🗑 Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
