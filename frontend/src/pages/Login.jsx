@@ -19,7 +19,7 @@ export default function Login() {
       const ok = await login(u, p);
       if (ok) {
         toast.success("Signed in · Cloud data synced");
-        nav("/vendor");
+        nav("/home");
       } else {
         setErr("Invalid email or password. Please contact administrator if you don't have an account.");
       }

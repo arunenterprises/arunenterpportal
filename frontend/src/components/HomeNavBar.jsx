@@ -1,11 +1,12 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Home as HomeIcon, Users, ShoppingCart, Wallet, UserCog, LogOut, FileBarChart } from "lucide-react";
+import { Home as HomeIcon, LogOut } from "lucide-react";
 import { logout, currentUser, currentUserProfile, isSuperAdmin } from "../lib/store";
 
 /**
  * Global horizontal navigation bar shown at the top of every authenticated page.
- * Provides one-click access to Home + all department modules + Logout.
+ * Only exposes the Home link — all department modules must be opened via the
+ * Home dashboard cards. Also shows the signed-in user's name + role + Logout.
  */
 const HomeNavBar = () => {
   const navigate = useNavigate();
@@ -25,23 +26,6 @@ const HomeNavBar = () => {
         <NavLink to="/home" className={link} data-testid="hn-home">
           <HomeIcon size={15} /> Home
         </NavLink>
-        <NavLink to="/vendor" className={link} data-testid="hn-vendor">
-          <Users size={15} /> Vendor
-        </NavLink>
-        <NavLink to="/bill" className={link} data-testid="hn-bill">
-          <ShoppingCart size={15} /> Bill
-        </NavLink>
-        <NavLink to="/expense" className={link} data-testid="hn-expense">
-          <Wallet size={15} /> Expense
-        </NavLink>
-        <NavLink to="/final" className={link} data-testid="hn-reports">
-          <FileBarChart size={15} /> Reports
-        </NavLink>
-        {superAdmin && (
-          <NavLink to="/users" className={link} data-testid="hn-users">
-            <UserCog size={15} /> Users
-          </NavLink>
-        )}
       </nav>
 
       <div className="hn-right">
