@@ -272,7 +272,7 @@ export const UNITS_DEFAULT = [
   // Packaging
   "Bag", "Box", "Carton", "Crate", "Roll", "Bundle", "Coil", "Drum", "Can", "Bottle", "Pack", "Packet", "Case", "Pallet", "Sack", "Sheet", "Reel", "Tin", "Container", "Truckload",
   // Trade / bulk / project
-  "Lot", "Job", "Lump", "Lumpsum", "LS", "Trip", "Load", "Truck", "Tanker", "Container", "Consignment", "Batch", "Session", "Round", "Cycle",
+  "Lot", "Job", "Lump", "Lumpsum", "LS", "Trip", "Load", "Truck", "Tanker", "Consignment", "Batch", "Session", "Round", "Cycle",
   // Building materials (India-specific)
   "Brass", "Ghan Ft", "Ghan Mtr", "Rft", "Rmtr", "Sqm-Mtr", "Cu Mtr-Km", "Ton-Km",
   // Rebar / steel
@@ -282,7 +282,7 @@ export const UNITS_DEFAULT = [
   // Electrical / mechanical / energy
   "KW", "KWH", "MW", "MWH", "HP", "Amp", "Volt", "KVA", "MVA", "KVAR", "MVAR", "Watt", "Unit (Elec.)",
   // Pressure / flow
-  "Bar", "PSI", "Pa", "kPa", "MPa", "LPM", "LPS", "CFM", "CFS",
+  "PSI", "Pa", "kPa", "MPa", "LPM", "LPS", "CFM", "CFS",
   // Temperature ref
   "°C", "°F",
   // Data / IT

@@ -78,7 +78,7 @@ export default function UsersAdmin() {
   };
 
   useEffect(() => {
-    if ((me?.role || "").toLowerCase() !== "admin") {
+    if (!isSuperAdmin(me?.user) && (me?.role || "").toLowerCase() !== "admin") {
       toast.error("Admin access required");
       nav("/vendor");
       return;

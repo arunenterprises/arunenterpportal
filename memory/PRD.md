@@ -21,6 +21,14 @@ Print), A4 portrait layout with company header, and a linear approval workflow.
   in a single fixed-bottom colored footer (`TopActionBar`), one row on desktop
 - Corporate look: navy `#0b3d91` / `#1e3a8a` + gold accent, Georgia/Segoe serif
 
+## What's implemented (Feb 2026 — iteration 11)
+- **Feb 2026 (post-fix) Session Updates**:
+  - **P0 fix**: Added missing `fmtDMY` import to `VendorRegistration.jsx` — /vendor was throwing a runtime error and rendering blank for all roles. This was the root cause of the "user role me kaam nahi kar raha" complaint. Verified `/vendor` now compiles 200 and renders for all roles.
+  - **UNITS_DEFAULT dedupe**: removed duplicate "Container" and "Bar" entries — kills the React duplicate-key console warnings on Purchase page. 182 unique units remaining.
+  - **UsersAdmin gate hardened**: /users now explicitly allows `isSuperAdmin(me?.user)` in addition to `role === "Admin"` so a SuperAdmin whose stored role is anything other than literal "Admin" cannot be locked out.
+  - **GM Dashboard full redesign**: hero gradient header + 6 KPI cards (interactive, hover-lift, progress bar) + segmented pill tabs + numbered department groups + polished inbox cards with dept icons.
+  - **Per-user permission toggles**: `PATCH /api/users/{email}/permissions` endpoint; store.js `canCreate/edit/submit/approve` honour per-user overrides; UsersAdmin permission chips are now clickable toggles for SuperAdmin.
+
 ## What's implemented (Feb 2026 — iteration 10)
 - **Feb 2026 Session Updates**:
   - GeneralManager: added Work Order Approve / Re-Approve module (parity with BOQ) grouped department-wise (Purchase · Vendor · Accounts · Expense); removed redundant "Signed in as" role banner.

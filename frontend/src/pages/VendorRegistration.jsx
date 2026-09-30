@@ -11,7 +11,7 @@ import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
   STEP_LABEL, currentUser, exportJSON, generateTempRefId, getVendors,
-  canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
+  canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME, fmtDMY,
 } from "../lib/store";
 
 const ACCOUNT_TYPES = ["Current Account", "Savings Account", "Overdraft (OD)", "Cash Credit (CC)"];
