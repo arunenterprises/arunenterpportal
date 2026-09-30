@@ -319,8 +319,18 @@ export default function BillProcessing() {
   };
 
   const handleSubmit = () => {
-    if (bill.step >= 4) { toast.error("Already at final approval stage"); return; }
+    if (bill.step >= 5) { toast.error("Already in Payment Due List"); return; }
     if (!validate()) return;
+    // Re-Submit after reopen (record is at step 4 with revision > 0) — just save & log, awaiting Re-Approval
+    if (bill.step === 4 && (bill.revision || 0) > 0) {
+      const history = Array.isArray(bill.history) ? bill.history : [];
+      history.push({ action: "Re-Submitted", by: currentUser(), at: new Date().toISOString() });
+      const saved = upsertBill({ ...bill, history, submittedAt: new Date().toISOString() });
+      setBill(saved);
+      toast.success(`Re-Submitted (Rev ${bill.revision}) · Awaiting Re-Approval`);
+      return;
+    }
+    if (bill.step === 4) { toast.info("Awaiting Final Approval — click Approve"); return; }
     const req = requiredForStep(bill.step);
     if (req && !String(bill[req.field] || "").trim()) {
       toast.error(`Enter '${req.label}' first`); return;
@@ -412,7 +422,7 @@ export default function BillProcessing() {
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
           labels={{ new: "New Bill", save: "Save Bill", print: "Print" }}
-          disabled={{ submit: bill.step >= 4, approve: bill.step !== 4 }}
+          disabled={{ submit: bill.step >= 5, approve: bill.step !== 4 }}
         />
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 

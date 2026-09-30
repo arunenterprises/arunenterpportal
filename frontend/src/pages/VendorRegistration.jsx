@@ -138,13 +138,21 @@ export default function VendorRegistration() {
   };
   const handleSubmit = () => {
     const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
-    if (curStep !== 1) {
-      toast.error(curStep === 3 ? "Already approved" : "Already submitted for checking");
-      return;
-    }
+    const isReSubmit = curStep === 2 && (vendor.revision || 0) > 0;
+    if (curStep === 3) { toast.error("Already approved — click Edit to reopen for changes"); return; }
     if (!validateStep1()) return;
     if (!vendor.tempRefId) { toast.error("Please Save the record first — Temp Ref ID is required"); return; }
     if (!(vendor.checkedByName || "").trim()) { toast.error("Enter 'Checked By (Name)' in Step 2 section"); return; }
+    if (isReSubmit) {
+      // Re-Submit after reopen — record is at step 2 with revision > 0, awaiting Re-Approval.
+      const history = Array.isArray(vendor.history) ? vendor.history : [];
+      history.push({ action: "Re-Submitted", by: currentUser(), at: new Date().toISOString() });
+      const saved = upsertVendor({ ...vendor, history, submittedAt: new Date().toISOString() });
+      setVendor(saved);
+      toast.success(`Re-Submitted (Rev ${vendor.revision}) · Awaiting Re-Approval`);
+      return;
+    }
+    if (curStep !== 1) { toast.error("Already submitted for checking"); return; }
     const next = advanceVendorStep({ ...vendor, step: curStep });
     setVendor(next);
     toast.success("Submitted for Checking & Verification");
@@ -215,7 +223,7 @@ export default function VendorRegistration() {
           onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
-          disabled={{ submit: vendor.step !== 1, approve: vendor.step !== 2 && vendor.step !== 3 }}
+          disabled={{ submit: vendor.step === 3, approve: vendor.step === 3 && !((vendor.revision || 0) > 0) }}
         />
         <VendorQueryModal
           open={queryOpen}

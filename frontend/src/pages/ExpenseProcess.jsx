@@ -91,8 +91,17 @@ export default function ExpenseProcess() {
   const handleSubmit = () => {
     const step = Number(expense.step) || 1;
     if (step >= 4) { toast.info("Already approved"); return; }
-    if (step === 3) { toast.error("Use Final Approval to approve"); return; }
     if (!validate()) return;
+    // Re-Submit after reopen — record is at step 3 with revision > 0, awaiting Re-Approval
+    if (step === 3 && (expense.revision || 0) > 0) {
+      const history = Array.isArray(expense.history) ? expense.history : [];
+      history.push({ action: "Re-Submitted", by: currentUser(), at: new Date().toISOString() });
+      const saved = upsertExpense({ ...expense, history, submittedAt: new Date().toISOString() });
+      setExpense(saved); setRefresh((n) => n + 1);
+      toast.success(`Re-Submitted (Rev ${expense.revision}) · Awaiting Re-Approval`);
+      return;
+    }
+    if (step === 3) { toast.error("Use Final Approval to approve"); return; }
     if (step === 1 && !expense.preparedByName.trim()) { toast.error("Enter 'Prepared By' name"); return; }
     if (step === 2 && !expense.checkedByName.trim()) { toast.error("Enter 'Checked By' name"); return; }
     const next = advanceExpenseStep({ ...expense });

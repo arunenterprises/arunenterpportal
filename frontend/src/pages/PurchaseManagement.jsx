@@ -86,9 +86,17 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
   const handleSubmit = () => {
     if (!writeAllowed) { toast.error("Not permitted"); return; }
     if (!saved) handleSave();
+    // Re-Submit after reopen — BOQ was pushed back below step 3 with revision > 0
+    if (Number(boq.step) < 3 && (boq.revision || 0) > 0) {
+      const next = upsertBOQ({ ...boq, submittedDate: new Date().toISOString().slice(0, 10) });
+      setBoq(next); setLocked(true); refresh();
+      toast.success(`BOQ ${next.boqNo || next.tempRefId} re-submitted (Rev ${boq.revision})`);
+      return;
+    }
+    if (Number(boq.step) >= 3) { toast.info("Already submitted"); return; }
     const next = advanceBOQStep({ ...boq, step: Math.max(boq.step, 2) });
     setBoq(next); setLocked(true); refresh();
-    toast.success(`BOQ ${next.boqNo} submitted to Accounts (${BOQ_STEP_LABEL[next.step]})`);
+    toast.success(`BOQ ${next.boqNo || next.tempRefId} submitted to Accounts (${BOQ_STEP_LABEL[next.step]})`);
   };
   const handleApprove = () => {
     if (!approveAllowed) { toast.error("Only Admin / SuperAdmin can approve"); return; }
