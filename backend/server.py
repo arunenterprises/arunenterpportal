@@ -302,7 +302,8 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "payments": await _list_collection("payments"),
         "expenses": await _list_collection("expenses"),
         "boqs": await _list_collection("boqs"),
-        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0},
+        "work_orders": await _list_collection("work_orders"),
+        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
     }
 
@@ -372,6 +373,28 @@ async def upsert_boq(body: Dict = Body(...), user: Dict = Depends(get_current_us
 @api_router.delete("/boqs/{bid}")
 async def delete_boq(bid: str, user: Dict = Depends(get_current_user)):
     r = await db.boqs.delete_one({"id": bid})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
+# ==================== WORK ORDERS (Purchase Management) ====================
+@api_router.get("/work_orders")
+async def list_wos(user: Dict = Depends(get_current_user)):
+    return await _list_collection("work_orders")
+
+
+@api_router.post("/work_orders")
+async def upsert_wo(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    wid = body.get("id")
+    if not wid:
+        raise HTTPException(status_code=400, detail="id is required")
+    body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.work_orders.update_one({"id": wid}, {"$set": body}, upsert=True)
+    return {"ok": True, "id": wid}
+
+
+@api_router.delete("/work_orders/{wid}")
+async def delete_wo(wid: str, user: Dict = Depends(get_current_user)):
+    r = await db.work_orders.delete_one({"id": wid})
     return {"ok": True, "deleted": r.deleted_count}
 
 

@@ -7,14 +7,23 @@ import HomeNavBar from "../components/HomeNavBar";
 import {
   currentRole, canCreate, canApprove,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL,
+  getWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL,
+  UNITS_DEFAULT, fmtDMY, getVendors,
 } from "../lib/store";
 
 const TABS = [
   { id: "boq", title: "BOQ", subtitle: "Bill of Quantity", icon: ClipboardList, color: "#0ea5e9" },
-  { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#16a34a", route: "/bill" },
+  { id: "wo", title: "Work Order", subtitle: "WO Creation (4-step)", icon: FileText, color: "#16a34a" },
   { id: "billing", title: "Billing", subtitle: "Vendor Bill Submission", icon: Receipt, color: "#f59e0b", route: "/bill" },
   { id: "expense", title: "Expense", subtitle: "Petty Cash / Reimbursement", icon: Wallet, color: "#7c3aed", route: "/expense" },
 ];
+
+// Shared datalist for units. Users can type any custom unit that isn't listed.
+const UnitDataList = () => (
+  <datalist id="ae-units">
+    {UNITS_DEFAULT.map((u) => <option key={u} value={u} />)}
+  </datalist>
+);
 
 const BOQEditor = ({ writeAllowed, approveAllowed }) => {
   const [boq, setBoq] = useState(null);
@@ -114,7 +123,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
           <div><label>Client Name</label><input data-testid="boq-client" value={boq.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
           <div><label>Reference No.</label><input data-testid="boq-ref" value={boq.refNo} onChange={(e) => set("refNo", e.target.value)} disabled={locked} /></div>
           <div><label>Prepared By</label><input data-testid="boq-prepared" value={boq.preparedBy} onChange={(e) => set("preparedBy", e.target.value)} disabled={locked} /></div>
-          <div><label>Submitted Date</label><input data-testid="boq-submitted" value={boq.submittedDate || "—"} readOnly style={{ background: "#f8fafc" }} /></div>
+          <div><label>Submitted Date</label><input data-testid="boq-submitted" value={boq.submittedDate ? fmtDMY(boq.submittedDate) : "—"} readOnly style={{ background: "#f8fafc" }} /></div>
           <div><label>Status</label><input data-testid="boq-status" value={BOQ_STEP_LABEL[boq.step] || "-"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
         </div>
       </div>
@@ -153,9 +162,15 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                     <input data-testid={`boq-qty-${idx}`} type="number" step="any" value={it.qty} onChange={(e) => setItem(idx, "qty", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} />
                   </td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}>
-                    <select data-testid={`boq-unit-${idx}`} value={it.unit} onChange={(e) => setItem(idx, "unit", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }}>
-                      {["Nos", "Kg", "Mtr", "Sq.Mtr", "Cu.Mtr", "Lump", "Tonne", "Ltr", "Hour", "Day"].map((u) => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <input
+                      data-testid={`boq-unit-${idx}`}
+                      list="ae-units"
+                      value={it.unit}
+                      onChange={(e) => setItem(idx, "unit", e.target.value)}
+                      disabled={locked}
+                      placeholder="Type or pick…"
+                      style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }}
+                    />
                   </td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}>
                     <input data-testid={`boq-rate-${idx}`} type="number" step="any" value={it.rate} onChange={(e) => setItem(idx, "rate", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} />
@@ -251,7 +266,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
             <div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}>
               <b style={{ fontSize: 12 }}>Approved By</b>
               <div style={{ fontSize: 11, marginTop: 2, color: "#166534", fontWeight: 700 }}>{boq.approvedByName || "—"}</div>
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{boq.approvalDate ? `Date: ${boq.approvalDate}` : "General Manager / Admin"}</div>
+              <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{boq.approvalDate ? `Date: ${fmtDMY(boq.approvalDate)}` : "General Manager / Admin"}</div>
             </div>
           </div>
         </div>
@@ -362,10 +377,310 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{b.clientName || "—"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "right" }}>₹ {Number(b.total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{BOQ_STEP_LABEL[b.step] || "-"}</td>
-                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{b.date || "—"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{fmtDMY(b.date) || "—"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}>
                       <button data-testid={`boq-search-open-${b.id}`} onClick={() => loadBOQ(b)} style={{ padding: "4px 10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10.5, fontWeight: 700 }}>Open</button>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// Work Order Editor — 4-step flow (Draft → Prepared → Submitted → Approved)
+// WO No is issued only on approval (AEWO####{FY}). Expiry date auto-set +1 yr.
+// ============================================================================
+const WOEditor = ({ writeAllowed, approveAllowed }) => {
+  const [wo, setWo] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [list, setList] = useState([]);
+  const [boqs, setBoqs] = useState([]);
+  const [vendors, setVendors] = useState([]);
+
+  const refresh = () => { setList(getWOs()); setBoqs(getBOQs()); setVendors(getVendors().filter((v) => v.step === 3)); };
+  useEffect(() => { refresh(); }, []);
+
+  const startNew = (fromBoq = null) => {
+    const draft = createWODraft(fromBoq);
+    setWo(draft); setSaved(false); setLocked(false);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!wo) startNew(); }, []);
+
+  const set = (k, v) => setWo((p) => ({ ...p, [k]: v }));
+  const setItem = (idx, k, v) => setWo((p) => {
+    const items = [...(p.items || [])];
+    items[idx] = { ...items[idx], [k]: v };
+    if (k === "qty" || k === "rate") {
+      items[idx].amount = +(Number(items[idx].qty || 0) * Number(items[idx].rate || 0)).toFixed(2);
+    }
+    return { ...p, items, total: items.reduce((s, it) => s + (Number(it.amount) || 0), 0) };
+  });
+  const addRow = () => setWo((p) => ({
+    ...p,
+    items: [...(p.items || []), { id: `it_${Date.now()}`, description: "", qty: 0, unit: "Nos", rate: 0, amount: 0 }],
+  }));
+  const delRow = (idx) => setWo((p) => {
+    const items = (p.items || []).filter((_, i) => i !== idx);
+    return { ...p, items, total: items.reduce((s, it) => s + (Number(it.amount) || 0), 0) };
+  });
+
+  const pickBoq = (boqId) => {
+    if (!boqId) { set("boqRefId", ""); set("boqRefNo", ""); return; }
+    const b = boqs.find((x) => x.id === boqId);
+    if (!b) return;
+    setWo((p) => ({
+      ...p,
+      boqRefId: b.id,
+      boqRefNo: b.boqNo,
+      projectSite: p.projectSite || b.projectSite,
+      clientName: p.clientName || b.clientName,
+      items: (b.items && b.items.length > 0)
+        ? b.items.map((it) => ({ id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, description: it.description, qty: it.qty, unit: it.unit, rate: it.rate, amount: it.amount }))
+        : p.items,
+      total: (b.items && b.items.length > 0) ? b.items.reduce((s, it) => s + Number(it.amount || 0), 0) : p.total,
+    }));
+    toast.success(`Auto-filled from BOQ ${b.boqNo}`);
+  };
+
+  const pickVendor = (vcode) => {
+    if (!vcode) { set("vendorCode", ""); set("vendorName", ""); return; }
+    const v = vendors.find((x) => x.vendorCode === vcode);
+    if (!v) return;
+    setWo((p) => ({
+      ...p,
+      vendorCode: v.vendorCode,
+      vendorName: v.firmName || v.vendorName || "",
+    }));
+    toast.success(`Vendor ${v.vendorCode} selected`);
+  };
+
+  const onAttach = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 500 * 1024) { toast.error("File must be ≤ 500 KB"); return; }
+    const r = new FileReader();
+    r.onload = () => { setWo((p) => ({ ...p, attachmentData: r.result, attachmentName: f.name })); };
+    r.readAsDataURL(f);
+    e.target.value = "";
+  };
+  const downloadAttachment = () => {
+    if (!wo.attachmentData) { toast.error("No attachment"); return; }
+    const a = document.createElement("a");
+    a.href = wo.attachmentData; a.download = wo.attachmentName || "wo-attachment";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  const handleSave = () => {
+    if (!wo.boqRefId) { toast.error("Select BOQ Reference"); return; }
+    if (!wo.vendorCode) { toast.error("Select Vendor Code"); return; }
+    if (!wo.items?.length || wo.items.every((x) => !x.description.trim())) { toast.error("Add at least one line item"); return; }
+    const s = upsertWO({ ...wo });
+    setWo(s); setSaved(true); refresh();
+    toast.success("Work Order draft saved");
+  };
+  const handleSubmit = () => {
+    if (!writeAllowed) { toast.error("Not permitted"); return; }
+    if (!saved) handleSave();
+    const next = advanceWOStep({ ...wo, step: Math.max(wo.step, 2) });
+    setWo(next); setLocked(true); refresh();
+    toast.success(`Work Order submitted (${WO_STEP_LABEL[next.step]})`);
+  };
+  const handleApprove = () => {
+    if (!approveAllowed) { toast.error("Only Admin / SuperAdmin can approve"); return; }
+    const stepUpTo3 = advanceWOStep({ ...wo, step: Math.max(wo.step, 2) });
+    const done = advanceWOStep(stepUpTo3);
+    setWo(done); refresh();
+    toast.success(`Work Order ${done.woNo} issued & approved by ${done.approvedByName}`);
+  };
+  const handlePrint = () => window.print();
+  const loadWO = (w) => { setWo(w); setSaved(true); setLocked(w.step >= 3); };
+
+  if (!wo) return null;
+
+  return (
+    <div style={{ marginTop: 12 }} data-testid="wo-editor">
+      {/* A. WO Details */}
+      <div className="section">
+        <div className="sec-head">A. Work Order Details</div>
+        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          <div><label>WO No. (auto on approval)</label><input data-testid="wo-no" value={wo.woNo || "— will be issued on approval —"} readOnly style={{ background: "#eef2ff", fontWeight: 700, color: wo.woNo ? "#166534" : "#64748b" }} /></div>
+          <div><label>WO Date</label><input data-testid="wo-date" type="date" value={wo.woDate} onChange={(e) => set("woDate", e.target.value)} disabled={locked} /></div>
+          <div><label>Expiry Date {wo.woNo ? "(locked)" : "*"}</label><input data-testid="wo-expiry" type="date" value={wo.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} disabled={locked || wo.step >= 4} min={wo.woDate || undefined} /></div>
+          <div><label>Status</label><input data-testid="wo-status" value={WO_STEP_LABEL[wo.step] || "-"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
+
+          <div>
+            <label>BOQ Reference * (auto-fill from)</label>
+            <select data-testid="wo-boqref" value={wo.boqRefId} onChange={(e) => pickBoq(e.target.value)} disabled={locked}>
+              <option value="">— Select BOQ —</option>
+              {boqs.map((b) => (
+                <option key={b.id} value={b.id}>{b.boqNo} · {b.projectSite}</option>
+              ))}
+            </select>
+          </div>
+          <div><label>BOQ Ref No. (auto)</label><input data-testid="wo-boqrefno" value={wo.boqRefNo || "—"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
+          <div><label>Project / Site</label><input data-testid="wo-project" value={wo.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} /></div>
+          <div><label>Client Name</label><input data-testid="wo-client" value={wo.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
+
+          <div>
+            <label>Vendor Code * (approved only)</label>
+            <select data-testid="wo-vendor-select" value={wo.vendorCode} onChange={(e) => pickVendor(e.target.value)} disabled={locked}>
+              <option value="">— Select Vendor —</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.vendorCode}>{v.vendorCode} · {v.firmName}</option>
+              ))}
+            </select>
+          </div>
+          <div><label>Vendor Name (auto)</label><input data-testid="wo-vendor" value={wo.vendorName} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
+          <div><label>GST Slab (%)</label><input data-testid="wo-gst" type="number" value={wo.gstSlab} onChange={(e) => set("gstSlab", Number(e.target.value))} disabled={locked} /></div>
+          <div><label>Retention (%)</label><input data-testid="wo-ret" type="number" value={wo.retentionPct} onChange={(e) => set("retentionPct", Number(e.target.value))} disabled={locked} /></div>
+        </div>
+      </div>
+
+      {/* B. Scope + Line items */}
+      <div className="section">
+        <div className="sec-head">B. Scope of Work</div>
+        <div className="sec-body">
+          <textarea data-testid="wo-scope" value={wo.scopeOfWork} onChange={(e) => set("scopeOfWork", e.target.value)} disabled={locked} placeholder="Describe scope, deliverables, exclusions…" style={{ width: "100%", minHeight: 60, padding: 8, border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} />
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>C. Line Items (auto from BOQ, editable)</span>
+          {!locked && (
+            <button data-testid="wo-add-row" onClick={addRow} style={{ padding: "4px 10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <Plus size={12} /> Add Row
+            </button>
+          )}
+        </div>
+        <div className="sec-body">
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: "#f1f5f9" }}>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 40 }}>#</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", textAlign: "left" }}>Description</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 80 }}>Qty</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 90 }}>Unit</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 110 }}>Rate (₹)</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 130 }}>Amount (₹)</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 50 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {(wo.items || []).map((it, idx) => (
+                <tr key={it.id} data-testid={`wo-row-${idx}`}>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "center" }}>{idx + 1}</td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-desc-${idx}`} value={it.description} onChange={(e) => setItem(idx, "description", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }} /></td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-qty-${idx}`} type="number" step="any" value={it.qty} onChange={(e) => setItem(idx, "qty", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} /></td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-unit-${idx}`} list="ae-units" value={it.unit} onChange={(e) => setItem(idx, "unit", e.target.value)} disabled={locked} placeholder="Type or pick…" style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }} /></td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-rate-${idx}`} type="number" step="any" value={it.rate} onChange={(e) => setItem(idx, "rate", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} /></td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 700 }}>{Number(it.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "center" }}>{!locked && (<button data-testid={`wo-del-${idx}`} onClick={() => delRow(idx)} style={{ background: "transparent", border: "none", color: "#dc2626", cursor: "pointer" }}><Trash2 size={13} /></button>)}</td>
+                </tr>
+              ))}
+              <tr style={{ background: "#f8fafc" }}>
+                <td colSpan={5} style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 800 }}>TOTAL WO VALUE</td>
+                <td style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 800 }} data-testid="wo-total">₹ {computeWOTotal(wo).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={{ border: "1px solid #cbd5e1" }} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* D. Terms & Conditions */}
+      <div className="section">
+        <div className="sec-head">D. Terms &amp; Conditions</div>
+        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><label>Payment Terms</label><textarea data-testid="wo-pay-terms" value={wo.paymentTerms} onChange={(e) => set("paymentTerms", e.target.value)} disabled={locked} style={{ width: "100%", minHeight: 44, padding: 6, border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} /></div>
+          <div><label>Delivery Terms</label><textarea data-testid="wo-del-terms" value={wo.deliveryTerms} onChange={(e) => set("deliveryTerms", e.target.value)} disabled={locked} style={{ width: "100%", minHeight: 44, padding: 6, border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} /></div>
+          <div><label>Penalty Clause</label><textarea data-testid="wo-penalty" value={wo.penaltyClause} onChange={(e) => set("penaltyClause", e.target.value)} disabled={locked} style={{ width: "100%", minHeight: 44, padding: 6, border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} /></div>
+          <div><label>Warranty Clause</label><textarea data-testid="wo-warranty" value={wo.warrantyClause} onChange={(e) => set("warrantyClause", e.target.value)} disabled={locked} style={{ width: "100%", minHeight: 44, padding: 6, border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label>General Terms &amp; Conditions</label><textarea data-testid="wo-terms" value={wo.termsAndConditions} onChange={(e) => set("termsAndConditions", e.target.value)} disabled={locked} style={{ width: "100%", minHeight: 90, padding: 6, border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12 }} /></div>
+        </div>
+      </div>
+
+      {/* E. Attachment + Approval */}
+      <div className="section">
+        <div className="sec-head">E. Attachment &amp; Approval</div>
+        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div>
+            <label>WO Attachment (PDF · ≤ 500 KB)</label>
+            {!locked && (
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, marginTop: 4 }}>
+                <Paperclip size={12} /> Upload
+                <input data-testid="wo-attach" type="file" accept="application/pdf,image/*" style={{ display: "none" }} onChange={onAttach} />
+              </label>
+            )}
+            {wo.attachmentName && (
+              <div style={{ marginTop: 6, fontSize: 11, display: "flex", gap: 8, alignItems: "center" }}>
+                📎 {wo.attachmentName}
+                <a href={wo.attachmentData} target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>View</a>
+                <button onClick={downloadAttachment} data-testid="wo-attach-download" style={{ padding: "2px 8px", fontSize: 10, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontWeight: 700 }}>⬇ Download</button>
+              </div>
+            )}
+          </div>
+          <div><label>Approved By (GM / Admin)</label><input data-testid="wo-approved-by" value={wo.approvedByName || ""} readOnly placeholder="Auto-filled on Approval" style={{ background: "#f8fafc", fontWeight: 700, color: "#166534" }} /></div>
+          <div><label>Approval Date</label><input data-testid="wo-approval-date" value={wo.approvalDate ? fmtDMY(wo.approvalDate) : ""} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
+        </div>
+      </div>
+
+      {/* F. Signatures */}
+      <div className="section">
+        <div className="sec-head">F. Signatures</div>
+        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, padding: "20px 14px" }}>
+          <div style={{ textAlign: "center" }}><div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}><b style={{ fontSize: 12 }}>Prepared By</b><div style={{ fontSize: 11 }}>{wo.preparedBy || "—"}</div><div style={{ fontSize: 10, color: "#64748b" }}>Purchase Department</div></div></div>
+          <div style={{ textAlign: "center" }}><div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}><b style={{ fontSize: 12 }}>Checked By</b><div style={{ fontSize: 11 }}>{wo.step >= 2 ? "________________" : "—"}</div><div style={{ fontSize: 10, color: "#64748b" }}>Accounts Department</div></div></div>
+          <div style={{ textAlign: "center" }}><div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}><b style={{ fontSize: 12 }}>Approved By</b><div style={{ fontSize: 11, color: "#166534", fontWeight: 700 }}>{wo.approvedByName || "—"}</div><div style={{ fontSize: 10, color: "#64748b" }}>{wo.approvalDate ? `Date: ${fmtDMY(wo.approvalDate)}` : "General Manager / Admin"}</div></div></div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button data-testid="wo-btn-new" onClick={() => startNew()} style={{ padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><FilePlus2 size={13} /> New</button>
+        <button data-testid="wo-btn-save" onClick={handleSave} disabled={!writeAllowed || locked} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Save size={13} /> Save</button>
+        <button data-testid="wo-btn-submit" onClick={handleSubmit} disabled={!writeAllowed || locked || wo.step >= 3} style={{ padding: "8px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && wo.step < 3 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Send size={13} /> Submit</button>
+        <button data-testid="wo-btn-approve" onClick={handleApprove} disabled={!approveAllowed || wo.step < 3 || wo.step >= 4} style={{ padding: "8px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed && wo.step >= 3 && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>Final Approval (issue WO No.)</button>
+        <button data-testid="wo-btn-print" onClick={handlePrint} style={{ padding: "8px 14px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Printer size={13} /> Print</button>
+      </div>
+
+      {/* All WOs list */}
+      {list.length > 0 && (
+        <div className="section" style={{ marginTop: 14 }}>
+          <div className="sec-head">G. All Work Orders ({list.length})</div>
+          <div className="sec-body" style={{ padding: 0 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
+              <thead>
+                <tr style={{ background: "#f1f5f9" }}>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>WO No.</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>BOQ Ref</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Vendor</th>
+                  <th style={{ padding: 6, textAlign: "right", border: "1px solid #cbd5e1" }}>Total</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Expiry</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Status</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Approved By</th>
+                  <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 60 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((w) => (
+                  <tr key={w.id} data-testid={`wo-list-row-${w.id}`}>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", fontWeight: 700, color: w.woNo ? "#166534" : "#94a3b8" }}>{w.woNo || "— draft —"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{w.boqRefNo || "—"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{w.vendorName || "—"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "right" }}>₹ {Number(w.total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{fmtDMY(w.expiryDate) || "—"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{WO_STEP_LABEL[w.step] || "-"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", color: "#166534", fontWeight: 700 }}>{w.approvedByName || "—"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}><button onClick={() => loadWO(w)} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Open</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -432,6 +747,8 @@ export default function PurchaseManagement() {
           </div>
 
           {activeTab.id === "boq" && <BOQEditor writeAllowed={write} approveAllowed={approve} />}
+          {activeTab.id === "wo" && <WOEditor writeAllowed={write} approveAllowed={approve} />}
+          <UnitDataList />
         </div>
       </div>
     </>

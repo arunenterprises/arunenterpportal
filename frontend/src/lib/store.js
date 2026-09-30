@@ -1,6 +1,6 @@
 // LocalStorage-backed data store for Vendor Management (+ cloud sync via /api)
 import {
-  apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiUpsertBOQ, apiPushPayments,
+  apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
@@ -11,6 +11,7 @@ const KEYS = {
   PAYMENTS: "ae_vm_payments",
   EXPENSES: "ae_vm_expenses",
   BOQS: "ae_vm_boqs",
+  WOS: "ae_vm_work_orders",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
@@ -159,8 +160,7 @@ export const upsertExpense = (e) => {
 
 export const advanceExpenseStep = (e) => {
   const next = { ...e };
-  const me = read(KEYS.AUTH, null);
-  const approver = (me?.name || me?.user || "").trim();
+  const approver = _me();
   if (next.step < 4) {
     next.step += 1;
     if (next.step === 4) {
@@ -207,7 +207,7 @@ export const createBOQDraft = () => {
     total: 0,
     attachmentName: "",
     attachmentData: "",
-    preparedBy: (read(KEYS.AUTH, null)?.name) || (read(KEYS.AUTH, null)?.user) || "",
+    preparedBy: _me(),
     submittedDate: "",
     remarks: "",
     createdAt: new Date().toISOString(),
@@ -233,8 +233,7 @@ export const upsertBOQ = (b) => {
 
 export const advanceBOQStep = (b) => {
   const next = { ...b };
-  const me = read(KEYS.AUTH, null);
-  const approver = (me?.name || me?.user || "").trim();
+  const approver = _me();
   if (next.step < 4) {
     next.step += 1;
     if (next.step === 3 && !next.submittedDate) {
@@ -248,9 +247,131 @@ export const advanceBOQStep = (b) => {
   return upsertBOQ(next);
 };
 
+// ---- Work Orders (Purchase Management) ----
+export const WO_STEP_LABEL = {
+  1: "1. Draft (Create)",
+  2: "2. Prepared",
+  3: "3. Submitted (→ Accounts / GM)",
+  4: "4. Approved (WO No. issued)",
+};
+
+const buildWONo = (serial) => `AE${String(serial).padStart(6, "0")}JV${getFY()}`;
+export const UNITS_DEFAULT = ["Nos", "Kg", "Mtr", "Sq.Mtr", "Cu.Mtr", "Lump", "Tonne", "Ltr", "Hour", "Day", "Set", "Roll", "Box", "Bag", "Job"];
+
+export const getWOs = () => read(KEYS.WOS, []);
+export const saveWOs = (list) => write(KEYS.WOS, list);
+
+export const createWODraft = (fromBoq = null) => {
+  const nowIso = new Date().toISOString();
+  const today = new Date().toISOString().slice(0, 10);
+  const exp = new Date();
+  exp.setFullYear(exp.getFullYear() + 1);
+  const items = fromBoq && Array.isArray(fromBoq.items) && fromBoq.items.length > 0
+    ? fromBoq.items.map((it) => ({ id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, description: it.description, qty: it.qty, unit: it.unit, rate: it.rate, amount: it.amount }))
+    : [{ id: `it_${Date.now()}`, description: "", qty: 0, unit: "Nos", rate: 0, amount: 0 }];
+  return {
+    id: `wo_${Date.now()}`,
+    // WO No is issued only on approval
+    woNo: "",
+    woSerial: 0,
+    step: 1,
+    woDate: today,
+    expiryDate: exp.toISOString().slice(0, 10),
+    boqRefId: fromBoq?.id || "",
+    boqRefNo: fromBoq?.boqNo || "",
+    projectSite: fromBoq?.projectSite || "",
+    clientName: fromBoq?.clientName || "",
+    vendorCode: "",
+    vendorName: "",
+    scopeOfWork: "",
+    items,
+    total: items.reduce((s, it) => s + (Number(it.amount) || 0), 0),
+    gstSlab: 18,
+    paymentTerms: "50% advance on WO issue, 50% on completion",
+    deliveryTerms: "Delivery at site within 30 days of WO date",
+    retentionPct: 5,
+    penaltyClause: "1% per week delay, max 10% of total value",
+    warrantyClause: "12 months warranty from date of commissioning",
+    termsAndConditions: "1. Prices are inclusive of packing & forwarding.\n2. Rates are firm and no escalation is allowed.\n3. All statutory taxes shall be extra as applicable.\n4. Any dispute shall be subject to Prayagraj jurisdiction.\n5. Vendor to submit tax invoice as per GST regulations.",
+    attachmentName: "",
+    attachmentData: "",
+    preparedBy: _me(),
+    submittedDate: "",
+    approvedByName: "",
+    approvalDate: "",
+    remarks: "",
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+};
+
+export const computeWOTotal = (w) => {
+  const items = Array.isArray(w.items) ? w.items : [];
+  return items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+};
+
+export const upsertWO = (w) => {
+  const list = getWOs();
+  const idx = list.findIndex((x) => x.id === w.id);
+  w.updatedAt = new Date().toISOString();
+  w.total = computeWOTotal(w);
+  if (idx >= 0) list[idx] = w; else list.push(w);
+  saveWOs(list);
+  if (getToken()) apiUpsertWO(w).catch(() => {});
+  return w;
+};
+
+export const advanceWOStep = (w) => {
+  const next = { ...w };
+  const approver = _me();
+  if (next.step < 4) {
+    next.step += 1;
+    if (next.step === 3 && !next.submittedDate) {
+      next.submittedDate = new Date().toISOString().slice(0, 10);
+    }
+    if (next.step === 4) {
+      // Issue permanent Work Order number + fresh expiry from approval date
+      const c = getCounters();
+      c.woSerial = (c.woSerial || 0) + 1;
+      saveCounters(c);
+      next.woSerial = c.woSerial;
+      next.woNo = buildWONo(c.woSerial);
+      const approvalDate = new Date();
+      next.approvalDate = approvalDate.toISOString().slice(0, 10);
+      if (!next.expiryDate) {
+        const exp = new Date(approvalDate);
+        exp.setFullYear(exp.getFullYear() + 1);
+        next.expiryDate = exp.toISOString().slice(0, 10);
+      }
+      if (approver) next.approvedByName = approver;
+    }
+  }
+  return upsertWO(next);
+};
+
+export const reapproveWO = (w) => {
+  const next = { ...w, approvedByName: _me(), approvalDate: new Date().toISOString().slice(0, 10), reapprovedAt: new Date().toISOString() };
+  return upsertWO(next);
+};
+
+// ---- Date formatting helper ----
+// Convert an ISO YYYY-MM-DD (or full ISO) to DD/MM/YYYY for display.
+// Returns "" if input is falsy; returns raw value if unparseable.
+export const fmtDMY = (iso) => {
+  if (!iso) return "";
+  const s = String(iso).slice(0, 10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+};
+
 // ---- Re-approval helpers (bump approver name + approvalDate on already-approved items) ----
+// Auto-fill approver name ONLY for SuperAdmin / Admin — for User/Viewer/GM/etc we save empty
+// (approval gating already blocks non-approvers, but this ensures the DB field also stays clean).
 const _me = () => {
   const p = read(KEYS.AUTH, null) || {};
+  const role = isSuperAdmin(p.user) ? "SuperAdmin" : (p.role || "User");
+  if (role !== "SuperAdmin" && role !== "Admin") return "";
   return (p.name || p.user || "").trim();
 };
 export const reapproveVendor = (v) => {
@@ -384,8 +505,7 @@ export const findVendorByCode = (code) => {
 
 export const advanceVendorStep = (v) => {
   const next = { ...v };
-  const me = read(KEYS.AUTH, null);
-  const approver = (me?.name || me?.user || "").trim();
+  const approver = _me();
   if (next.step === 1) {
     next.step = 2;
   } else if (next.step === 2) {
@@ -492,8 +612,7 @@ export const upsertBill = (b) => {
 
 export const advanceBillStep = (b) => {
   const next = { ...b };
-  const me = read(KEYS.AUTH, null);
-  const approver = (me?.name || me?.user || "").trim();
+  const approver = _me();
   if (next.step < 5) {
     next.step += 1;
     if (next.step === 5) {
@@ -649,12 +768,14 @@ export const syncFromCloud = async () => {
   if (Array.isArray(snap.payments)) write(KEYS.PAYMENTS, snap.payments);
   if (Array.isArray(snap.expenses)) write(KEYS.EXPENSES, snap.expenses);
   if (Array.isArray(snap.boqs)) write(KEYS.BOQS, snap.boqs);
+  if (Array.isArray(snap.work_orders)) write(KEYS.WOS, snap.work_orders);
   if (snap.counters) write(KEYS.COUNTERS, {
     vendorSerial: snap.counters.vendorSerial || 0,
     billSerial: snap.counters.billSerial || 0,
     pvSerial: snap.counters.pvSerial || 0,
     expenseSerial: snap.counters.expenseSerial || 0,
     boqSerial: snap.counters.boqSerial || 0,
+    woSerial: snap.counters.woSerial || 0,
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
   return snap;

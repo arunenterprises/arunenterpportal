@@ -66,6 +66,12 @@ export const apiDeleteBOQ = (id) =>
   req(`/boqs/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const apiListBOQs = () => req("/boqs");
 
+export const apiUpsertWO = (w) =>
+  req("/work_orders", { method: "POST", body: JSON.stringify(w) });
+export const apiDeleteWO = (id) =>
+  req(`/work_orders/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const apiListWOs = () => req("/work_orders");
+
 export const apiPushPayments = (items) =>
   req("/payments/bulk", { method: "POST", body: JSON.stringify({ items }) });
 
