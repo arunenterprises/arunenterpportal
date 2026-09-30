@@ -509,22 +509,24 @@ export const currentRole = () => {
   return (p.role || "User");
 };
 
-// Departmental permission helpers.
-// - canCreate: allowed to New/Save/Edit/Submit inside a department page
-// - canApprove: allowed to Final Approval / Re-Approval on a department page
-// - canView: allowed to open the department at all
+// Two-tier permission model (as per user rules):
+// - User / Purchase / Accounts / GM (creator-tier): Create / Edit / Submit / Download
+// - Admin / SuperAdmin (approver-tier): everything above + Final Approval / Re-Approval
+// - Viewer: read-only + download
 export const canCreate = () => {
   const r = currentRole();
-  return ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts"].includes(r);
+  return r !== "Viewer";
 };
-export const canApproveAccounts = () => {
+export const canEdit = () => canCreate();
+export const canSubmit = () => canCreate();
+export const canDownload = () => true; // everyone (including Viewer) can download
+export const canApprove = () => {
   const r = currentRole();
-  return ["SuperAdmin", "Admin", "GM", "Accounts"].includes(r);
+  return ["SuperAdmin", "Admin"].includes(r);
 };
-export const canApproveGM = () => {
-  const r = currentRole();
-  return ["SuperAdmin", "Admin", "GM"].includes(r);
-};
+// Backward-compat aliases used by older code paths
+export const canApproveAccounts = () => canApprove();
+export const canApproveGM = () => canApprove();
 export const isReadOnly = () => currentRole() === "Viewer";
 
 // ---- Cloud Sync helpers ----

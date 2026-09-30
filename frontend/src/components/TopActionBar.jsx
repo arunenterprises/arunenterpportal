@@ -7,7 +7,7 @@ import {
   FileSearch,
 } from "lucide-react";
 import { toast } from "sonner";
-import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo, isSuperAdmin } from "../lib/store";
+import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo, isSuperAdmin, canApprove, canCreate, isReadOnly, currentRole } from "../lib/store";
 
 export const TopActionBar = ({
   searchPlaceholder = "Vendor Code / ID / Name",
@@ -80,6 +80,21 @@ export const TopActionBar = ({
     toast.success("Logo removed");
   };
   const doLogout = () => { logout(); navigate("/login"); };
+  const roleAllowsApprove = canApprove();
+  const roleAllowsWrite = canCreate();
+  const readOnly = isReadOnly();
+  const roleTag = currentRole();
+
+  // Merge caller-supplied `disabled` with role-based gates. Role wins if it says NO.
+  const gated = {
+    new: disabled.new || !roleAllowsWrite,
+    save: disabled.save || !roleAllowsWrite,
+    edit: disabled.edit || !roleAllowsWrite,
+    submit: disabled.submit || !roleAllowsWrite,
+    approve: disabled.approve || !roleAllowsApprove,
+    export: disabled.export || false, // everyone can export/download
+    print: disabled.print || false,
+  };
 
   return (
     <div className={`top-action ${variant === "dark" ? "dark" : ""}`} data-testid="top-action-bar">
@@ -106,19 +121,19 @@ export const TopActionBar = ({
         </button>
       )}
 
-      <button className="btn-color btn-new" data-testid="btn-new" disabled={disabled.new} onClick={onNew}>
+      <button className="btn-color btn-new" data-testid="btn-new" disabled={gated.new} onClick={onNew} title={gated.new && !roleAllowsWrite ? `${roleTag}: create not allowed` : undefined}>
         <FilePlus2 size={14} /><span className="lbl">{labels.new || "New"}</span>
       </button>
-      <button className="btn-color btn-save" data-testid="btn-save" disabled={disabled.save} onClick={onSave}>
+      <button className="btn-color btn-save" data-testid="btn-save" disabled={gated.save} onClick={onSave} title={gated.save && !roleAllowsWrite ? `${roleTag}: save not allowed` : undefined}>
         <Save size={14} /><span className="lbl">{labels.save || "Save"}</span>
       </button>
-      <button className="btn-color btn-edit" data-testid="btn-edit" disabled={disabled.edit} onClick={onEdit}>
+      <button className="btn-color btn-edit" data-testid="btn-edit" disabled={gated.edit} onClick={onEdit} title={gated.edit && !roleAllowsWrite ? `${roleTag}: edit not allowed` : undefined}>
         <Pencil size={14} /><span className="lbl">{labels.edit || "Edit"}</span>
       </button>
-      <button className="btn-color btn-submit" data-testid="btn-submit" disabled={disabled.submit} onClick={onSubmit}>
+      <button className="btn-color btn-submit" data-testid="btn-submit" disabled={gated.submit} onClick={onSubmit} title={gated.submit && !roleAllowsWrite ? `${roleTag}: submit not allowed` : undefined}>
         <Send size={14} /><span className="lbl">{labels.submit || "Submit"}</span>
       </button>
-      <button className="btn-color btn-approve" data-testid="btn-approve" disabled={disabled.approve} onClick={onApprove}>
+      <button className="btn-color btn-approve" data-testid="btn-approve" disabled={gated.approve} onClick={onApprove} title={gated.approve && !roleAllowsApprove ? `${roleTag}: only Admin/SuperAdmin can approve` : undefined}>
         <CheckCircle2 size={14} /><span className="lbl">{labels.approve || "Final Approval"}</span>
       </button>
 
