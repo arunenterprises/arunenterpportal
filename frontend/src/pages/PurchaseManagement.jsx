@@ -201,7 +201,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
             <thead>
               <tr style={{ background: "#f1f5f9" }}>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 40 }}>#</th>
-                <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Description</th>
+                <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1" }}>Description</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 80 }}>Qty</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 80 }}>Unit</th>
                 <th style={{ padding: 6, textAlign: "right", border: "1px solid #cbd5e1", width: 110 }}>Rate (₹)</th>
