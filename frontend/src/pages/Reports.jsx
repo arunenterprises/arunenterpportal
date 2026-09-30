@@ -409,7 +409,47 @@ export default function Reports() {
           {/* Aging & GST-TDS Register (conditional simple tables) */}
           {reportsTab === "aging" && (
             <div className="section" data-testid="reports-aging">
-              <div className="sec-head">Aging Report — Outstanding Balances by Bucket</div>
+              <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Aging Report — Outstanding Balances by Bucket</span>
+                <button
+                  data-testid="btn-export-aging"
+                  onClick={() => {
+                    const buckets = { "0–30 days": [], "31–60 days": [], "61–90 days": [], "90+ days": [] };
+                    const now = new Date();
+                    dueRows.forEach((r) => {
+                      if (r.balance <= 0) return;
+                      const due = r.dueDate ? new Date(r.dueDate) : now;
+                      const days = Math.floor((now - due) / (1000 * 60 * 60 * 24));
+                      const key = days <= 30 ? "0–30 days" : days <= 60 ? "31–60 days" : days <= 90 ? "61–90 days" : "90+ days";
+                      buckets[key].push(r);
+                    });
+                    const summary = Object.entries(buckets).map(([bucket, rows]) => ({
+                      Bucket: bucket,
+                      "Bill Count": rows.length,
+                      "Outstanding (₹)": rows.reduce((s, r) => s + r.balance, 0).toFixed(2),
+                    }));
+                    const detail = Object.entries(buckets).flatMap(([bucket, rows]) => rows.map((r) => ({
+                      Bucket: bucket,
+                      "Ref No": r.refNo,
+                      Vendor: r.vendorName,
+                      "Bill No": r.billNo,
+                      "Bill Date": r.billDate,
+                      "Due Date": r.dueDate,
+                      Net: r.net.toFixed(2),
+                      Paid: r.paid.toFixed(2),
+                      Balance: r.balance.toFixed(2),
+                    })));
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "Aging Summary");
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detail), "Aging Detail");
+                    XLSX.writeFile(wb, `AE-Aging-${today}.xlsx`);
+                    toast.success("Aging report exported");
+                  }}
+                  style={{ padding: "4px 10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                >
+                  ⬇ Excel
+                </button>
+              </div>
               <div className="sec-body" style={{ padding: 0 }}>
                 <table className="data-table">
                   <thead><tr><th>Bucket</th><th style={{ textAlign: "right" }}>Bills</th><th style={{ textAlign: "right" }}>Outstanding</th></tr></thead>
@@ -440,7 +480,39 @@ export default function Reports() {
 
           {reportsTab === "gsttds" && (
             <div className="section" data-testid="reports-gsttds">
-              <div className="sec-head">GST-TDS Register — Approved Bills</div>
+              <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>GST-TDS Register — Approved Bills</span>
+                <button
+                  data-testid="btn-export-gsttds"
+                  onClick={() => {
+                    const rows = approvedBills.map((b) => {
+                      const c = computeBill(b);
+                      const v = b.vendorSnapshot || vendors.find((x) => x.vendorCode === b.vendorCode) || {};
+                      return {
+                        "Ref No": b.permanentBillNo || b.refNo,
+                        Vendor: v.firmName || b.vendorCode,
+                        "GST No": v.gstNo || "",
+                        PAN: v.panNo || "",
+                        "Basic (₹)": c.basic.toFixed(2),
+                        "GST (₹)": c.gst.toFixed(2),
+                        "TDS (₹)": c.tds.toFixed(2),
+                        "Net (₹)": c.netPayable.toFixed(2),
+                        "GST Slab %": b.gstSlab,
+                        "TDS Rate %": b.tdsRate,
+                        "Bill Date": b.billDate,
+                        "Approval Date": b.approvalDate || "",
+                      };
+                    });
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "GST-TDS Register");
+                    XLSX.writeFile(wb, `AE-GST-TDS-Register-${today}.xlsx`);
+                    toast.success("GST-TDS register exported");
+                  }}
+                  style={{ padding: "4px 10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700 }}
+                >
+                  ⬇ Excel
+                </button>
+              </div>
               <div className="sec-body" style={{ padding: 0 }}>
                 <table className="data-table">
                   <thead><tr>

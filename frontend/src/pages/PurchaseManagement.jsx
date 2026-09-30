@@ -21,6 +21,8 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
   const [saved, setSaved] = useState(false);
   const [locked, setLocked] = useState(false);
   const [list, setList] = useState([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const refresh = () => setList(getBOQs());
   useEffect(() => { refresh(); }, []);
@@ -85,7 +87,18 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
     toast.success(`BOQ ${next.boqNo} approved by ${next.approvedByName || "Admin"}`);
   };
   const handlePrint = () => window.print();
-  const loadBOQ = (b) => { setBoq(b); setSaved(true); setLocked(b.step >= 3); };
+  const loadBOQ = (b) => { setBoq(b); setSaved(true); setLocked(b.step >= 3); setSearchOpen(false); };
+
+  const filteredSearchList = () => {
+    const q = (searchQuery || "").trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((b) =>
+      (b.boqNo || "").toLowerCase().includes(q) ||
+      (b.projectSite || "").toLowerCase().includes(q) ||
+      (b.clientName || "").toLowerCase().includes(q) ||
+      (b.refNo || "").toLowerCase().includes(q)
+    );
+  };
 
   if (!boq) return null;
 
@@ -184,10 +197,18 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               </label>
             )}
             {boq.attachmentName && (
-              <div style={{ marginTop: 6, fontSize: 11, color: "#0f172a" }} data-testid="boq-attach-name">
+              <div style={{ marginTop: 6, fontSize: 11, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }} data-testid="boq-attach-name">
                 📎 {boq.attachmentName}
                 {" "}
                 <a href={boq.attachmentData} target="_blank" rel="noopener noreferrer" style={{ color: "#1d4ed8" }}>View</a>
+                <button
+                  type="button"
+                  onClick={downloadAttachment}
+                  data-testid="boq-attach-download"
+                  style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 700 }}
+                >
+                  ⬇ Download
+                </button>
               </div>
             )}
           </div>
@@ -238,6 +259,9 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
 
       {/* Actions */}
       <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button data-testid="boq-btn-search" onClick={() => setSearchOpen(true)} style={{ padding: "8px 14px", background: "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          🔍 Search BOQ
+        </button>
         <button data-testid="boq-btn-new" onClick={startNew} style={{ padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
           <FilePlus2 size={13} /> New
         </button>
@@ -283,6 +307,64 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", color: "#166534", fontWeight: 700 }}>{b.approvedByName || "—"}</td>
                     <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}>
                       <button onClick={() => loadBOQ(b)} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Open</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* BOQ Search Modal */}
+      {searchOpen && (
+        <div
+          data-testid="boq-search-modal"
+          onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(15,23,42,.55)",
+            zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div style={{ background: "#fff", borderRadius: 8, padding: 18, minWidth: 720, maxWidth: 960, maxHeight: "80vh", overflow: "auto", boxShadow: "0 20px 40px rgba(0,0,0,.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", letterSpacing: .3 }}>🔍 Search Bill of Quantities</div>
+              <button onClick={() => setSearchOpen(false)} data-testid="boq-search-close" style={{ padding: "4px 10px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>✕ Close</button>
+            </div>
+            <input
+              data-testid="boq-search-input"
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="BOQ number / project / client / reference no."
+              style={{ width: "100%", padding: "10px 12px", fontSize: 13, border: "1px solid #cbd5e1", borderRadius: 5 }}
+            />
+            <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>{filteredSearchList().length} of {list.length} match</div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, marginTop: 8 }}>
+              <thead>
+                <tr style={{ background: "#f1f5f9" }}>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>BOQ No.</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Project</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Client</th>
+                  <th style={{ padding: 6, textAlign: "right", border: "1px solid #cbd5e1" }}>Total</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Status</th>
+                  <th style={{ padding: 6, textAlign: "left", border: "1px solid #cbd5e1" }}>Date</th>
+                  <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 70 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSearchList().length === 0 ? (
+                  <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#94a3b8", border: "1px solid #cbd5e1" }}>No BOQ found</td></tr>
+                ) : filteredSearchList().map((b) => (
+                  <tr key={b.id} data-testid={`boq-search-row-${b.id}`}>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", fontWeight: 700 }}>{b.boqNo}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{b.projectSite}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{b.clientName || "—"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "right" }}>₹ {Number(b.total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{BOQ_STEP_LABEL[b.step] || "-"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1" }}>{b.date || "—"}</td>
+                    <td style={{ padding: 5, border: "1px solid #cbd5e1", textAlign: "center" }}>
+                      <button data-testid={`boq-search-open-${b.id}`} onClick={() => loadBOQ(b)} style={{ padding: "4px 10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10.5, fontWeight: 700 }}>Open</button>
                     </td>
                   </tr>
                 ))}

@@ -760,39 +760,65 @@ export default function BillProcessing() {
               </div>
               <div className="row cols-1" style={{ marginTop: 10 }}>
                 <F label="Vendor Bill / Invoice Copy (PDF / Image · Max 500 KB)">
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     {!bill.invoiceFile ? (
-                      <input
-                        type="file"
-                        accept="application/pdf,image/*"
-                        onChange={handleInvoiceFile}
-                        disabled={locked}
-                        data-testid="invoice-file-input"
-                        style={{ flex: 1, padding: "4px 6px", fontSize: 10.5, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff", minWidth: 0 }}
-                      />
+                      <label
+                        data-testid="invoice-file-label"
+                        style={{
+                          flex: 1,
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "10px 14px",
+                          background: "#fffbeb",
+                          border: "1.5px dashed #fbbf24",
+                          borderRadius: 6,
+                          cursor: locked ? "not-allowed" : "pointer",
+                          opacity: locked ? 0.55 : 1,
+                          fontWeight: 600, fontSize: 12, color: "#78350f",
+                          letterSpacing: .3,
+                          minWidth: 0,
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>🧾</span>
+                        <span style={{ flex: 1 }}>Click to attach Vendor Invoice (PDF / Image · Max 500 KB)</span>
+                        <span style={{ padding: "4px 10px", background: "#f59e0b", color: "#fff", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>Choose file</span>
+                        <input
+                          type="file"
+                          accept="application/pdf,image/*"
+                          onChange={handleInvoiceFile}
+                          disabled={locked}
+                          data-testid="invoice-file-input"
+                          style={{ display: "none" }}
+                        />
+                      </label>
                     ) : (
                       <>
                         <a
                           href={bill.invoiceFile.dataUrl} target="_blank" rel="noreferrer"
                           data-testid="invoice-file-link"
-                          style={{ flex: 1, padding: "6px 10px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 4, fontWeight: 600, fontSize: 11, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}
+                          style={{ flex: 1, padding: "10px 14px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 6, fontWeight: 700, fontSize: 12, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}
                           title={`${bill.invoiceFile.name} · ${Math.round(bill.invoiceFile.size / 1024)}KB`}
                         >
-                          🧾 {bill.invoiceFile.name}
+                          <span style={{ fontSize: 16 }}>🧾</span>
+                          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{bill.invoiceFile.name}</span>
+                          <span style={{ fontSize: 10, color: "#a16207", fontWeight: 500 }}>{Math.round(bill.invoiceFile.size / 1024)} KB</span>
                         </a>
                         <button
                           type="button"
                           onClick={() => downloadDataUrl(bill.invoiceFile.dataUrl, bill.invoiceFile.name)}
                           data-testid="invoice-file-download"
                           title="Download Invoice"
-                          style={{ padding: "5px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 700, flex: "0 0 auto" }}
+                          style={{ padding: "8px 14px", fontSize: 11, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 5, cursor: "pointer", fontWeight: 700, flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 4 }}
                         >
                           ⬇ Download
                         </button>
                         {!locked && (
-                          <button type="button" onClick={removeInvoiceFile} data-testid="invoice-file-remove"
-                            style={{ padding: "5px 10px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600, flex: "0 0 auto" }}>
-                            Remove
+                          <button
+                            type="button"
+                            onClick={removeInvoiceFile}
+                            data-testid="invoice-file-remove"
+                            style={{ padding: "8px 12px", fontSize: 11, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 5, cursor: "pointer", fontWeight: 700, flex: "0 0 auto" }}
+                          >
+                            ✕ Remove
                           </button>
                         )}
                       </>
