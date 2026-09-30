@@ -694,7 +694,7 @@ export default function BillProcessing() {
                             value={r.hsn || ""}
                             onChange={(e) => updateItem(r.id, { hsn: e.target.value.replace(/[^0-9]/g, "").slice(0, 8) })}
                             readOnly={locked} data-testid={`item-hsn-${i}`}
-                            className="num" />
+                            style={{ textAlign: "center" }} />
                         </td>
                         <td>
                           <input type="number" step="0.01" min="0" placeholder="0"
