@@ -12,8 +12,8 @@ import {
 } from "../lib/store";
 
 const TABS = [
-  { id: "boq", title: "BOQ", subtitle: "Bill of Quantity", icon: ClipboardList, color: "#0ea5e9" },
-  { id: "wo", title: "Work Order", subtitle: "WO Creation (4-step)", icon: FileText, color: "#16a34a" },
+  { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#0ea5e9" },
+  { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#16a34a" },
   { id: "billing", title: "Billing", subtitle: "Vendor Bill Submission", icon: Receipt, color: "#f59e0b", route: "/bill" },
   { id: "expense", title: "Expense", subtitle: "Petty Cash / Reimbursement", icon: Wallet, color: "#7c3aed", route: "/expense" },
 ];
