@@ -893,6 +893,13 @@ export const canApprove = () => {
   const r = currentRole();
   return ["SuperAdmin", "Admin"].includes(r);
 };
+// Deleting an already-approved (step >= 4) document is a destructive action
+// reserved for SuperAdmin and Admin role only. Per-user permission overrides
+// cannot grant this capability — role is the sole gate.
+export const canDeleteApproved = () => {
+  const r = currentRole();
+  return r === "SuperAdmin" || r === "Admin";
+};
 // Backward-compat aliases used by older code paths
 export const canApproveAccounts = () => canApprove();
 export const canApproveGM = () => canApprove();

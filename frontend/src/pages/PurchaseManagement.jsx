@@ -6,7 +6,7 @@ import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash
 import HomeNavBar from "../components/HomeNavBar";
 import { printWorkOrder } from "../lib/woPrint";
 import {
-  currentRole, canCreate, canApprove,
+  currentRole, canCreate, canApprove, canDeleteApproved,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
   getWOs, saveWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL, deleteWO,
   UNITS_DEFAULT, fmtDMY, getVendors, amountToWords,
@@ -806,6 +806,38 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
               📥 Download WO (PDF for Vendor)
             </button>
           )}
+          {wo.id && (Number(wo.step) < 4
+            ? writeAllowed
+            : canDeleteApproved()
+          ) && (
+            <button
+              data-testid="wo-btn-delete-current"
+              onClick={() => {
+                const approved = Number(wo.step) >= 4;
+                if (approved && !canDeleteApproved()) { toast.error("Only Admin / SuperAdmin can delete Approved WO"); return; }
+                if (!approved && !writeAllowed) { toast.error("Not permitted"); return; }
+                const label = wo.woNo || wo.boqRefNo || wo.vendorName || "this WO";
+                const msg = approved
+                  ? `⚠ DANGER: Delete APPROVED Work Order "${label}"?\n\nThis permanently removes an issued WO and cannot be undone.\n\nType-less confirm — Press OK only if you are absolutely sure.`
+                  : `Delete Work Order "${label}"?`;
+                if (!window.confirm(msg)) return;
+                deleteWO(wo.id);
+                toast.success(approved ? "Approved WO deleted (admin override)" : "Work Order deleted");
+                setList(getWOs());
+                startNew();
+              }}
+              title={Number(wo.step) >= 4 ? "Admin override — delete Approved WO" : "Delete this WO"}
+              style={{
+                padding: "7px 12px",
+                background: Number(wo.step) >= 4 ? "#991b1b" : "#dc2626",
+                color: "#fff", border: "none", borderRadius: 5, cursor: "pointer",
+                fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5,
+                boxShadow: Number(wo.step) >= 4 ? "0 1px 3px rgba(153,27,27,.4)" : "0 1px 3px rgba(220,38,38,.3)",
+              }}
+            >
+              <Trash2 size={13} /> {Number(wo.step) >= 4 ? "Delete (Admin Override)" : "Delete WO"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -843,27 +875,38 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                       <button
                         data-testid={`wo-list-delete-${w.id}`}
                         onClick={() => {
-                          if (!writeAllowed) { toast.error("Not permitted"); return; }
-                          if (Number(w.step) >= 4) { toast.error("Approved Work Order delete nahi kar sakte"); return; }
-                          if (!window.confirm(`Delete Work Order ${w.woNo || w.boqRefNo || w.vendorName || ""}?`)) return;
+                          const approved = Number(w.step) >= 4;
+                          if (approved && !canDeleteApproved()) { toast.error("Only Admin / SuperAdmin can delete Approved WO"); return; }
+                          if (!approved && !writeAllowed) { toast.error("Not permitted"); return; }
+                          const label = w.woNo || w.boqRefNo || w.vendorName || "";
+                          const msg = approved
+                            ? `⚠ DANGER: Delete APPROVED Work Order ${label}?\n\nThis permanently removes an issued WO and cannot be undone.\n\nPress OK only if you are absolutely sure.`
+                            : `Delete Work Order ${label}?`;
+                          if (!window.confirm(msg)) return;
                           deleteWO(w.id);
-                          toast.success("Work Order deleted");
+                          toast.success(approved ? "Approved WO deleted (admin override)" : "Work Order deleted");
                           setList(getWOs());
                           if (wo && wo.id === w.id) startNew();
                         }}
-                        title={Number(w.step) >= 4 ? "Approved WO cannot be deleted" : "Delete this WO"}
-                        disabled={!writeAllowed || Number(w.step) >= 4}
+                        title={Number(w.step) >= 4 ? (canDeleteApproved() ? "Admin override — delete Approved WO" : "Only Admin / SuperAdmin can delete Approved WO") : "Delete this WO"}
+                        disabled={Number(w.step) >= 4 ? !canDeleteApproved() : !writeAllowed}
                         style={{
                           padding: "3px 8px",
-                          background: (!writeAllowed || Number(w.step) >= 4) ? "#f1f5f9" : "#fee2e2",
-                          color: (!writeAllowed || Number(w.step) >= 4) ? "#94a3b8" : "#991b1b",
-                          border: `1px solid ${(!writeAllowed || Number(w.step) >= 4) ? "#cbd5e1" : "#fca5a5"}`,
+                          background: (Number(w.step) >= 4
+                            ? (canDeleteApproved() ? "#991b1b" : "#f1f5f9")
+                            : (writeAllowed ? "#fee2e2" : "#f1f5f9")),
+                          color: (Number(w.step) >= 4
+                            ? (canDeleteApproved() ? "#fff" : "#94a3b8")
+                            : (writeAllowed ? "#991b1b" : "#94a3b8")),
+                          border: `1px solid ${(Number(w.step) >= 4
+                            ? (canDeleteApproved() ? "#991b1b" : "#cbd5e1")
+                            : (writeAllowed ? "#fca5a5" : "#cbd5e1"))}`,
                           borderRadius: 3,
-                          cursor: (!writeAllowed || Number(w.step) >= 4) ? "not-allowed" : "pointer",
+                          cursor: (Number(w.step) >= 4 ? !canDeleteApproved() : !writeAllowed) ? "not-allowed" : "pointer",
                           fontSize: 10, fontWeight: 700,
                         }}
                       >
-                        🗑 Delete
+                        🗑 {Number(w.step) >= 4 && canDeleteApproved() ? "Delete (Admin)" : "Delete"}
                       </button>
                     </td>
                   </tr>
