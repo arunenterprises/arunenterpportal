@@ -11,7 +11,7 @@ const COMPANY = {
   website: "www.arunenterprises.com.in",
   email: "info@arunenterprises.online",
   gstin: "09ABWFM0611J1ZY",
-  pan: "ABWFM0611Z",
+  pan: "ABWFM0611J",
 };
 const SIGNATORY = { name: "K.L. Srivastava", designation: "Director" };
 
