@@ -540,7 +540,7 @@ export default function BillProcessing() {
                   <datalist id="wo-approved-list">
                     {approvedWOs.map((w) => (
                       <option key={w.id} value={w.woNo}>
-                        {w.vendorName || w.vendorCode || ""} · {w.projectSite || ""} · ₹{Number(w.total || 0).toLocaleString("en-IN")}
+                        {`${w.vendorName || w.vendorCode || ""} · ${w.projectSite || ""} · ₹${Number(w.total || 0).toLocaleString("en-IN")}`}
                       </option>
                     ))}
                   </datalist>
@@ -792,7 +792,7 @@ export default function BillProcessing() {
                 </F>
                 <F label="GST Slab">
                   <select {...bind("gstSlab")}>
-                    {GST_SLABS.map((s) => <option key={s} value={s}>{s}%</option>)}
+                    {GST_SLABS.map((s) => <option key={s} value={s}>{`${s}%`}</option>)}
                   </select>
                 </F>
               </div>
@@ -805,7 +805,7 @@ export default function BillProcessing() {
                 </F>
                 <F label="TDS Rate">
                   <select {...bind("tdsRate")}>
-                    {[0, 1, 2, 5, 10].map((r) => <option key={r} value={r}>{r}%</option>)}
+                    {[0, 1, 2, 5, 10].map((r) => <option key={r} value={r}>{`${r}%`}</option>)}
                   </select>
                 </F>
                 <F label={`TDS / Retention Deduction (${bill.tdsRate}%)`}>

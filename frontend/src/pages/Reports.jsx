@@ -780,11 +780,9 @@ export default function Reports() {
                     <option value="">Select approved bill</option>
                     {approvedBills.map((b) => {
                       const exists = vouchersByBill[b.id];
+                      const label = `${b.permanentBillNo || b.refNo} · ${b.vendorSnapshot?.firmName || b.vendorCode} · ₹${computeBill(b).netPayable}${exists ? `  ✓ Voucher: ${exists.pvNo}` : ""}`;
                       return (
-                        <option key={b.id} value={b.id} disabled={!!exists}>
-                          {b.permanentBillNo || b.refNo} · {b.vendorSnapshot?.firmName || b.vendorCode} · ₹{computeBill(b).netPayable}
-                          {exists ? `  ✓ Voucher: ${exists.pvNo}` : ""}
-                        </option>
+                        <option key={b.id} value={b.id} disabled={!!exists}>{label}</option>
                       );
                     })}
                   </select>
@@ -816,13 +814,13 @@ export default function Reports() {
                     }}
                     disabled={approvedPayments.length === 0}
                   >
-                    <option value="__ALL__">All Approved Vouchers ({approvedPayments.length})</option>
+                    <option value="__ALL__">{`All Approved Vouchers (${approvedPayments.length})`}</option>
                     {selectedPvs.size > 1 && (
-                      <option value="__MULTI__">Multiple Selected ({selectedPvs.size}) · via row checkboxes</option>
+                      <option value="__MULTI__">{`Multiple Selected (${selectedPvs.size}) · via row checkboxes`}</option>
                     )}
                     {approvedPayments.map((p) => (
                       <option key={p.pvNo} value={p.pvNo}>
-                        {p.pvNo} · {p.vendorName || p.vendorCode} · ₹{Number(p.amount || 0).toFixed(2)}
+                        {`${p.pvNo} · ${p.vendorName || p.vendorCode} · ₹${Number(p.amount || 0).toFixed(2)}`}
                       </option>
                     ))}
                   </select>

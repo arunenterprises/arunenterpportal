@@ -285,7 +285,7 @@ export default function ExpenseProcess() {
               </F>
               <F label="GST Slab (%)">
                 <select {...bind("gstSlab")}>
-                  {GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}
+                  {GST_SLABS.map((g) => <option key={g} value={g}>{`${g}%`}</option>)}
                 </select>
               </F>
               <F label="TDS Rate (%)">

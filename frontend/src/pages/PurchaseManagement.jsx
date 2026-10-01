@@ -180,7 +180,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               <option value="">— None —</option>
               {vendors.map((v) => (
                 <option key={v.id} value={v.vendorCode}>
-                  {v.vendorCode} · {v.firmName}
+                  {`${v.vendorCode} · ${v.firmName}`}
                 </option>
               ))}
             </select>
@@ -648,7 +648,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
             <select data-testid="wo-boqref" value={wo.boqRefId} onChange={(e) => pickBoq(e.target.value)} disabled={locked}>
               <option value="">— Select BOQ —</option>
               {boqs.map((b) => (
-                <option key={b.id} value={b.id}>{b.boqNo} · {b.projectSite}</option>
+                <option key={b.id} value={b.id}>{`${b.boqNo} · ${b.projectSite}`}</option>
               ))}
             </select>
           </div>
@@ -662,7 +662,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
               <option value="">— Select Vendor —</option>
               {vendors.map((v) => (
                 <option key={v.id} value={v.vendorCode}>
-                  {v.vendorCode} · {v.firmName}{v.gstNo ? ` · GST ${v.gstNo}` : ""}{v.contactPerson ? ` · ${v.contactPerson}` : ""}
+                  {`${v.vendorCode} · ${v.firmName}${v.gstNo ? ` · GST ${v.gstNo}` : ""}${v.contactPerson ? ` · ${v.contactPerson}` : ""}`}
                 </option>
               ))}
             </select>

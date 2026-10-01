@@ -290,7 +290,7 @@ const PayrollTab = () => {
       <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Employee:</label>
         <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} style={{ padding: 5 }}>
-          {emps.map((e) => <option key={e.id} value={e.id}>{e.empCode} — {e.fullName}</option>)}
+          {emps.map((e) => <option key={e.id} value={e.id}>{`${e.empCode} — ${e.fullName}`}</option>)}
         </select>
         <select value={month} onChange={(e) => setMonth(+e.target.value)} style={{ padding: 5 }}>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString("en-IN", { month: "long" })}</option>)}
