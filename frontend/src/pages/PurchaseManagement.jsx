@@ -6,11 +6,44 @@ import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash
 import HomeNavBar from "../components/HomeNavBar";
 import { printWorkOrder } from "../lib/woPrint";
 import {
-  currentRole, canCreate, canApprove, canDeleteApproved,
+  currentRole, canCreate, canApprove, canDeleteApproved, currentUserProfile, currentUser,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
   getWOs, saveWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL, deleteWO,
   UNITS_DEFAULT, fmtDMY, getVendors, amountToWords,
 } from "../lib/store";
+
+// Append a WO deletion audit entry so admin overrides are traceable.
+const logWODeletion = (w, approved) => {
+  try {
+    const prof = currentUserProfile() || {};
+    const actorName = prof.name || prof.user || currentUser() || "Unknown";
+    const actorEmail = prof.user || "";
+    const actorRole = currentRole() || "User";
+    const entry = {
+      at: new Date().toISOString(),
+      woId: w.id,
+      woNo: w.woNo || "",
+      boqRefNo: w.boqRefNo || "",
+      vendorName: w.vendorName || "",
+      vendorCode: w.vendorCode || "",
+      total: Number(w.total) || 0,
+      step: Number(w.step) || 0,
+      wasApproved: !!approved,
+      actorName,
+      actorEmail,
+      actorRole,
+    };
+    const KEY = "ae_vm_wo_delete_log";
+    const prev = JSON.parse(localStorage.getItem(KEY) || "[]");
+    prev.push(entry);
+    // Keep latest 500 entries max to avoid runaway growth
+    const trimmed = prev.slice(-500);
+    localStorage.setItem(KEY, JSON.stringify(trimmed));
+    return { actorName, actorRole };
+  } catch {
+    return { actorName: currentUser() || "Unknown", actorRole: currentRole() || "User" };
+  }
+};
 
 const TABS = [
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#0ea5e9" },
@@ -872,8 +905,13 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                   ? `⚠ DANGER: Delete APPROVED Work Order "${label}"?\n\nThis permanently removes an issued WO and cannot be undone.\n\nType-less confirm — Press OK only if you are absolutely sure.`
                   : `Delete Work Order "${label}"?`;
                 if (!window.confirm(msg)) return;
+                const audit = logWODeletion(wo, approved);
                 deleteWO(wo.id);
-                toast.success(approved ? "Approved WO deleted (admin override)" : "Work Order deleted");
+                toast.success(
+                  approved
+                    ? `Approved WO "${label}" deleted by ${audit.actorRole} (${audit.actorName})`
+                    : `Work Order deleted by ${audit.actorRole} (${audit.actorName})`
+                );
                 setList(getWOs());
                 startNew();
               }}
@@ -934,8 +972,13 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                             ? `⚠ DANGER: Delete APPROVED Work Order ${label}?\n\nThis permanently removes an issued WO and cannot be undone.\n\nPress OK only if you are absolutely sure.`
                             : `Delete Work Order ${label}?`;
                           if (!window.confirm(msg)) return;
+                          const audit = logWODeletion(w, approved);
                           deleteWO(w.id);
-                          toast.success(approved ? "Approved WO deleted (admin override)" : "Work Order deleted");
+                          toast.success(
+                            approved
+                              ? `Approved WO ${label} deleted by ${audit.actorRole} (${audit.actorName})`
+                              : `Work Order deleted by ${audit.actorRole} (${audit.actorName})`
+                          );
                           setList(getWOs());
                           if (wo && wo.id === w.id) startNew();
                         }}
