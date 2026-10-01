@@ -798,30 +798,12 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
           <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print PDF (A4)</button>
           {wo.step >= 4 && (
             <button
-              data-testid="wo-btn-portal"
-              onClick={async () => {
-                const list = getWOs();
-                const idx = list.findIndex((x) => x.id === wo.id);
-                if (idx < 0) { toast.error("Save WO first"); return; }
-                const updated = { ...list[idx], vendorPortalPublished: true, vendorPortalPublishedAt: new Date().toISOString() };
-                list[idx] = updated;
-                saveWOs(list);
-                setWo(updated);
-                // Push to shared backend so the vendor's public-link view can fetch it
-                try {
-                  const { apiUpsertWO } = await import("../lib/api");
-                  await apiUpsertWO(updated);
-                } catch (e) {
-                  toast.error("Published locally but cloud sync failed — vendor may not see it. Check connection.");
-                  return;
-                }
-                const url = `https://vendor-portal-458.emergent.host/vendor-portal/wo/${wo.id}`;
-                try { await navigator.clipboard?.writeText(url); } catch {}
-                toast.success(`Vendor portal link copied: ${url}`);
-              }}
-              style={{ padding: "7px 12px", background: wo.vendorPortalPublished ? "#059669" : "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(8,145,178,.3)" }}
+              data-testid="wo-btn-download-pdf"
+              onClick={() => printWorkOrder(wo)}
+              title="Open printable A4 Work Order — use 'Save as PDF' in the print dialog, then share with the vendor"
+              style={{ padding: "7px 12px", background: "linear-gradient(135deg,#0891b2 0%,#4f46e5 100%)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 1px 3px rgba(8,145,178,.35)" }}
             >
-              📤 {wo.vendorPortalPublished ? "Portal Live · Copy Link" : "Publish to Vendor Portal"}
+              📥 Download WO (PDF for Vendor)
             </button>
           )}
         </div>
