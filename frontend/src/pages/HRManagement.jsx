@@ -1523,11 +1523,11 @@ const IDCardTab = () => {
   .lanyard { position: absolute; top: 3mm; left: 50%; transform: translateX(-50%); width: 10mm; height: 2.2mm; background: #0f172a; border-radius: 2mm; z-index: 5; }
   /* FRONT */
   .front .content { position: relative; z-index: 2; padding-top: 15mm; display: flex; flex-direction: column; align-items: center; height: 100%; }
-  .front .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; box-shadow: 0 1mm 2mm rgba(0,0,0,.15); border: 0.4mm solid #fff; }
+  .front .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; box-shadow: 0 1mm 2.5mm rgba(0,0,0,.3); border: 0.4mm solid #fff; }
   .front .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
-  .front .cn { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; color: #0f172a; margin-top: 1.5mm; }
-  .front .tag { font-size: 6.5px; font-weight: 700; letter-spacing: .4px; color: #dc2626; margin-top: 1px; }
-  .front .photo-ring { margin-top: 4mm; width: 32mm; height: 38mm; border-radius: 2mm; border: 0.6mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #64748b; font-weight: 700; box-shadow: 0 0.5mm 1.5mm rgba(30,58,138,.2); }
+  .front .cn { font-size: 13px; font-weight: 900; letter-spacing: 1.5px; color: #0f172a; margin-top: 2mm; }
+  .front .tag { font-size: 8px; font-weight: 900; letter-spacing: .5px; color: #dc2626; margin-top: 1px; }
+  .front .photo-ring { margin-top: 4mm; width: 38mm; height: 46mm; border-radius: 2mm; border: 0.7mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #64748b; font-weight: 700; box-shadow: 0 0.6mm 1.8mm rgba(30,58,138,.25); }
   .front .name { font-size: 13px; font-weight: 900; letter-spacing: 1px; color: #1e3a8a; margin-top: 2.5mm; text-align: center; padding: 0 6px; }
   .front .desig { font-size: 9px; font-weight: 800; color: #dc2626; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1mm; text-align: center; }
   .front .rule { width: 20mm; height: 1px; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 2mm auto; }
@@ -1671,12 +1671,12 @@ const IDCardTab = () => {
             <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
             {/* Content */}
             <div style={{ position: "relative", zIndex: 3, paddingTop: 54, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-              <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,.12)", border: "2px solid #fff" }}>
+              <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.25)", border: "2px solid #fff" }}>
                 <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
               </div>
-              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.4, color: "#0f172a", marginTop: 6 }}>ARUN ENTERPRISES</div>
-              <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .3, color: "#dc2626", marginTop: 1 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
-              <div style={{ marginTop: 12, width: 110, height: 128, borderRadius: 6, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#64748b", fontWeight: 700, boxShadow: "0 1px 4px rgba(30,58,138,.2)" }}>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1.5, color: "#0f172a", marginTop: 7 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: .5, color: "#dc2626", marginTop: 2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+              <div style={{ marginTop: 10, width: 130, height: 155, borderRadius: 6, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b", fontWeight: 700, boxShadow: "0 2px 6px rgba(30,58,138,.25)" }}>
                 {emp.photoUrl ? "" : "PHOTO"}
               </div>
               <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, color: "#1e3a8a", marginTop: 8, textAlign: "center", padding: "0 6px" }}>{(emp.fullName || "—").toUpperCase()}</div>
