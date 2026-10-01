@@ -451,10 +451,15 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
             startNew();
           }} title={Number(boq.step) >= 4 ? "Admin override — delete Approved BOQ" : "Delete this BOQ"} style={{
             padding: "8px 14px",
-            background: Number(boq.step) >= 4 ? "#991b1b" : "#dc2626",
+            background: Number(boq.step) >= 4
+              ? "linear-gradient(135deg, #7c2d12 0%, #450a0a 100%)"
+              : "linear-gradient(135deg, #ec4899 0%, #be185d 100%)",
             color: "#fff", border: "none", borderRadius: 5, cursor: "pointer",
             fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6,
-            boxShadow: Number(boq.step) >= 4 ? "0 1px 3px rgba(153,27,27,.4)" : "0 1px 3px rgba(220,38,38,.3)",
+            boxShadow: Number(boq.step) >= 4
+              ? "0 2px 6px rgba(69,10,10,.45)"
+              : "0 2px 6px rgba(190,24,93,.4)",
+            textShadow: "0 1px 1px rgba(0,0,0,.15)",
           }}>
             <Trash2 size={13} /> {Number(boq.step) >= 4 ? "Delete (Admin Override)" : "Delete BOQ"}
           </button>
