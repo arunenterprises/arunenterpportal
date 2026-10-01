@@ -9,7 +9,7 @@ const COMPANY = {
   address: "209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011",
   phone: "9429694552",
   website: "www.arunenterprises.com.in",
-  email: "arunenterprises2023@gmail.com",
+  email: "info@arunenterprises.online",
   gstin: "09ABWFM0611J1ZY",
   pan: "ABWFM0611Z",
 };

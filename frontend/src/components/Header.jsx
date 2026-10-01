@@ -31,7 +31,7 @@ export const Header = ({ formTitle }) => {
             <div className="dh-pill">Govt. Civil Work Contractor &amp; General Order Supplier</div>
             <div className="dh-addr">209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011</div>
             <div className="dh-contact">
-              <b>Email:</b> arunenterprises2023@gmail.com &nbsp;•&nbsp; <b>Web:</b> www.arunenterprises.com.in
+              <b>Email:</b> info@arunenterprises.online &nbsp;•&nbsp; <b>Web:</b> www.arunenterprises.com.in
             </div>
           </div>
         </div>
