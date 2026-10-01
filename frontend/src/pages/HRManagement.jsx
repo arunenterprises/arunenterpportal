@@ -516,32 +516,27 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         </div>
       )}
 
-      {/* Bottom Workflow Button Bar (full width) */}
-      <div className="section" style={{ marginTop: 14, background: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)", border: "1.5px solid #0f172a", borderRadius: 10, overflow: "hidden" }}>
-        <div style={{ padding: 14, display: "grid", gridTemplateColumns: `repeat(${Number(emp.step) >= 5 ? 7 : 6}, 1fr)`, gap: 10 }}>
-          <button data-testid="wf-new" onClick={startNew} style={{ padding: "12px 10px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <UserPlus size={18} /> New
-          </button>
-          <button data-testid="wf-save" onClick={save} disabled={!writeAllowed || locked} style={{ padding: "12px 10px", background: !writeAllowed || locked ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 6, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <Save size={18} /> Save
-          </button>
-          <button data-testid="wf-edited" onClick={save} disabled={!writeAllowed || locked} title="Save current edits" style={{ padding: "12px 10px", background: !writeAllowed || locked ? "#cbd5e1" : "#0891b2", color: "#fff", border: "none", borderRadius: 6, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <RefreshCw size={18} /> Edited
-          </button>
-          <button data-testid="wf-submitted" onClick={submit} disabled={!writeAllowed || locked || Number(emp.step) >= 5} style={{ padding: "12px 10px", background: !writeAllowed || locked || Number(emp.step) >= 5 ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 6, cursor: !writeAllowed || locked || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !writeAllowed || locked || Number(emp.step) >= 5 ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <Send size={18} /> Submitted
-          </button>
-          <button data-testid="wf-approval" onClick={approve} disabled={!approveAllowed || Number(emp.step) >= 5} style={{ padding: "12px 10px", background: !approveAllowed || Number(emp.step) >= 5 ? "#cbd5e1" : "#dc2626", color: "#fff", border: "none", borderRadius: 6, cursor: !approveAllowed || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !approveAllowed || Number(emp.step) >= 5 ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <CheckCircle2 size={18} /> Approval
-          </button>
+      {/* Workflow Action Bar — matches BOQ / WO / Bill style (compact, 3-group) */}
+      <div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="hr-emp-action-row">
+        {/* Left — Workflow */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Workflow</span>
+          <button data-testid="wf-new" onClick={startNew} style={{ padding: "7px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><UserPlus size={13} /> New</button>
+          <button data-testid="wf-edited" onClick={save} disabled={!writeAllowed || locked} title="Save current edits" style={{ padding: "7px 12px", background: !writeAllowed || locked ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><RefreshCw size={13} /> Edit</button>
+          <button data-testid="wf-save" onClick={save} disabled={!writeAllowed || locked} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Save size={13} /> Save</button>
+          <button data-testid="wf-submitted" onClick={submit} disabled={!writeAllowed || locked || Number(emp.step) >= 5} style={{ padding: "7px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: !writeAllowed || locked || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !writeAllowed || locked || Number(emp.step) >= 5 ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Send size={13} /> Submit</button>
+        </div>
+        {/* Center — Approval */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <button data-testid="wf-approval" onClick={approve} disabled={!approveAllowed || Number(emp.step) >= 5} style={{ padding: "7px 14px", background: !approveAllowed || Number(emp.step) >= 5 ? "#94a3b8" : "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: !approveAllowed || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !approveAllowed || Number(emp.step) >= 5 ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><CheckCircle2 size={13} /> Final Approval</button>
           {Number(emp.step) >= 5 && (
-            <button data-testid="wf-reapprove" onClick={reapprove} disabled={!approveAllowed} style={{ padding: "12px 10px", background: !approveAllowed ? "#cbd5e1" : "#f59e0b", color: "#fff", border: "none", borderRadius: 6, cursor: !approveAllowed ? "not-allowed" : "pointer", opacity: !approveAllowed ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <RefreshCw size={18} /> Re-Approve
-            </button>
+            <button data-testid="wf-reapprove" onClick={reapprove} disabled={!approveAllowed} style={{ padding: "7px 12px", background: !approveAllowed ? "#94a3b8" : "#f59e0b", color: "#fff", border: "none", borderRadius: 5, cursor: !approveAllowed ? "not-allowed" : "pointer", opacity: !approveAllowed ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><RefreshCw size={13} /> Re-Approve</button>
           )}
-          <button data-testid="wf-print" onClick={() => printEmployeeApplication(emp)} style={{ padding: "12px 10px", background: "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <Printer size={18} /> Print A4
-          </button>
+        </div>
+        {/* Right — Export */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Export</span>
+          <button data-testid="wf-print" onClick={() => printEmployeeApplication(emp)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print A4</button>
         </div>
       </div>
     </div>
