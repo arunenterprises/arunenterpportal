@@ -3,13 +3,15 @@
 
 const LOGO = "/arun-logo.jpg";
 const COMPANY = {
-  name: "ARUN ENTERPRISES",
-  tagline: "Quality · Commitment · Solutions & Services",
-  address: "Corporate Office, Lucknow — 226001, Uttar Pradesh, India",
-  phone: "+91-98765-43210",
+  name: "M/s ARUN ENTERPRISES",
+  tagline: "OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY",
+  subtag: "Govt. Civil Work Contractor & General Order Supplier",
+  address: "209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011",
+  phone: "9429694552",
   website: "www.arunenterprises.com.in",
   email: "arunenterprises2023@gmail.com",
-  gstin: "09AAACA0000A1Z5",
+  gstin: "09ABWFM0611J1ZY",
+  pan: "ABWFM0611Z",
 };
 const SIGNATORY = { name: "K.L. Srivastava", designation: "Director" };
 
@@ -48,12 +50,17 @@ const buildHtml = (title, bodyHtml) => `<!DOCTYPE html>
   * { box-sizing: border-box; }
   body { font-family: "Times New Roman", Georgia, serif; color: #0f172a; margin: 0; padding: 0; font-size: 12pt; line-height: 1.55; }
   .sheet { padding: 0; }
-  .lh { display: flex; align-items: center; gap: 14px; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 16px; }
-  .lh img { width: 72px; height: 72px; object-fit: contain; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; padding: 2px; }
-  .lh .name { font-size: 22pt; font-weight: 800; letter-spacing: 1.5px; color: #0f172a; line-height: 1.05; }
-  .lh .tag { font-size: 9.5pt; color: #475569; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; font-style: italic; }
-  .lh .addr { font-size: 8.8pt; color: #64748b; margin-top: 4px; line-height: 1.4; }
-  .lh .addr b { color: #334155; }
+  .lh { border-bottom: 2.5px solid #c81e2b; padding-bottom: 6px; margin-bottom: 14px; }
+  .lh .top { display: flex; justify-content: space-between; align-items: center; font-size: 10pt; font-weight: 700; color: #0f172a; padding: 0 2px 4px; flex-wrap: wrap; gap: 2px 10px; }
+  .lh .main { display: flex; align-items: center; gap: 12px; }
+  .lh img { width: 80px; height: 80px; object-fit: contain; background: #fff; }
+  .lh .center { flex: 1; text-align: center; }
+  .lh .name { font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif; font-size: 26pt; font-weight: 900; letter-spacing: 1.2px; color: #c81e2b; line-height: 1.05; text-transform: uppercase; font-style: normal; }
+  .lh .tag { font-size: 10pt; font-weight: 700; color: #0f172a; letter-spacing: 1.3px; margin-top: 2px; text-transform: uppercase; }
+  .lh .pill { display: inline-block; margin-top: 4px; padding: 2px 14px; background: #0ea5e9; color: #fff; font-weight: 700; font-size: 10pt; border-radius: 999px; }
+  .lh .addr { font-size: 10pt; color: #0f172a; margin-top: 4px; font-weight: 600; }
+  .lh .contact { font-size: 9.5pt; color: #0f172a; margin-top: 1px; }
+  .lh .contact b { color: #0f172a; }
   .meta { display: flex; justify-content: space-between; font-size: 11pt; margin-bottom: 16px; }
   .meta .ref { font-weight: 700; }
   h1.title { font-size: 15pt; font-weight: 800; text-align: center; text-decoration: underline; letter-spacing: 1.5px; margin: 10px 0 18px; text-transform: uppercase; }
@@ -86,14 +93,19 @@ const buildHtml = (title, bodyHtml) => `<!DOCTYPE html>
 <button class="noprint-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
 <div class="sheet">
   <div class="lh">
-    <img src="${LOGO}" alt="logo" onerror="this.style.display='none'" />
-    <div style="flex:1;">
-      <div class="name">${COMPANY.name}</div>
-      <div class="tag">${COMPANY.tagline}</div>
-      <div class="addr">
-        <b>Office:</b> ${COMPANY.address}<br/>
-        <b>Tel:</b> ${COMPANY.phone} · <b>Email:</b> ${COMPANY.email} · <b>Web:</b> ${COMPANY.website}<br/>
-        <b>GSTIN:</b> ${COMPANY.gstin}
+    <div class="top">
+      <span><b>GSTIN:</b> ${COMPANY.gstin}</span>
+      <span><b>PAN:</b> ${COMPANY.pan}</span>
+      <span><b>Mob.:</b> ${COMPANY.phone}</span>
+    </div>
+    <div class="main">
+      <img src="${LOGO}" alt="logo" onerror="this.style.display='none'" />
+      <div class="center">
+        <div class="name">${COMPANY.name}</div>
+        <div class="tag">${COMPANY.tagline}</div>
+        <div class="pill">${COMPANY.subtag}</div>
+        <div class="addr">${COMPANY.address}</div>
+        <div class="contact"><b>Email:</b> ${COMPANY.email} &nbsp;•&nbsp; <b>Web:</b> ${COMPANY.website}</div>
       </div>
     </div>
   </div>

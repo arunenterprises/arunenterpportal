@@ -162,28 +162,46 @@ body {
 }
 .a4 + .a4 { margin-top: 20px; }
 
-/* ---- Document header (centered) ---- */
-.doc-header {
-  text-align: center;
-  padding: 6px 0 12px 90px;
-  border-bottom: 1px solid var(--line-2);
-  position: relative;
-  min-height: 92px;
+/* ---- Document letterhead (styled like printed letterhead) ---- */
+.doc-header { padding: 4px 0 6px; border-bottom: 2px solid #c81e2b; position: relative; }
+.doc-header .dh-top-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; font-weight: 700; color: #0f172a;
+  padding: 0 4px 4px; letter-spacing: .3px;
+  flex-wrap: wrap; gap: 4px 12px;
 }
-.doc-header .brand-logo {
-  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  width: 86px; height: 86px; border-radius: 8px;
-  border: 1px solid var(--line); background: #fff;
+.doc-header .dh-top-row b { color: #0f172a; margin-right: 2px; }
+.doc-header .dh-main {
+  display: flex; align-items: center; gap: 14px; padding: 2px 4px;
+}
+.doc-header .dh-logo {
+  flex: 0 0 92px; width: 92px; height: 92px;
   display: grid; place-items: center; overflow: hidden;
+  background: #fff;
 }
-.doc-header .brand-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.doc-header h1 {
-  margin: 0 0 5px;
-  font-size: 28px; letter-spacing: 4px;
-  color: var(--brand); font-weight: 700;
+.doc-header .dh-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.doc-header .dh-center { flex: 1; text-align: center; }
+.doc-header .dh-name {
+  margin: 0;
+  font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif;
+  font-size: 32px; letter-spacing: 1.5px;
+  color: #c81e2b; font-weight: 900;
+  text-transform: uppercase; font-style: normal;
+  line-height: 1.1;
 }
-.doc-header p { margin: 2px 0; font-size: 13px; color: #334155; line-height: 1.45; }
-.doc-header p b { color: #0f172a; }
+.doc-header .dh-tag {
+  font-size: 12.5px; font-weight: 700; color: #0f172a;
+  letter-spacing: 1.5px; margin-top: 2px; text-transform: uppercase;
+}
+.doc-header .dh-pill {
+  display: inline-block; margin-top: 5px; padding: 3px 16px;
+  background: #0ea5e9; color: #fff; font-weight: 700; font-size: 12px;
+  border-radius: 999px; letter-spacing: .3px;
+}
+.doc-header .dh-addr { margin-top: 5px; font-size: 12.5px; color: #0f172a; font-weight: 600; }
+.doc-header .dh-contact { margin-top: 2px; font-size: 12px; color: #0f172a; }
+.doc-header .dh-contact b { color: #0f172a; }
+.doc-header .dh-rule { height: 2px; background: #c81e2b; margin-top: 4px; }
 
 /* ---- Form title bar ---- */
 .form-title {
