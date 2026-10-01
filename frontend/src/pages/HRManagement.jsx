@@ -18,7 +18,7 @@ import {
   getLoans, createLoanDraft, upsertLoan, advanceLoanStep, deleteLoan, computeLoanEMI, LOAN_STATUS,
   getLeaves, createLeaveDraft, upsertLeave, deleteLeave, approveLeave, LEAVE_TYPES, LEAVE_STATUS,
   getRecruitments, createRecruitDraft, upsertRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
-  getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, EXIT_STATUS,
+  getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, advanceExitStep, EXIT_STATUS,
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
@@ -996,11 +996,30 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
   const save = () => {
     if (!cur.empId) return toast.error("Select employee");
     const saved = upsertExit(cur); setCur(saved); refresh();
-    toast.success("Exit saved");
+    toast.success("Exit saved as Draft");
+  };
+  const submit = () => {
+    if (!writeAllowed) return toast.error("Not permitted");
+    if (!cur.empId) return toast.error("Select employee");
+    if (!cur.lastWorkingDay) return toast.error("Set Last Working Day before submission");
+    const allCleared = cur.clearance && Object.values(cur.clearance).every((v) => v === true);
+    if (!allCleared) {
+      if (!window.confirm("All departmental clearances are not ticked. Submit to GM anyway?")) return;
+    }
+    const saved = upsertExit(cur);
+    const next = advanceExitStep(saved);
+    setCur(next); refresh();
+    toast.success(`Exit of ${next.empName || "employee"} submitted to GM for approval`);
+  };
+  const settleByAccounts = (x) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin / Accounts");
+    if (!window.confirm("Settle F&F and auto-generate Payment Voucher?")) return;
+    const n = advanceExitStep(x); refresh();
+    toast.success(`F&F settled · Payment Voucher ${n.linkedPvNo || ""} generated`);
   };
   const finalize = (id) => {
     if (!approveAllowed) return toast.error("Only Admin / SuperAdmin");
-    if (!window.confirm("Finalize F&F and mark employee Exited?")) return;
+    if (!window.confirm("Fast-forward: finalize F&F and mark employee Exited?")) return;
     finalizeExit(id); refresh();
     toast.success("Employee exited · F&F settled");
   };
@@ -1037,9 +1056,13 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
         <F label="Loan Deduction (₹)"><input type="number" value={cur.loanDeduction} onChange={(e) => set("loanDeduction", +e.target.value || 0)} style={inputStyle} /></F>
         <F label="Notice Recovery (₹)"><input type="number" value={cur.noticeRecovery} onChange={(e) => set("noticeRecovery", +e.target.value || 0)} style={inputStyle} /></F>
         <F label="F&F Net (auto)"><input value={fnf.toLocaleString("en-IN")} readOnly style={{ ...inputStyle, background: fnf >= 0 ? "#dcfce7" : "#fee2e2", fontWeight: 800, color: fnf >= 0 ? "#166534" : "#991b1b", textAlign: "right" }} /></F>
-        <div style={{ gridColumn: "span 4", display: "flex", gap: 6 }}>
-          <button data-testid="exit-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
+        <div style={{ gridColumn: "span 4", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <button data-testid="exit-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Draft</button>
+          <button data-testid="exit-submit" onClick={submit} disabled={!writeAllowed || Number(cur.status) >= 2} style={{ padding: "6px 12px", background: Number(cur.status) >= 2 ? "#94a3b8" : "#be185d", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && Number(cur.status) < 2 ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to GM</button>
           <button onClick={() => setCur(createExitDraft(emps[0]?.id || ""))} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>New</button>
+          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: .5 }}>
+            Workflow: <span style={{ color: "#0f172a" }}>Draft → Submit → GM Approval → Accounts Payment</span>
+          </span>
         </div>
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
@@ -1047,20 +1070,25 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
         <tbody>{list.length === 0 ? <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No exits</td></tr> : list.map((x, i) => {
           const emp = getEmployees().find((e) => e.id === x.empId);
           const clearedCount = Object.values(x.clearance || {}).filter(Boolean).length;
-          const totalClear = Object.keys(x.clearance || {}).length || 5;
+          const totalClear = Object.keys(x.clearance || {}).length || 6;
+          const statusTone = Number(x.status) === 4 ? "#166534" : Number(x.status) === 3 ? "#1d4ed8" : Number(x.status) === 2 ? "#b45309" : "#64748b";
           return (
             <tr key={x.id} data-testid={`exit-row-${x.id}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
-              <td style={{ padding: 7 }}>{emp ? `${emp.empCode} · ${emp.fullName}` : "—"}</td>
+              <td style={{ padding: 7 }}>{emp ? `${emp.empCode} · ${emp.fullName}` : (x.empName || x.empCode || "—")}</td>
               <td style={{ padding: 7 }}>{fmtDMY(x.resignDate)}</td>
               <td style={{ padding: 7 }}>{fmtDMY(x.lastWorkingDay) || "—"}</td>
               <td style={{ padding: 7, fontWeight: 700, color: clearedCount === totalClear ? "#166534" : "#f59e0b" }}>{clearedCount} / {totalClear}</td>
               <td style={{ padding: 7, textAlign: "right", fontWeight: 700 }}>₹ {Number(x.fnfNet || 0).toLocaleString("en-IN")}</td>
-              <td style={{ padding: 7, fontWeight: 700 }}>{EXIT_STATUS[x.status]}</td>
+              <td style={{ padding: 7, fontWeight: 700, color: statusTone }}>{EXIT_STATUS[x.status]}</td>
               <td style={{ padding: 4, whiteSpace: "nowrap" }}>
-                {x.status === 3 && approveAllowed && <button data-testid={`exit-finalize-${x.id}`} onClick={() => finalize(x.id)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✓ Finalize & Exit</button>}
-                {x.status === 4 && emp && <>
+                {Number(x.status) === 1 && <button data-testid={`exit-edit-${x.id}`} onClick={() => setCur(x)} style={{ padding: "3px 8px", background: "#eff6ff", color: "#1d4ed8", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}><Edit3 size={10} style={{ verticalAlign: -1 }} /> Edit</button>}
+                {Number(x.status) === 1 && writeAllowed && <button data-testid={`exit-submit-${x.id}`} onClick={() => { setCur(x); submit(); }} style={{ padding: "3px 8px", background: "#fce7f3", color: "#be185d", border: "1px solid #f9a8d4", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}><Send size={10} style={{ verticalAlign: -1 }} /> Submit to GM</button>}
+                {Number(x.status) === 2 && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700, marginRight: 4 }}>⏳ Awaiting GM</span>}
+                {Number(x.status) === 3 && approveAllowed && <button data-testid={`exit-settle-${x.id}`} onClick={() => settleByAccounts(x)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>💰 Settle · Accounts Pay</button>}
+                {Number(x.status) === 4 && emp && <>
                   <button data-testid={`exit-exp-${x.id}`} onClick={() => printExperienceLetter(emp, x)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Experience</button>
                   <button data-testid={`exit-rel-${x.id}`} onClick={() => printRelievingLetter(emp, x)} style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Relieving</button>
+                  {x.linkedPvNo && <span style={{ padding: "3px 8px", background: "#e0e7ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, fontSize: 10, fontWeight: 700, marginRight: 4 }}>PV: {x.linkedPvNo}</span>}
                 </>}
                 <button onClick={() => remove(x.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
               </td>

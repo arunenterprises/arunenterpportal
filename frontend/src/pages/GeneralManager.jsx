@@ -12,7 +12,7 @@ import {
   getEmployees, getLeaves, getExits, getRecruitments, getPayBills,
   canApprove,
   advanceVendorStep, advanceBillStep, advanceExpenseStep, advanceBOQStep, advanceWOStep,
-  advanceEmployeeStep, approveLeave, finalizeExit, upsertRecruit, advancePayBillStep,
+  advanceEmployeeStep, approveLeave, finalizeExit, advanceExitStep, upsertRecruit, advancePayBillStep,
   reapproveVendor, reapproveBill, reapproveExpense, reapproveBOQ, reapproveVoucher, reapproveWO,
   reapproveEmployee,
   savePayments,
@@ -253,8 +253,8 @@ export default function GeneralManager() {
     const empsApproved = employees.filter((e) => Number(e.step) === 5);
     const leavesPending = leaves.filter((l) => Number(l.status) === 2);
     const leavesApproved = leaves.filter((l) => Number(l.status) === 3);
-    const exitsPending = exits.filter((x) => Number(x.status) === 3);
-    const exitsApproved = exits.filter((x) => Number(x.status) === 4);
+    const exitsPending = exits.filter((x) => Number(x.status) === 2);
+    const exitsApproved = exits.filter((x) => Number(x.status) >= 3);
     const recruitsPending = recruits.filter((r) => Number(r.status) === 3);
     const recruitsApproved = recruits.filter((r) => Number(r.status) >= 4);
     const payBillsPending = payBills.filter((p) => Number(p.step) === 2);
@@ -311,8 +311,8 @@ export default function GeneralManager() {
   };
   const approveExitGM = (x) => {
     if (!canDo) return toast.error("Not permitted");
-    finalizeExit(x.id);
-    toast.success(`Exit finalized · F&F settled for ${x.empName || x.empCode || "employee"}`); bump();
+    const n = advanceExitStep(x);
+    toast.success(`Exit of ${n.empName || n.empCode || "employee"} GM-approved · sent to Accounts`); bump();
   };
   const approveRecruitGM = (r) => {
     if (!canDo) return toast.error("Not permitted");
@@ -352,7 +352,7 @@ export default function GeneralManager() {
         <InboxSection testid="inbox-emps" title="Employees pending Final Approval" tone="#c026d3" icon={UserCheck} items={stats.empsPending} onOpen={() => nav("/hr")} onApprove={approveEmployee} colLabels={["Temp Code", "Name", "Applied Post"]} rowRender={(e) => [e.tempCode || "—", e.fullName || "—", e.appliedPost || e.designation || "—"]} />
         <InboxSection testid="inbox-leaves" title="Leave Applications pending" tone="#f59e0b" icon={Calendar} items={stats.leavesPending} onOpen={() => nav("/hr")} onApprove={approveLeaveGM} colLabels={["Employee", "Type", "Days (From → To)"]} rowRender={(l) => [l.empName || l.empCode || "—", l.type || "—", `${l.days || 0} days · ${l.from || "—"} → ${l.to || "—"}`]} />
         <InboxSection testid="inbox-recruits" title="Recruitment Offers pending release" tone="#16a34a" icon={Briefcase} items={stats.recruitsPending} onOpen={() => nav("/hr")} onApprove={approveRecruitGM} colLabels={["Candidate", "Position", "Offer CTC"]} rowRender={(r) => [r.candidateName || "—", `${r.position || "—"} · ${r.department || "—"}`, `₹ ${Number(r.offerCTC || 0).toLocaleString("en-IN")}`]} />
-        <InboxSection testid="inbox-exits" title="Exit & F&F pending finalization" tone="#991b1b" icon={LogOut} items={stats.exitsPending} onOpen={() => nav("/hr")} onApprove={approveExitGM} colLabels={["Employee", "LWD", "Net F&F"]} rowRender={(x) => [x.empName || x.empCode || "—", x.lastWorkingDay || "—", `₹ ${Number(x.fnfNet || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-exits" title="Exit & F&F pending GM approval" tone="#991b1b" icon={LogOut} items={stats.exitsPending} onOpen={() => nav("/hr")} onApprove={approveExitGM} colLabels={["Employee", "LWD", "Net F&F"]} rowRender={(x) => [x.empName || x.empCode || "—", x.lastWorkingDay || "—", `₹ ${Number(x.fnfNet || 0).toLocaleString("en-IN")}`]} />
         <InboxSection testid="inbox-paybills" title="Monthly Pay Bills pending approval" tone="#be185d" icon={Receipt} items={stats.payBillsPending} onOpen={() => nav("/hr")} onApprove={approvePayBillGM} colLabels={["Ref No.", "Period", "Employees · Net"]} rowRender={(p) => [p.refNo || "—", `${new Date(p.year, p.month - 1).toLocaleString("en", { month: "short" })} ${p.year}`, `${p.lines?.length || 0} emps · ₹${Number(p.totalNet || 0).toLocaleString("en-IN")}`]} />
       </DeptGroup>
     </div>

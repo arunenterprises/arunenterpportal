@@ -1162,7 +1162,8 @@ export const convertRecruitToEmployee = (r) => {
 };
 
 // ==================== HR: EXIT & F&F ====================
-export const EXIT_STATUS = { 1: "Resignation Submitted", 2: "Clearance Pending", 3: "F&F Calculated", 4: "Settled & Exited" };
+// Workflow: 1 Draft → 2 Submitted to GM → 3 GM Approved (Pending Accounts) → 4 Settled & Paid
+export const EXIT_STATUS = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved · Pending Accounts", 4: "Settled & Paid" };
 const EXITS_KEY = "ae_vm_hr_exits";
 export const getExits = () => read(EXITS_KEY, []);
 export const saveExits = (list) => write(EXITS_KEY, list);
@@ -1172,10 +1173,11 @@ export const createExitDraft = (empId = "") => ({
   resignDate: new Date().toISOString().slice(0, 10),
   lastWorkingDay: "",
   reason: "",
-  clearance: { hr: false, accounts: false, admin: false, it: false, store: false },
+  clearance: { hr: false, accounts: false, admin: false, it: false, store: false, project: false },
   pendingDues: 0, loanDeduction: 0, bonusDue: 0, leaveEncash: 0, gratuity: 0, noticeRecovery: 0,
   fnfNet: 0,
   status: 1,
+  history: [],
   createdBy: _me(), createdAt: new Date().toISOString(),
 });
 export const upsertExit = (x) => {
@@ -1183,25 +1185,66 @@ export const upsertExit = (x) => {
   const idx = list.findIndex((y) => y.id === x.id);
   // Auto-calc F&F
   x.fnfNet = (Number(x.pendingDues) || 0) + (Number(x.bonusDue) || 0) + (Number(x.leaveEncash) || 0) + (Number(x.gratuity) || 0) - (Number(x.loanDeduction) || 0) - (Number(x.noticeRecovery) || 0);
-  // Auto-advance status
-  const allCleared = x.clearance && Object.values(x.clearance).every((v) => v === true);
-  if (allCleared && Number(x.status) < 3) x.status = 3;
+  x.updatedAt = new Date().toISOString();
+  // Enrich with employee snapshot for easier display
+  const emp = getEmployees().find((e) => e.id === x.empId);
+  if (emp) { x.empCode = emp.empCode; x.empName = emp.fullName; x.department = emp.department; }
   if (idx >= 0) list[idx] = x; else list.push(x);
   saveExits(list);
   return x;
 };
 export const deleteExit = (id) => { saveExits(getExits().filter((y) => y.id !== id)); };
+// Advance Exit through workflow steps; on step 4 auto-create Payment Voucher & mark employee Exited
+export const advanceExitStep = (x) => {
+  const now = new Date().toISOString();
+  const me = _me();
+  const next = { ...x, status: Math.min(4, (Number(x.status) || 1) + 1), updatedAt: now };
+  next.history = [...(x.history || [])];
+  if (next.status === 2) { next.submittedByName = me; next.submittedAt = now; next.history.push({ action: "Submitted to GM", at: now, by: me }); }
+  if (next.status === 3) { next.gmApprovedByName = me; next.gmApprovedAt = now; next.history.push({ action: "GM Approved · Sent to Accounts", at: now, by: me }); }
+  if (next.status === 4) {
+    next.settledByName = me; next.settledAt = now;
+    next.history.push({ action: "Settled & Paid by Accounts", at: now, by: me });
+    // Auto-generate Payment Voucher for F&F payout
+    try {
+      const payments = getPayments();
+      const pvNo = `PV/HR-FNF/${new Date().getFullYear()}/${payments.length + 1}`;
+      const pv = {
+        id: `pv_fnf_${next.id}`,
+        pvNo,
+        pvDate: now.slice(0, 10),
+        source: "HR Exit F&F",
+        sourceRef: next.id,
+        vendorCode: "AE-HR-FNF",
+        vendorSnapshot: { firmName: `F&F Payout · ${next.empName || next.empCode || "Employee"}` },
+        amount: Number(next.fnfNet) || 0,
+        remarks: `Auto-generated from Exit F&F · ${next.empCode || ""} ${next.empName || ""} · LWD ${next.lastWorkingDay || "—"}`,
+        status: "Submitted",
+        createdByName: me,
+        createdAt: now,
+      };
+      payments.push(pv);
+      savePayments(payments);
+      next.linkedPvNo = pvNo;
+      next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
+    } catch (e) { /* ignore */ }
+    // Mark employee as Exited
+    const emps = getEmployees();
+    const empIdx = emps.findIndex((e) => e.id === next.empId);
+    if (empIdx >= 0) { emps[empIdx].status = "Exited"; emps[empIdx].exitedAt = now; saveEmployees(emps); if (getToken()) apiUpsertEmployee(emps[empIdx]).catch(() => {}); }
+  }
+  saveExits(getExits().map((y) => y.id === next.id ? next : y));
+  return next;
+};
+// Backward-compatible helper: finalize = push to settled (step 4)
 export const finalizeExit = (id) => {
   const list = getExits();
-  const idx = list.findIndex((y) => y.id === id);
-  if (idx < 0) return;
-  list[idx].status = 4;
-  list[idx].settledAt = new Date().toISOString();
-  saveExits(list);
-  // Mark employee as Exited
-  const emps = getEmployees();
-  const empIdx = emps.findIndex((e) => e.id === list[idx].empId);
-  if (empIdx >= 0) { emps[empIdx].status = "Exited"; emps[empIdx].exitedAt = new Date().toISOString(); saveEmployees(emps); if (getToken()) apiUpsertEmployee(emps[empIdx]).catch(() => {}); }
+  const x = list.find((y) => y.id === id);
+  if (!x) return;
+  // Fast-forward through remaining steps up to 4
+  let cur = x;
+  while (Number(cur.status) < 4) cur = advanceExitStep(cur);
+  return cur;
 };
 
 // ==================== HR: COMPLIANCE SNAPSHOT ====================
