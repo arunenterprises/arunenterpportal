@@ -1523,11 +1523,11 @@ const IDCardTab = () => {
   .lanyard { position: absolute; top: 3mm; left: 50%; transform: translateX(-50%); width: 10mm; height: 2.2mm; background: #0f172a; border-radius: 2mm; z-index: 5; }
   /* FRONT */
   .front .content { position: relative; z-index: 2; padding-top: 15mm; display: flex; flex-direction: column; align-items: center; height: 100%; }
-  .front .logo-box { width: 11mm; height: 11mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; }
-  .front .logo-box img { width: 100%; height: 100%; object-fit: contain; }
-  .front .cn { font-size: 11px; font-weight: 900; letter-spacing: 1.4px; color: #0f172a; margin-top: 1mm; }
+  .front .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; box-shadow: 0 1mm 2mm rgba(0,0,0,.15); border: 0.4mm solid #fff; }
+  .front .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
+  .front .cn { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; color: #0f172a; margin-top: 1.5mm; }
   .front .tag { font-size: 6.5px; font-weight: 700; letter-spacing: .4px; color: #dc2626; margin-top: 1px; }
-  .front .photo-ring { margin-top: 3mm; width: 28mm; height: 28mm; border-radius: 50%; border: 2px solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #64748b; font-weight: 700; }
+  .front .photo-ring { margin-top: 4mm; width: 32mm; height: 38mm; border-radius: 2mm; border: 0.6mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #64748b; font-weight: 700; box-shadow: 0 0.5mm 1.5mm rgba(30,58,138,.2); }
   .front .name { font-size: 13px; font-weight: 900; letter-spacing: 1px; color: #1e3a8a; margin-top: 2.5mm; text-align: center; padding: 0 6px; }
   .front .desig { font-size: 9px; font-weight: 800; color: #dc2626; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1mm; text-align: center; }
   .front .rule { width: 20mm; height: 1px; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 2mm auto; }
@@ -1541,17 +1541,15 @@ const IDCardTab = () => {
   .front .sign .slabel { font-size: 7px; font-weight: 800; letter-spacing: 1.2px; color: #475569; margin-top: 1px; border-top: 0.4px solid #0f172a; padding-top: 1px; width: 34mm; margin-left: auto; margin-right: auto; }
   /* BACK */
   .back .btop { position: relative; height: 42mm; background: #1e3a8a; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
-  .back .btop .logo-box { width: 11mm; height: 11mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; }
-  .back .btop .logo-box img { width: 100%; height: 100%; object-fit: contain; }
-  .back .btop .cn { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; margin-top: 2mm; }
+  .back .btop .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1mm 2.5mm rgba(0,0,0,.3); border: 0.4mm solid #fff; }
+  .back .btop .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
+  .back .btop .cn { font-size: 13px; font-weight: 900; letter-spacing: 1.5px; margin-top: 2mm; }
   .back .btop .tag { font-size: 6px; font-weight: 700; letter-spacing: .4px; color: #fbbf24; margin-top: 1px; }
   .back .bmid { padding: 3mm 5mm 1mm; font-size: 8px; color: #0f172a; }
-  .back .bmid .empstrip { display: flex; align-items: center; gap: 2.5mm; padding: 1.5mm 2mm; margin-bottom: 2mm; background: #f8fafc; border: 0.3mm dashed #cbd5e1; border-radius: 1.5mm; }
-  .back .bmid .empstrip .ph { width: 11mm; height: 11mm; border-radius: 50%; border: 0.5mm solid #1e3a8a; background: #f1f5f9 center/cover no-repeat; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 6px; color: #64748b; font-weight: 700; }
-  .back .bmid .empstrip .info { flex: 1; min-width: 0; }
-  .back .bmid .empstrip .eid { font-size: 10px; font-weight: 900; color: #1e3a8a; letter-spacing: .4px; }
-  .back .bmid .empstrip .enm { font-size: 8.5px; font-weight: 800; color: #0f172a; margin-top: 0.5mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .back .bmid .empstrip .edg { font-size: 6.5px; font-weight: 700; color: #dc2626; letter-spacing: .5px; text-transform: uppercase; margin-top: 0.3mm; }
+  .back .bmid .empstrip { padding: 2mm 2.5mm; margin-bottom: 2.5mm; background: #f8fafc; border: 0.3mm dashed #cbd5e1; border-radius: 1.5mm; }
+  .back .bmid .empstrip .eid { font-size: 10px; font-weight: 900; color: #1e3a8a; letter-spacing: .5px; }
+  .back .bmid .empstrip .enm { font-size: 8.5px; font-weight: 800; color: #0f172a; margin-top: 0.6mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .back .bmid .empstrip .edg { font-size: 6.5px; font-weight: 700; color: #dc2626; letter-spacing: .5px; text-transform: uppercase; margin-top: 0.4mm; }
   .back .bmid h5 { margin: 0 0 1mm; font-size: 8.5px; font-weight: 900; color: #dc2626; letter-spacing: .8px; display: flex; align-items: center; gap: 2mm; }
   .back .bmid .line { margin: 0.3mm 0; font-weight: 700; color: #0f172a; }
   .back .bmid .block { margin-bottom: 2.5mm; }
@@ -1608,12 +1606,9 @@ const IDCardTab = () => {
       </div>
       <div class="bmid">
         <div class="empstrip">
-          <div class="ph" ${photo ? `style="background-image:url('${photo}')"` : ""}>${photo ? "" : "PH"}</div>
-          <div class="info">
-            <div class="eid">${esc(emp.empCode || emp.tempCode || "—")}</div>
-            <div class="enm">${esc(emp.fullName || "—")}</div>
-            <div class="edg">${esc(emp.designation || "—")}</div>
-          </div>
+          <div class="eid">${esc(emp.empCode || emp.tempCode || "—")}</div>
+          <div class="enm">${esc(emp.fullName || "—")}</div>
+          <div class="edg">${esc(emp.designation || "—")}</div>
         </div>
         <div class="block">
           <h5><span class="ico">📍</span> REGISTERED OFFICE</h5>
@@ -1681,12 +1676,12 @@ const IDCardTab = () => {
             <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
             {/* Content */}
             <div style={{ position: "relative", zIndex: 3, paddingTop: 54, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }}>
+              <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,.12)", border: "2px solid #fff" }}>
                 <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
               </div>
-              <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.4, color: "#0f172a", marginTop: 4 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.4, color: "#0f172a", marginTop: 6 }}>ARUN ENTERPRISES</div>
               <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .3, color: "#dc2626", marginTop: 1 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
-              <div style={{ marginTop: 10, width: 80, height: 80, borderRadius: "50%", border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#64748b", fontWeight: 700 }}>
+              <div style={{ marginTop: 12, width: 110, height: 128, borderRadius: 6, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#64748b", fontWeight: 700, boxShadow: "0 1px 4px rgba(30,58,138,.2)" }}>
                 {emp.photoUrl ? "" : "PHOTO"}
               </div>
               <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, color: "#1e3a8a", marginTop: 8, textAlign: "center", padding: "0 6px" }}>{(emp.fullName || "—").toUpperCase()}</div>
@@ -1725,22 +1720,19 @@ const IDCardTab = () => {
             <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
             {/* Top navy block */}
             <div style={{ background: "#1e3a8a", color: "#fff", padding: "26px 10px 14px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.25)", border: "2px solid #fff" }}>
                 <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
               </div>
-              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.4, marginTop: 6 }}>ARUN ENTERPRISES</div>
-              <div style={{ fontSize: 6.5, fontWeight: 700, letterSpacing: .4, color: "#fbbf24", marginTop: 1 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1.5, marginTop: 7 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .4, color: "#fbbf24", marginTop: 2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
             </div>
             {/* Middle white block */}
             <div style={{ padding: "10px 12px", fontSize: 9, color: "#0f172a", flex: 1 }}>
-              {/* Short employee strip — photo + EMP ID + name + designation */}
-              <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", marginBottom: 8, background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 5 }}>
-                <div style={{ width: 42, height: 42, borderRadius: "50%", border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, color: "#64748b", fontWeight: 700 }}>{emp.photoUrl ? "" : "PH"}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: "#1e3a8a", letterSpacing: .4, lineHeight: 1 }}>{emp.empCode || emp.tempCode || "—"}</div>
-                  <div style={{ fontSize: 8.5, fontWeight: 800, color: "#0f172a", letterSpacing: .2, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{emp.fullName}</div>
-                  <div style={{ fontSize: 7, fontWeight: 700, color: "#dc2626", letterSpacing: .5, textTransform: "uppercase", marginTop: 1 }}>{emp.designation}</div>
-                </div>
+              {/* Short employee strip — EMP ID + name + designation (text-only, no photo on back) */}
+              <div style={{ padding: "7px 10px", marginBottom: 10, background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 5 }}>
+                <div style={{ fontSize: 11, fontWeight: 900, color: "#1e3a8a", letterSpacing: .5, lineHeight: 1 }}>{emp.empCode || emp.tempCode || "—"}</div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: "#0f172a", letterSpacing: .3, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{emp.fullName}</div>
+                <div style={{ fontSize: 7, fontWeight: 700, color: "#dc2626", letterSpacing: .5, textTransform: "uppercase", marginTop: 2 }}>{emp.designation}</div>
               </div>
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 9.5, fontWeight: 900, color: "#dc2626", letterSpacing: .7, marginBottom: 3 }}>📍 REGISTERED OFFICE</div>
