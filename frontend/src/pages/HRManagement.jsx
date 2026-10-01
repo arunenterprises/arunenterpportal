@@ -18,7 +18,7 @@ import {
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter, printEmployeeApplication } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter } from "../lib/hrLetters";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
@@ -586,6 +586,7 @@ const AttendanceGrid = () => {
         </select>
         <input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 5, width: 80 }} />
         <button data-testid="att-export" onClick={exportExcel} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Download size={13} style={{ verticalAlign: -2 }} /> Export Excel</button>
+        <button data-testid="att-print" onClick={() => printAttendanceSheet(emps, year, month, getMonthAttendance)} style={{ padding: "6px 12px", background: "#334155", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Sheet</button>
         <div style={{ marginLeft: "auto", display: "flex", gap: 6, fontSize: 10, alignItems: "center" }}>
           Legend: {Object.entries(ATT_CODES).map(([c, v]) => <span key={c} style={{ padding: "2px 6px", background: v.tone, color: "#fff", borderRadius: 3, fontWeight: 700 }}>{c} = {v.label}</span>)}
         </div>
@@ -653,7 +654,7 @@ const PayrollTab = () => {
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString("en-IN", { month: "long" })}</option>)}
         </select>
         <input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 5, width: 80 }} />
-        <button data-testid="hr-payroll-print" onClick={() => window.print()} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print Slip</button>
+        <button data-testid="hr-payroll-print" onClick={() => printPayrollSlipLetter(emp, salary, year, month, daysInMonth, daysPresent)} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Slip</button>
         <button data-testid="hr-payroll-push" onClick={pushToAccounts} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Push Monthly Payroll → Accounts</button>
       </div>
 
@@ -895,6 +896,7 @@ const LeavesTab = ({ writeAllowed, approveAllowed }) => {
                   <button data-testid={`lv-approve-${l.id}`} onClick={() => decide(l.id, true)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✓ Approve</button>
                   <button data-testid={`lv-reject-${l.id}`} onClick={() => decide(l.id, false)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✕ Reject</button>
                 </>}
+                <button data-testid={`lv-print-${l.id}`} onClick={() => printLeaveApplication(l, emp)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Print</button>
                 <button onClick={() => remove(l.id)} style={{ padding: "3px 8px", background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
               </td>
             </tr>
@@ -1159,7 +1161,7 @@ export default function HRManagement() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div style={{ minHeight: "100vh", background: "#f1f5f9", paddingBottom: 40 }}>
-        <div style={{ maxWidth: 1360, margin: "0 auto", padding: "18px 20px" }} data-testid="hr-page">
+        <div style={{ maxWidth: "100%", margin: "0 auto", padding: "18px 24px" }} data-testid="hr-page">
 
           {/* Hero */}
           <div style={{ background: "linear-gradient(135deg, #4c1d95 0%, #5b21b6 45%, #db2777 100%)", color: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 10px 40px rgba(76,29,149,.28)", position: "relative", overflow: "hidden" }}>
@@ -1207,20 +1209,6 @@ export default function HRManagement() {
             {tab === "dashboard" && (
               <div style={{ padding: 20 }}>
                 <CelebrationBanner emps={emps} />
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#4c1d95", letterSpacing: .5, textTransform: "uppercase", margin: "18px 0 12px" }}>5-Step Approval Flow</div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                  {[1, 2, 3, 4, 5].map((s, i) => (
-                    <React.Fragment key={s}>
-                      <div style={{ padding: "10px 14px", background: `#ddd6fe`, color: "#5b21b6", border: "1.5px solid #a78bfa", borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap" }}>
-                        {EMPLOYEE_STEP_LABEL[s]}
-                      </div>
-                      {i < 4 && <div style={{ flex: 1, minWidth: 8, height: 2, background: "linear-gradient(to right, #c4b5fd, #e9d5ff)" }} />}
-                    </React.Fragment>
-                  ))}
-                </div>
-                <div style={{ marginTop: 16, padding: 12, background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, fontSize: 12, color: "#0c4a6e" }}>
-                  <b>Temp Code (Alpha-Numeric)</b> Employee creation ke turant baad milta hai — draft me kaam karne ke liye. <b>Permanent EMP Code</b> sirf step-5 Final Approval ke baad issue hota hai — yahi employee ka PRIMARY KEY hai. Monthly payroll <b>automatically Accounts department me push</b> ho jata hai for GM's final approval.
-                </div>
               </div>
             )}
             {tab === "employees" && <EmployeeEditor writeAllowed={write} approveAllowed={approve} />}

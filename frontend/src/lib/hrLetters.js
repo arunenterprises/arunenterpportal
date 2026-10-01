@@ -433,3 +433,211 @@ export const printEmployeeApplication = (emp) => {
   `;
   openPrint("Employee Application - " + (emp.fullName || emp.tempCode), html);
 };
+
+// ============= ATTENDANCE SHEET (A4 Landscape) =============
+export const printAttendanceSheet = (emps, year, month, getMonthAttendance) => {
+  const monthName = new Date(year, month - 1).toLocaleString("en-IN", { month: "long" });
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dayHeaders = Array.from({ length: daysInMonth }, (_, i) => `<th>${i + 1}</th>`).join("");
+
+  const rows = emps.map((e, i) => {
+    const rec = getMonthAttendance(e.id, year, month);
+    const cells = Array.from({ length: daysInMonth }, (_, d) => {
+      const key = String(d + 1).padStart(2, "0");
+      const v = rec.days?.[key] || "";
+      const tone = { P: "#dcfce7", A: "#fee2e2", L: "#fef3c7", H: "#dbeafe", W: "#f1f5f9", HL: "#ede9fe" }[v] || "#fff";
+      return `<td style="background:${tone};font-weight:${v ? 700 : 400};">${v || "—"}</td>`;
+    }).join("");
+    const presentCount = Object.values(rec.days || {}).filter((s) => s === "P" || s === "H").length;
+    const absentCount = Object.values(rec.days || {}).filter((s) => s === "A").length;
+    const leaveCount = Object.values(rec.days || {}).filter((s) => s === "L").length;
+    return `<tr${i % 2 ? ' class="alt"' : ""}><td class="sticky">${e.empCode || e.tempCode}</td><td class="sticky nm">${e.fullName}</td>${cells}<td class="sum p">${presentCount}</td><td class="sum a">${absentCount}</td><td class="sum l">${leaveCount}</td></tr>`;
+  }).join("");
+
+  const extraCss = `
+    @page { size: A4 landscape; margin: 10mm 12mm; }
+    .att-title { text-align: center; font-size: 15pt; font-weight: 800; text-decoration: underline; margin: 6px 0 10px; letter-spacing: 1.5px; }
+    .att-meta { display: flex; justify-content: space-between; font-size: 10.5pt; margin-bottom: 8px; }
+    table.att { width: 100%; border-collapse: collapse; font-size: 7.5pt; }
+    table.att th, table.att td { border: 1px solid #334155; padding: 3px 2px; text-align: center; }
+    table.att th { background: #0f172a; color: #fff; font-size: 7pt; }
+    table.att td.sticky { background: #e2e8f0; font-weight: 700; text-align: left; padding: 3px 6px; font-size: 8pt; }
+    table.att td.nm { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    table.att td.sum { font-weight: 800; font-size: 8pt; }
+    table.att td.sum.p { background: #dcfce7; color: #166534; }
+    table.att td.sum.a { background: #fee2e2; color: #991b1b; }
+    table.att td.sum.l { background: #fef3c7; color: #78350f; }
+    tr.alt td { background: #fafbfc; }
+    .legend { margin-top: 8px; font-size: 8.5pt; display: flex; gap: 10px; flex-wrap: wrap; }
+    .legend span { padding: 2px 7px; border-radius: 3px; font-weight: 700; }
+    .att-sig { margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; font-size: 9.5pt; }
+    .att-sig .cell { text-align: center; }
+    .att-sig .ln { border-top: 1px solid #0f172a; margin-top: 36px; padding-top: 4px; font-weight: 700; }
+  `;
+  const body = `<style>${extraCss}</style>
+    <div class="att-title">MONTHLY ATTENDANCE SHEET</div>
+    <div class="att-meta">
+      <div><b>Month:</b> ${monthName} ${year}</div>
+      <div><b>Days:</b> ${daysInMonth} · <b>Employees:</b> ${emps.length}</div>
+      <div><b>Generated:</b> ${fmtDMY(new Date().toISOString().slice(0, 10))}</div>
+    </div>
+    <table class="att">
+      <thead><tr><th class="sticky">Code</th><th class="sticky">Name</th>${dayHeaders}<th style="background:#16a34a">P</th><th style="background:#dc2626">A</th><th style="background:#f59e0b">L</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="${daysInMonth + 5}" style="padding:20px;color:#94a3b8;">No employees</td></tr>`}</tbody>
+    </table>
+    <div class="legend">
+      <b>Legend:</b>
+      <span style="background:#dcfce7;color:#166534">P = Present</span>
+      <span style="background:#fee2e2;color:#991b1b">A = Absent</span>
+      <span style="background:#fef3c7;color:#78350f">L = Leave</span>
+      <span style="background:#dbeafe;color:#1e3a8a">H = Half-day</span>
+      <span style="background:#f1f5f9;color:#334155">W = Week-off</span>
+      <span style="background:#ede9fe;color:#5b21b6">HL = Holiday</span>
+    </div>
+    <div class="att-sig">
+      <div class="cell"><div class="ln">Prepared By (HR)</div></div>
+      <div class="cell"><div class="ln">Department Manager</div></div>
+      <div class="cell"><div class="ln">${SIGNATORY.name}<br/><span style="font-size:8pt;color:#475569;font-weight:400;">${SIGNATORY.designation}</span></div></div>
+    </div>
+  `;
+  openPrint(`Attendance ${monthName} ${year}`, body);
+};
+
+// ============= LEAVE APPLICATION (A4 Portrait) =============
+export const printLeaveApplication = (leave, emp) => {
+  const refNo = `AE/HR/LV/${new Date().getFullYear()}/${String(leave.id || "").slice(-5).toUpperCase()}`;
+  const today = fmtDMY(new Date().toISOString().slice(0, 10));
+  const statusMap = { 1: "Draft", 2: "Submitted to HR", 3: "Approved", 4: "Rejected" };
+
+  const body = `
+    <div class="meta">
+      <div class="ref">Ref: ${refNo}</div>
+      <div>Date: ${today}</div>
+    </div>
+    <h1 class="title">Leave Application</h1>
+    <p>To,</p>
+    <p><b>The HR Manager</b><br/>${COMPANY.name}</p>
+    <p style="margin-top:14px;"><b>Subject:</b> Application for ${leave.type || "Leave"} from ${fmtDMY(leave.from)} to ${fmtDMY(leave.to)}</p>
+    <p>Respected Sir / Madam,</p>
+    <p>I, <b>${emp?.fullName || "—"}</b> (Employee Code: <b>${emp?.empCode || emp?.tempCode || "—"}</b>), working as <b>${emp?.designation || "—"}</b> in the <b>${emp?.department || "—"}</b> department, would like to request your approval for <b>${leave.type || "Leave"}</b> for a period of <b>${leave.days || 0} day(s)</b>, with effect from <b>${fmtDMY(leave.from)}</b> to <b>${fmtDMY(leave.to)}</b>.</p>
+    <p><b>Reason:</b> ${leave.reason || "—"}</p>
+    <p>During my absence, I will ensure that my pending work is handed over to a colleague and I remain reachable on <b>${emp?.contactMobile || "—"}</b> for any urgent matters.</p>
+    <p>Kindly consider my request and grant me the above leave. I shall be thankful for your kind approval.</p>
+    <p style="margin-top:18px;">Thanking you,</p>
+    <p style="margin-top:30px;">Yours sincerely,<br/><br/><b>${emp?.fullName || "—"}</b><br/>${emp?.designation || "—"} · ${emp?.department || "—"}<br/>EMP Code: ${emp?.empCode || emp?.tempCode || "—"}<br/>Mobile: ${emp?.contactMobile || "—"}</p>
+    <div class="wf-block" style="margin-top:30px;">
+      <div class="wf-head">HR Decision</div>
+      <table class="wf-tbl">
+        <thead><tr><th>Status</th><th>Approved By</th><th>Date</th><th>Remarks</th></tr></thead>
+        <tbody><tr class="nm">
+          <td><b>${statusMap[leave.status] || "Pending"}</b></td>
+          <td class="sig-area">${leave.decidedBy || "—"}</td>
+          <td class="sig-area">${fmtDMY(leave.decidedAt?.slice(0, 10))}</td>
+          <td class="sig-area">${leave.hrRemarks || "—"}</td>
+        </tr></tbody>
+      </table>
+    </div>
+    <style>
+      .wf-block { border: 1.5px solid #0f172a; }
+      .wf-head { background: #0f172a; color: #fff; padding: 4px 10px; font-size: 10.5pt; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+      .wf-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; }
+      .wf-tbl th { background: #e2e8f0; padding: 4px 6px; border: 1px solid #334155; font-weight: 800; text-align: center; }
+      .wf-tbl td { border: 1px solid #334155; padding: 6px; text-align: center; }
+      .wf-tbl td.sig-area { height: 32px; }
+    </style>
+  `;
+  openPrint("Leave Application - " + (emp?.fullName || ""), body);
+};
+
+// ============= PAYROLL SLIP (A4 Portrait with letterhead) =============
+export const printPayrollSlipLetter = (emp, salary, year, month, daysInMonth, daysPresent) => {
+  const monthName = new Date(year, month - 1).toLocaleString("en-IN", { month: "long" });
+  const refNo = `AE/HR/PS/${year}${String(month).padStart(2, "0")}/${String(emp.empCode || emp.id || "").slice(-6).toUpperCase()}`;
+  const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
+
+  const body = `
+    <div class="meta">
+      <div class="ref">Ref: ${refNo}</div>
+      <div>Pay Period: <b>${monthName} ${year}</b></div>
+    </div>
+    <h1 class="title">Salary Slip</h1>
+
+    <table class="emp-info">
+      <tbody>
+        <tr><td class="l">EMP Code</td><td class="v"><b>${emp.empCode || "—"}</b></td><td class="l">Name</td><td class="v"><b>${emp.fullName || "—"}</b></td></tr>
+        <tr><td class="l">Designation</td><td class="v">${emp.designation || "—"}</td><td class="l">Department</td><td class="v">${emp.department || "—"}</td></tr>
+        <tr><td class="l">PF No.</td><td class="v">${emp.pfNo || "—"}</td><td class="l">UAN</td><td class="v">${emp.uan || "—"}</td></tr>
+        <tr><td class="l">PAN</td><td class="v">${emp.pan || "—"}</td><td class="l">Bank A/C</td><td class="v">${emp.bankAccount || "—"} (${emp.ifsc || "—"})</td></tr>
+        <tr><td class="l">Days in Month</td><td class="v">${daysInMonth}</td><td class="l">Days Present</td><td class="v"><b>${daysPresent}</b></td></tr>
+      </tbody>
+    </table>
+
+    <div class="pay-grid">
+      <table class="pay earn">
+        <thead><tr><th colspan="2">Earnings</th></tr></thead>
+        <tbody>
+          <tr><td>Basic</td><td class="num">${inrN(emp.basic)}</td></tr>
+          <tr><td>HRA</td><td class="num">${inrN(emp.hra)}</td></tr>
+          <tr><td>DA</td><td class="num">${inrN(emp.da)}</td></tr>
+          <tr><td>Special Allowance</td><td class="num">${inrN(emp.special)}</td></tr>
+          <tr><td>Bonus</td><td class="num">${inrN(emp.bonus)}</td></tr>
+          <tr class="tot"><td>Gross Earned</td><td class="num">₹ ${inrN(salary.earned)}</td></tr>
+        </tbody>
+      </table>
+      <table class="pay ded">
+        <thead><tr><th colspan="2">Deductions</th></tr></thead>
+        <tbody>
+          <tr><td>Provident Fund (12%)</td><td class="num">${inrN(salary.pf)}</td></tr>
+          <tr><td>ESIC (0.75%)</td><td class="num">${inrN(salary.esic)}</td></tr>
+          <tr><td>Professional Tax</td><td class="num">${inrN(salary.proftax)}</td></tr>
+          <tr><td>TDS</td><td class="num">${inrN(salary.tds)}</td></tr>
+          <tr><td>—</td><td class="num">—</td></tr>
+          <tr class="tot"><td>Total Deductions</td><td class="num">₹ ${inrN(salary.deductions)}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="net-pay">
+      <span>NET SALARY PAYABLE</span>
+      <b>₹ ${inrN(salary.net)}</b>
+    </div>
+    <div class="in-words">Amount in Words: <i>Rupees ${inrN(salary.net)} only</i></div>
+
+    <div class="wf-block" style="margin-top:20px;">
+      <div class="wf-head">Payroll Authorization</div>
+      <table class="auth-tbl">
+        <thead><tr><th>Prepared By (Accounts)</th><th>Verified By (HR)</th><th>Authorized Signatory</th></tr></thead>
+        <tbody><tr>
+          <td class="sig-area"></td>
+          <td class="sig-area"></td>
+          <td class="sig-area"><b>${SIGNATORY.name}</b><br/><span>${SIGNATORY.designation}</span></td>
+        </tr></tbody>
+      </table>
+    </div>
+
+    <style>
+      table.emp-info { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 12px; }
+      table.emp-info td { border: 1px solid #334155; padding: 5px 10px; }
+      table.emp-info td.l { background: #f1f5f9; width: 20%; font-weight: 700; font-size: 9pt; }
+      .pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+      table.pay { width: 100%; border-collapse: collapse; font-size: 10pt; }
+      table.pay th { padding: 6px; color: #fff; text-align: left; font-size: 10.5pt; }
+      table.pay.earn th { background: #16a34a; }
+      table.pay.ded th { background: #dc2626; }
+      table.pay td { border: 1px solid #cbd5e1; padding: 5px 10px; }
+      table.pay td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      table.pay tr.tot td { background: #0f172a; color: #fff; font-weight: 800; font-size: 11pt; }
+      .net-pay { background: #0f172a; color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; font-size: 13pt; }
+      .net-pay b { font-size: 18pt; }
+      .in-words { padding: 6px 10px; background: #fef3c7; border: 1px solid #fcd34d; font-size: 10pt; margin-top: 6px; }
+      .wf-block { border: 1.5px solid #0f172a; }
+      .wf-head { background: #0f172a; color: #fff; padding: 4px 10px; font-size: 10.5pt; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+      table.auth-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; }
+      table.auth-tbl th { background: #e2e8f0; padding: 4px 6px; border: 1px solid #334155; font-weight: 800; text-align: center; }
+      table.auth-tbl td.sig-area { height: 50px; border: 1px solid #334155; text-align: center; vertical-align: bottom; padding: 4px; font-size: 9pt; }
+      table.auth-tbl td.sig-area b { font-size: 9.5pt; }
+      table.auth-tbl td.sig-area span { color: #475569; font-size: 8pt; }
+    </style>
+  `;
+  openPrint(`Salary Slip ${monthName} ${year} - ${emp.fullName}`, body);
+};
