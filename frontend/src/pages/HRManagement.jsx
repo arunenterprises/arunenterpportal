@@ -1523,24 +1523,24 @@ const IDCardTab = () => {
   .lanyard { position: absolute; top: 3mm; left: 50%; transform: translateX(-50%); width: 10mm; height: 2.2mm; background: #0f172a; border-radius: 2mm; z-index: 5; }
   /* FRONT — solid 3-section layout matching back */
   .front { display: flex; flex-direction: column; }
-  .front .ftop { background: #1e3a8a; color: #fff; padding: 7mm 4mm 3mm; display: flex; flex-direction: column; align-items: center; }
-  .front .ftop .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1mm 2.5mm rgba(0,0,0,.3); border: 0.5mm solid #fff; }
+  .front .ftop { background: #1e3a8a; color: #fff; padding: 5mm 3mm 2mm; display: flex; flex-direction: column; align-items: center; }
+  .front .ftop .logo-box { width: 13mm; height: 13mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0.8mm 2mm rgba(0,0,0,.3); border: 0.4mm solid #fff; }
   .front .ftop .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
-  .front .ftop .cn { font-size: 13px; font-weight: 900; letter-spacing: 1.5px; margin-top: 2mm; }
-  .front .ftop .tag { font-size: 7px; font-weight: 700; letter-spacing: .4px; color: #fbbf24; margin-top: 1mm; width: 92%; text-align: center; line-height: 1.2; }
-  .front .fmid { padding: 3mm 4mm 2mm; flex: 1; display: flex; flex-direction: column; align-items: center; }
-  .front .fmid .photo-ring { width: 36mm; height: 42mm; border-radius: 2mm; border: 0.7mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #64748b; font-weight: 700; box-shadow: 0 0.6mm 1.8mm rgba(30,58,138,.25); }
-  .front .fmid .name { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #1e3a8a; margin-top: 2mm; text-align: center; }
-  .front .fmid .desig { font-size: 8.5px; font-weight: 800; color: #dc2626; letter-spacing: 1.3px; text-transform: uppercase; margin-top: 1mm; text-align: center; }
-  .front .fmid .rule { width: 20mm; height: 0.3mm; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 2mm auto; }
-  .front .fmid .data { width: 100%; margin-top: 1mm; font-size: 9px; }
-  .front .fmid .data div { display: grid; grid-template-columns: 24mm 2mm 1fr; align-items: center; padding: 0.8mm 0; letter-spacing: .3px; border-bottom: 0.1mm solid #f1f5f9; }
-  .front .fmid .data .k { font-weight: 800; color: #0f172a; letter-spacing: .5px; font-size: 8.5px; }
+  .front .ftop .cn { font-size: 11.5px; font-weight: 900; letter-spacing: 1.4px; margin-top: 1.2mm; }
+  .front .ftop .tag { font-size: 6.5px; font-weight: 700; letter-spacing: .3px; color: #fbbf24; margin-top: 0.8mm; width: 92%; text-align: center; line-height: 1.2; }
+  .front .fmid { padding: 2mm 3mm 1mm; flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .front .fmid .photo-ring { width: 26mm; height: 30mm; border-radius: 1.5mm; border: 0.6mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #64748b; font-weight: 700; box-shadow: 0 0.5mm 1.5mm rgba(30,58,138,.25); flex-shrink: 0; }
+  .front .fmid .name { font-size: 11px; font-weight: 900; letter-spacing: .8px; color: #1e3a8a; margin-top: 1.2mm; text-align: center; line-height: 1.1; }
+  .front .fmid .desig { font-size: 8px; font-weight: 800; color: #dc2626; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 0.5mm; text-align: center; }
+  .front .fmid .rule { width: 16mm; height: 0.25mm; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 1.2mm auto; }
+  .front .fmid .data { width: 100%; margin-top: 0.5mm; font-size: 8.5px; }
+  .front .fmid .data div { display: grid; grid-template-columns: 22mm 2mm 1fr; align-items: center; padding: 0.5mm 0; letter-spacing: .3px; border-bottom: 0.1mm solid #f1f5f9; }
+  .front .fmid .data .k { font-weight: 800; color: #0f172a; letter-spacing: .4px; font-size: 8px; }
   .front .fmid .data .sep { color: #475569; font-weight: 800; text-align: center; }
-  .front .fmid .data .v { font-weight: 800; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .front .fbot { background: #1e3a8a; color: #fff; padding: 2mm 3mm 3mm; text-align: center; }
-  .front .fbot .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 13px; color: #fff; font-style: italic; }
-  .front .fbot .slabel { font-size: 7px; font-weight: 800; letter-spacing: 1.2px; color: #fbbf24; border-top: 0.3mm solid #fff; padding-top: 1mm; margin-top: 1mm; width: 34mm; margin-left: auto; margin-right: auto; }
+  .front .fmid .data .v { font-weight: 800; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.5px; }
+  .front .fbot { background: #1e3a8a; color: #fff; padding: 1.5mm 3mm 2mm; text-align: center; }
+  .front .fbot .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 12px; color: #fff; font-style: italic; line-height: 1; }
+  .front .fbot .slabel { font-size: 6.5px; font-weight: 800; letter-spacing: 1px; color: #fbbf24; border-top: 0.3mm solid #fff; padding-top: 0.5mm; margin-top: 0.5mm; width: 32mm; margin-left: auto; margin-right: auto; }
   /* BACK */
   .back .btop { position: relative; height: 42mm; background: #1e3a8a; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
   .back .btop .logo-box { width: 20mm; height: 20mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1.2mm 3mm rgba(0,0,0,.4); border: 0.6mm solid #fff; }
@@ -1666,23 +1666,23 @@ const IDCardTab = () => {
           <div style={{ width: CARD_W, height: CARD_H, position: "relative", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 10px 30px rgba(15,23,42,.25)", border: "1px solid #cbd5e1", display: "flex", flexDirection: "column" }}>
             {/* Lanyard dot */}
             <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
-            {/* Top navy block — matches back design */}
-            <div style={{ background: "#1e3a8a", color: "#fff", padding: "26px 10px 14px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.25)", border: "2px solid #fff" }}>
+            {/* Top navy block — compact to leave room for photo + data */}
+            <div style={{ background: "#1e3a8a", color: "#fff", padding: "18px 10px 8px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(0,0,0,.25)", border: "2px solid #fff" }}>
                 <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
               </div>
-              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1.5, marginTop: 7 }}>ARUN ENTERPRISES</div>
-              <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .4, color: "#fbbf24", marginTop: 2, width: "92%", textAlign: "center", lineHeight: 1.2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.5, marginTop: 5 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .3, color: "#fbbf24", marginTop: 2, width: "92%", textAlign: "center", lineHeight: 1.2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
             </div>
             {/* Middle white block — photo + name + designation + data rows */}
-            <div style={{ padding: "12px 14px 8px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: 130, height: 155, borderRadius: 6, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b", fontWeight: 700, boxShadow: "0 2px 6px rgba(30,58,138,.25)" }}>
+            <div style={{ padding: "8px 12px 6px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", minHeight: 0 }}>
+              <div style={{ width: 95, height: 110, borderRadius: 5, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#64748b", fontWeight: 700, boxShadow: "0 2px 5px rgba(30,58,138,.25)", flexShrink: 0 }}>
                 {emp.photoUrl ? "" : "PHOTO"}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, color: "#1e3a8a", marginTop: 8, textAlign: "center" }}>{(emp.fullName || "—").toUpperCase()}</div>
-              <div style={{ fontSize: 9, fontWeight: 800, color: "#dc2626", letterSpacing: 1.3, textTransform: "uppercase", marginTop: 2, textAlign: "center" }}>{emp.designation || "—"}</div>
-              <div style={{ width: 56, height: 1, background: "linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent)", margin: "6px auto" }} />
-              <div style={{ width: "100%", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>
+              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: .8, color: "#1e3a8a", marginTop: 5, textAlign: "center", lineHeight: 1.1 }}>{(emp.fullName || "—").toUpperCase()}</div>
+              <div style={{ fontSize: 8.5, fontWeight: 800, color: "#dc2626", letterSpacing: 1.1, textTransform: "uppercase", marginTop: 1, textAlign: "center" }}>{emp.designation || "—"}</div>
+              <div style={{ width: 46, height: 1, background: "linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent)", margin: "4px auto" }} />
+              <div style={{ width: "100%", fontSize: 9, lineHeight: 1.3, marginTop: 1 }}>
                 {[
                   ["EMPLOYEE ID", emp.empCode || emp.tempCode || "—"],
                   ["DEPARTMENT", (emp.department || "—").toUpperCase()],
@@ -1690,18 +1690,18 @@ const IDCardTab = () => {
                   ["DATE OF JOINING", emp.doj ? fmtDMY(emp.doj) : "—"],
                   ...(!hideMobile ? [["MOBILE", emp.contactMobile || "—"]] : []),
                 ].map(([k, v]) => (
-                  <div key={k} style={{ display: "grid", gridTemplateColumns: "95px 10px 1fr", alignItems: "center", padding: "3px 0", borderBottom: "0.5px solid #f1f5f9" }}>
-                    <span style={{ fontWeight: 800, color: "#0f172a", letterSpacing: .5, fontSize: 9 }}>{k}</span>
+                  <div key={k} style={{ display: "grid", gridTemplateColumns: "88px 8px 1fr", alignItems: "center", padding: "1.5px 0", borderBottom: "0.5px solid #f1f5f9" }}>
+                    <span style={{ fontWeight: 800, color: "#0f172a", letterSpacing: .3, fontSize: 8.5 }}>{k}</span>
                     <span style={{ color: "#475569", fontWeight: 800, textAlign: "center" }}>:</span>
-                    <span style={{ fontWeight: 800, color: "#1e3a8a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={v}>{v}</span>
+                    <span style={{ fontWeight: 800, color: "#1e3a8a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 9 }} title={v}>{v}</span>
                   </div>
                 ))}
               </div>
             </div>
             {/* Bottom navy block — signature */}
-            <div style={{ background: "#1e3a8a", color: "#fff", padding: "8px 12px 10px", textAlign: "center" }}>
-              <div style={{ fontFamily: "'Brush Script MT','Lucida Handwriting',cursive", fontSize: 15, fontStyle: "italic", color: "#fff" }}>{(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
-              <div style={{ fontSize: 7, fontWeight: 800, letterSpacing: 1.2, color: "#fbbf24", borderTop: "0.5px solid #fff", paddingTop: 2, marginTop: 1, width: 130, marginLeft: "auto", marginRight: "auto" }}>AUTHORIZED SIGNATURE</div>
+            <div style={{ background: "#1e3a8a", color: "#fff", padding: "4px 12px 6px", textAlign: "center" }}>
+              <div style={{ fontFamily: "'Brush Script MT','Lucida Handwriting',cursive", fontSize: 13, fontStyle: "italic", color: "#fff", lineHeight: 1 }}>{(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
+              <div style={{ fontSize: 6.5, fontWeight: 800, letterSpacing: 1, color: "#fbbf24", borderTop: "0.5px solid #fff", paddingTop: 1, marginTop: 1, width: 115, marginLeft: "auto", marginRight: "auto" }}>AUTHORIZED SIGNATURE</div>
             </div>
           </div>
 
