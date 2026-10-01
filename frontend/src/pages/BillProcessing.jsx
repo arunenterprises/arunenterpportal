@@ -13,6 +13,7 @@ import {
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getWOs, canCreate, canApprove,
+  getPayBills, advancePayBillStep, PAYBILL_STATUS,
 } from "../lib/store";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
@@ -428,6 +429,75 @@ export default function BillProcessing() {
 
         <div className="a4" data-testid="bill-page">
           <Header formTitle="ACCOUNTS DEPARTMENT · BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />
+
+          {/* HR Pay Bills Queue — Accounts approval section */}
+          {(() => {
+            const paybills = getPayBills().slice().sort((a, b) => (b.monthKey || "").localeCompare(a.monthKey || ""));
+            const pending = paybills.filter((p) => Number(p.step) === 3);
+            const settled = paybills.filter((p) => Number(p.step) === 4);
+            if (paybills.length === 0) return null;
+            return (
+              <div style={{ marginTop: 10, marginBottom: 14, border: "2px solid #be185d", borderRadius: 8, overflow: "hidden" }} data-testid="hr-paybills-section">
+                <div style={{ background: "linear-gradient(135deg, #be185d 0%, #7c3aed 100%)", color: "#fff", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", opacity: .9 }}>HR Payroll · Accounts Approval Queue</div>
+                    <div style={{ fontSize: 15, fontWeight: 800 }}>{pending.length} Pay Bill{pending.length !== 1 ? "s" : ""} Pending · {settled.length} Settled</div>
+                  </div>
+                  <div style={{ fontSize: 11, opacity: .9 }}>Flow: HR → GM Approval → <b>Accounts (You)</b> → Auto PV</div>
+                </div>
+                <div style={{ background: "#fff", padding: 0 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }} data-testid="hr-paybills-table">
+                    <thead><tr style={{ background: "#f8fafc" }}>
+                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Ref No</th>
+                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Period</th>
+                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Employees</th>
+                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Gross</th>
+                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Advance</th>
+                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Net Payable</th>
+                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Status</th>
+                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11, width: 220 }}>Accounts Action</th>
+                    </tr></thead>
+                    <tbody>
+                      {paybills.map((pb) => {
+                        const monthName = new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en-IN", { month: "short" });
+                        const tone = Number(pb.step) === 4 ? "#166534" : Number(pb.step) === 3 ? "#be185d" : Number(pb.step) === 2 ? "#b45309" : "#64748b";
+                        return (
+                          <tr key={pb.id} data-testid={`hr-paybill-row-${pb.id}`} style={{ background: Number(pb.step) === 3 ? "#fef3c7" : "#fff" }}>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0", fontFamily: "monospace", fontSize: 11 }}>{pb.refNo}</td>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0", fontWeight: 700 }}>{monthName} {pb.year}</td>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right" }}>{pb.lines?.length || 0}</td>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right" }}>₹ {Number(pb.totalGross || 0).toLocaleString("en-IN")}</td>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right", color: "#78350f" }}>₹ {Number(pb.totalAdvance || 0).toLocaleString("en-IN")}</td>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800 }}>₹ {Number(pb.totalNet || 0).toLocaleString("en-IN")}</td>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0", color: tone, fontWeight: 700, fontSize: 11 }}>{PAYBILL_STATUS[pb.step]}</td>
+                            <td style={{ padding: 7, border: "1px solid #e2e8f0" }}>
+                              {Number(pb.step) < 3 && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Awaiting HR/GM</span>}
+                              {Number(pb.step) === 3 && (
+                                <button
+                                  data-testid={`hr-paybill-approve-${pb.id}`}
+                                  onClick={() => {
+                                    if (!canApprove()) { toast.error("Only Admin / SuperAdmin / Accounts"); return; }
+                                    if (!window.confirm(`Approve & Settle Pay Bill ${pb.refNo}?\n\nA Payment Voucher of ₹ ${Number(pb.totalNet || 0).toLocaleString("en-IN")} will be auto-generated.`)) return;
+                                    const n = advancePayBillStep(pb);
+                                    toast.success(`Pay Bill settled · PV ${n.linkedPvNo || ""} auto-generated`);
+                                    setRefresh((v) => v + 1);
+                                  }}
+                                  style={{ padding: "4px 10px", background: canApprove() ? "#16a34a" : "#94a3b8", color: "#fff", border: "none", borderRadius: 4, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }}
+                                >💰 Approve & Generate PV</button>
+                              )}
+                              {Number(pb.step) === 4 && (
+                                <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PV: {pb.linkedPvNo || "generated"}</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           <StepTabs
             step={bill.step}
