@@ -49,10 +49,11 @@ Build a multi-page Vendor Management, Bill Processing, Expense Management, Purch
 10. **I. Documents Upload** — Multi-upload (≤500KB each): Aadhaar, PAN, Photo, Signature, Educational, Experience, etc. — categorized dropdown + View + Delete
 11. **J. Declaration** — Declaration text + Place + Date · Right: Candidate Signature upload (≤500KB)
 12. **K. All Employees** — Paginated list with Edit/Delete
-13. **Bottom Workflow Button Bar** (full-width, 5 buttons):
-    - **New / Save / Edited / Submitted** → All (User / Admin / SuperAdmin)
-    - **Approval** → only Admin / SuperAdmin
-    - Permission note strip visible below the buttons
+13. **Bottom Workflow Button Bar** (full-width, clean · no header/footer titles):
+    - 6 buttons: New / Save / Edited / Submitted / Approval / Print A4 (7th Re-Approve shows only when step=5)
+    - **New / Save / Edited / Submitted / Print** → All (User / Admin / SuperAdmin)
+    - **Approval / Re-Approve** → only Admin / SuperAdmin
+    - Top actions strip removed — all actions consolidated at bottom
 
 ### HR Letter Generators (A4 Portrait · window.open)
 - **Offer Letter** — Recruitment tab, status ≥ Offered. Letterhead (logo + name + tagline + address + Tel/Email/Web + GSTIN), Ref No AE/HR/OL/YYYY/XXXXX, candidate addressee, CTC breakup table (Basic 50% / HRA 20% / DA 10% / Special 15% / Bonus 5% + Employer PF 12% + Gratuity 4.81% = Total CTC), 8 T&C clauses, signatory K.L. Srivastava · Director, candidate acceptance block.

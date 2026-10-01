@@ -185,18 +185,6 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
 
   return (
     <div style={{ padding: 14 }}>
-      {/* Actions strip */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-        <button data-testid="hr-emp-new" onClick={startNew} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><UserPlus size={13} style={{ verticalAlign: -2 }} /> New</button>
-        <button data-testid="hr-emp-save" onClick={save} disabled={!writeAllowed || locked} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
-        <button data-testid="hr-emp-submit" onClick={submit} disabled={!writeAllowed || locked || Number(emp.step) >= 5} style={{ padding: "6px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && Number(emp.step) < 5 ? 1 : .5, fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit / Advance</button>
-        <button data-testid="hr-emp-approve" onClick={approve} disabled={!approveAllowed || Number(emp.step) >= 5} style={{ padding: "6px 12px", background: !approveAllowed || Number(emp.step) >= 5 ? "#f1f5f9" : "#dc2626", color: !approveAllowed || Number(emp.step) >= 5 ? "#94a3b8" : "#fff", border: "none", borderRadius: 5, cursor: approveAllowed && Number(emp.step) < 5 ? "pointer" : "not-allowed", opacity: approveAllowed && Number(emp.step) < 5 ? 1 : .5, fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Final Approve</button>
-        {Number(emp.step) >= 5 && (
-          <button data-testid="hr-emp-reapprove" onClick={reapprove} disabled={!approveAllowed} style={{ padding: "6px 12px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed ? 1 : .5, fontWeight: 700, fontSize: 12 }}><RefreshCw size={13} style={{ verticalAlign: -2 }} /> Re-Approve</button>
-        )}
-        <button data-testid="hr-emp-print" onClick={() => printEmployeeApplication(emp)} style={{ padding: "6px 12px", background: "#334155", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Portrait</button>
-      </div>
-
       {/* Header codes */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <F label="Temp Code (Alpha-Num)"><input value={emp.tempCode} readOnly style={{ ...inputStyle, background: "#fef9c3", fontWeight: 700, color: "#78716c" }} data-testid="emp-temp-code" /></F>
@@ -526,11 +514,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
 
       {/* Bottom Workflow Button Bar (full width) */}
       <div className="section" style={{ marginTop: 14, background: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)", border: "1.5px solid #0f172a", borderRadius: 10, overflow: "hidden" }}>
-        <div style={{ padding: "8px 14px", background: "#0f172a", color: "#fff", fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Workflow · Approval Chain</span>
-          <span style={{ fontSize: 10.5, fontWeight: 600, color: "#cbd5e1", textTransform: "none", letterSpacing: 0 }}>Current Step: <b style={{ color: "#fbbf24" }}>{EMPLOYEE_STEP_LABEL[emp.step] || "-"}</b> · Rev: {emp.revision || 0}</span>
-        </div>
-        <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+        <div style={{ padding: 14, display: "grid", gridTemplateColumns: `repeat(${Number(emp.step) >= 5 ? 7 : 6}, 1fr)`, gap: 10 }}>
           <button data-testid="wf-new" onClick={startNew} style={{ padding: "12px 10px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
             <UserPlus size={18} /> New
           </button>
@@ -546,9 +530,14 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
           <button data-testid="wf-approval" onClick={approve} disabled={!approveAllowed || Number(emp.step) >= 5} style={{ padding: "12px 10px", background: !approveAllowed || Number(emp.step) >= 5 ? "#cbd5e1" : "#dc2626", color: "#fff", border: "none", borderRadius: 6, cursor: !approveAllowed || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !approveAllowed || Number(emp.step) >= 5 ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
             <CheckCircle2 size={18} /> Approval
           </button>
-        </div>
-        <div style={{ padding: "8px 14px", background: "#fef3c7", borderTop: "1px dashed #f59e0b", fontSize: 10.5, color: "#78350f", lineHeight: 1.5 }}>
-          <b>Permissions:</b> <span style={{ background: "#dcfce7", color: "#166534", padding: "1px 6px", borderRadius: 3, fontWeight: 700 }}>New / Save / Edited / Submitted</span> → available for <b>All (User / Admin / SuperAdmin)</b>. <span style={{ background: "#fee2e2", color: "#991b1b", padding: "1px 6px", borderRadius: 3, fontWeight: 700 }}>Approval</span> → only <b>Admin / SuperAdmin</b> can finalize &amp; issue permanent EMP code.
+          {Number(emp.step) >= 5 && (
+            <button data-testid="wf-reapprove" onClick={reapprove} disabled={!approveAllowed} style={{ padding: "12px 10px", background: !approveAllowed ? "#cbd5e1" : "#f59e0b", color: "#fff", border: "none", borderRadius: 6, cursor: !approveAllowed ? "not-allowed" : "pointer", opacity: !approveAllowed ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <RefreshCw size={18} /> Re-Approve
+            </button>
+          )}
+          <button data-testid="wf-print" onClick={() => printEmployeeApplication(emp)} style={{ padding: "12px 10px", background: "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <Printer size={18} /> Print A4
+          </button>
         </div>
       </div>
     </div>
