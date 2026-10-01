@@ -268,6 +268,10 @@ export const printEmployeeApplication = (emp) => {
       <div><b>Project / Site:</b> ${emp.projectSite || "—"}</div>
       <div><b>Location:</b> ${emp.location || "—"}</div>
       <div><b>Applied Post:</b> ${emp.appliedPost || "—"}</div>
+      <div><b>Designation:</b> ${emp.designation || "—"}</div>
+      <div><b>Department:</b> ${emp.department || "—"}</div>
+      <div><b>Reporting Manager:</b> ${emp.reportingManager || "—"}</div>
+      <div><b>Date of Joining:</b> ${fmtDMY(emp.doj)}</div>
     </div>
 
     <div class="row-top">
@@ -301,16 +305,6 @@ export const printEmployeeApplication = (emp) => {
         ${row("Email", emp.contactEmail)}
         ${row("Present / Communication Address", presentAddr)}
         ${row("Permanent Address", permAddr)}
-      </tbody>
-    </table>
-
-    <div class="sec-t">Job / Position</div>
-    <table class="kv">
-      <tbody>
-        ${row("Date of Joining", fmtDMY(emp.doj))}
-        ${row("Designation", emp.designation)}
-        ${row("Department", emp.department)}
-        ${row("Reporting Manager", emp.reportingManager)}
       </tbody>
     </table>
 
@@ -367,7 +361,7 @@ export const printEmployeeApplication = (emp) => {
     .app-head { text-align: center; margin: 4px 0 10px; }
     .app-title { font-size: 15pt; font-weight: 800; letter-spacing: 2px; text-decoration: underline; }
     .app-sub { font-size: 10pt; color: #475569; margin-top: 3px; }
-    .refbox { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 14px; border: 1px solid #0f172a; background: #f8fafc; padding: 7px 10px; font-size: 10pt; margin-bottom: 10px; }
+    .refbox { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 14px; border: 1.5px solid #0f172a; background: #dbeafe; padding: 7px 10px; font-size: 10pt; margin-bottom: 10px; }
     .row-top { display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-bottom: 10px; }
     .photo-box { width: 110px; height: 140px; border: 1.5px solid #0f172a; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff; }
     .photo-box img { width: 100%; height: 100%; object-fit: cover; }

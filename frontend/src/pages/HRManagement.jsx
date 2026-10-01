@@ -154,10 +154,13 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
   const approve = () => {
     if (!approveAllowed) { toast.error("Only Admin / SuperAdmin can finalize"); return; }
     if (Number(emp.step) >= 5) { toast.info("Already finalized"); return; }
-    let cur = { ...emp };
+    // Auto-fill Date of Joining on Final Approval
+    let cur = { ...emp, doj: emp.doj || new Date().toISOString().slice(0, 10) };
+    if (!cur.doj) cur.doj = new Date().toISOString().slice(0, 10);
+    cur.doj = new Date().toISOString().slice(0, 10);
     while (Number(cur.step) < 5) cur = advanceEmployeeStep(cur);
     setEmp(cur); setLocked(true); refresh();
-    toast.success(`Finalized · Permanent EMP Code: ${cur.empCode}`);
+    toast.success(`Finalized · EMP Code: ${cur.empCode} · DOJ: ${cur.doj}`);
   };
   const reapprove = () => {
     if (!approveAllowed) { toast.error("Only Admin / SuperAdmin can re-approve"); return; }
@@ -204,7 +207,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
 
       {/* Application Reference */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#dbeafe", borderBottom: "1px solid #93c5fd", color: "#1e3a8a", textTransform: "uppercase", letterSpacing: .4 }}>Application Reference</div>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#dbeafe", borderBottom: "1px solid #93c5fd", color: "#1e3a8a", textTransform: "uppercase", letterSpacing: .4 }}>Application Reference &amp; Position</div>
         <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
           <F label="Advertisement No."><input value={emp.advertisementNo || ""} onChange={(e) => set("advertisementNo", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-advt" placeholder="AE/HR/ADVT/2026/001" /></F>
           <F label="Date of Filing"><input type="date" value={emp.dateOfFiling || ""} onChange={(e) => set("dateOfFiling", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-filingdate" /></F>
@@ -216,7 +219,15 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
               {APPLIED_POSTS.map((p) => <option key={p}>{p}</option>)}
             </select>
           </F>
+          <F label="Designation" req><input list="hr-designations" value={emp.designation} onChange={(e) => set("designation", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-designation" /></F>
+          <F label="Department"><select value={emp.department} onChange={(e) => set("department", e.target.value)} disabled={locked} style={inputStyle}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
+          <F label="Reporting Manager"><input value={emp.reportingManager || ""} onChange={(e) => set("reportingManager", e.target.value)} disabled={locked} style={inputStyle} /></F>
+          <F label="Date of Joining (auto on Final Approval)">
+            <input type="date" value={emp.doj || ""} readOnly style={{ ...inputStyle, background: emp.doj && Number(emp.step) >= 5 ? "#dcfce7" : "#fef3c7", fontWeight: 700, color: Number(emp.step) >= 5 ? "#166534" : "#78350f" }} data-testid="emp-doj" />
+          </F>
+          <F label="Employment Status"><select value={emp.status || "Active"} onChange={(e) => set("status", e.target.value)} disabled={locked} style={inputStyle}><option>Active</option><option>Probation</option><option>On Leave</option><option>Exit Pending</option><option>Exited</option></select></F>
         </div>
+        <datalist id="hr-designations">{DESIGNATIONS.map((d) => <option key={d} value={d} />)}</datalist>
       </div>
 
       {/* Bio-Data Application Form — Photo + Personal + Job */}
@@ -311,21 +322,8 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         </div>
       </div>
 
-      {/* Job */}
-      <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>C. Job / Position Applied</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-          <F label="Date of Joining"><input type="date" value={emp.doj} onChange={(e) => set("doj", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Designation" req><input list="hr-designations" value={emp.designation} onChange={(e) => set("designation", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Department"><select value={emp.department} onChange={(e) => set("department", e.target.value)} disabled={locked} style={inputStyle}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
-          <F label="Reporting Manager"><input value={emp.reportingManager || ""} onChange={(e) => set("reportingManager", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Employment Status"><select value={emp.status || "Active"} onChange={(e) => set("status", e.target.value)} disabled={locked} style={inputStyle}><option>Active</option><option>Probation</option><option>On Leave</option><option>Exit Pending</option><option>Exited</option></select></F>
-        </div>
-        <datalist id="hr-designations">{DESIGNATIONS.map((d) => <option key={d} value={d} />)}</datalist>
-      </div>
-
-      {/* Family Members (dynamic) */}
-      <DynamicRows title="D. Family Members"
+      {/* C. Family Members (dynamic) */}
+      <DynamicRows title="C. Family Members"
         rows={emp.familyMembers || []} onChange={(rows) => set("familyMembers", rows)} disabled={locked}
         columns={[
           { key: "name", label: "Name", width: "2fr" },
@@ -336,7 +334,33 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         ]} testPrefix="emp-fam"
       />
 
-      {/* Educational Qualifications */}
+      {/* D. References (compact — min 2) */}
+      <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>D. References (minimum 2 — Non-Relatives)</div>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {[0, 1].map((idx) => {
+            const r = (emp.references || [])[idx] || { name: "", mobile: "", relation: "" };
+            const updateRef = (key, val) => {
+              const next = [...(emp.references || [])];
+              while (next.length <= idx) next.push({ name: "", mobile: "", relation: "" });
+              next[idx] = { ...next[idx], [key]: val };
+              set("references", next);
+            };
+            return (
+              <div key={idx} style={{ padding: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#334155", marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>Reference {idx + 1}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: 8 }}>
+                  <F label="Name"><input value={r.name || ""} onChange={(e) => updateRef("name", e.target.value)} disabled={locked} style={inputStyle} data-testid={`emp-ref${idx}-name`} /></F>
+                  <F label="Mobile No."><input value={r.mobile || ""} onChange={(e) => updateRef("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={locked} style={inputStyle} data-testid={`emp-ref${idx}-mobile`} /></F>
+                  <F label="Relationship"><input value={r.relation || ""} onChange={(e) => updateRef("relation", e.target.value)} disabled={locked} style={inputStyle} placeholder="Friend / Colleague / Teacher" data-testid={`emp-ref${idx}-rel`} /></F>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* E. Educational Qualifications */}
       <DynamicRows title="E. Educational Qualifications"
         rows={emp.educations || []} onChange={(rows) => set("educations", rows)} disabled={locked}
         columns={[
@@ -361,21 +385,9 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         ]} testPrefix="emp-exp"
       />
 
-      {/* References */}
-      <DynamicRows title="G. References (Non-Relatives)"
-        rows={emp.references || []} onChange={(rows) => set("references", rows)} disabled={locked}
-        columns={[
-          { key: "name", label: "Name", width: "1.5fr" },
-          { key: "designation", label: "Designation", width: "1.2fr" },
-          { key: "company", label: "Company / Org.", width: "1.5fr" },
-          { key: "mobile", label: "Mobile", width: "1fr" },
-          { key: "relation", label: "Known For (yrs)", width: "0.8fr" },
-        ]} testPrefix="emp-ref"
-      />
-
       {/* Bank & Statutory */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>H. Bank &amp; Statutory</div>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>G. Bank &amp; Statutory</div>
         <div style={{ padding: 12 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 10 }}>
             <F label="IFSC Code (auto-fills bank)" req>
@@ -405,7 +417,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
 
       {/* Salary Structure */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>I. Salary Structure (₹ / month)</div>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>H. Salary Structure (₹ / month)</div>
         <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
           <F label="Basic"><input type="number" value={emp.basic} onChange={(e) => set("basic", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
           <F label="HRA"><input type="number" value={emp.hra} onChange={(e) => set("hra", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
@@ -418,7 +430,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
 
       {/* Declaration */}
       <div className="section" style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#fef3c7", borderBottom: "1px solid #fde68a", color: "#78350f" }}>J. Declaration</div>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#fef3c7", borderBottom: "1px solid #fde68a", color: "#78350f" }}>I. Declaration</div>
         <div style={{ padding: 12 }}>
           <div style={{ fontSize: 11.5, color: "#78350f", lineHeight: 1.6, marginBottom: 10 }}>
             I hereby declare that the information furnished above is true, correct and complete to the best of my knowledge and belief. I understand that in case any particular is found to be false or incorrect at any stage, my candidature / services are liable to be terminated without notice.
@@ -431,10 +443,10 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         </div>
       </div>
 
-      {/* K. Documents Upload */}
+      {/* J. Documents Upload */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>K. Documents Upload (Aadhaar, PAN, Education, Experience etc. · each ≤ 100KB)</span>
+          <span>J. Documents Upload (Aadhaar, PAN, Education, Experience etc. · each ≤ 100KB)</span>
           <label style={{ padding: "4px 10px", background: locked ? "#e2e8f0" : "#16a34a", color: locked ? "#64748b" : "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700 }}>
             + Add Document
             <input type="file" accept="image/*,.pdf" multiple disabled={locked} onChange={(e) => {
@@ -481,7 +493,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* All employees list */}
       {list.length > 0 && (
         <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-          <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>L. All Employees ({list.length})</div>
+          <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>K. All Employees ({list.length})</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
             <thead><tr style={{ background: "#f8fafc" }}>
               <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Code</th>
