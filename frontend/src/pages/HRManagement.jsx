@@ -18,11 +18,64 @@ import {
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY,
 } from "../lib/store";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter } from "../lib/hrLetters";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
 const ATT_CODES = { P: { label: "Present", tone: "#16a34a" }, A: { label: "Absent", tone: "#dc2626" }, L: { label: "Leave", tone: "#f59e0b" }, H: { label: "Half-day", tone: "#0369a1" }, W: { label: "Week-off", tone: "#94a3b8" }, HL: { label: "Holiday", tone: "#7c3aed" } };
 const nextCode = { "": "P", "P": "A", "A": "L", "L": "H", "H": "W", "W": "HL", "HL": "" };
+
+// -------------- Dynamic rows helper (Family / Education / Experience / References) --------------
+const DynamicRows = ({ title, rows, onChange, columns, disabled, testPrefix }) => {
+  const addRow = () => {
+    const blank = columns.reduce((acc, c) => ({ ...acc, [c.key]: c.type === "number" ? 0 : "" }), { _id: `r_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` });
+    onChange([...(rows || []), blank]);
+  };
+  const updateRow = (idx, key, val) => {
+    const next = [...rows]; next[idx] = { ...next[idx], [key]: val }; onChange(next);
+  };
+  const removeRow = (idx) => { const next = [...rows]; next.splice(idx, 1); onChange(next); };
+
+  const gridCols = columns.map((c) => c.width || "1fr").join(" ") + " 36px";
+
+  return (
+    <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+      <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>{title}</span>
+        <button type="button" onClick={addRow} disabled={disabled} data-testid={`${testPrefix}-add`} style={{ padding: "3px 10px", background: disabled ? "#e2e8f0" : "#0369a1", color: disabled ? "#64748b" : "#fff", border: "none", borderRadius: 4, cursor: disabled ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700 }}>+ Add Row</button>
+      </div>
+      <div style={{ padding: 10 }}>
+        {(!rows || rows.length === 0) ? (
+          <div style={{ padding: 14, textAlign: "center", color: "#94a3b8", fontSize: 11, border: "1px dashed #e2e8f0", borderRadius: 6 }}>No entries — click "+ Add Row" above</div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: gridCols, gap: 6, padding: "4px 0", fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: .4, borderBottom: "1px solid #e2e8f0", marginBottom: 6 }}>
+              {columns.map((c) => <div key={c.key}>{c.label}</div>)}
+              <div></div>
+            </div>
+            {rows.map((row, idx) => (
+              <div key={row._id || idx} data-testid={`${testPrefix}-row-${idx}`} style={{ display: "grid", gridTemplateColumns: gridCols, gap: 6, padding: "3px 0" }}>
+                {columns.map((c) => {
+                  const base = { padding: "5px 8px", fontSize: 11.5, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
+                  if (c.type === "select") return (
+                    <select key={c.key} value={row[c.key] || ""} onChange={(e) => updateRow(idx, c.key, e.target.value)} disabled={disabled} style={base}>
+                      <option value="">—</option>
+                      {c.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  );
+                  return (
+                    <input key={c.key} type={c.type || "text"} value={row[c.key] ?? ""} onChange={(e) => updateRow(idx, c.key, c.type === "number" ? (+e.target.value || 0) : e.target.value)} disabled={disabled} style={base} />
+                  );
+                })}
+                <button type="button" onClick={() => removeRow(idx)} disabled={disabled} data-testid={`${testPrefix}-del-${idx}`} style={{ padding: 2, background: disabled ? "#f1f5f9" : "#fee2e2", color: disabled ? "#94a3b8" : "#991b1b", border: `1px solid ${disabled ? "#cbd5e1" : "#fca5a5"}`, borderRadius: 4, cursor: disabled ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700 }}>🗑</button>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // -------------- Employee editor --------------
 const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
@@ -109,37 +162,132 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         <F label="Revision"><input value={emp.revision || 0} readOnly style={{ ...inputStyle, background: "#f8fafc", textAlign: "center" }} /></F>
       </div>
 
-      {/* Personal + Job */}
+      {/* Bio-Data Application Form — Photo + Personal + Job */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>A. Personal & Job Details</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-          <F label="Full Name" req><input value={emp.fullName} onChange={(e) => set("fullName", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-name" /></F>
-          <F label="Father's Name"><input value={emp.fatherName} onChange={(e) => set("fatherName", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Date of Birth"><input type="date" value={emp.dob} onChange={(e) => set("dob", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Gender"><select value={emp.gender} onChange={(e) => set("gender", e.target.value)} disabled={locked} style={inputStyle}><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select></F>
-          <F label="Date of Joining"><input type="date" value={emp.doj} onChange={(e) => set("doj", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Designation" req><input list="hr-designations" value={emp.designation} onChange={(e) => set("designation", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Department"><select value={emp.department} onChange={(e) => set("department", e.target.value)} disabled={locked} style={inputStyle}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
-          <F label="Status"><select value={emp.status || "Active"} onChange={(e) => set("status", e.target.value)} disabled={locked} style={inputStyle}><option>Active</option><option>Probation</option><option>On Leave</option><option>Exit Pending</option><option>Exited</option></select></F>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>A. Personal Details</div>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "140px 1fr", gap: 12 }}>
+          {/* Photo */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 120, height: 150, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.photoUrl ? `url(${emp.photoUrl}) center/cover` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
+              {!emp.photoUrl && "Passport Photo\n(120×150)"}
+            </div>
+            <label style={{ padding: "4px 10px", background: "#0369a1", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
+              Upload
+              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                const r = new FileReader(); r.onload = () => set("photoUrl", r.result); r.readAsDataURL(f);
+              }} style={{ display: "none" }} data-testid="emp-photo" />
+            </label>
+          </div>
+          {/* Personal fields grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            <F label="Full Name" req><input value={emp.fullName} onChange={(e) => set("fullName", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-name" /></F>
+            <F label="Father's Name"><input value={emp.fatherName} onChange={(e) => set("fatherName", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Mother's Name"><input value={emp.motherName || ""} onChange={(e) => set("motherName", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Spouse Name"><input value={emp.spouseName || ""} onChange={(e) => set("spouseName", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Date of Birth"><input type="date" value={emp.dob} onChange={(e) => set("dob", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Gender"><select value={emp.gender} onChange={(e) => set("gender", e.target.value)} disabled={locked} style={inputStyle}><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select></F>
+            <F label="Marital Status"><select value={emp.maritalStatus || "Single"} onChange={(e) => set("maritalStatus", e.target.value)} disabled={locked} style={inputStyle}><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option></select></F>
+            <F label="Blood Group"><select value={emp.bloodGroup || ""} onChange={(e) => set("bloodGroup", e.target.value)} disabled={locked} style={inputStyle}><option value="">—</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select></F>
+            <F label="Nationality"><input value={emp.nationality || "Indian"} onChange={(e) => set("nationality", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Religion"><input value={emp.religion || ""} onChange={(e) => set("religion", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Category"><select value={emp.category || "General"} onChange={(e) => set("category", e.target.value)} disabled={locked} style={inputStyle}><option>General</option><option>OBC</option><option>SC</option><option>ST</option><option>EWS</option></select></F>
+            <F label="Aadhaar"><input value={emp.aadhaar} onChange={(e) => set("aadhaar", e.target.value.replace(/\D/g, "").slice(0, 12))} disabled={locked} style={inputStyle} /></F>
+            <F label="PAN"><input value={emp.pan} onChange={(e) => set("pan", e.target.value.toUpperCase().slice(0, 10))} disabled={locked} style={inputStyle} /></F>
+          </div>
         </div>
-        <datalist id="hr-designations">{DESIGNATIONS.map((d) => <option key={d} value={d} />)}</datalist>
       </div>
 
       {/* Contact */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>B. Contact & KYC</div>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>B. Contact Details</div>
         <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
           <F label="Mobile" req><input value={emp.contactMobile} onChange={(e) => set("contactMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={locked} style={inputStyle} data-testid="emp-mobile" /></F>
-          <F label="Email"><input value={emp.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Aadhaar"><input value={emp.aadhaar} onChange={(e) => set("aadhaar", e.target.value.replace(/\D/g, "").slice(0, 12))} disabled={locked} style={inputStyle} /></F>
-          <F label="PAN"><input value={emp.pan} onChange={(e) => set("pan", e.target.value.toUpperCase().slice(0, 10))} disabled={locked} style={inputStyle} /></F>
-          <F label="Address"><input value={emp.address} onChange={(e) => set("address", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 4" }} /></F>
+          <F label="Alternate Mobile"><input value={emp.contactAltMobile || ""} onChange={(e) => set("contactAltMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={locked} style={inputStyle} /></F>
+          <F label="Email"><input value={emp.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+          <F label="Present Address"><textarea value={emp.presentAddress || emp.address || ""} onChange={(e) => set("presentAddress", e.target.value)} disabled={locked} rows={2} style={{ ...inputStyle, gridColumn: "span 2", fontFamily: "inherit", resize: "vertical" }} /></F>
+          <F label="Permanent Address"><textarea value={emp.permanentAddress || ""} onChange={(e) => set("permanentAddress", e.target.value)} disabled={locked} rows={2} style={{ ...inputStyle, gridColumn: "span 2", fontFamily: "inherit", resize: "vertical" }} /></F>
         </div>
       </div>
 
-      {/* Salary + Bank */}
+      {/* Job */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>C. Salary Structure (₹ / month)</div>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>C. Job / Position Applied</div>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          <F label="Date of Joining"><input type="date" value={emp.doj} onChange={(e) => set("doj", e.target.value)} disabled={locked} style={inputStyle} /></F>
+          <F label="Designation" req><input list="hr-designations" value={emp.designation} onChange={(e) => set("designation", e.target.value)} disabled={locked} style={inputStyle} /></F>
+          <F label="Department"><select value={emp.department} onChange={(e) => set("department", e.target.value)} disabled={locked} style={inputStyle}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
+          <F label="Reporting Manager"><input value={emp.reportingManager || ""} onChange={(e) => set("reportingManager", e.target.value)} disabled={locked} style={inputStyle} /></F>
+          <F label="Employment Status"><select value={emp.status || "Active"} onChange={(e) => set("status", e.target.value)} disabled={locked} style={inputStyle}><option>Active</option><option>Probation</option><option>On Leave</option><option>Exit Pending</option><option>Exited</option></select></F>
+        </div>
+        <datalist id="hr-designations">{DESIGNATIONS.map((d) => <option key={d} value={d} />)}</datalist>
+      </div>
+
+      {/* Family Members (dynamic) */}
+      <DynamicRows title="D. Family Members"
+        rows={emp.familyMembers || []} onChange={(rows) => set("familyMembers", rows)} disabled={locked}
+        columns={[
+          { key: "name", label: "Name", width: "2fr" },
+          { key: "relation", label: "Relation", width: "1fr", type: "select", options: ["Father", "Mother", "Spouse", "Son", "Daughter", "Brother", "Sister", "Other"] },
+          { key: "dob", label: "DOB", width: "1fr", type: "date" },
+          { key: "occupation", label: "Occupation", width: "1.5fr" },
+          { key: "contact", label: "Contact", width: "1fr" },
+        ]} testPrefix="emp-fam"
+      />
+
+      {/* Educational Qualifications */}
+      <DynamicRows title="E. Educational Qualifications"
+        rows={emp.educations || []} onChange={(rows) => set("educations", rows)} disabled={locked}
+        columns={[
+          { key: "qualification", label: "Qualification", width: "1.5fr" },
+          { key: "board", label: "Board / University", width: "2fr" },
+          { key: "institute", label: "Institute", width: "2fr" },
+          { key: "year", label: "Year", width: "0.6fr" },
+          { key: "percentage", label: "% / CGPA", width: "0.8fr" },
+        ]} testPrefix="emp-edu"
+      />
+
+      {/* Previous Experience */}
+      <DynamicRows title="F. Previous Work Experience"
+        rows={emp.experiences || []} onChange={(rows) => set("experiences", rows)} disabled={locked}
+        columns={[
+          { key: "company", label: "Company", width: "2fr" },
+          { key: "designation", label: "Designation", width: "1.3fr" },
+          { key: "from", label: "From", width: "1fr", type: "date" },
+          { key: "to", label: "To", width: "1fr", type: "date" },
+          { key: "lastSalary", label: "Last Salary (₹)", width: "1fr", type: "number" },
+          { key: "reason", label: "Reason for Leaving", width: "1.5fr" },
+        ]} testPrefix="emp-exp"
+      />
+
+      {/* References */}
+      <DynamicRows title="G. References (Non-Relatives)"
+        rows={emp.references || []} onChange={(rows) => set("references", rows)} disabled={locked}
+        columns={[
+          { key: "name", label: "Name", width: "1.5fr" },
+          { key: "designation", label: "Designation", width: "1.2fr" },
+          { key: "company", label: "Company / Org.", width: "1.5fr" },
+          { key: "mobile", label: "Mobile", width: "1fr" },
+          { key: "relation", label: "Known For (yrs)", width: "0.8fr" },
+        ]} testPrefix="emp-ref"
+      />
+
+      {/* Bank & Statutory */}
+      <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>H. Bank &amp; Statutory</div>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+          <F label="Bank Name"><input value={emp.bankName} onChange={(e) => set("bankName", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+          <F label="Account No."><input value={emp.bankAccount} onChange={(e) => set("bankAccount", e.target.value.replace(/\D/g, ""))} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+          <F label="IFSC"><input value={emp.ifsc} onChange={(e) => set("ifsc", e.target.value.toUpperCase().slice(0, 11))} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+          <F label="PF Number"><input value={emp.pfNo} onChange={(e) => set("pfNo", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+          <F label="UAN"><input value={emp.uan} onChange={(e) => set("uan", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+          <F label="ESIC"><input value={emp.esicNo} onChange={(e) => set("esicNo", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+        </div>
+      </div>
+
+      {/* Salary Structure */}
+      <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>I. Salary Structure (₹ / month)</div>
         <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
           <F label="Basic"><input type="number" value={emp.basic} onChange={(e) => set("basic", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
           <F label="HRA"><input type="number" value={emp.hra} onChange={(e) => set("hra", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
@@ -147,12 +295,21 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
           <F label="Special"><input type="number" value={emp.special} onChange={(e) => set("special", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
           <F label="Bonus"><input type="number" value={emp.bonus} onChange={(e) => set("bonus", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
           <F label="Gross (auto)"><input value={(+emp.basic || 0) + (+emp.hra || 0) + (+emp.da || 0) + (+emp.special || 0) + (+emp.bonus || 0)} readOnly style={{ ...inputStyle, background: "#eef2ff", fontWeight: 700, textAlign: "right" }} /></F>
-          <F label="Bank Name"><input value={emp.bankName} onChange={(e) => set("bankName", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="Account No."><input value={emp.bankAccount} onChange={(e) => set("bankAccount", e.target.value.replace(/\D/g, ""))} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="IFSC"><input value={emp.ifsc} onChange={(e) => set("ifsc", e.target.value.toUpperCase().slice(0, 11))} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="PF Number"><input value={emp.pfNo} onChange={(e) => set("pfNo", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="UAN"><input value={emp.uan} onChange={(e) => set("uan", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="ESIC"><input value={emp.esicNo} onChange={(e) => set("esicNo", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+        </div>
+      </div>
+
+      {/* Declaration */}
+      <div className="section" style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, marginBottom: 12 }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#fef3c7", borderBottom: "1px solid #fde68a", color: "#78350f" }}>J. Declaration</div>
+        <div style={{ padding: 12 }}>
+          <div style={{ fontSize: 11.5, color: "#78350f", lineHeight: 1.6, marginBottom: 10 }}>
+            I hereby declare that the information furnished above is true, correct and complete to the best of my knowledge and belief. I understand that in case any particular is found to be false or incorrect at any stage, my candidature / services are liable to be terminated without notice.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <F label="Place"><input value={emp.declarationPlace || ""} onChange={(e) => set("declarationPlace", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Date"><input type="date" value={emp.declarationDate || ""} onChange={(e) => set("declarationDate", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Signature of Candidate"><input readOnly value={emp.fullName ? `${emp.fullName} (digital)` : ""} style={{ ...inputStyle, background: "#f8fafc", fontStyle: "italic" }} /></F>
+          </div>
         </div>
       </div>
 
@@ -609,6 +766,7 @@ const RecruitTab = ({ writeAllowed }) => {
               </select>
             </td>
             <td style={{ padding: 4, whiteSpace: "nowrap" }}>
+              {(r.status >= 4) && <button data-testid={`rec-offer-${r.id}`} onClick={() => printOfferLetter(r)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Offer Letter</button>}
               {r.status === 4 && !r.joinedEmpId && <button data-testid={`rec-convert-${r.id}`} onClick={() => convertToEmp(r)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>→ Emp Draft</button>}
               {r.joinedEmpId && <span style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginRight: 4 }}>✓ Joined</span>}
               <button onClick={() => remove(r.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
@@ -694,6 +852,10 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
               <td style={{ padding: 7, fontWeight: 700 }}>{EXIT_STATUS[x.status]}</td>
               <td style={{ padding: 4, whiteSpace: "nowrap" }}>
                 {x.status === 3 && approveAllowed && <button data-testid={`exit-finalize-${x.id}`} onClick={() => finalize(x.id)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✓ Finalize & Exit</button>}
+                {x.status === 4 && emp && <>
+                  <button data-testid={`exit-exp-${x.id}`} onClick={() => printExperienceLetter(emp, x)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Experience</button>
+                  <button data-testid={`exit-rel-${x.id}`} onClick={() => printRelievingLetter(emp, x)} style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Relieving</button>
+                </>}
                 <button onClick={() => remove(x.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
               </td>
             </tr>
