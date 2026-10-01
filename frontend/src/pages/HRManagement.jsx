@@ -1852,6 +1852,43 @@ export default function HRManagement() {
             {tab === "dashboard" && (
               <div style={{ padding: 20 }}>
                 <CelebrationBanner emps={emps} />
+                {/* Employees Directory — short card grid: photo + EMP ID + name + designation + dept + mobile */}
+                <div style={{ marginTop: 20 }} data-testid="hr-emp-directory">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: "#64748b", textTransform: "uppercase" }}>Team Directory</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a", letterSpacing: .3 }}>Employees · Short View</div>
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", padding: "4px 10px", background: "#f1f5f9", borderRadius: 20 }}>{emps.length} Total · {emps.filter((e) => Number(e.step) === 5).length} Finalized</div>
+                  </div>
+                  {emps.length === 0 ? (
+                    <div style={{ padding: 24, textAlign: "center", color: "#94a3b8", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, fontSize: 12 }}>No employees added yet. Go to Employees tab to add first employee.</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
+                      {emps.slice().sort((a, b) => (b.step || 0) - (a.step || 0) || (a.fullName || "").localeCompare(b.fullName || "")).map((e) => {
+                        const finalized = Number(e.step) === 5;
+                        return (
+                          <div key={e.id} data-testid={`hr-dir-card-${e.id}`} style={{ display: "flex", gap: 10, padding: 10, background: "#fff", border: `1px solid ${finalized ? "#86efac" : "#fde68a"}`, borderLeft: `4px solid ${finalized ? "#16a34a" : "#f59e0b"}`, borderRadius: 8, boxShadow: "0 1px 3px rgba(15,23,42,.04)", transition: "all .2s" }}>
+                            <div style={{ width: 56, height: 68, borderRadius: 5, border: "1.5px solid #1e3a8a", flexShrink: 0, overflow: "hidden", background: e.photoUrl ? `#f1f5f9 center/cover no-repeat url('${e.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#64748b", fontWeight: 700 }}>
+                              {e.photoUrl ? "" : "PHOTO"}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 900, color: finalized ? "#166534" : "#78716c", letterSpacing: .5, lineHeight: 1.1 }}>{e.empCode || e.tempCode || "—"}</div>
+                                <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={e.fullName}>{e.fullName || "—"}</div>
+                                <div style={{ fontSize: 9, fontWeight: 700, color: "#dc2626", letterSpacing: .4, textTransform: "uppercase", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.designation || "—"}</div>
+                              </div>
+                              <div style={{ fontSize: 9.5, color: "#475569", marginTop: 3, lineHeight: 1.4 }}>
+                                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🏢 {e.department || "—"}</div>
+                                <div>📱 {e.contactMobile || "—"}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {tab === "employees" && <EmployeeEditor writeAllowed={write} approveAllowed={approve} />}
