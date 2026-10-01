@@ -8,7 +8,7 @@ import { printWorkOrder } from "../lib/woPrint";
 import {
   currentRole, canCreate, canApprove,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
-  getWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL, deleteWO,
+  getWOs, saveWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL, deleteWO,
   UNITS_DEFAULT, fmtDMY, getVendors, amountToWords,
 } from "../lib/store";
 
@@ -796,6 +796,26 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button data-testid="wo-btn-download" onClick={() => downloadWOExcel()} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>⬇ Excel</button>
           <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print PDF (A4)</button>
+          {wo.step >= 4 && (
+            <button
+              data-testid="wo-btn-portal"
+              onClick={() => {
+                const list = getWOs();
+                const idx = list.findIndex((x) => x.id === wo.id);
+                if (idx < 0) { toast.error("Save WO first"); return; }
+                const updated = { ...list[idx], vendorPortalPublished: true, vendorPortalPublishedAt: new Date().toISOString() };
+                list[idx] = updated;
+                saveWOs(list);
+                setWo(updated);
+                const url = `${window.location.origin}/vendor-portal/wo/${wo.id}`;
+                navigator.clipboard?.writeText(url);
+                toast.success(`Vendor portal link copied: ${url.slice(0, 50)}…`);
+              }}
+              style={{ padding: "7px 12px", background: wo.vendorPortalPublished ? "#059669" : "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(8,145,178,.3)" }}
+            >
+              📤 {wo.vendorPortalPublished ? "Portal Live · Copy Link" : "Publish to Vendor Portal"}
+            </button>
+          )}
         </div>
       </div>
 

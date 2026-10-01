@@ -10,6 +10,7 @@ import UsersAdmin from "./pages/UsersAdmin";
 import PurchaseManagement from "./pages/PurchaseManagement";
 import GeneralManager from "./pages/GeneralManager";
 import HRManagement from "./pages/HRManagement";
+import VendorPortalWO from "./pages/VendorPortalWO";
 import SplashScreen from "./components/SplashScreen";
 import { isAuthed } from "./lib/store";
 
@@ -35,6 +36,7 @@ function App() {
           <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/reports" element={<Navigate to="/final" replace />} />
           <Route path="/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
+          <Route path="/vendor-portal/wo/:id" element={<VendorPortalWO />} />
           <Route path="/" element={<Navigate to={isAuthed() ? "/home" : "/login"} replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
