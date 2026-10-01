@@ -11,7 +11,7 @@
   .lh { border-bottom: 2.5px solid #c81e2b; padding-bottom: 6px; margin-bottom: 14px; }
   .lh .top { display: flex; justify-content: space-between; align-items: center; font-size: 11pt; font-weight: 700; color: #0f172a; padding: 0 2px 6px; flex-wrap: wrap; gap: 2px 10px; letter-spacing: .3px; }
   .lh .main { display: flex; align-items: center; gap: 14px; }
-  .lh img { width: 92px; height: 92px; object-fit: contain; background: #fff; }
+  .lh img { width: 120px; height: 120px; object-fit: contain; background: #fff; }
   .lh .center { flex: 1; text-align: center; }
   .lh .name { font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif; font-size: 32pt; font-weight: 900; letter-spacing: 1.5px; color: #c81e2b; line-height: 1.05; text-transform: uppercase; font-style: normal; margin: 0; }
   .lh .tag { font-size: 11.5pt; font-weight: 700; color: #0f172a; letter-spacing: 1.5px; margin-top: 3px; text-transform: uppercase; }
@@ -19,8 +19,6 @@
   .lh .addr { font-size: 11.5pt; color: #0f172a; margin-top: 5px; font-weight: 600; }
   .lh .contact { font-size: 11pt; color: #0f172a; margin-top: 2px; }
 
-  .refdate { display: flex; justify-content: space-between; margin: 16px 0; font-size: 12pt; }
-  .refdate .u { border-bottom: 1px dotted #0f172a; min-width: 220px; padding-bottom: 1px; }
   h2.sample { text-align: center; margin: 24px 0 10px; color: #475569; font-size: 11pt; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; }
   p.sample { font-size: 11pt; color: #334155; text-align: justify; margin: 8px 0; }
 </style>
@@ -45,10 +43,7 @@
     </div>
   </div>
 
-  <div class="refdate">
-    <div><b>Ref.:</b> <span class="u"></span></div>
-    <div><b>Date:</b> <span class="u"></span></div>
-  </div>
+  <div class="refdate" style="display:none"></div>
 
   <h2 class="sample">— Sample Letter Body —</h2>
   <p class="sample">This preview demonstrates the final letterhead design that will appear uniformly across all document previews, Work Order PDFs, HR Letters (Offer, Experience, Relieving, F&amp;F, Payslip, Pay Bill, Leave, Attendance, Employee Application), and all internal A4 forms.</p>

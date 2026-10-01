@@ -53,7 +53,7 @@ const buildHtml = (title, bodyHtml) => `<!DOCTYPE html>
   .lh { border-bottom: 2.5px solid #c81e2b; padding-bottom: 6px; margin-bottom: 14px; }
   .lh .top { display: flex; justify-content: space-between; align-items: center; font-size: 10pt; font-weight: 700; color: #0f172a; padding: 0 2px 4px; flex-wrap: wrap; gap: 2px 10px; }
   .lh .main { display: flex; align-items: center; gap: 12px; }
-  .lh img { width: 80px; height: 80px; object-fit: contain; background: #fff; }
+  .lh img { width: 110px; height: 110px; object-fit: contain; background: #fff; }
   .lh .center { flex: 1; text-align: center; }
   .lh .name { font-family: "Arial Black", "Helvetica Neue", Arial, sans-serif; font-size: 26pt; font-weight: 900; letter-spacing: 1.2px; color: #c81e2b; line-height: 1.05; text-transform: uppercase; font-style: normal; }
   .lh .tag { font-size: 10pt; font-weight: 700; color: #0f172a; letter-spacing: 1.3px; margin-top: 2px; text-transform: uppercase; }
