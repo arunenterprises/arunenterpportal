@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash2, Save, Send, FilePlus2, Paperclip, Printer } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
+import { printWorkOrder } from "../lib/woPrint";
 import {
   currentRole, canCreate, canApprove,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
@@ -762,24 +763,17 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         </div>
       </div>
 
-      {/* F. Signatures */}
-      <div className="section">
-        <div className="sec-head">F. Signatures</div>
-        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, padding: "20px 14px" }}>
-          <div style={{ textAlign: "center" }}><div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}><b style={{ fontSize: 12 }}>Prepared By</b><div style={{ fontSize: 11 }}>{wo.preparedBy || "—"}</div><div style={{ fontSize: 10, color: "#64748b" }}>Purchase Department</div></div></div>
-          <div style={{ textAlign: "center" }}><div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}><b style={{ fontSize: 12 }}>Checked By</b><div style={{ fontSize: 11 }}>{wo.step >= 2 ? "________________" : "—"}</div><div style={{ fontSize: 10, color: "#64748b" }}>Accounts Department</div></div></div>
-          <div style={{ textAlign: "center" }}><div style={{ borderTop: "1px solid #0f172a", paddingTop: 6, marginTop: 40 }}><b style={{ fontSize: 12 }}>Approved By</b><div style={{ fontSize: 11, color: "#166534", fontWeight: 700 }}>{wo.approvedByName || "—"}</div><div style={{ fontSize: 10, color: "#64748b" }}>{wo.approvalDate ? `Date: ${fmtDMY(wo.approvalDate)}` : "General Manager / Admin"}</div></div></div>
-        </div>
-      </div>
-
       {/* Actions */}
-      <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+      <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
         <button data-testid="wo-btn-new" onClick={() => startNew()} style={{ padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><FilePlus2 size={13} /> New</button>
+        {locked && wo.step < 4 && writeAllowed && (
+          <button data-testid="wo-btn-reopen" onClick={() => { setLocked(false); toast.success("Edit mode enabled"); }} style={{ padding: "8px 14px", background: "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>✏ Reopen · Edit</button>
+        )}
         <button data-testid="wo-btn-save" onClick={handleSave} disabled={!writeAllowed || locked} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Save size={13} /> Save</button>
         <button data-testid="wo-btn-submit" onClick={handleSubmit} disabled={!writeAllowed || locked || wo.step >= 3} style={{ padding: "8px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && wo.step < 3 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Send size={13} /> Submit</button>
         <button data-testid="wo-btn-approve" onClick={handleApprove} disabled={!approveAllowed || wo.step < 3 || wo.step >= 4} style={{ padding: "8px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed && wo.step >= 3 && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>Final Approval (issue WO No.)</button>
         <button data-testid="wo-btn-download" onClick={() => downloadWOExcel()} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>⬇ Download Excel</button>
-        <button data-testid="wo-btn-print" onClick={handlePrint} style={{ padding: "8px 14px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Printer size={13} /> Print</button>
+        <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "8px 14px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Printer size={13} /> Print PDF (A4)</button>
       </div>
 
       {/* All WOs list */}
