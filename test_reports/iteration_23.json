@@ -1,0 +1,39 @@
+{
+  "summary": "Verified HR Employee form restructure for iteration 23. 10/11 requirements pass. Application Reference section correctly consolidated at top with 10 fields in 5-col grid; 'C. Job / Position Applied' section fully removed; section order A→B→C Family→D References→E Edu→F Exp→G Bank→H Salary→I Decl→J Docs→K All Employees is correct; exactly 2 compact Reference cards (no emp-ref2); DOJ is readonly with yellow bg pre-approval and auto-fills with today's date (2026-10-01) with green bg on Final Approve; toast shows 'Finalized · EMP Code: AE/EMP/000027/2627 · DOJ: 2026-10-01'; Print A4 Portrait popup renders consolidated refbox with Advt/Filing/Project/Location/Applied Post/Designation/Department/Reporting Manager/Date of Joining, no separate Job/Position table below Contact; both references visible in print. ONE CRITICAL BUG: EMP code format is still hyphen-LESS 4-digit FY (AE/EMP/000027/2627) instead of required hyphenated AE/EMP/000027/26-27.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "store.js › buildEmpCode (line 900)",
+        "issue": "Permanent EMP Code is generated as 'AE/EMP/000027/2627' (4-digit joined FY) instead of required hyphenated 'AE/EMP/000027/26-27'. The getFYHyphen() helper mentioned in files_of_reference does NOT exist in store.js — only getFY() at line 48 is present, and buildEmpCode still calls getFY(). Toast and emp-perm-code field both show the wrong format.",
+        "selector": "[data-testid=\"emp-perm-code\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "hrLetters.js › printed References table (line 323-326)",
+        "issue": "Printed form References table still uses OLD 5-column schema (Name, Designation, Company/Org., Mobile, Known For) but the editor now only collects {name, mobile, relation}. Designation & Company columns always render as '—'. Column header 'Known For' should be 'Relationship' to match the new editor label. Data integrity is OK (relation value correctly rendered under Known For), but columns are misleading.",
+        "selector": "popup table.dyn",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "ADD getFYHyphen() helper to /app/frontend/src/lib/store.js (e.g. `export const getFYHyphen = (d=new Date())=>{const y=d.getFullYear(),m=d.getMonth();const s=m>=3?y%100:(y-1)%100;const e=(s+1)%100;return `${String(s).padStart(2,'0')}-${String(e).padStart(2,'0')}`;}` ) and update buildEmpCode (line 900) to use it: `AE/EMP/${String(serial).padStart(6,'0')}/${getFYHyphen()}`.",
+    "In /app/frontend/src/lib/hrLetters.js dynSection References (lines 323-326): change columns to only [{key:'name',label:'Name'},{key:'mobile',label:'Mobile'},{key:'relation',label:'Relationship'}] to match the new compact 2-reference editor schema.",
+    "Note: toast message format is correct but EMP code value inside it inherits the bug — will auto-fix once getFYHyphen is wired."
+  ],
+  "critical_code_review_comments": [
+    "store.js buildEmpCode uses getFY() returning joined 4-digit (2627) which contradicts user's explicit directive for hyphenated FY (25-26 / 26-27). Only the HR EMP code was asked to change — Bill/Vendor/PV/WO codes rightly continue to use getFY().",
+    "hrLetters.js References columns are not in sync with EmployeeEditor's new reference schema; the two should share a single column list to avoid drift."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped)", "frontend": "90%" },
+  "seed_data_creation": "Created 1 fresh employee via UI: Vikash Kumar (TempCode AE/TMP/000027/l3Z, approved → EMP Code AE/EMP/000027/2627, DOJ 2026-10-01, with 2 references Sunil Rao/9988776655/Former Colleague & Mahesh Gupta/8877665544/Teacher).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes buildEmpCode to use hyphenated FY, re-run the Final Approve flow and verify emp-perm-code matches /^AE\\/EMP\\/\\d{6}\\/\\d{2}-\\d{2}$/. All other restructure items (section order, 2-ref compact section, DOJ auto-fill, consolidated print refbox) are already verified working. Also verify printed References table columns after hrLetters.js fix.",
+  "rca of the issue": "Main agent claimed in files_of_reference that getFYHyphen() helper was added to store.js at line 56 and buildEmpCode was updated. Actual code inspection shows line 56 is only a '// ---- Counters ----' comment; getFYHyphen does NOT exist anywhere in store.js; buildEmpCode at line 900 still reads `AE/EMP/${String(serial).padStart(6,\"0\")}/${getFY()}`. UI test confirmed: approved employee got code AE/EMP/000027/2627 instead of AE/EMP/000027/26-27. Mitigation: add getFYHyphen helper and replace getFY() call in buildEmpCode only (preserve getFY for other code generators)."
+}

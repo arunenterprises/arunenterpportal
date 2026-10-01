@@ -26,7 +26,7 @@ const APPLIED_POSTS = ["Manager", "Site Incharge", "Engineer", "Supervisor", "Ac
 const ACCOUNT_TYPES = ["Savings", "Current", "Salary", "NRE", "NRO"];
 const IN_STATES = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman & Nicobar", "Chandigarh", "Dadra & Nagar Haveli and Daman & Diu", "Delhi", "Jammu & Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
 const DOC_TYPES = ["Aadhaar Card", "PAN Card", "Passport Size Photo", "Signature", "Educational Certificate", "Experience Letter", "Previous Payslip", "Resume / CV", "Address Proof", "Cancelled Cheque", "Other"];
-const MAX_UPLOAD_KB = 100;
+const MAX_UPLOAD_KB = 500;
 const ATT_CODES = { P: { label: "Present", tone: "#16a34a" }, A: { label: "Absent", tone: "#dc2626" }, L: { label: "Leave", tone: "#f59e0b" }, H: { label: "Half-day", tone: "#0369a1" }, W: { label: "Week-off", tone: "#94a3b8" }, HL: { label: "Holiday", tone: "#7c3aed" } };
 const nextCode = { "": "P", "P": "A", "A": "L", "L": "H", "H": "W", "W": "HL", "HL": "" };
 
@@ -219,7 +219,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
               {APPLIED_POSTS.map((p) => <option key={p}>{p}</option>)}
             </select>
           </F>
-          <F label="Designation" req><input list="hr-designations" value={emp.designation} onChange={(e) => set("designation", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-designation" /></F>
+          <F label="Allotted Designation" req><input list="hr-designations" value={emp.designation} onChange={(e) => set("designation", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-designation" /></F>
           <F label="Department"><select value={emp.department} onChange={(e) => set("department", e.target.value)} disabled={locked} style={inputStyle}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
           <F label="Reporting Manager"><input value={emp.reportingManager || ""} onChange={(e) => set("reportingManager", e.target.value)} disabled={locked} style={inputStyle} /></F>
           <F label="Date of Joining (auto on Final Approval)">
@@ -233,36 +233,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* Bio-Data Application Form — Photo + Personal + Job */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>A. Personal Details</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "140px 140px 1fr", gap: 12 }}>
-          {/* Photo */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 120, height: 150, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.photoUrl ? `url(${emp.photoUrl}) center/cover` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
-              {!emp.photoUrl && "Passport Photo\n(120×150, ≤ 100KB)"}
-            </div>
-            <label style={{ padding: "4px 10px", background: "#0369a1", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
-              Upload Photo
-              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
-                const f = e.target.files?.[0]; if (!f) return;
-                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Photo must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
-                const r = new FileReader(); r.onload = () => set("photoUrl", r.result); r.readAsDataURL(f);
-              }} style={{ display: "none" }} data-testid="emp-photo" />
-            </label>
-          </div>
-          {/* Signature */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 120, height: 60, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.signatureUrl ? `url(${emp.signatureUrl}) center/contain no-repeat #fff` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
-              {!emp.signatureUrl && "Signature\n(≤ 100KB)"}
-            </div>
-            <label style={{ padding: "4px 10px", background: "#7c3aed", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
-              Upload Signature
-              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
-                const f = e.target.files?.[0]; if (!f) return;
-                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Signature must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
-                const r = new FileReader(); r.onload = () => set("signatureUrl", r.result); r.readAsDataURL(f);
-              }} style={{ display: "none" }} data-testid="emp-signature" />
-            </label>
-            <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "center" }}>Standard: ≤ 100KB<br/>JPG / PNG</div>
-          </div>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
           {/* Personal fields grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
             <F label="Full Name" req><input value={emp.fullName} onChange={(e) => set("fullName", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-name" /></F>
@@ -278,6 +249,21 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
             <F label="Category"><select value={emp.category || "General"} onChange={(e) => set("category", e.target.value)} disabled={locked} style={inputStyle}><option>General</option><option>OBC</option><option>SC</option><option>ST</option><option>EWS</option></select></F>
             <F label="Aadhaar"><input value={emp.aadhaar} onChange={(e) => set("aadhaar", e.target.value.replace(/\D/g, "").slice(0, 12))} disabled={locked} style={inputStyle} /></F>
             <F label="PAN"><input value={emp.pan} onChange={(e) => set("pan", e.target.value.toUpperCase().slice(0, 10))} disabled={locked} style={inputStyle} /></F>
+          </div>
+          {/* Photo (right-top) */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 120, height: 150, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.photoUrl ? `url(${emp.photoUrl}) center/cover` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
+              {!emp.photoUrl && "Passport Photo\n(120×150, ≤ 500KB)"}
+            </div>
+            <label style={{ padding: "4px 10px", background: "#0369a1", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
+              Upload Photo
+              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Photo must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
+                const r = new FileReader(); r.onload = () => set("photoUrl", r.result); r.readAsDataURL(f);
+              }} style={{ display: "none" }} data-testid="emp-photo" />
+            </label>
+            <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "center" }}>JPG / PNG · ≤ 500KB</div>
           </div>
         </div>
       </div>
@@ -431,14 +417,30 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* Declaration */}
       <div className="section" style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#fef3c7", borderBottom: "1px solid #fde68a", color: "#78350f" }}>I. Declaration</div>
-        <div style={{ padding: 12 }}>
-          <div style={{ fontSize: 11.5, color: "#78350f", lineHeight: 1.6, marginBottom: 10 }}>
-            I hereby declare that the information furnished above is true, correct and complete to the best of my knowledge and belief. I understand that in case any particular is found to be false or incorrect at any stage, my candidature / services are liable to be terminated without notice.
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 180px", gap: 14, alignItems: "start" }}>
+          <div>
+            <div style={{ fontSize: 11.5, color: "#78350f", lineHeight: 1.6, marginBottom: 10 }}>
+              I hereby declare that the information furnished above is true, correct and complete to the best of my knowledge and belief. I understand that in case any particular is found to be false or incorrect at any stage, my candidature / services are liable to be terminated without notice.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+              <F label="Place"><input value={emp.declarationPlace || ""} onChange={(e) => set("declarationPlace", e.target.value)} disabled={locked} style={inputStyle} /></F>
+              <F label="Date"><input type="date" value={emp.declarationDate || ""} onChange={(e) => set("declarationDate", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-            <F label="Place"><input value={emp.declarationPlace || ""} onChange={(e) => set("declarationPlace", e.target.value)} disabled={locked} style={inputStyle} /></F>
-            <F label="Date"><input type="date" value={emp.declarationDate || ""} onChange={(e) => set("declarationDate", e.target.value)} disabled={locked} style={inputStyle} /></F>
-            <F label="Signature of Candidate"><input readOnly value={emp.fullName ? `${emp.fullName} (digital)` : ""} style={{ ...inputStyle, background: "#f8fafc", fontStyle: "italic" }} /></F>
+          {/* Signature (right-bottom) */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 160, height: 70, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.signatureUrl ? `url(${emp.signatureUrl}) center/contain no-repeat #fff` : "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
+              {!emp.signatureUrl && "Candidate\nSignature\n(≤ 500KB)"}
+            </div>
+            <label style={{ padding: "4px 10px", background: "#7c3aed", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
+              Upload Signature
+              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Signature must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
+                const r = new FileReader(); r.onload = () => set("signatureUrl", r.result); r.readAsDataURL(f);
+              }} style={{ display: "none" }} data-testid="emp-signature" />
+            </label>
+            <div style={{ fontSize: 9, color: "#64748b", textAlign: "center" }}>Signature of Candidate<br/>JPG / PNG · ≤ 500KB</div>
           </div>
         </div>
       </div>
@@ -446,7 +448,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* J. Documents Upload */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>J. Documents Upload (Aadhaar, PAN, Education, Experience etc. · each ≤ 100KB)</span>
+          <span>J. Documents Upload (Aadhaar, PAN, Education, Experience etc. · each ≤ 500KB)</span>
           <label style={{ padding: "4px 10px", background: locked ? "#e2e8f0" : "#16a34a", color: locked ? "#64748b" : "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700 }}>
             + Add Document
             <input type="file" accept="image/*,.pdf" multiple disabled={locked} onChange={(e) => {
@@ -454,7 +456,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
               const existing = Array.isArray(emp.documents) ? [...emp.documents] : [];
               let anyRejected = false;
               files.forEach((f) => {
-                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`"${f.name}" exceeds 100KB (${Math.round(f.size / 1024)}KB) — skipped`); anyRejected = true; return; }
+                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`"${f.name}" exceeds 500KB (${Math.round(f.size / 1024)}KB) — skipped`); anyRejected = true; return; }
                 const r = new FileReader();
                 r.onload = () => {
                   existing.push({ _id: `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, type: "Other", name: f.name, dataUrl: r.result, sizeKB: Math.round(f.size / 1024) });

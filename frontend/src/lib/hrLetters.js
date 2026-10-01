@@ -5,10 +5,11 @@ const LOGO = "/arun-logo.jpg";
 const COMPANY = {
   name: "ARUN ENTERPRISES",
   tagline: "Quality · Commitment · Solutions & Services",
-  address: "Corporate Office · Lucknow, Uttar Pradesh, India",
-  cin: "",
+  address: "Corporate Office, Lucknow — 226001, Uttar Pradesh, India",
+  phone: "+91-98765-43210",
   website: "www.arunenterprises.com.in",
   email: "arunenterprises2023@gmail.com",
+  gstin: "09AAACA0000A1Z5",
 };
 const SIGNATORY = { name: "K.L. Srivastava", designation: "Director" };
 
@@ -47,11 +48,12 @@ const buildHtml = (title, bodyHtml) => `<!DOCTYPE html>
   * { box-sizing: border-box; }
   body { font-family: "Times New Roman", Georgia, serif; color: #0f172a; margin: 0; padding: 0; font-size: 12pt; line-height: 1.55; }
   .sheet { padding: 0; }
-  .lh { display: flex; align-items: center; gap: 14px; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 20px; }
-  .lh img { width: 68px; height: 68px; object-fit: contain; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
-  .lh .name { font-size: 22pt; font-weight: 800; letter-spacing: 1px; color: #0f172a; line-height: 1.05; }
-  .lh .tag { font-size: 9.5pt; color: #475569; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
-  .lh .addr { font-size: 9pt; color: #64748b; margin-top: 3px; }
+  .lh { display: flex; align-items: center; gap: 14px; border-bottom: 2.5px solid #0f172a; padding-bottom: 10px; margin-bottom: 16px; }
+  .lh img { width: 72px; height: 72px; object-fit: contain; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; padding: 2px; }
+  .lh .name { font-size: 22pt; font-weight: 800; letter-spacing: 1.5px; color: #0f172a; line-height: 1.05; }
+  .lh .tag { font-size: 9.5pt; color: #475569; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; font-style: italic; }
+  .lh .addr { font-size: 8.8pt; color: #64748b; margin-top: 4px; line-height: 1.4; }
+  .lh .addr b { color: #334155; }
   .meta { display: flex; justify-content: space-between; font-size: 11pt; margin-bottom: 16px; }
   .meta .ref { font-weight: 700; }
   h1.title { font-size: 15pt; font-weight: 800; text-align: center; text-decoration: underline; letter-spacing: 1.5px; margin: 10px 0 18px; text-transform: uppercase; }
@@ -85,10 +87,14 @@ const buildHtml = (title, bodyHtml) => `<!DOCTYPE html>
 <div class="sheet">
   <div class="lh">
     <img src="${LOGO}" alt="logo" onerror="this.style.display='none'" />
-    <div>
+    <div style="flex:1;">
       <div class="name">${COMPANY.name}</div>
       <div class="tag">${COMPANY.tagline}</div>
-      <div class="addr">${COMPANY.address} · ${COMPANY.website} · ${COMPANY.email}</div>
+      <div class="addr">
+        <b>Office:</b> ${COMPANY.address}<br/>
+        <b>Tel:</b> ${COMPANY.phone} · <b>Email:</b> ${COMPANY.email} · <b>Web:</b> ${COMPANY.website}<br/>
+        <b>GSTIN:</b> ${COMPANY.gstin}
+      </div>
     </div>
   </div>
   ${bodyHtml}
@@ -346,13 +352,41 @@ export const printEmployeeApplication = (emp) => {
         <div><b>Date:</b> ${fmtDMY(emp.declarationDate)}</div>
         <div class="sig-cell">
           ${emp.signatureUrl ? `<img src="${emp.signatureUrl}" class="sig-img" />` : ""}
-          <div class="sig-line">Signature of Candidate</div>
+          <div class="sig-line">Signature of Candidate / Employee<br/><span style="font-size:8.5pt;font-weight:400;color:#475569;">(${emp.fullName || "—"})</span></div>
         </div>
       </div>
     </div>
 
+    <div class="wf-block">
+      <div class="wf-head">HR Workflow &amp; Approval Chain</div>
+      <table class="wf-tbl">
+        <thead>
+          <tr>
+            <th>Prepared By (HR)</th>
+            <th>Verified By</th>
+            <th>Department Manager</th>
+            <th>Authorized Signatory</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="sig-area"></td>
+            <td class="sig-area"></td>
+            <td class="sig-area"></td>
+            <td class="sig-area">${SIGNATORY.name}<br/><span>${SIGNATORY.designation}</span></td>
+          </tr>
+          <tr class="nm">
+            <td><b>${emp.createdByName || "—"}</b><br/><span>HR Executive</span><br/><span>Date: ${fmtDMY(emp.createdAt?.slice(0, 10) || emp.dateOfFiling)}</span></td>
+            <td><b>${emp.verifiedByName || emp.checkedByName || "—"}</b><br/><span>HR Verifier</span><br/><span>Date: ${fmtDMY((emp.verifiedAt || emp.checkedAt || "").slice(0, 10))}</span></td>
+            <td><b>${emp.approvedByName || "—"}</b><br/><span>Department Manager</span><br/><span>Date: ${fmtDMY((emp.approvedAt || "").slice(0, 10))}</span></td>
+            <td><b>${emp.finalizedByName || SIGNATORY.name}</b><br/><span>${SIGNATORY.designation}</span><br/><span>Date: ${fmtDMY((emp.finalizedAt || "").slice(0, 10))}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="wf-foot">
-      <b>HR Workflow:</b> Create → Edit → Prepared → Submit → ${Number(emp.step) >= 5 ? "<b>Final Approved</b>" : "Approval Pending"} · Current Step: <b>${emp.step || 1}</b> · Revision: ${emp.revision || 0}
+      <b>Form Status:</b> ${Number(emp.step) >= 5 ? "FINAL APPROVED" : "APPROVAL PENDING"} · <b>Current Step:</b> ${emp.step || 1} / 5 · <b>Revision:</b> ${emp.revision || 0} · <b>Form Ref:</b> ${emp.empCode || emp.tempCode}
     </div>
   `;
 
@@ -381,7 +415,15 @@ export const printEmployeeApplication = (emp) => {
     .sig-cell { text-align: right; }
     .sig-img { max-height: 40px; max-width: 180px; }
     .sig-line { border-top: 1px solid #0f172a; padding-top: 3px; font-size: 9pt; font-weight: 700; text-align: center; margin-top: 4px; }
-    .wf-foot { margin-top: 14px; padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #0f172a; font-size: 9pt; color: #334155; }
+    .wf-block { margin-top: 14px; border: 1.5px solid #0f172a; }
+    .wf-head { background: #0f172a; color: #fff; padding: 4px 10px; font-size: 10.5pt; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+    .wf-tbl { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    .wf-tbl th { background: #e2e8f0; padding: 4px 6px; border: 1px solid #334155; font-weight: 800; text-align: center; }
+    .wf-tbl td.sig-area { height: 42px; border: 1px solid #334155; text-align: center; font-size: 8.5pt; color: #475569; vertical-align: bottom; padding: 2px; }
+    .wf-tbl tr.nm td { padding: 4px 6px; border: 1px solid #334155; text-align: center; font-size: 8.5pt; line-height: 1.3; }
+    .wf-tbl tr.nm td b { font-size: 9pt; color: #0f172a; }
+    .wf-tbl tr.nm td span { color: #475569; font-size: 7.5pt; }
+    .wf-foot { margin-top: 10px; padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #0f172a; font-size: 9pt; color: #334155; }
     @media print { .noprint-btn { display: none; } }
   `;
 

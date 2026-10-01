@@ -52,6 +52,14 @@ export const getFY = (date = new Date()) => {
   const endYY = (startYY + 1) % 100;
   return `${String(startYY).padStart(2, "0")}${String(endYY).padStart(2, "0")}`;
 };
+// Hyphenated FY (e.g. 25-26) — used for human-readable EMP codes
+export const getFYHyphen = (date = new Date()) => {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const startYY = m >= 3 ? y % 100 : (y - 1) % 100;
+  const endYY = (startYY + 1) % 100;
+  return `${String(startYY).padStart(2, "0")}-${String(endYY).padStart(2, "0")}`;
+};
 
 // ---- Counters ----
 export const getCounters = () =>
@@ -897,7 +905,7 @@ export const EMPLOYEE_STEP_LABEL = {
   5: "5. Finalized · Permanent EMP Code Issued",
 };
 
-const buildEmpCode = (serial) => `AE/EMP/${String(serial).padStart(6, "0")}/${getFY()}`;
+const buildEmpCode = (serial) => `AE/EMP/${String(serial).padStart(6, "0")}/${getFYHyphen()}`;
 const buildEmpTempCode = (serial) => `AE/TMP/${String(serial).padStart(6, "0")}/${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 export const getEmployees = () => read(KEYS.EMPLOYEES, []);
