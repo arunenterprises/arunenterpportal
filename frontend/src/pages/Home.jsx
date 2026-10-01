@@ -265,7 +265,7 @@ export default function Home() {
           <div data-testid="org-tier-2" style={{ marginTop: 6 }}>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#0f172a", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 10, padding: "4px 10px", background: "#e2e8f0", borderRadius: 4, display: "inline-block", margin: "0 auto 12px", width: "fit-content" }}>Operating Departments</div>
             <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 340px)", gap: 22, alignItems: "stretch", justifyContent: "center" }}>
-              {["vendor", "purchase", "accounts", "hr", "reports"].map((id) => {
+              {["hr", "vendor", "purchase", "accounts", "reports"].map((id) => {
                 const d = DEPARTMENTS.find((x) => x.id === id);
                 if (!d) return null;
                 const allowed = d.roles.includes(role) || superAdmin;
