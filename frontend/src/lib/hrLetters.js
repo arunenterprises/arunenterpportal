@@ -641,3 +641,106 @@ export const printPayrollSlipLetter = (emp, salary, year, month, daysInMonth, da
   `;
   openPrint(`Salary Slip ${monthName} ${year} - ${emp.fullName}`, body);
 };
+
+// ============= PAY BILL SHEET (A4 Landscape) =============
+export const printPayBillSheet = (pb) => {
+  if (!pb) return;
+  const monthName = new Date(pb.year, pb.month - 1).toLocaleString("en-IN", { month: "long" });
+  const statusMap = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved", 4: "Settled & Paid" };
+  const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
+  const rows = (pb.lines || []).map((l, i) => `
+    <tr${i % 2 ? ' class="alt"' : ""}>
+      <td>${i + 1}</td>
+      <td class="nm">${l.empCode || "—"}</td>
+      <td class="nm">${l.name || "—"}</td>
+      <td>${l.designation || "—"}</td>
+      <td>${l.daysPresent}/${l.daysInMonth}</td>
+      <td class="num">${inrN(l.basic)}</td>
+      <td class="num">${inrN(l.hra)}</td>
+      <td class="num">${inrN(l.da)}</td>
+      <td class="num">${inrN(l.special)}</td>
+      <td class="num">${inrN(l.bonus)}</td>
+      <td class="num tot">${inrN(l.gross)}</td>
+      <td class="num ded">${inrN(l.pf)}</td>
+      <td class="num ded">${inrN(l.esic)}</td>
+      <td class="num ded">${inrN(l.proftax)}</td>
+      <td class="num ded">${inrN(l.tds)}</td>
+      <td class="num adv">${inrN(l.advance)}</td>
+      <td class="num ded">${inrN(l.otherDeductions)}</td>
+      <td class="num net">${inrN(l.net)}</td>
+    </tr>`).join("");
+
+  const extraCss = `
+    @page { size: A4 landscape; margin: 10mm 12mm; }
+    .pb-title { text-align: center; font-size: 15pt; font-weight: 800; text-decoration: underline; margin: 6px 0 8px; letter-spacing: 1.5px; }
+    .pb-meta { display: flex; justify-content: space-between; font-size: 10.5pt; margin-bottom: 8px; }
+    .pb-meta .st { padding: 2px 10px; border-radius: 4px; font-weight: 800; }
+    .pb-meta .st-1 { background: #fef3c7; color: #78350f; }
+    .pb-meta .st-2 { background: #dbeafe; color: #1e3a8a; }
+    .pb-meta .st-3 { background: #dcfce7; color: #166534; }
+    .pb-meta .st-4 { background: #0f172a; color: #fff; }
+    table.pb { width: 100%; border-collapse: collapse; font-size: 7.8pt; }
+    table.pb th { background: #0f172a; color: #fff; padding: 4px 3px; border: 1px solid #334155; text-align: center; font-size: 7pt; }
+    table.pb td { padding: 3px 4px; border: 1px solid #cbd5e1; text-align: center; }
+    table.pb td.nm { text-align: left; font-weight: 700; }
+    table.pb td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.pb td.num.tot { background: #ecfdf5; font-weight: 700; }
+    table.pb td.num.ded { background: #fef2f2; }
+    table.pb td.num.adv { background: #fef3c7; }
+    table.pb td.num.net { background: #0f172a; color: #fff; font-weight: 800; }
+    table.pb tr.alt td { background: #fafbfc; }
+    table.pb tr.sum td { background: #0f172a; color: #fff; font-weight: 800; font-size: 9pt; padding: 6px; }
+    .pb-sig { margin-top: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; font-size: 9pt; }
+    .pb-sig .cell { text-align: center; }
+    .pb-sig .ln { border-top: 1.5px solid #0f172a; margin-top: 40px; padding-top: 4px; font-weight: 700; }
+    .pb-sig .ln span { color: #475569; font-size: 7.5pt; font-weight: 400; display: block; }
+  `;
+  const body = `<style>${extraCss}</style>
+    <div class="pb-title">MONTHLY PAY BILL</div>
+    <div class="pb-meta">
+      <div><b>Ref No.:</b> ${pb.refNo || "—"} · <b>Period:</b> ${monthName} ${pb.year}</div>
+      <div><b>Employees:</b> ${pb.lines?.length || 0}</div>
+      <div><b>Status:</b> <span class="st st-${pb.step || 1}">${statusMap[pb.step || 1]}</span></div>
+    </div>
+    <table class="pb">
+      <thead>
+        <tr>
+          <th>#</th><th>EMP Code</th><th>Name</th><th>Designation</th><th>Days</th>
+          <th>Basic</th><th>HRA</th><th>DA</th><th>Special</th><th>Bonus</th><th>GROSS</th>
+          <th>PF</th><th>ESIC</th><th>P.Tax</th><th>TDS</th><th>Advance</th><th>Other</th>
+          <th>NET</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || `<tr><td colspan="18" style="padding:14px;color:#94a3b8;">No employees in this pay bill</td></tr>`}
+        <tr class="sum">
+          <td colspan="10" style="text-align:right;">TOTALS →</td>
+          <td class="num">₹ ${inrN(pb.totalGross)}</td>
+          <td colspan="4" class="num">₹ ${inrN(pb.totalDeductions)} (total ded.)</td>
+          <td class="num">₹ ${inrN(pb.totalAdvance)}</td>
+          <td></td>
+          <td class="num">₹ ${inrN(pb.totalNet)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pb-sig">
+      <div class="cell"><div class="ln">Prepared By (HR)<br/><span>${pb.createdByName || "—"} · ${fmtDMY((pb.createdAt || "").slice(0, 10))}</span></div></div>
+      <div class="cell"><div class="ln">Verified By (Accounts)<br/><span>${pb.submittedByName || "—"} · ${fmtDMY((pb.submittedAt || "").slice(0, 10))}</span></div></div>
+      <div class="cell"><div class="ln">Approved By (GM)<br/><span>${pb.approvedByName || "—"} · ${fmtDMY((pb.approvedAt || "").slice(0, 10))}</span></div></div>
+      <div class="cell"><div class="ln">${SIGNATORY.name}<br/><span>${SIGNATORY.designation} · ${fmtDMY((pb.settledAt || "").slice(0, 10))}</span></div></div>
+    </div>
+  `;
+  openPrint(`Pay Bill ${monthName} ${pb.year}`, body);
+};
+
+// ============= WHATSAPP PAYSLIP DELIVERY (wa.me deep link) =============
+export const sendPayslipWhatsApp = (emp, salary, year, month) => {
+  if (!emp?.contactMobile) { alert("Employee mobile number missing. Please update Contact Details first."); return; }
+  const mobile = String(emp.contactMobile).replace(/\D/g, "").slice(-10);
+  if (mobile.length !== 10) { alert("Invalid 10-digit mobile number: " + emp.contactMobile); return; }
+  const monthName = new Date(year, month - 1).toLocaleString("en-IN", { month: "long" });
+  const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
+  const text = `*ARUN ENTERPRISES — Salary Slip*\n\nHi ${emp.fullName},\n\nAapki ${monthName} ${year} ki salary slip ready hai.\n\n*EMP Code:* ${emp.empCode}\n*Gross:* ₹ ${inrN(salary.earned)}\n*Deductions:* ₹ ${inrN(salary.deductions)}\n*Net Payable:* *₹ ${inrN(salary.net)}*\n\nAapka salary account me transfer ho chuka hai. Kisi bhi query ke liye HR department se contact kijiye.\n\nThanks,\n*HR Team · Arun Enterprises*`;
+  const url = `https://wa.me/91${mobile}?text=${encodeURIComponent(text)}`;
+  window.open(url, "_blank");
+};

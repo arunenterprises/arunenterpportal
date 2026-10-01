@@ -15,6 +15,7 @@ const KEYS = {
   WOS: "ae_vm_work_orders",
   EMPLOYEES: "ae_vm_employees",
   ATTENDANCE: "ae_vm_attendance",
+  PAYBILLS: "ae_vm_paybills",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
@@ -33,7 +34,7 @@ export const clearLogo = () => localStorage.removeItem(KEYS.LOGO);
 
 // ---- Wipe local cache (used after admin "Reset All Data") ----
 export const resetLocalCache = () => {
-  [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.EXPENSES, KEYS.BOQS, KEYS.WOS, KEYS.EMPLOYEES, KEYS.ATTENDANCE, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
+  [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.EXPENSES, KEYS.BOQS, KEYS.WOS, KEYS.EMPLOYEES, KEYS.ATTENDANCE, KEYS.PAYBILLS, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
     try { localStorage.removeItem(k); } catch {}
   });
 };
@@ -1219,6 +1220,83 @@ export const getComplianceSnapshot = (year, month) => {
 };
 
 // ==================== HR: CELEBRATIONS HELPERS ====================
+
+// --- Monthly Pay Bill (HR → GM approval) ---
+export const PAYBILL_STATUS = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved", 4: "Settled & Paid" };
+
+export const getPayBills = () => read(KEYS.PAYBILLS, []);
+export const savePayBills = (list) => write(KEYS.PAYBILLS, list);
+
+export const createPayBillDraft = (year, month) => {
+  const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const lines = emps.map((e) => {
+    const att = getMonthAttendance(e.id, year, month);
+    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const s = computeSalary(e, { daysInMonth, daysPresent });
+    return {
+      _id: `l_${e.id}`,
+      empId: e.id, empCode: e.empCode, name: e.fullName,
+      department: e.department, designation: e.designation,
+      daysInMonth, daysPresent,
+      basic: s.basic || 0, hra: s.hra || 0, da: s.da || 0, special: s.special || 0, bonus: s.bonus || 0,
+      gross: s.earned || 0, pf: s.pf || 0, esic: s.esic || 0, proftax: s.proftax || 0, tds: s.tds || 0,
+      advance: 0, otherDeductions: 0,
+      net: s.net || 0,
+    };
+  });
+  return {
+    id: `pb_${year}${String(month).padStart(2, "0")}_${Date.now()}`,
+    year, month,
+    monthKey: `${year}${String(month).padStart(2, "0")}`,
+    refNo: `AE/HR/PB/${year}-${String(month).padStart(2, "0")}`,
+    lines,
+    totalGross: lines.reduce((a, l) => a + (l.gross || 0), 0),
+    totalDeductions: lines.reduce((a, l) => a + (l.pf || 0) + (l.esic || 0) + (l.proftax || 0) + (l.tds || 0) + (l.otherDeductions || 0), 0),
+    totalAdvance: 0,
+    totalNet: lines.reduce((a, l) => a + (l.net || 0), 0),
+    step: 1,
+    createdByName: _me() || "",
+    createdAt: new Date().toISOString(),
+    history: [{ action: "Draft created", at: new Date().toISOString(), by: _me() }],
+  };
+};
+
+export const upsertPayBill = (pb) => {
+  const recalc = pb.lines.map((l) => ({
+    ...l,
+    net: Math.max(0, (Number(l.gross) || 0) - (Number(l.pf) || 0) - (Number(l.esic) || 0) - (Number(l.proftax) || 0) - (Number(l.tds) || 0) - (Number(l.otherDeductions) || 0) - (Number(l.advance) || 0)),
+  }));
+  const totGross = recalc.reduce((a, l) => a + (Number(l.gross) || 0), 0);
+  const totAdv = recalc.reduce((a, l) => a + (Number(l.advance) || 0), 0);
+  const totDed = recalc.reduce((a, l) => a + (Number(l.pf) || 0) + (Number(l.esic) || 0) + (Number(l.proftax) || 0) + (Number(l.tds) || 0) + (Number(l.otherDeductions) || 0), 0);
+  const updated = {
+    ...pb, lines: recalc,
+    totalGross: totGross, totalDeductions: totDed, totalAdvance: totAdv,
+    totalNet: totGross - totDed - totAdv,
+    updatedAt: new Date().toISOString(),
+  };
+  const list = getPayBills();
+  const idx = list.findIndex((x) => x.id === updated.id);
+  if (idx >= 0) list[idx] = updated; else list.push(updated);
+  savePayBills(list);
+  return updated;
+};
+
+export const advancePayBillStep = (pb) => {
+  const now = new Date().toISOString();
+  const me = _me();
+  const next = { ...pb, step: Math.min(4, (Number(pb.step) || 1) + 1), updatedAt: now };
+  if (next.step === 2) { next.submittedByName = me; next.submittedAt = now; next.history = [...(pb.history || []), { action: "Submitted to GM", at: now, by: me }]; }
+  if (next.step === 3) { next.approvedByName = me; next.approvedAt = now; next.history = [...(pb.history || []), { action: "Approved by GM", at: now, by: me }]; }
+  if (next.step === 4) { next.settledByName = me; next.settledAt = now; next.history = [...(pb.history || []), { action: "Settled & paid", at: now, by: me }]; }
+  const list = getPayBills().map((x) => x.id === next.id ? next : x);
+  savePayBills(list);
+  return next;
+};
+
+export const deletePayBill = (id) => savePayBills(getPayBills().filter((x) => x.id !== id));
+
 export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");
   const monthStr = `${year}-${String(month).padStart(2, "0")}`;
@@ -1276,6 +1354,7 @@ export const syncFromCloud = async () => {
   if (Array.isArray(snap.boqs)) write(KEYS.BOQS, snap.boqs);
   if (Array.isArray(snap.work_orders)) write(KEYS.WOS, snap.work_orders);
   if (Array.isArray(snap.employees)) write(KEYS.EMPLOYEES, snap.employees);
+  if (Array.isArray(snap.payBills)) write(KEYS.PAYBILLS, snap.payBills);
   if (Array.isArray(snap.attendance)) write(KEYS.ATTENDANCE, snap.attendance);
   if (snap.counters) write(KEYS.COUNTERS, {
     vendorSerial: snap.counters.vendorSerial || 0,

@@ -5,20 +5,21 @@ import { Toaster, toast } from "sonner";
 import {
   UserPlus, Users2, Calendar, IndianRupee, FileText, LogOut,
   UserCheck, Sparkles, Construction, Trash2, Save, Send, CheckCircle2, RefreshCw, Printer, Download,
-  ArrowRight, Cake, Trophy, PartyPopper, Briefcase, Landmark, X,
+  ArrowRight, Cake, Trophy, PartyPopper, Briefcase, Landmark, X, Receipt, Plus, Edit3,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import {
   getEmployees, createEmployeeDraft, upsertEmployee, advanceEmployeeStep, deleteEmployee,
   reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary,
   getMonthAttendance, upsertAttendance, sendPayrollToAccounts,
+  getPayBills, createPayBillDraft, upsertPayBill, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getLeaves, createLeaveDraft, upsertLeave, deleteLeave, approveLeave, LEAVE_TYPES, LEAVE_STATUS,
   getRecruitments, createRecruitDraft, upsertRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, EXIT_STATUS,
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, sendPayslipWhatsApp } from "../lib/hrLetters";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
@@ -655,6 +656,7 @@ const PayrollTab = () => {
         </select>
         <input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 5, width: 80 }} />
         <button data-testid="hr-payroll-print" onClick={() => printPayrollSlipLetter(emp, salary, year, month, daysInMonth, daysPresent)} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Slip</button>
+        <button data-testid="hr-payroll-whatsapp" onClick={() => sendPayslipWhatsApp(emp, salary, year, month)} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>💬 Send on WhatsApp</button>
         <button data-testid="hr-payroll-push" onClick={pushToAccounts} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Push Monthly Payroll → Accounts</button>
       </div>
 
@@ -1125,6 +1127,149 @@ const ComplianceTab = () => {
   );
 };
 
+// -------------- Pay Bill (Monthly Salary Bill with Advance Adjustment) --------------
+const PayBillTab = ({ writeAllowed, approveAllowed }) => {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [list, setList] = useState([]);
+  const [cur, setCur] = useState(null);
+
+  useEffect(() => { setList(getPayBills()); }, []);
+  const refresh = () => setList(getPayBills());
+
+  const createDraft = () => {
+    const d = createPayBillDraft(Number(year), Number(month));
+    if (!d.lines.length) { toast.error("No active finalized employees found. Create & approve employees first."); return; }
+    const saved = upsertPayBill(d);
+    setCur(saved); refresh();
+    toast.success(`Draft Pay Bill created · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
+  };
+
+  const setLine = (idx, key, val) => {
+    const num = Number(val) || 0;
+    const next = { ...cur, lines: cur.lines.map((l, i) => i === idx ? { ...l, [key]: num } : l) };
+    setCur(next);
+  };
+
+  const saveDraft = () => { const s = upsertPayBill(cur); setCur(s); refresh(); toast.success("Pay Bill saved"); };
+
+  const submit = () => {
+    if (!writeAllowed) return toast.error("Not permitted");
+    const saved = upsertPayBill(cur);
+    const next = advancePayBillStep(saved);
+    setCur(next); refresh();
+    toast.success(`Pay Bill submitted to GM for approval`);
+  };
+
+  const approveNow = () => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin can approve");
+    const next = advancePayBillStep(cur);
+    setCur(next); refresh();
+    toast.success(`Pay Bill approved · Status: ${PAYBILL_STATUS[next.step]}`);
+  };
+
+  const settle = () => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin can settle");
+    const next = advancePayBillStep(cur);
+    setCur(next); refresh();
+    toast.success(`Pay Bill settled & marked paid`);
+  };
+
+  const remove = (id) => { if (!window.confirm("Delete this pay bill?")) return; deletePayBill(id); setCur(null); refresh(); };
+
+  const locked = cur && Number(cur.step) >= 2;
+  const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
+
+  return (
+    <div style={{ padding: 14 }}>
+      {/* Create section */}
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+        <div><label style={{ fontSize: 10.5, fontWeight: 700, color: "#334155" }}>Month</label><select value={month} onChange={(e) => setMonth(+e.target.value)} style={{ padding: 6, fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, minWidth: 120, display: "block", marginTop: 4 }} data-testid="pb-month">{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString("en", { month: "long" })}</option>)}</select></div>
+        <div><label style={{ fontSize: 10.5, fontWeight: 700, color: "#334155" }}>Year</label><input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 6, fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: 100, display: "block", marginTop: 4 }} data-testid="pb-year" /></div>
+        <button onClick={createDraft} disabled={!writeAllowed} data-testid="pb-create" style={{ padding: "7px 14px", background: writeAllowed ? "#0369a1" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> Create / Refresh Draft</button>
+        <div style={{ marginLeft: "auto", fontSize: 11, color: "#64748b" }}>Pay Bill compute from Attendance · All finalized active employees</div>
+      </div>
+
+      {/* Editor */}
+      {cur && (
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ padding: "10px 14px", background: "#0f172a", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>{cur.refNo} · {new Date(cur.year, cur.month - 1).toLocaleString("en", { month: "long" })} {cur.year} · <span style={{ background: "#fbbf24", color: "#78350f", padding: "1px 8px", borderRadius: 3, marginLeft: 6, fontSize: 10 }}>{PAYBILL_STATUS[cur.step]}</span></div>
+            <div style={{ fontSize: 11 }}>Gross <b>₹{inrN(cur.totalGross)}</b> · Ded <b>₹{inrN(cur.totalDeductions)}</b> · Adv <b>₹{inrN(cur.totalAdvance)}</b> · <span style={{ color: "#86efac" }}>NET <b style={{ fontSize: 13 }}>₹{inrN(cur.totalNet)}</b></span></div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead>
+                <tr style={{ background: "#f1f5f9" }}>
+                  {["#", "EMP Code", "Name", "Designation", "Days P/T", "Gross", "PF", "ESIC", "P.Tax", "TDS", "Advance", "Other Ded.", "NET"].map((h) => <th key={h} style={{ padding: "6px 8px", border: "1px solid #e2e8f0", fontSize: 10, textAlign: "center" }}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {cur.lines.map((l, i) => (
+                  <tr key={l._id} data-testid={`pb-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "center" }}>{i + 1}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{l.empCode}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", fontWeight: 700 }}>{l.name}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", fontSize: 10, color: "#64748b" }}>{l.designation}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "center", fontSize: 10 }}>{l.daysPresent}/{l.daysInMonth}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 700, background: "#ecfdf5" }}>₹{inrN(l.gross)}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.pf)}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.esic)}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.proftax)}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.tds)}</td>
+                    <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef3c7" }}>
+                      <input type="number" value={l.advance || 0} onChange={(e) => setLine(i, "advance", e.target.value)} disabled={locked} data-testid={`pb-advance-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fbbf24", borderRadius: 3, textAlign: "right", background: locked ? "#fef9c3" : "#fffbeb" }} />
+                    </td>
+                    <td style={{ padding: 2, border: "1px solid #e2e8f0" }}>
+                      <input type="number" value={l.otherDeductions || 0} onChange={(e) => setLine(i, "otherDeductions", e.target.value)} disabled={locked} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #cbd5e1", borderRadius: 3, textAlign: "right" }} />
+                    </td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, background: "#0f172a", color: "#fff" }}>₹{inrN(Math.max(0, l.gross - l.pf - l.esic - l.proftax - l.tds - (Number(l.advance) || 0) - (Number(l.otherDeductions) || 0)))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: 12, display: "flex", gap: 8, flexWrap: "wrap", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
+            <button data-testid="pb-save" onClick={saveDraft} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
+            <button data-testid="pb-submit" onClick={submit} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to GM</button>
+            {Number(cur.step) === 2 && <button data-testid="pb-approve" onClick={approveNow} disabled={!approveAllowed} style={{ padding: "7px 14px", background: approveAllowed ? "#dc2626" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> GM Approve</button>}
+            {Number(cur.step) === 3 && <button data-testid="pb-settle" onClick={settle} disabled={!approveAllowed} style={{ padding: "7px 14px", background: approveAllowed ? "#0f766e" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><IndianRupee size={13} style={{ verticalAlign: -2 }} /> Mark Settled</button>}
+            <button data-testid="pb-print" onClick={() => printPayBillSheet(cur)} style={{ padding: "7px 14px", background: "#334155", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Landscape</button>
+          </div>
+        </div>
+      )}
+
+      {/* History */}
+      {list.length > 0 && (
+        <div style={{ marginTop: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+          <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>Pay Bill History ({list.length})</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead><tr style={{ background: "#f8fafc" }}>{["Ref No.", "Period", "Employees", "Gross", "Advance", "Net Payable", "Status", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}</tr></thead>
+            <tbody>
+              {list.sort((a, b) => (b.monthKey || "").localeCompare(a.monthKey || "")).map((p) => (
+                <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => setCur(p)}>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{p.refNo}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>{new Date(p.year, p.month - 1).toLocaleString("en", { month: "long" })} {p.year}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>{p.lines?.length || 0}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right" }}>₹{inrN(p.totalGross)}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", color: "#78350f" }}>₹{inrN(p.totalAdvance)}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#166534" }}>₹{inrN(p.totalNet)}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700 }}>{PAYBILL_STATUS[p.step] || "Draft"}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>
+                    <button onClick={(e) => { e.stopPropagation(); printPayBillSheet(p); }} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Print</button>
+                    {approveAllowed && Number(p.step) === 1 && <button onClick={(e) => { e.stopPropagation(); remove(p.id); }} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // -------------- KPI dashboard --------------
 const KpiTile = ({ label, value, tone, icon: Icon }) => (
   <div style={{ padding: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 1px 3px rgba(15,23,42,.05)" }}>
@@ -1196,6 +1341,7 @@ export default function HRManagement() {
               { id: "attendance", label: "Attendance", tone: "#f59e0b", icon: Calendar },
               { id: "leaves", label: "Leaves", tone: "#0ea5e9", icon: FileText },
               { id: "payroll", label: "Payroll Slip", tone: "#dc2626", icon: IndianRupee },
+              { id: "paybill", label: "Pay Bill", tone: "#be185d", icon: Receipt },
               { id: "compliance", label: "Compliance", tone: "#7c3aed", icon: Landmark },
               { id: "recruit", label: "Recruitment", tone: "#16a34a", icon: Briefcase },
               { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
@@ -1215,6 +1361,7 @@ export default function HRManagement() {
             {tab === "attendance" && <AttendanceGrid />}
             {tab === "leaves" && <LeavesTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "payroll" && <PayrollTab />}
+            {tab === "paybill" && <PayBillTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "compliance" && <ComplianceTab />}
             {tab === "recruit" && <RecruitTab writeAllowed={write} />}
             {tab === "exit" && <ExitTab writeAllowed={write} approveAllowed={approve} />}

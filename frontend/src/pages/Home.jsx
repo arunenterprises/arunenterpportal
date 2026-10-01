@@ -12,6 +12,7 @@ import {
   getBills,
   getPayments,
   getExpenses,
+  getEmployees,
 } from "../lib/store";
 
 const ALL_ROLES = ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
@@ -198,11 +199,16 @@ export default function Home() {
     payments.filter((p) => p.status === "Submitted").length +
     expenses.filter((x) => Number(x.step) === 3).length;
 
+  const hrEmpsList = getEmployees();
+  const hrEmps = hrEmpsList.length;
+  const hrFinalized = hrEmpsList.filter((e) => Number(e.step) === 5).length;
+
   const badges = {
     vendor: { text: `${approvedVendors}/${vendors.length}`, title: `${approvedVendors} approved of ${vendors.length} vendors` },
     purchase: { text: `${expenses.length + bills.length}`, title: `${bills.length} bills · ${expenses.length} expenses in the pipeline` },
     accounts: { text: `${approvedBills}/${bills.length}`, title: `${approvedBills} approved of ${bills.length} bills` },
     gm: { text: `${pendingApprovals} pending`, title: `${pendingApprovals} items pending GM final approval` },
+    hr: { text: `${hrFinalized}/${hrEmps}`, title: `${hrFinalized} finalized of ${hrEmps} employees · live headcount` },
     reports: { text: `${paidVouchers}/${payments.length}`, title: `${paidVouchers} approved vouchers of ${payments.length}` },
     users: null,
   };
@@ -220,13 +226,17 @@ export default function Home() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
 
-      <div className="app-shell">
-        <div className="a4 home-a4" data-testid="home-a4">
-          <Header formTitle="Organisation Control Panel" />
+      <div style={{ minHeight: "100vh", background: "#f1f5f9", paddingBottom: 40 }}>
+        <div style={{ maxWidth: "100%", margin: "0 auto", padding: "18px 24px" }} data-testid="home-page">
+
+          {/* Compact letterhead */}
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 20px", marginBottom: 14, display: "flex", alignItems: "center", gap: 14 }}>
+            <Header formTitle="Organisation Control Panel" compact />
+          </div>
 
           {/* ---------- TIER 1 — Executive (GM) ---------- */}
-          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center", margin: "6px 0 0" }}>
-            <div style={{ width: "min(560px, 100%)" }}>
+          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center" }}>
+            <div style={{ width: "min(620px, 48%)" }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 6 }}>Executive · Approval Authority</div>
               {(() => {
                 const gm = DEPARTMENTS.find((d) => d.id === "gm");
@@ -237,15 +247,18 @@ export default function Home() {
           </div>
 
           {/* Connector line */}
-          <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "4px 0" }}>
-            <div style={{ width: 2, height: 22, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
+          <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "6px 0" }}>
+            <div style={{ width: 2, height: 26, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
           </div>
-          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 8%, #cbd5e1 15%, #cbd5e1 85%, transparent 92%)", margin: "0 4%" }} />
+          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 6%, #cbd5e1 12%, #cbd5e1 88%, transparent 94%)", margin: "0 2%" }} />
+          <div aria-hidden style={{ display: "flex", justifyContent: "space-around", margin: "0" }}>
+            {[0, 1, 2, 3, 4].map((i) => <div key={i} style={{ width: 2, height: 20, background: "#cbd5e1" }} />)}
+          </div>
 
           {/* ---------- TIER 2 — Operating Departments ---------- */}
-          <div data-testid="org-tier-2" style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#0f172a", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 8 }}>Operating Departments</div>
-            <div className="dept-grid" data-testid="dept-grid" style={{ gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+          <div data-testid="org-tier-2" style={{ marginTop: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#0f172a", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 10 }}>Operating Departments</div>
+            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 14 }}>
               {["vendor", "purchase", "accounts", "hr", "reports"].map((id) => {
                 const d = DEPARTMENTS.find((x) => x.id === id);
                 if (!d) return null;
@@ -263,14 +276,14 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ---------- TIER 3 — Administration (SuperAdmin only) ---------- */}
+          {/* ---------- TIER 3 — SuperAdmin ---------- */}
           {superAdmin && (
             <>
-              <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "10px 0 4px" }}>
-                <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
+              <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "14px 0 4px" }}>
+                <div style={{ width: 2, height: 22, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
               </div>
               <div data-testid="org-tier-3" style={{ display: "flex", justifyContent: "center" }}>
-                <div style={{ width: "min(560px, 100%)" }}>
+                <div style={{ width: "min(620px, 48%)" }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#991b1b", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 6 }}>System Administration · SuperAdmin</div>
                   {(() => {
                     const u = DEPARTMENTS.find((d) => d.id === "users");
