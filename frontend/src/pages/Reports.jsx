@@ -11,6 +11,7 @@ import {
   currentUser, exportJSON, amountToWords,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getPayBills, advancePayBillStep, PAYBILL_STATUS,
+  getAdvanceRegister,
   canApprove,
 } from "../lib/store";
 
@@ -386,6 +387,7 @@ export default function Reports() {
               { id: "vouchers", label: "💳 Payment Vouchers", tone: "#7c3aed" },
               { id: "due", label: "📋 Due List", tone: "#0ea5e9" },
               { id: "salary", label: "👥 Salary Bills (HR Payroll)", tone: "#be185d" },
+              { id: "advance", label: "💰 Employee Advances", tone: "#b45309" },
               { id: "aging", label: "⏱️ Aging", tone: "#ea580c" },
               { id: "gsttds", label: "🧾 GST-TDS Register", tone: "#16a34a" },
             ].map((t) => (
@@ -480,6 +482,64 @@ export default function Reports() {
           )}
 
           {/* Aging & GST-TDS Register (conditional simple tables) */}
+          {/* Employee Advances — Accounts queue (aggregated from Pay Bills) */}
+          {reportsTab === "advance" && (
+            <div className="section" data-testid="reports-advance">
+              <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Employee Advances — Live Register (aggregated from Pay Bills)</span>
+                <span style={{ fontSize: 10.5, color: "#64748b", fontWeight: 600 }}>Flow: Advance in Pay Bill → Submitted → GM Approved → Settled by Accounts</span>
+              </div>
+              <div className="sec-body" style={{ padding: 0 }}>
+                {(() => {
+                  const reg = getAdvanceRegister();
+                  const totalAdv = reg.reduce((a, r) => a + r.totalAdvance, 0);
+                  return (
+                    <>
+                      <div style={{ padding: "10px 14px", background: "#fef3c7", borderBottom: "1px solid #fcd34d", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#78350f", letterSpacing: .5, textTransform: "uppercase" }}>Total Advance Granted · {reg.length} Employee{reg.length !== 1 ? "s" : ""}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#78350f" }}>₹ {Number(totalAdv).toLocaleString("en-IN")}</div>
+                      </div>
+                      {reg.length === 0 ? (
+                        <div style={{ padding: 30, textAlign: "center", color: "#94a3b8" }}>No advance entries yet · Advance column in Pay Bill rows populates this register.</div>
+                      ) : (
+                        <table className="data-table" data-testid="advance-table">
+                          <thead><tr>
+                            <th>EMP Code</th>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th style={{ textAlign: "center" }}>Advance Entries</th>
+                            <th style={{ textAlign: "right" }}>Total Advance (₹)</th>
+                            <th>Pay Bill Status</th>
+                          </tr></thead>
+                          <tbody>
+                            {reg.map((r) => {
+                              const activeLines = r.lines || [];
+                              const allSettled = activeLines.every((l) => Number(l.step) === 4);
+                              const anyPending = activeLines.some((l) => Number(l.step) < 4);
+                              return (
+                                <tr key={r.empId} data-testid={`advance-row-${r.empId}`}>
+                                  <td className="mono">{r.empCode}</td>
+                                  <td><b>{r.name || "—"}</b></td>
+                                  <td>{r.department || "—"}</td>
+                                  <td style={{ textAlign: "center" }}>{activeLines.length}</td>
+                                  <td className="num" style={{ fontWeight: 800, color: "#78350f" }}>₹ {Number(r.totalAdvance).toLocaleString("en-IN")}</td>
+                                  <td>
+                                    {allSettled && <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ All Settled</span>}
+                                    {anyPending && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Pending in Pay Bill</span>}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {reportsTab === "aging" && (
             <div className="section" data-testid="reports-aging">
               <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
