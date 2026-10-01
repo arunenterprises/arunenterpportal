@@ -791,8 +791,8 @@ body {
 }
 /* ---- Home fit-on-screen compact overrides ---- */
 .home-fit .dept-card {
-  min-height: 0;
-  height: 100%;
+  min-height: 220px;
+  height: auto;
   padding: 14px 16px;
   gap: 7px;
   border-radius: 12px;

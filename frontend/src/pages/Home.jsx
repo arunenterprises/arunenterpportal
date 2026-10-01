@@ -226,24 +226,24 @@ export default function Home() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
 
-      <div className="home-fit" style={{ height: "calc(100vh - 56px)", background: "#f1f5f9", overflow: "hidden" }}>
-        <div style={{ maxWidth: "100%", height: "100%", margin: "0 auto", padding: "10px 20px", display: "flex", flexDirection: "column", gap: 8 }} data-testid="home-page">
+      <div className="home-fit" style={{ minHeight: "calc(100vh - 56px)", background: "#f1f5f9", padding: "14px 20px 24px" }}>
+        <div style={{ maxWidth: 1600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }} data-testid="home-page">
 
           {/* Centered Letterhead */}
-          <div style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "8px 16px", boxShadow: "0 2px 8px rgba(15,23,42,.06)", flex: "0 0 auto" }}>
+          <div style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
             <Header formTitle="" compact />
           </div>
 
           {/* Organisation Structure banner */}
-          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "6px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)", flex: "0 0 auto" }}>
+          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "8px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)" }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: "#e9d5ff", letterSpacing: 2.5, textTransform: "uppercase" }}>Enterprise Hierarchy</div>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>Organisation Structure</div>
+            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>Organisation Structure</div>
           </div>
 
           {/* ---------- TIER 1 — Executive (GM) ---------- */}
-          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center", flex: "0 0 auto", marginTop: 10 }}>
+          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center" }}>
             <div style={{ width: 320 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#ede9fe", borderRadius: 4, display: "inline-block", width: "100%" }}>Executive · Approval Authority</div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#ede9fe", borderRadius: 4 }}>Executive · Approval Authority</div>
               {(() => {
                 const gm = DEPARTMENTS.find((d) => d.id === "gm");
                 const allowed = gm.roles.includes(role) || superAdmin;
@@ -253,15 +253,15 @@ export default function Home() {
           </div>
 
           {/* Connector */}
-          <div aria-hidden style={{ display: "flex", justifyContent: "center", flex: "0 0 auto", marginTop: 6 }}>
-            <div style={{ width: 2, height: 18, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
+          <div aria-hidden style={{ display: "flex", justifyContent: "center" }}>
+            <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
           </div>
-          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 6%, #94a3b8 12%, #94a3b8 88%, transparent 94%)", margin: "0 6%", borderRadius: 2, flex: "0 0 auto" }} />
+          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 6%, #94a3b8 12%, #94a3b8 88%, transparent 94%)", margin: "0 6%", borderRadius: 2 }} />
 
           {/* ---------- TIER 2 — Operating Departments ---------- */}
-          <div data-testid="org-tier-2" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", minHeight: 0, marginTop: 4 }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: "#0f172a", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#e2e8f0", borderRadius: 4, margin: "0 auto 10px", width: "fit-content" }}>Operating Departments</div>
-            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 18, alignItems: "stretch", justifyContent: "center", flex: "1 1 auto", minHeight: 0, maxWidth: 1600, width: "100%", margin: "0 auto" }}>
+          <div data-testid="org-tier-2">
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#0f172a", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 8, padding: "3px 10px", background: "#e2e8f0", borderRadius: 4, margin: "0 auto 10px", width: "fit-content" }}>Operating Departments</div>
+            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16, alignItems: "stretch", justifyContent: "center" }}>
               {["hr", "vendor", "purchase", "accounts", "reports"].map((id) => {
                 const d = DEPARTMENTS.find((x) => x.id === id);
                 if (!d) return null;
@@ -277,15 +277,20 @@ export default function Home() {
 
           {/* ---------- TIER 3 — SuperAdmin ---------- */}
           {superAdmin && (
-            <div data-testid="org-tier-3" style={{ display: "flex", justifyContent: "center", flex: "0 0 auto" }}>
-              <div style={{ width: 320 }}>
-                <div style={{ fontSize: 9, fontWeight: 800, color: "#991b1b", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 4, padding: "2px 10px", background: "#fee2e2", borderRadius: 4 }}>System Administration · SuperAdmin</div>
-                {(() => {
-                  const u = DEPARTMENTS.find((d) => d.id === "users");
-                  return <DepartmentCard dept={u} badge={badges.users} allowed={true} onClick={() => nav(u.to)} />;
-                })()}
+            <>
+              <div aria-hidden style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
+                <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
               </div>
-            </div>
+              <div data-testid="org-tier-3" style={{ display: "flex", justifyContent: "center" }}>
+                <div style={{ width: 320 }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: "#991b1b", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#fee2e2", borderRadius: 4 }}>System Administration · SuperAdmin</div>
+                  {(() => {
+                    const u = DEPARTMENTS.find((d) => d.id === "users");
+                    return <DepartmentCard dept={u} badge={badges.users} allowed={true} onClick={() => nav(u.to)} />;
+                  })()}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
