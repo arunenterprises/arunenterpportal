@@ -49,6 +49,7 @@ export default function BillProcessing() {
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [activeView, setActiveView] = useState("vendor"); // "vendor" | "hr-payroll" | "advance"
 
   const allBills = useMemo(() => getBills(), [refresh, bill.id]);
   const loadBill = (b) => {
@@ -431,8 +432,50 @@ export default function BillProcessing() {
         <div className="a4" data-testid="bill-page">
           <Header formTitle="ACCOUNTS DEPARTMENT · BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />
 
-          {/* HR Pay Bills Queue — Accounts approval section (ALWAYS visible for Accounts) */}
-          {(() => {
+          {/* View Switcher — Vendor Bills · HR Payroll · Employee Advance */}
+          <div style={{ display: "flex", gap: 0, marginTop: 10, marginBottom: 12, borderBottom: "2px solid #cbd5e1", background: "#fff", borderRadius: 6, overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,.05)" }} data-testid="bill-view-tabs">
+            {[
+              { key: "vendor", label: "Vendor Bills", color: "#1e40af", icon: "📄", desc: "Vendor PO · Bill Processing" },
+              { key: "hr-payroll", label: "HR Payroll", color: "#be185d", icon: "💰", desc: "Pay Bills · Accounts Queue" },
+              { key: "advance", label: "Employee Advance", color: "#b45309", icon: "👤", desc: "Live Advance Register" },
+            ].map((t) => {
+              const active = activeView === t.key;
+              return (
+                <button
+                  key={t.key}
+                  data-testid={`bill-view-tab-${t.key}`}
+                  onClick={() => { setActiveView(t.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  style={{
+                    flex: 1,
+                    padding: "7px 10px",
+                    background: active ? `linear-gradient(135deg, ${t.color} 0%, ${t.color}dd 100%)` : "#f8fafc",
+                    color: active ? "#fff" : "#475569",
+                    border: "none",
+                    borderBottom: active ? `2px solid ${t.color}` : "2px solid transparent",
+                    borderRight: "1px solid #e2e8f0",
+                    cursor: "pointer",
+                    fontWeight: 800,
+                    fontSize: 11,
+                    letterSpacing: .6,
+                    textTransform: "uppercase",
+                    transition: "all .2s",
+                    textAlign: "left",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 1,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  <span style={{ fontSize: 11 }}>{t.icon} {t.label}</span>
+                  <span style={{ fontSize: 8, letterSpacing: .3, opacity: .85, textTransform: "none", fontWeight: 600 }}>{t.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* HR Pay Bills Queue — Accounts approval section */}
+          {activeView === "hr-payroll" && (() => {
             const paybills = getPayBills().slice().sort((a, b) => (b.monthKey || "").localeCompare(a.monthKey || ""));
             const pending = paybills.filter((p) => Number(p.step) === 3);
             const settled = paybills.filter((p) => Number(p.step) === 4);
@@ -506,7 +549,7 @@ export default function BillProcessing() {
           })()}
 
           {/* Employee Advances — Live Register (aggregated from Pay Bills) */}
-          {(() => {
+          {activeView === "advance" && (() => {
             const reg = getAdvanceRegister();
             const totalAdv = reg.reduce((a, r) => a + r.totalAdvance, 0);
             return (
@@ -560,6 +603,7 @@ export default function BillProcessing() {
             );
           })()}
 
+          {activeView === "vendor" && <>
           <StepTabs
             step={bill.step}
             labels={[BILL_STEP_LABEL[1], BILL_STEP_LABEL[2], BILL_STEP_LABEL[3], BILL_STEP_LABEL[4], BILL_STEP_LABEL[5]]}
@@ -1222,6 +1266,7 @@ export default function BillProcessing() {
             <button data-testid="bill-btn-export-excel" onClick={handleExportExcel} style={{ padding: "7px 12px", height: 32, background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(5,150,105,.3)", lineHeight: 1 }}>⬇ Excel</button>
             <button data-testid="bill-btn-print" onClick={handlePrint} style={{ padding: "7px 12px", height: 32, background: "#ea580c", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(234,88,12,.3)", lineHeight: 1 }}><Printer size={13} /> Print</button>
           </div>
+          </>}
         </div>
       </div>
     </>
