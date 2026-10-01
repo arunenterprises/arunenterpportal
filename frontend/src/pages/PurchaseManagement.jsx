@@ -778,7 +778,6 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
       <div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
         {/* Left group — Workflow */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Workflow</span>
           <button data-testid="wo-btn-new" onClick={() => startNew()} style={{ padding: "7px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><FilePlus2 size={13} /> New</button>
           <button data-testid="wo-btn-edit" onClick={() => {
             if (!writeAllowed) { toast.error("Not permitted"); return; }
@@ -795,7 +794,6 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         </div>
         {/* Right group — Export */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Export</span>
           <button data-testid="wo-btn-download" onClick={() => downloadWOExcel()} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>⬇ Excel</button>
           <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print PDF (A4)</button>
         </div>
