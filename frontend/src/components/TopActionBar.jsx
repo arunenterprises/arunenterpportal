@@ -97,22 +97,7 @@ export const TopActionBar = ({
   };
 
   return (
-    <div className={`top-action ${variant === "dark" ? "dark" : ""}`} data-testid="top-action-bar">
-      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
-        style={{ display: "none" }} onChange={pickLogo} data-testid="logo-file-input" />
-      {isSuperAdmin(currentUserProfile()?.user) && (
-        <>
-          <button className="btn-color btn-logo" data-testid="btn-change-logo" onClick={() => fileRef.current?.click()} title="Upload company logo (Super Admin only)">
-            <ImageUp size={14} /><span className="lbl">{hasLogo ? "Logo" : "Logo"}</span>
-          </button>
-          {hasLogo && (
-            <button className="btn-color btn-logo-remove" data-testid="btn-remove-logo" onClick={removeLogo} title="Remove logo (Super Admin only)">
-              <ImageOff size={14} />
-            </button>
-          )}
-        </>
-      )}
-    </div>
+    <div className={`top-action ${variant === "dark" ? "dark" : ""}`} data-testid="top-action-bar" style={{ display: "none" }} />
   );
 };
 
