@@ -8,6 +8,7 @@ import {
   ArrowRight, Cake, Trophy, PartyPopper, Briefcase, Landmark, X, Receipt, Plus, Edit3, Wallet, ShieldCheck,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
+import { Header } from "../components/Header";
 import {
   getEmployees, createEmployeeDraft, upsertEmployee, advanceEmployeeStep, deleteEmployee,
   reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary,
@@ -19,7 +20,7 @@ import {
   getRecruitments, createRecruitDraft, upsertRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, EXIT_STATUS,
   getComplianceSnapshot,
-  currentRole, canCreate, canApprove, currentUser, fmtDMY,
+  currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, sendPayslipWhatsApp } from "../lib/hrLetters";
 
@@ -664,15 +665,14 @@ const PayrollTab = () => {
 
       {emp && salary && (
         <div className="a4" style={{ background: "#fff", border: "1px solid #cbd5e1", padding: 24, borderRadius: 8, maxWidth: 800, margin: "0 auto" }} data-testid="hr-payroll-slip">
-          <div style={{ textAlign: "center", marginBottom: 16, borderBottom: "2px solid #0f172a", paddingBottom: 10 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>ARUN ENTERPRISES</div>
-            <div style={{ fontSize: 11, color: "#64748b" }}>Salary Slip · {new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })}</div>
-          </div>
+          <Header formTitle={`SALARY SLIP · ${new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" }).toUpperCase()}`} />
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 12, marginTop: 12 }}>
             <tbody>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9", width: "25%" }}>Emp Code</td><td style={{ padding: 5 }}>{emp.empCode}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9", width: "25%" }}>Name</td><td style={{ padding: 5 }}>{emp.fullName}</td></tr>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Designation</td><td style={{ padding: 5 }}>{emp.designation}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Department</td><td style={{ padding: 5 }}>{emp.department}</td></tr>
+              <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Project</td><td style={{ padding: 5 }}>{emp.projectSite || "—"}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Location</td><td style={{ padding: 5 }}>{emp.location || "—"}</td></tr>
+              <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>PAN No.</td><td style={{ padding: 5 }}>{emp.pan || "—"}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Aadhaar</td><td style={{ padding: 5 }}>{emp.aadhaar || "—"}</td></tr>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>PF No.</td><td style={{ padding: 5 }}>{emp.pfNo || "—"}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>UAN</td><td style={{ padding: 5 }}>{emp.uan || "—"}</td></tr>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Days in Month</td><td style={{ padding: 5 }}>{daysInMonth}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Days Present</td><td style={{ padding: 5 }}>{daysPresent}</td></tr>
             </tbody>
@@ -705,6 +705,10 @@ const PayrollTab = () => {
           <div style={{ marginTop: 14, padding: 12, background: "#0f172a", color: "#fff", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 }}>
             <b>NET SALARY PAYABLE</b>
             <b style={{ fontSize: 20 }}>₹ {salary.net.toLocaleString("en-IN")}</b>
+          </div>
+
+          <div data-testid="hr-payroll-amount-words" style={{ marginTop: 8, padding: "8px 12px", background: "#f1f5f9", border: "1px dashed #94a3b8", borderRadius: 6, fontSize: 12, color: "#0f172a" }}>
+            <b>Amount in Words:</b> <i>{amountToWords(salary.net)}</i>
           </div>
 
           <div style={{ marginTop: 20, fontSize: 10, color: "#64748b", textAlign: "center" }}>
