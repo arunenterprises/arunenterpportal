@@ -45,6 +45,37 @@ const logWODeletion = (w, approved) => {
   }
 };
 
+// Append a BOQ deletion audit entry so admin overrides are traceable.
+const logBOQDeletion = (b, approved) => {
+  try {
+    const prof = currentUserProfile() || {};
+    const actorName = prof.name || prof.user || currentUser() || "Unknown";
+    const actorEmail = prof.user || "";
+    const actorRole = currentRole() || "User";
+    const entry = {
+      at: new Date().toISOString(),
+      boqId: b.id,
+      boqNo: b.boqNo || b.tempRefId || "",
+      projectSite: b.projectSite || "",
+      clientName: b.clientName || "",
+      total: Number(b.total) || 0,
+      step: Number(b.step) || 0,
+      wasApproved: !!approved,
+      actorName,
+      actorEmail,
+      actorRole,
+    };
+    const KEY = "ae_vm_boq_delete_log";
+    const prev = JSON.parse(localStorage.getItem(KEY) || "[]");
+    prev.push(entry);
+    const trimmed = prev.slice(-500);
+    localStorage.setItem(KEY, JSON.stringify(trimmed));
+    return { actorName, actorRole };
+  } catch {
+    return { actorName: currentUser() || "Unknown", actorRole: currentRole() || "User" };
+  }
+};
+
 const TABS = [
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#0ea5e9" },
   { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#16a34a" },
@@ -399,6 +430,35 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
         <button data-testid="boq-btn-submit" onClick={handleSubmit} disabled={!writeAllowed || locked || boq.step >= 3} style={{ padding: "8px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && boq.step < 3 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Send size={13} /> Submit
         </button>
+        {boq.id && (Number(boq.step) < 4 ? writeAllowed : canDeleteApproved()) && (
+          <button data-testid="boq-btn-delete-current" onClick={() => {
+            const approved = Number(boq.step) >= 4;
+            if (approved && !canDeleteApproved()) { toast.error("Only Admin / SuperAdmin can delete Approved BOQ"); return; }
+            if (!approved && !writeAllowed) { toast.error("Not permitted"); return; }
+            const label = boq.boqNo || boq.tempRefId || boq.projectSite || "this BOQ";
+            const msg = approved
+              ? `⚠ DANGER: Delete APPROVED BOQ "${label}"?\n\nThis permanently removes an approved BOQ and cannot be undone.\n\nPress OK only if you are absolutely sure.`
+              : `Delete BOQ "${label}"?`;
+            if (!window.confirm(msg)) return;
+            const audit = logBOQDeletion(boq, approved);
+            deleteBOQ(boq.id);
+            toast.success(
+              approved
+                ? `Approved BOQ "${label}" deleted by ${audit.actorRole} (${audit.actorName})`
+                : `BOQ deleted by ${audit.actorRole} (${audit.actorName})`
+            );
+            setList(getBOQs());
+            startNew();
+          }} title={Number(boq.step) >= 4 ? "Admin override — delete Approved BOQ" : "Delete this BOQ"} style={{
+            padding: "8px 14px",
+            background: Number(boq.step) >= 4 ? "#991b1b" : "#dc2626",
+            color: "#fff", border: "none", borderRadius: 5, cursor: "pointer",
+            fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6,
+            boxShadow: Number(boq.step) >= 4 ? "0 1px 3px rgba(153,27,27,.4)" : "0 1px 3px rgba(220,38,38,.3)",
+          }}>
+            <Trash2 size={13} /> {Number(boq.step) >= 4 ? "Delete (Admin Override)" : "Delete BOQ"}
+          </button>
+        )}
         <button data-testid="boq-btn-approve" onClick={handleApprove} disabled={!approveAllowed || boq.step < 3 || boq.step >= 4} style={{ padding: "8px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed && boq.step >= 3 && boq.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
           Final Approval
         </button>
@@ -453,8 +513,13 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                             ? `⚠ DANGER: Delete APPROVED BOQ ${label}?\n\nThis permanently removes an approved BOQ and cannot be undone.\n\nPress OK only if you are absolutely sure.`
                             : `Delete BOQ ${label}?`;
                           if (!window.confirm(msg)) return;
+                          const audit = logBOQDeletion(b, approved);
                           deleteBOQ(b.id);
-                          toast.success(approved ? "Approved BOQ deleted (admin override)" : "BOQ deleted");
+                          toast.success(
+                            approved
+                              ? `Approved BOQ ${label} deleted by ${audit.actorRole} (${audit.actorName})`
+                              : `BOQ deleted by ${audit.actorRole} (${audit.actorName})`
+                          );
                           setList(getBOQs());
                           if (boq && boq.id === b.id) startNew();
                         }}
