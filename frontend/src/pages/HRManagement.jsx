@@ -5,13 +5,17 @@ import { Toaster, toast } from "sonner";
 import {
   UserPlus, Users2, Calendar, IndianRupee, FileText, LogOut,
   UserCheck, Sparkles, Construction, Trash2, Save, Send, CheckCircle2, RefreshCw, Printer, Download,
-  ArrowRight, Cake, Trophy, PartyPopper,
+  ArrowRight, Cake, Trophy, PartyPopper, Briefcase, Landmark, X,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import {
   getEmployees, createEmployeeDraft, upsertEmployee, advanceEmployeeStep, deleteEmployee,
   reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary,
   getMonthAttendance, upsertAttendance, sendPayrollToAccounts,
+  getLeaves, createLeaveDraft, upsertLeave, deleteLeave, approveLeave, LEAVE_TYPES, LEAVE_STATUS,
+  getRecruitments, createRecruitDraft, upsertRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
+  getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, EXIT_STATUS,
+  getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY,
 } from "../lib/store";
 
@@ -463,6 +467,304 @@ const CelebrationBanner = ({ emps }) => {
   );
 };
 
+// ================== LEAVE APPLICATIONS ==================
+const LeavesTab = ({ writeAllowed, approveAllowed }) => {
+  const [emps] = useState(() => getEmployees().filter((e) => Number(e.step) === 5));
+  const [list, setList] = useState(getLeaves());
+  const [cur, setCur] = useState(createLeaveDraft(emps[0]?.id || ""));
+  const refresh = () => setList(getLeaves());
+  const set = (k, v) => setCur((p) => ({ ...p, [k]: v }));
+
+  const daysBetween = (f, t) => {
+    const d1 = new Date(f), d2 = new Date(t);
+    if (!d1 || !d2 || d2 < d1) return 0;
+    return Math.round((d2 - d1) / 86400000) + 1;
+  };
+
+  const save = () => {
+    if (!cur.empId) return toast.error("Select employee");
+    if (!cur.reason.trim()) return toast.error("Reason required");
+    const next = { ...cur, days: daysBetween(cur.from, cur.to) };
+    upsertLeave(next); refresh(); setCur(next);
+    toast.success("Leave saved as draft");
+  };
+  const submit = () => {
+    save();
+    const list = getLeaves();
+    const idx = list.findIndex((x) => x.id === cur.id);
+    if (idx >= 0) { list[idx].status = 2; saveLeaves(list); refresh(); setCur(list[idx]); toast.success("Submitted to HR"); }
+  };
+  const decide = (id, ok) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin");
+    approveLeave(id, ok); refresh();
+    toast.success(ok ? "Approved — attendance auto-marked as Leave" : "Rejected");
+  };
+  const remove = (id) => { if (!window.confirm("Delete leave?")) return; deleteLeave(id); refresh(); };
+
+  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
+  const F = ({ label, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block" }}>{label}</label>{children}</div>);
+
+  if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Pehle Employees tab me kam se kam ek employee finalize karo.</div>;
+
+  return (
+    <div style={{ padding: 14 }}>
+      <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+        <F label="Employee"><select value={cur.empId} onChange={(e) => set("empId", e.target.value)} style={inputStyle} data-testid="lv-emp">{emps.map((e) => <option key={e.id} value={e.id}>{`${e.empCode} — ${e.fullName}`}</option>)}</select></F>
+        <F label="Type"><select value={cur.type} onChange={(e) => set("type", e.target.value)} style={inputStyle}>{LEAVE_TYPES.map((t) => <option key={t}>{t}</option>)}</select></F>
+        <F label="From"><input type="date" value={cur.from} onChange={(e) => set("from", e.target.value)} style={inputStyle} /></F>
+        <F label="To"><input type="date" value={cur.to} onChange={(e) => set("to", e.target.value)} style={inputStyle} /></F>
+        <F label="Days (auto)"><input value={daysBetween(cur.from, cur.to)} readOnly style={{ ...inputStyle, background: "#eef2ff", fontWeight: 700, textAlign: "center" }} /></F>
+        <F label="Reason"><input value={cur.reason} onChange={(e) => set("reason", e.target.value)} style={inputStyle} placeholder="Short reason" data-testid="lv-reason" /></F>
+        <div style={{ gridColumn: "span 6", display: "flex", gap: 6 }}>
+          <button data-testid="lv-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
+          <button data-testid="lv-submit" onClick={submit} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to HR</button>
+          <button onClick={() => setCur(createLeaveDraft(emps[0]?.id || ""))} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>New</button>
+        </div>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+        <thead><tr style={{ background: "#f8fafc" }}>
+          {["Employee", "Type", "From", "To", "Days", "Reason", "Status", "Actions"].map((h) => <th key={h} style={{ padding: 7, textAlign: "left", borderBottom: "1px solid #e2e8f0", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{h}</th>)}
+        </tr></thead>
+        <tbody>{list.length === 0 ? <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No leave applications</td></tr> : list.map((l, i) => {
+          const emp = emps.find((e) => e.id === l.empId);
+          const toneByStatus = { 1: "#64748b", 2: "#f59e0b", 3: "#16a34a", 4: "#dc2626" };
+          return (
+            <tr key={l.id} data-testid={`lv-row-${l.id}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+              <td style={{ padding: 7 }}>{emp ? `${emp.empCode} · ${emp.fullName}` : "—"}</td>
+              <td style={{ padding: 7, fontWeight: 700 }}>{l.type}</td>
+              <td style={{ padding: 7 }}>{fmtDMY(l.from)}</td>
+              <td style={{ padding: 7 }}>{fmtDMY(l.to)}</td>
+              <td style={{ padding: 7, textAlign: "center" }}>{l.days}</td>
+              <td style={{ padding: 7 }}>{l.reason}</td>
+              <td style={{ padding: 7, color: toneByStatus[l.status], fontWeight: 700 }}>{LEAVE_STATUS[l.status]}</td>
+              <td style={{ padding: 4, whiteSpace: "nowrap" }}>
+                {l.status === 2 && approveAllowed && <>
+                  <button data-testid={`lv-approve-${l.id}`} onClick={() => decide(l.id, true)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✓ Approve</button>
+                  <button data-testid={`lv-reject-${l.id}`} onClick={() => decide(l.id, false)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✕ Reject</button>
+                </>}
+                <button onClick={() => remove(l.id)} style={{ padding: "3px 8px", background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
+              </td>
+            </tr>
+          );
+        })}</tbody>
+      </table>
+    </div>
+  );
+};
+
+// ================== RECRUITMENT ==================
+const RecruitTab = ({ writeAllowed }) => {
+  const [list, setList] = useState(getRecruitments());
+  const [cur, setCur] = useState(createRecruitDraft());
+  const refresh = () => setList(getRecruitments());
+  const set = (k, v) => setCur((p) => ({ ...p, [k]: v }));
+
+  const save = () => {
+    if (!cur.candidateName.trim()) return toast.error("Candidate name required");
+    if (!cur.position.trim()) return toast.error("Position required");
+    upsertRecruit(cur); refresh();
+    toast.success("Candidate saved");
+  };
+  const changeStatus = (r, newStatus) => { upsertRecruit({ ...r, status: newStatus }); refresh(); };
+  const convertToEmp = (r) => {
+    if (!window.confirm(`Convert ${r.candidateName} into an Employee draft?`)) return;
+    const emp = convertRecruitToEmployee(r); refresh();
+    toast.success(`Employee draft ${emp.tempCode} auto-created. Switch to Employees tab to complete.`);
+  };
+  const remove = (id) => { if (!window.confirm("Delete?")) return; deleteRecruit(id); refresh(); };
+
+  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
+  const F = ({ label, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block" }}>{label}</label>{children}</div>);
+
+  return (
+    <div style={{ padding: 14 }}>
+      <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <F label="Candidate Name"><input value={cur.candidateName} onChange={(e) => set("candidateName", e.target.value)} style={inputStyle} data-testid="rec-name" /></F>
+        <F label="Mobile"><input value={cur.candidateMobile} onChange={(e) => set("candidateMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} style={inputStyle} /></F>
+        <F label="Email"><input value={cur.candidateEmail} onChange={(e) => set("candidateEmail", e.target.value)} style={inputStyle} /></F>
+        <F label="Position Applied"><input value={cur.position} onChange={(e) => set("position", e.target.value)} style={inputStyle} data-testid="rec-pos" /></F>
+        <F label="Department"><select value={cur.department} onChange={(e) => set("department", e.target.value)} style={inputStyle}>{["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"].map((d) => <option key={d}>{d}</option>)}</select></F>
+        <F label="Experience (yrs)"><input type="number" value={cur.experienceYears} onChange={(e) => set("experienceYears", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="Qualification"><input value={cur.qualification} onChange={(e) => set("qualification", e.target.value)} style={inputStyle} /></F>
+        <F label="Offered CTC (annual ₹)"><input type="number" value={cur.offerCTC} onChange={(e) => set("offerCTC", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="Offer Date"><input type="date" value={cur.offerDate} onChange={(e) => set("offerDate", e.target.value)} style={inputStyle} /></F>
+        <F label="Remarks"><input value={cur.remarks} onChange={(e) => set("remarks", e.target.value)} style={inputStyle} /></F>
+        <div style={{ gridColumn: "span 4", display: "flex", gap: 6 }}>
+          <button data-testid="rec-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Candidate</button>
+          <button onClick={() => setCur(createRecruitDraft())} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>New</button>
+        </div>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+        <thead><tr style={{ background: "#f8fafc" }}>{["Candidate", "Position", "Dept", "Exp", "CTC", "Status", "Actions"].map((h) => <th key={h} style={{ padding: 7, textAlign: "left", borderBottom: "1px solid #e2e8f0", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
+        <tbody>{list.length === 0 ? <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No candidates yet</td></tr> : list.map((r, i) => (
+          <tr key={r.id} data-testid={`rec-row-${r.id}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+            <td style={{ padding: 7 }}>{r.candidateName}<div style={{ fontSize: 9.5, color: "#64748b" }}>{r.candidateMobile} · {r.candidateEmail}</div></td>
+            <td style={{ padding: 7 }}>{r.position}</td>
+            <td style={{ padding: 7 }}>{r.department}</td>
+            <td style={{ padding: 7, textAlign: "center" }}>{r.experienceYears}</td>
+            <td style={{ padding: 7, textAlign: "right" }}>₹ {Number(r.offerCTC || 0).toLocaleString("en-IN")}</td>
+            <td style={{ padding: 7 }}>
+              <select value={r.status} onChange={(e) => changeStatus(r, +e.target.value)} disabled={r.status === 5} style={{ padding: 3, fontSize: 10, fontWeight: 700, borderRadius: 4 }}>
+                {Object.entries(RECRUIT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </td>
+            <td style={{ padding: 4, whiteSpace: "nowrap" }}>
+              {r.status === 4 && !r.joinedEmpId && <button data-testid={`rec-convert-${r.id}`} onClick={() => convertToEmp(r)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>→ Emp Draft</button>}
+              {r.joinedEmpId && <span style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginRight: 4 }}>✓ Joined</span>}
+              <button onClick={() => remove(r.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
+            </td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+};
+
+// ================== EXIT & F&F ==================
+const ExitTab = ({ writeAllowed, approveAllowed }) => {
+  const [emps] = useState(() => getEmployees().filter((e) => Number(e.step) === 5 && (e.status || "Active") !== "Exited"));
+  const [list, setList] = useState(getExits());
+  const [cur, setCur] = useState(createExitDraft(emps[0]?.id || ""));
+  const refresh = () => setList(getExits());
+  const set = (k, v) => setCur((p) => ({ ...p, [k]: v }));
+  const setClear = (dept, v) => setCur((p) => ({ ...p, clearance: { ...p.clearance, [dept]: v } }));
+
+  const save = () => {
+    if (!cur.empId) return toast.error("Select employee");
+    const saved = upsertExit(cur); setCur(saved); refresh();
+    toast.success("Exit saved");
+  };
+  const finalize = (id) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin");
+    if (!window.confirm("Finalize F&F and mark employee Exited?")) return;
+    finalizeExit(id); refresh();
+    toast.success("Employee exited · F&F settled");
+  };
+  const remove = (id) => { if (!window.confirm("Delete?")) return; deleteExit(id); refresh(); };
+
+  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
+  const F = ({ label, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block" }}>{label}</label>{children}</div>);
+  const fnf = (Number(cur.pendingDues) || 0) + (Number(cur.bonusDue) || 0) + (Number(cur.leaveEncash) || 0) + (Number(cur.gratuity) || 0) - (Number(cur.loanDeduction) || 0) - (Number(cur.noticeRecovery) || 0);
+
+  if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No active employees to exit.</div>;
+
+  return (
+    <div style={{ padding: 14 }}>
+      <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <F label="Employee"><select value={cur.empId} onChange={(e) => set("empId", e.target.value)} style={inputStyle} data-testid="exit-emp">{emps.map((e) => <option key={e.id} value={e.id}>{`${e.empCode} — ${e.fullName}`}</option>)}</select></F>
+        <F label="Resignation Date"><input type="date" value={cur.resignDate} onChange={(e) => set("resignDate", e.target.value)} style={inputStyle} /></F>
+        <F label="Last Working Day"><input type="date" value={cur.lastWorkingDay} onChange={(e) => set("lastWorkingDay", e.target.value)} style={inputStyle} /></F>
+        <F label="Reason"><input value={cur.reason} onChange={(e) => set("reason", e.target.value)} style={inputStyle} placeholder="e.g. Better opportunity" /></F>
+        <div style={{ gridColumn: "span 4", padding: 10, background: "#fff", border: "1px dashed #cbd5e1", borderRadius: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#4c1d95", marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>Multi-Dept Clearance</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {["hr", "accounts", "admin", "it", "store"].map((d) => (
+              <label key={d} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: cur.clearance?.[d] ? "#16a34a" : "#64748b", textTransform: "uppercase" }}>
+                <input type="checkbox" checked={!!cur.clearance?.[d]} onChange={(e) => setClear(d, e.target.checked)} data-testid={`exit-clear-${d}`} />
+                {d}
+              </label>
+            ))}
+          </div>
+        </div>
+        <F label="Pending Dues (₹)"><input type="number" value={cur.pendingDues} onChange={(e) => set("pendingDues", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="Bonus Due (₹)"><input type="number" value={cur.bonusDue} onChange={(e) => set("bonusDue", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="Leave Encashment (₹)"><input type="number" value={cur.leaveEncash} onChange={(e) => set("leaveEncash", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="Gratuity (₹)"><input type="number" value={cur.gratuity} onChange={(e) => set("gratuity", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="Loan Deduction (₹)"><input type="number" value={cur.loanDeduction} onChange={(e) => set("loanDeduction", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="Notice Recovery (₹)"><input type="number" value={cur.noticeRecovery} onChange={(e) => set("noticeRecovery", +e.target.value || 0)} style={inputStyle} /></F>
+        <F label="F&F Net (auto)"><input value={fnf.toLocaleString("en-IN")} readOnly style={{ ...inputStyle, background: fnf >= 0 ? "#dcfce7" : "#fee2e2", fontWeight: 800, color: fnf >= 0 ? "#166534" : "#991b1b", textAlign: "right" }} /></F>
+        <div style={{ gridColumn: "span 4", display: "flex", gap: 6 }}>
+          <button data-testid="exit-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
+          <button onClick={() => setCur(createExitDraft(emps[0]?.id || ""))} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>New</button>
+        </div>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+        <thead><tr style={{ background: "#f8fafc" }}>{["Employee", "Resign Date", "LWD", "Clearance", "F&F Net", "Status", "Actions"].map((h) => <th key={h} style={{ padding: 7, textAlign: "left", borderBottom: "1px solid #e2e8f0", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
+        <tbody>{list.length === 0 ? <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No exits</td></tr> : list.map((x, i) => {
+          const emp = getEmployees().find((e) => e.id === x.empId);
+          const clearedCount = Object.values(x.clearance || {}).filter(Boolean).length;
+          const totalClear = Object.keys(x.clearance || {}).length || 5;
+          return (
+            <tr key={x.id} data-testid={`exit-row-${x.id}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+              <td style={{ padding: 7 }}>{emp ? `${emp.empCode} · ${emp.fullName}` : "—"}</td>
+              <td style={{ padding: 7 }}>{fmtDMY(x.resignDate)}</td>
+              <td style={{ padding: 7 }}>{fmtDMY(x.lastWorkingDay) || "—"}</td>
+              <td style={{ padding: 7, fontWeight: 700, color: clearedCount === totalClear ? "#166534" : "#f59e0b" }}>{clearedCount} / {totalClear}</td>
+              <td style={{ padding: 7, textAlign: "right", fontWeight: 700 }}>₹ {Number(x.fnfNet || 0).toLocaleString("en-IN")}</td>
+              <td style={{ padding: 7, fontWeight: 700 }}>{EXIT_STATUS[x.status]}</td>
+              <td style={{ padding: 4, whiteSpace: "nowrap" }}>
+                {x.status === 3 && approveAllowed && <button data-testid={`exit-finalize-${x.id}`} onClick={() => finalize(x.id)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✓ Finalize & Exit</button>}
+                <button onClick={() => remove(x.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
+              </td>
+            </tr>
+          );
+        })}</tbody>
+      </table>
+    </div>
+  );
+};
+
+// ================== COMPLIANCE SNAPSHOT ==================
+const ComplianceTab = () => {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const snap = useMemo(() => getComplianceSnapshot(year, month), [year, month]);
+
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(snap.rows), `PF-ESIC-${year}${month}`);
+    XLSX.writeFile(wb, `compliance_${year}_${String(month).padStart(2, "0")}.xlsx`);
+    toast.success("Compliance sheet exported");
+  };
+
+  const Stat = ({ label, value, tone }) => (
+    <div style={{ padding: 10, background: "#fff", border: "1px solid #e2e8f0", borderLeft: `4px solid ${tone}`, borderRadius: 6 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: .4 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>₹ {Number(value || 0).toLocaleString("en-IN")}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: 14 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <select value={month} onChange={(e) => setMonth(+e.target.value)} style={{ padding: 5 }}>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString("en-IN", { month: "long" })}</option>)}
+        </select>
+        <input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 5, width: 80 }} />
+        <button data-testid="comp-export" onClick={exportExcel} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Download size={13} style={{ verticalAlign: -2 }} /> Export Compliance Excel</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 14 }} data-testid="comp-stats">
+        <Stat label="Active Employees" value={snap.employeeCount} tone="#0369a1" />
+        <Stat label="Gross Payroll" value={snap.totalGross} tone="#16a34a" />
+        <Stat label="PF Challan" value={snap.totalPF} tone="#7c3aed" />
+        <Stat label="ESIC Challan" value={snap.totalESIC} tone="#f59e0b" />
+        <Stat label="Prof. Tax" value={snap.totalPT} tone="#0d9488" />
+        <Stat label="TDS" value={snap.totalTDS} tone="#dc2626" />
+        <Stat label="Net Paid" value={snap.totalNet} tone="#0f172a" />
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+        <thead><tr style={{ background: "#f8fafc" }}>{["Code", "Name", "PAN", "UAN", "ESIC", "Gross", "PF", "ESIC", "PT", "TDS", "Net"].map((h) => <th key={h} style={{ padding: 7, textAlign: "left", borderBottom: "1px solid #e2e8f0", fontSize: 10.5, fontWeight: 700 }}>{h}</th>)}</tr></thead>
+        <tbody>{snap.rows.map((r, i) => (
+          <tr key={r.empCode} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+            <td style={{ padding: 7, fontWeight: 700 }}>{r.empCode}</td>
+            <td style={{ padding: 7 }}>{r.name}</td>
+            <td style={{ padding: 7 }}>{r.pan || "—"}</td>
+            <td style={{ padding: 7 }}>{r.uan || "—"}</td>
+            <td style={{ padding: 7 }}>{r.esicNo || "—"}</td>
+            <td style={{ padding: 7, textAlign: "right" }}>{r.gross.toLocaleString("en-IN")}</td>
+            <td style={{ padding: 7, textAlign: "right" }}>{r.pf.toLocaleString("en-IN")}</td>
+            <td style={{ padding: 7, textAlign: "right" }}>{r.esic.toLocaleString("en-IN")}</td>
+            <td style={{ padding: 7, textAlign: "right" }}>{r.proftax.toLocaleString("en-IN")}</td>
+            <td style={{ padding: 7, textAlign: "right" }}>{r.tds.toLocaleString("en-IN")}</td>
+            <td style={{ padding: 7, textAlign: "right", fontWeight: 700, color: "#166534" }}>{r.net.toLocaleString("en-IN")}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+};
+
 // -------------- KPI dashboard --------------
 const KpiTile = ({ label, value, tone, icon: Icon }) => (
   <div style={{ padding: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 1px 3px rgba(15,23,42,.05)" }}>
@@ -527,12 +829,16 @@ export default function HRManagement() {
           </div>
 
           {/* Tabs */}
-          <div style={{ marginTop: 18, background: "#fff", borderRadius: 10, padding: 5, display: "inline-flex", gap: 3, border: "1px solid #e2e8f0" }} data-testid="hr-tabs">
+          <div style={{ marginTop: 18, background: "#fff", borderRadius: 10, padding: 5, display: "inline-flex", gap: 3, border: "1px solid #e2e8f0", flexWrap: "wrap" }} data-testid="hr-tabs">
             {[
               { id: "dashboard", label: "Dashboard", tone: "#0f172a", icon: Sparkles },
               { id: "employees", label: "Employees", tone: "#0369a1", icon: Users2 },
               { id: "attendance", label: "Attendance", tone: "#f59e0b", icon: Calendar },
-              { id: "payroll", label: "Payroll & Slip", tone: "#dc2626", icon: IndianRupee },
+              { id: "leaves", label: "Leaves", tone: "#0ea5e9", icon: FileText },
+              { id: "payroll", label: "Payroll Slip", tone: "#dc2626", icon: IndianRupee },
+              { id: "compliance", label: "Compliance", tone: "#7c3aed", icon: Landmark },
+              { id: "recruit", label: "Recruitment", tone: "#16a34a", icon: Briefcase },
+              { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
             ].map((t) => {
               const Icon = t.icon; const active = tab === t.id;
               return <button key={t.id} data-testid={`hr-tab-${t.id}`} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: active ? t.tone : "transparent", color: active ? "#fff" : "#334155", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Icon size={13} /> {t.label}</button>;
@@ -561,7 +867,11 @@ export default function HRManagement() {
             )}
             {tab === "employees" && <EmployeeEditor writeAllowed={write} approveAllowed={approve} />}
             {tab === "attendance" && <AttendanceGrid />}
+            {tab === "leaves" && <LeavesTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "payroll" && <PayrollTab />}
+            {tab === "compliance" && <ComplianceTab />}
+            {tab === "recruit" && <RecruitTab writeAllowed={write} />}
+            {tab === "exit" && <ExitTab writeAllowed={write} approveAllowed={approve} />}
           </div>
         </div>
       </div>

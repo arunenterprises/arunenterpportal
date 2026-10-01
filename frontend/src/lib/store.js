@@ -1029,8 +1029,160 @@ export const upsertAttendance = (a) => {
   return a;
 };
 
-// Post monthly aggregate payroll to Accounts as a "salary bill" entry.
-// Creates one aggregate bill per month grouping all finalized employees.
+// ==================== HR: LEAVE APPLICATIONS ====================
+export const LEAVE_TYPES = ["CL", "SL", "EL", "LWP", "Comp-Off"];
+export const LEAVE_STATUS = { 1: "Draft", 2: "Submitted", 3: "Approved", 4: "Rejected" };
+const LEAVES_KEY = "ae_vm_hr_leaves";
+export const getLeaves = () => read(LEAVES_KEY, []);
+export const saveLeaves = (list) => write(LEAVES_KEY, list);
+export const createLeaveDraft = (empId = "") => ({
+  id: `lv_${Date.now()}`,
+  empId,
+  type: "CL",
+  from: new Date().toISOString().slice(0, 10),
+  to: new Date().toISOString().slice(0, 10),
+  days: 1,
+  reason: "",
+  status: 1,
+  appliedBy: _me(),
+  approvedBy: "",
+  approvedAt: "",
+  createdAt: new Date().toISOString(),
+});
+export const upsertLeave = (l) => {
+  const list = getLeaves();
+  const idx = list.findIndex((x) => x.id === l.id);
+  if (idx >= 0) list[idx] = l; else list.push(l);
+  saveLeaves(list);
+  return l;
+};
+export const deleteLeave = (id) => { saveLeaves(getLeaves().filter((x) => x.id !== id)); };
+export const approveLeave = (id, approve = true) => {
+  const list = getLeaves();
+  const idx = list.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  list[idx].status = approve ? 3 : 4;
+  list[idx].approvedBy = _me();
+  list[idx].approvedAt = new Date().toISOString();
+  saveLeaves(list);
+  // Auto-mark attendance days as "L" when approved
+  if (approve) {
+    const lv = list[idx];
+    const from = new Date(lv.from); const to = new Date(lv.to);
+    for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+      const y = d.getFullYear(), m = d.getMonth() + 1, dd = String(d.getDate()).padStart(2, "0");
+      const rec = getMonthAttendance(lv.empId, y, m);
+      rec.days[dd] = "L";
+      upsertAttendance(rec);
+    }
+  }
+};
+
+// ==================== HR: RECRUITMENT ====================
+export const RECRUIT_STATUS = { 1: "Applied", 2: "Shortlisted", 3: "Interview", 4: "Offered", 5: "Joined", 6: "Rejected" };
+const RECRUITS_KEY = "ae_vm_hr_recruits";
+export const getRecruitments = () => read(RECRUITS_KEY, []);
+export const saveRecruitments = (list) => write(RECRUITS_KEY, list);
+export const createRecruitDraft = () => ({
+  id: `rec_${Date.now()}`,
+  position: "", department: "Operations",
+  candidateName: "", candidateMobile: "", candidateEmail: "",
+  experienceYears: 0, qualification: "",
+  offerCTC: 0, offerDate: "",
+  status: 1,
+  remarks: "",
+  createdBy: _me(), createdAt: new Date().toISOString(),
+});
+export const upsertRecruit = (r) => {
+  const list = getRecruitments();
+  const idx = list.findIndex((x) => x.id === r.id);
+  if (idx >= 0) list[idx] = r; else list.push(r);
+  saveRecruitments(list);
+  return r;
+};
+export const deleteRecruit = (id) => { saveRecruitments(getRecruitments().filter((x) => x.id !== id)); };
+// Convert accepted offer → auto-create employee draft
+export const convertRecruitToEmployee = (r) => {
+  const emp = createEmployeeDraft();
+  emp.fullName = r.candidateName;
+  emp.designation = r.position;
+  emp.department = r.department;
+  emp.contactMobile = r.candidateMobile;
+  emp.contactEmail = r.candidateEmail;
+  emp.ctcAnnual = r.offerCTC;
+  emp.basic = Math.round(r.offerCTC * 0.5 / 12);
+  emp.hra = Math.round(r.offerCTC * 0.2 / 12);
+  emp.da = Math.round(r.offerCTC * 0.1 / 12);
+  emp.special = Math.round(r.offerCTC * 0.2 / 12);
+  emp.doj = new Date().toISOString().slice(0, 10);
+  const saved = upsertEmployee(emp);
+  // Mark recruit as joined
+  const list = getRecruitments();
+  const idx = list.findIndex((x) => x.id === r.id);
+  if (idx >= 0) { list[idx].status = 5; list[idx].joinedEmpId = saved.id; saveRecruitments(list); }
+  return saved;
+};
+
+// ==================== HR: EXIT & F&F ====================
+export const EXIT_STATUS = { 1: "Resignation Submitted", 2: "Clearance Pending", 3: "F&F Calculated", 4: "Settled & Exited" };
+const EXITS_KEY = "ae_vm_hr_exits";
+export const getExits = () => read(EXITS_KEY, []);
+export const saveExits = (list) => write(EXITS_KEY, list);
+export const createExitDraft = (empId = "") => ({
+  id: `ex_${Date.now()}`,
+  empId,
+  resignDate: new Date().toISOString().slice(0, 10),
+  lastWorkingDay: "",
+  reason: "",
+  clearance: { hr: false, accounts: false, admin: false, it: false, store: false },
+  pendingDues: 0, loanDeduction: 0, bonusDue: 0, leaveEncash: 0, gratuity: 0, noticeRecovery: 0,
+  fnfNet: 0,
+  status: 1,
+  createdBy: _me(), createdAt: new Date().toISOString(),
+});
+export const upsertExit = (x) => {
+  const list = getExits();
+  const idx = list.findIndex((y) => y.id === x.id);
+  // Auto-calc F&F
+  x.fnfNet = (Number(x.pendingDues) || 0) + (Number(x.bonusDue) || 0) + (Number(x.leaveEncash) || 0) + (Number(x.gratuity) || 0) - (Number(x.loanDeduction) || 0) - (Number(x.noticeRecovery) || 0);
+  // Auto-advance status
+  const allCleared = x.clearance && Object.values(x.clearance).every((v) => v === true);
+  if (allCleared && Number(x.status) < 3) x.status = 3;
+  if (idx >= 0) list[idx] = x; else list.push(x);
+  saveExits(list);
+  return x;
+};
+export const deleteExit = (id) => { saveExits(getExits().filter((y) => y.id !== id)); };
+export const finalizeExit = (id) => {
+  const list = getExits();
+  const idx = list.findIndex((y) => y.id === id);
+  if (idx < 0) return;
+  list[idx].status = 4;
+  list[idx].settledAt = new Date().toISOString();
+  saveExits(list);
+  // Mark employee as Exited
+  const emps = getEmployees();
+  const empIdx = emps.findIndex((e) => e.id === list[idx].empId);
+  if (empIdx >= 0) { emps[empIdx].status = "Exited"; emps[empIdx].exitedAt = new Date().toISOString(); saveEmployees(emps); if (getToken()) apiUpsertEmployee(emps[empIdx]).catch(() => {}); }
+};
+
+// ==================== HR: COMPLIANCE SNAPSHOT ====================
+// Derived live from employees + attendance for a given month.
+export const getComplianceSnapshot = (year, month) => {
+  const emps = getEmployees().filter((e) => Number(e.step) === 5 && (e.status || "Active") === "Active");
+  const daysInMonth = new Date(year, month, 0).getDate();
+  let totalPF = 0, totalESIC = 0, totalPT = 0, totalTDS = 0, totalGross = 0, totalNet = 0;
+  const rows = emps.map((e) => {
+    const att = getMonthAttendance(e.id, year, month);
+    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const s = computeSalary(e, { daysInMonth, daysPresent });
+    totalPF += s.pf; totalESIC += s.esic; totalPT += s.proftax; totalTDS += s.tds; totalGross += s.gross; totalNet += s.net;
+    return { empCode: e.empCode, name: e.fullName, uan: e.uan, esicNo: e.esicNo, pfNo: e.pfNo, pan: e.pan, ...s };
+  });
+  return { year, month, employeeCount: emps.length, totalPF, totalESIC, totalPT, totalTDS, totalGross, totalNet, rows };
+};
+
+// ==================== HR: CELEBRATIONS HELPERS ====================
 export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");
   const monthStr = `${year}-${String(month).padStart(2, "0")}`;
