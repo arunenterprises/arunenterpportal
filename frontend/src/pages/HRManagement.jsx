@@ -1605,11 +1605,6 @@ const IDCardTab = () => {
         <div class="tag">${esc(COMPANY.tagline)}</div>
       </div>
       <div class="bmid">
-        <div class="empstrip">
-          <div class="eid">${esc(emp.empCode || emp.tempCode || "—")}</div>
-          <div class="enm">${esc(emp.fullName || "—")}</div>
-          <div class="edg">${esc(emp.designation || "—")}</div>
-        </div>
         <div class="block">
           <h5><span class="ico">📍</span> REGISTERED OFFICE</h5>
           ${COMPANY.addrLines.map((l) => `<div class="line">${esc(l)}</div>`).join("")}
@@ -1728,12 +1723,6 @@ const IDCardTab = () => {
             </div>
             {/* Middle white block */}
             <div style={{ padding: "10px 12px", fontSize: 9, color: "#0f172a", flex: 1 }}>
-              {/* Short employee strip — EMP ID + name + designation (text-only, no photo on back) */}
-              <div style={{ padding: "7px 10px", marginBottom: 10, background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 5 }}>
-                <div style={{ fontSize: 11, fontWeight: 900, color: "#1e3a8a", letterSpacing: .5, lineHeight: 1 }}>{emp.empCode || emp.tempCode || "—"}</div>
-                <div style={{ fontSize: 9, fontWeight: 800, color: "#0f172a", letterSpacing: .3, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{emp.fullName}</div>
-                <div style={{ fontSize: 7, fontWeight: 700, color: "#dc2626", letterSpacing: .5, textTransform: "uppercase", marginTop: 2 }}>{emp.designation}</div>
-              </div>
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 9.5, fontWeight: 900, color: "#dc2626", letterSpacing: .7, marginBottom: 3 }}>📍 REGISTERED OFFICE</div>
                 {COMPANY.addrLines.map((l, i) => <div key={i} style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>{l}</div>)}
