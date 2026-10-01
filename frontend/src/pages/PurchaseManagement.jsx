@@ -780,11 +780,31 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button data-testid="wo-btn-new" onClick={() => startNew()} style={{ padding: "7px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><FilePlus2 size={13} /> New</button>
           <button data-testid="wo-btn-edit" onClick={() => {
+            const approved = Number(wo.step) >= 4;
+            if (approved) {
+              if (!canDeleteApproved()) { toast.error("Only Admin / SuperAdmin can re-open Approved WO"); return; }
+              const label = wo.woNo || wo.boqRefNo || wo.vendorName || "this WO";
+              if (!window.confirm(`⚠ Re-open APPROVED Work Order "${label}" for editing?\n\n• Status wapas "Submitted — Pending Approval" (step 3) ho jayega\n• WO number intact rahega\n• Changes ke baad Re-Approval zaruri hogi\n\nContinue?`)) return;
+              const reopened = {
+                ...wo,
+                step: 3,
+                approvedByName: "",
+                approvalDate: "",
+                history: [...(wo.history || []), { action: "Re-opened for Edit by Admin", at: new Date().toISOString() }],
+              };
+              const saved = upsertWO(reopened);
+              setWo(saved);
+              setLocked(false);
+              setList(getWOs());
+              toast.success("WO re-opened. Make changes → Save → Re-Approve.");
+              return;
+            }
             if (!writeAllowed) { toast.error("Not permitted"); return; }
-            if (wo.step >= 4) { toast.error("Approved WO cannot be edited"); return; }
             if (!locked) { toast.success("Already in edit mode"); return; }
             setLocked(false); toast.success("Edit mode enabled");
-          }} disabled={!writeAllowed || wo.step >= 4} style={{ padding: "7px 12px", background: wo.step >= 4 ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && wo.step < 4 ? "pointer" : "not-allowed", opacity: writeAllowed && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>✏ Edit</button>
+          }} disabled={Number(wo.step) >= 4 ? !canDeleteApproved() : !writeAllowed} style={{ padding: "7px 12px", background: Number(wo.step) >= 4 ? (canDeleteApproved() ? "#b45309" : "#94a3b8") : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: (Number(wo.step) >= 4 ? canDeleteApproved() : writeAllowed) ? "pointer" : "not-allowed", opacity: (Number(wo.step) >= 4 ? canDeleteApproved() : writeAllowed) ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
+            ✏ {Number(wo.step) >= 4 ? "Re-open & Edit (Admin)" : "Edit"}
+          </button>
           <button data-testid="wo-btn-save" onClick={handleSave} disabled={!writeAllowed || locked} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Save size={13} /> Save</button>
           <button data-testid="wo-btn-submit" onClick={handleSubmit} disabled={!writeAllowed || locked || wo.step >= 3} style={{ padding: "7px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && wo.step < 3 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Send size={13} /> Submit</button>
         </div>

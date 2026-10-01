@@ -42,6 +42,7 @@
     "embla-carousel-react": "8.6.0",
     "file-saver": "^2.0.5",
     "framer-motion": "11.18.0",
+    "html2pdf.js": "^0.14.0",
     "input-otp": "1.4.2",
     "lodash": "4.18.1",
     "lucide-react": "0.516.0",
