@@ -1521,24 +1521,26 @@ const IDCardTab = () => {
   .pair { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
   .card { width: 60mm; height: 95mm; border-radius: 5mm; overflow: hidden; background: #fff; position: relative; box-shadow: 0 6px 18px rgba(15,23,42,.25); border: 1px solid #cbd5e1; }
   .lanyard { position: absolute; top: 3mm; left: 50%; transform: translateX(-50%); width: 10mm; height: 2.2mm; background: #0f172a; border-radius: 2mm; z-index: 5; }
-  /* FRONT */
-  .front .content { position: relative; z-index: 2; padding-top: 15mm; display: flex; flex-direction: column; align-items: center; height: 100%; }
-  .front .logo-box { width: 20mm; height: 20mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; box-shadow: 0 1.2mm 3mm rgba(0,0,0,.35); border: 0.6mm solid #fff; }
-  .front .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
-  .front .cn { font-size: 14px; font-weight: 900; letter-spacing: 1.6px; color: #0f172a; margin-top: 2.5mm; }
-  .front .tag { font-size: 7.5px; font-weight: 900; letter-spacing: .3px; color: #dc2626; margin-top: 1.2mm; width: 92%; text-align: center; line-height: 1.2; padding: 0 2mm; }
-  .front .photo-ring { margin-top: 4mm; width: 46mm; height: 54mm; border-radius: 2mm; border: 0.8mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b; font-weight: 700; box-shadow: 0 0.8mm 2.2mm rgba(30,58,138,.3); }
-  .front .name { font-size: 13px; font-weight: 900; letter-spacing: 1px; color: #1e3a8a; margin-top: 2.5mm; text-align: center; padding: 0 6px; }
-  .front .desig { font-size: 9px; font-weight: 800; color: #dc2626; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1mm; text-align: center; }
-  .front .rule { width: 20mm; height: 1px; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 2mm auto; }
-  .front .data { width: 86%; margin: 1.5mm auto 0; font-size: 9px; }
-  .front .data div { display: grid; grid-template-columns: 24mm 2mm 1fr; align-items: center; padding: 0.9mm 0; letter-spacing: .3px; border-bottom: 0.1mm solid #f1f5f9; }
-  .front .data .k { font-weight: 800; color: #0f172a; letter-spacing: .5px; font-size: 8.5px; }
-  .front .data .sep { color: #475569; font-weight: 800; text-align: center; }
-  .front .data .v { font-weight: 800; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .front .sign { margin-top: auto; padding-bottom: 10mm; text-align: center; z-index: 3; position: relative; }
-  .front .sign .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 13px; color: #0f172a; font-style: italic; }
-  .front .sign .slabel { font-size: 7px; font-weight: 800; letter-spacing: 1.2px; color: #475569; margin-top: 1px; border-top: 0.4px solid #0f172a; padding-top: 1px; width: 34mm; margin-left: auto; margin-right: auto; }
+  /* FRONT — solid 3-section layout matching back */
+  .front { display: flex; flex-direction: column; }
+  .front .ftop { background: #1e3a8a; color: #fff; padding: 7mm 4mm 3mm; display: flex; flex-direction: column; align-items: center; }
+  .front .ftop .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1mm 2.5mm rgba(0,0,0,.3); border: 0.5mm solid #fff; }
+  .front .ftop .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
+  .front .ftop .cn { font-size: 13px; font-weight: 900; letter-spacing: 1.5px; margin-top: 2mm; }
+  .front .ftop .tag { font-size: 7px; font-weight: 700; letter-spacing: .4px; color: #fbbf24; margin-top: 1mm; width: 92%; text-align: center; line-height: 1.2; }
+  .front .fmid { padding: 3mm 4mm 2mm; flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .front .fmid .photo-ring { width: 36mm; height: 42mm; border-radius: 2mm; border: 0.7mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #64748b; font-weight: 700; box-shadow: 0 0.6mm 1.8mm rgba(30,58,138,.25); }
+  .front .fmid .name { font-size: 12px; font-weight: 900; letter-spacing: 1px; color: #1e3a8a; margin-top: 2mm; text-align: center; }
+  .front .fmid .desig { font-size: 8.5px; font-weight: 800; color: #dc2626; letter-spacing: 1.3px; text-transform: uppercase; margin-top: 1mm; text-align: center; }
+  .front .fmid .rule { width: 20mm; height: 0.3mm; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 2mm auto; }
+  .front .fmid .data { width: 100%; margin-top: 1mm; font-size: 9px; }
+  .front .fmid .data div { display: grid; grid-template-columns: 24mm 2mm 1fr; align-items: center; padding: 0.8mm 0; letter-spacing: .3px; border-bottom: 0.1mm solid #f1f5f9; }
+  .front .fmid .data .k { font-weight: 800; color: #0f172a; letter-spacing: .5px; font-size: 8.5px; }
+  .front .fmid .data .sep { color: #475569; font-weight: 800; text-align: center; }
+  .front .fmid .data .v { font-weight: 800; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .front .fbot { background: #1e3a8a; color: #fff; padding: 2mm 3mm 3mm; text-align: center; }
+  .front .fbot .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 13px; color: #fff; font-style: italic; }
+  .front .fbot .slabel { font-size: 7px; font-weight: 800; letter-spacing: 1.2px; color: #fbbf24; border-top: 0.3mm solid #fff; padding-top: 1mm; margin-top: 1mm; width: 34mm; margin-left: auto; margin-right: auto; }
   /* BACK */
   .back .btop { position: relative; height: 42mm; background: #1e3a8a; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
   .back .btop .logo-box { width: 20mm; height: 20mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1.2mm 3mm rgba(0,0,0,.4); border: 0.6mm solid #fff; }
@@ -1572,12 +1574,13 @@ const IDCardTab = () => {
   <div class="pair">
     <!-- FRONT -->
     <div class="card front">
-      ${TOP_SVG}
       <div class="lanyard"></div>
-      <div class="content">
+      <div class="ftop">
         <div class="logo-box"><img src="${logo}" alt="logo" onerror="this.style.display='none'"/></div>
         <div class="cn">${esc(COMPANY.short)}</div>
         <div class="tag">${esc(COMPANY.tagline)}</div>
+      </div>
+      <div class="fmid">
         <div class="photo-ring" ${photo ? `style="background-image:url('${photo}')"` : ""}>${photo ? "" : "PHOTO"}</div>
         <div class="name">${esc(emp.fullName || "—").toUpperCase()}</div>
         <div class="desig">${esc(emp.designation || "—")}</div>
@@ -1589,12 +1592,11 @@ const IDCardTab = () => {
           <div><span class="k">DATE OF JOINING</span><span class="sep">:</span><span class="v">${emp.doj ? new Date(emp.doj).toLocaleDateString("en-GB") : "—"}</span></div>
           ${hideMobile ? "" : `<div><span class="k">MOBILE</span><span class="sep">:</span><span class="v">${esc(empMobile || "—")}</span></div>`}
         </div>
-        <div class="sign">
-          <div class="sline">${esc(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
-          <div class="slabel">AUTHORIZED SIGNATURE</div>
-        </div>
       </div>
-      ${BOTTOM_SVG}
+      <div class="fbot">
+        <div class="sline">${esc(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
+        <div class="slabel">AUTHORIZED SIGNATURE</div>
+      </div>
     </div>
     <!-- BACK -->
     <div class="card back">
@@ -1661,28 +1663,26 @@ const IDCardTab = () => {
       {emp && (
         <div style={{ display: "flex", gap: 30, flexWrap: "wrap", justifyContent: "center", padding: 24, background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)", borderRadius: 10 }} data-testid="idcard-preview">
           {/* FRONT PREVIEW */}
-          <div style={{ width: CARD_W, height: CARD_H, position: "relative", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 10px 30px rgba(15,23,42,.25)", border: "1px solid #cbd5e1" }}>
-            {/* Top SVG decoration */}
-            <svg viewBox="0 0 300 110" preserveAspectRatio="none" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 90 }}>
-              <path d="M0,0 L300,0 L300,70 Q220,110 150,80 Q70,55 0,95 Z" fill="#1e3a8a"/>
-              <path d="M200,0 L300,0 L300,65 Q260,70 230,45 Q210,28 200,0 Z" fill="#dc2626"/>
-            </svg>
+          <div style={{ width: CARD_W, height: CARD_H, position: "relative", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 10px 30px rgba(15,23,42,.25)", border: "1px solid #cbd5e1", display: "flex", flexDirection: "column" }}>
             {/* Lanyard dot */}
             <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
-            {/* Content */}
-            <div style={{ position: "relative", zIndex: 3, paddingTop: 54, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 10px rgba(0,0,0,.3)", border: "2.5px solid #fff" }}>
+            {/* Top navy block — matches back design */}
+            <div style={{ background: "#1e3a8a", color: "#fff", padding: "26px 10px 14px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.25)", border: "2px solid #fff" }}>
                 <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
               </div>
-              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 1.6, color: "#0f172a", marginTop: 8 }}>ARUN ENTERPRISES</div>
-              <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: .3, color: "#dc2626", marginTop: 3, width: "92%", textAlign: "center", lineHeight: 1.2, padding: "0 4px", wordSpacing: "1px" }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
-              <div style={{ marginTop: 10, width: 170, height: 200, borderRadius: 7, border: "2.5px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#64748b", fontWeight: 700, boxShadow: "0 3px 10px rgba(30,58,138,.3)" }}>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1.5, marginTop: 7 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .4, color: "#fbbf24", marginTop: 2, width: "92%", textAlign: "center", lineHeight: 1.2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+            </div>
+            {/* Middle white block — photo + name + designation + data rows */}
+            <div style={{ padding: "12px 14px 8px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ width: 130, height: 155, borderRadius: 6, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b", fontWeight: 700, boxShadow: "0 2px 6px rgba(30,58,138,.25)" }}>
                 {emp.photoUrl ? "" : "PHOTO"}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, color: "#1e3a8a", marginTop: 8, textAlign: "center", padding: "0 6px" }}>{(emp.fullName || "—").toUpperCase()}</div>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, color: "#1e3a8a", marginTop: 8, textAlign: "center" }}>{(emp.fullName || "—").toUpperCase()}</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: "#dc2626", letterSpacing: 1.3, textTransform: "uppercase", marginTop: 2, textAlign: "center" }}>{emp.designation || "—"}</div>
               <div style={{ width: 56, height: 1, background: "linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent)", margin: "6px auto" }} />
-              <div style={{ width: "86%", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>
+              <div style={{ width: "100%", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>
                 {[
                   ["EMPLOYEE ID", emp.empCode || emp.tempCode || "—"],
                   ["DEPARTMENT", (emp.department || "—").toUpperCase()],
@@ -1697,16 +1697,12 @@ const IDCardTab = () => {
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: "auto", paddingBottom: 30, textAlign: "center", position: "relative", zIndex: 3 }}>
-                <div style={{ fontFamily: "'Brush Script MT','Lucida Handwriting',cursive", fontSize: 15, fontStyle: "italic", color: "#0f172a" }}>{(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
-                <div style={{ fontSize: 7, fontWeight: 800, letterSpacing: 1.2, color: "#475569", borderTop: "0.5px solid #0f172a", paddingTop: 2, marginTop: 1, width: 130, marginLeft: "auto", marginRight: "auto" }}>AUTHORIZED SIGNATURE</div>
-              </div>
             </div>
-            {/* Bottom SVG */}
-            <svg viewBox="0 0 300 70" preserveAspectRatio="none" style={{ position: "absolute", bottom: 0, left: 0, width: "100%", height: 55 }}>
-              <path d="M0,70 L0,20 Q90,-10 180,20 Q240,38 300,10 L300,70 Z" fill="#1e3a8a"/>
-              <path d="M0,70 L0,35 Q80,20 170,35 Q230,48 300,30 L300,70 Z" fill="#dc2626" opacity="0.95"/>
-            </svg>
+            {/* Bottom navy block — signature */}
+            <div style={{ background: "#1e3a8a", color: "#fff", padding: "8px 12px 10px", textAlign: "center" }}>
+              <div style={{ fontFamily: "'Brush Script MT','Lucida Handwriting',cursive", fontSize: 15, fontStyle: "italic", color: "#fff" }}>{(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
+              <div style={{ fontSize: 7, fontWeight: 800, letterSpacing: 1.2, color: "#fbbf24", borderTop: "0.5px solid #fff", paddingTop: 2, marginTop: 1, width: 130, marginLeft: "auto", marginRight: "auto" }}>AUTHORIZED SIGNATURE</div>
+            </div>
           </div>
 
           {/* BACK PREVIEW */}
@@ -1757,9 +1753,6 @@ const IDCardTab = () => {
         </div>
       )}
 
-      <div style={{ marginTop: 12, padding: 10, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 6, fontSize: 11, color: "#78350f" }}>
-        <b>Note:</b> Company GST / PAN print nahi hota ID card pe. Manager / Director / Incharge roles ke card pe mobile number automatically hide ho jata hai privacy ke liye.
-      </div>
     </div>
   );
 };
