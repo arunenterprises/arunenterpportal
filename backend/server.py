@@ -338,6 +338,44 @@ async def set_logo(body: Dict = Body(...), user: Dict = Depends(get_current_user
     return {"ok": True}
 
 
+# ==================== EMPLOYEES (HR) ====================
+@api_router.get("/employees")
+async def list_employees(user: Dict = Depends(get_current_user)):
+    return await _list_collection("employees")
+
+
+@api_router.post("/employees")
+async def upsert_employee(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    eid = body.get("id")
+    if not eid:
+        raise HTTPException(status_code=400, detail="id required")
+    body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.employees.update_one({"id": eid}, {"$set": body}, upsert=True)
+    return _clean(body)
+
+
+@api_router.delete("/employees/{eid}")
+async def delete_employee(eid: str, user: Dict = Depends(get_current_user)):
+    r = await db.employees.delete_one({"id": eid})
+    return {"deleted": r.deleted_count}
+
+
+# ==================== ATTENDANCE (HR) ====================
+@api_router.get("/attendance")
+async def list_attendance(user: Dict = Depends(get_current_user)):
+    return await _list_collection("attendance")
+
+
+@api_router.post("/attendance")
+async def upsert_attendance(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    aid = body.get("id")
+    if not aid:
+        raise HTTPException(status_code=400, detail="id required")
+    body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.attendance.update_one({"id": aid}, {"$set": body}, upsert=True)
+    return _clean(body)
+
+
 # ==================== SNAPSHOT (full sync) ====================
 @api_router.get("/snapshot")
 async def snapshot(user: Dict = Depends(get_current_user)):
@@ -348,7 +386,9 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "expenses": await _list_collection("expenses"),
         "boqs": await _list_collection("boqs"),
         "work_orders": await _list_collection("work_orders"),
-        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0},
+        "employees": await _list_collection("employees"),
+        "attendance": await _list_collection("attendance"),
+        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0, "empSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
     }
 

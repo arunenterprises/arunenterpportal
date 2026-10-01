@@ -75,6 +75,16 @@ export const apiListWOs = () => req("/work_orders");
 export const apiPushPayments = (items) =>
   req("/payments/bulk", { method: "POST", body: JSON.stringify({ items }) });
 
+// ---- HR: Employees & Attendance ----
+export const apiListEmployees = () => req("/employees");
+export const apiUpsertEmployee = (e) =>
+  req("/employees", { method: "POST", body: JSON.stringify(e) });
+export const apiDeleteEmployee = (id) =>
+  req(`/employees/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const apiListAttendance = () => req("/attendance");
+export const apiUpsertAttendance = (a) =>
+  req("/attendance", { method: "POST", body: JSON.stringify(a) });
+
 // ---- Users management (admin only) ----
 export const apiListUsers = () => req("/users");
 export const apiRegisterUser = (body) =>

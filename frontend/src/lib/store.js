@@ -1,7 +1,7 @@
-// LocalStorage-backed data store for Vendor Management (+ cloud sync via /api)
 import {
   apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments,
   apiDeleteBOQ, apiDeleteWO,
+  apiUpsertEmployee, apiDeleteEmployee, apiUpsertAttendance,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
@@ -13,6 +13,8 @@ const KEYS = {
   EXPENSES: "ae_vm_expenses",
   BOQS: "ae_vm_boqs",
   WOS: "ae_vm_work_orders",
+  EMPLOYEES: "ae_vm_employees",
+  ATTENDANCE: "ae_vm_attendance",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
@@ -31,7 +33,7 @@ export const clearLogo = () => localStorage.removeItem(KEYS.LOGO);
 
 // ---- Wipe local cache (used after admin "Reset All Data") ----
 export const resetLocalCache = () => {
-  [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.EXPENSES, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
+  [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.EXPENSES, KEYS.BOQS, KEYS.WOS, KEYS.EMPLOYEES, KEYS.ATTENDANCE, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
     try { localStorage.removeItem(k); } catch {}
   });
 };
@@ -886,8 +888,196 @@ export const canApproveAccounts = () => canApprove();
 export const canApproveGM = () => canApprove();
 export const isReadOnly = () => currentRole() === "Viewer";
 
-// ---- Cloud Sync helpers ----
-export const syncFromCloud = async () => {
+// ==================== HR: EMPLOYEE MASTER ====================
+export const EMPLOYEE_STEP_LABEL = {
+  1: "1. Draft (HR Data Entry)",
+  2: "2. Submitted for HR Verification",
+  3: "3. Verified · Awaiting HR Manager",
+  4: "4. Awaiting GM Final Approval",
+  5: "5. Finalized · Permanent EMP Code Issued",
+};
+
+const buildEmpCode = (serial) => `EMP${String(serial).padStart(4, "0")}${getFY()}`;
+const buildEmpTempCode = (serial) => `EMP-TMP-${String(serial).padStart(4, "0")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+export const getEmployees = () => read(KEYS.EMPLOYEES, []);
+export const saveEmployees = (list) => write(KEYS.EMPLOYEES, list);
+
+export const createEmployeeDraft = () => {
+  const c = getCounters();
+  c.empSerial = (c.empSerial || 0) + 1;
+  saveCounters(c);
+  return {
+    id: `emp_${Date.now()}`,
+    empSerial: c.empSerial,
+    tempCode: buildEmpTempCode(c.empSerial), // alpha+numeric temp code
+    empCode: "", // permanent — issued at step 5 approval
+    step: 1,
+    fullName: "", fatherName: "", dob: "", gender: "M", doj: new Date().toISOString().slice(0, 10),
+    designation: "", department: "Operations",
+    contactMobile: "", contactEmail: "", address: "",
+    aadhaar: "", pan: "", bankName: "", bankAccount: "", ifsc: "",
+    pfNo: "", esicNo: "", uan: "",
+    ctcAnnual: 0, basic: 0, hra: 0, da: 0, special: 0, bonus: 0,
+    createdByName: _me(), checkedByName: "", verifiedByName: "", approvedByName: "", finalizedByName: "",
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    submittedAt: "", checkedAt: "", verifiedAt: "", approvedAt: "", finalizedAt: "",
+    remarks: "", history: [], revision: 0,
+    status: "Active",
+  };
+};
+
+export const upsertEmployee = (e) => {
+  const list = getEmployees();
+  const idx = list.findIndex((x) => x.id === e.id);
+  e.updatedAt = new Date().toISOString();
+  if (idx >= 0) list[idx] = e; else list.push(e);
+  saveEmployees(list);
+  if (getToken()) apiUpsertEmployee(e).catch(() => {});
+  return e;
+};
+
+export const deleteEmployee = (id) => {
+  const list = getEmployees().filter((x) => x.id !== id);
+  saveEmployees(list);
+  if (getToken()) apiDeleteEmployee(id).catch(() => {});
+  return list;
+};
+
+export const advanceEmployeeStep = (e) => {
+  const next = { ...e };
+  const actor = _me();
+  const now = new Date().toISOString();
+  if (Number(next.step) < 5) {
+    next.step = Number(next.step) + 1;
+    if (next.step === 2) { next.submittedAt = now; }
+    if (next.step === 3) { next.verifiedAt = now; if (!next.verifiedByName && actor) next.verifiedByName = actor; }
+    if (next.step === 4) { next.checkedAt = now; if (!next.checkedByName && actor) next.checkedByName = actor; }
+    if (next.step === 5) {
+      // Issue permanent EMP code
+      if (!next.empCode) {
+        let serial = Number(next.empSerial) || 0;
+        if (!serial) {
+          const c = getCounters();
+          c.empSerial = (c.empSerial || 0) + 1;
+          saveCounters(c);
+          serial = c.empSerial;
+          next.empSerial = serial;
+        }
+        next.empCode = buildEmpCode(serial);
+      }
+      next.finalizedAt = now;
+      if (!next.finalizedByName && actor) next.finalizedByName = actor;
+      if (!next.approvedByName && actor) next.approvedByName = actor;
+      if (!next.approvedAt) next.approvedAt = now;
+    }
+  }
+  return upsertEmployee(next);
+};
+
+export const reapproveEmployee = (e) => {
+  const next = { ...e };
+  const actor = _me();
+  next.revision = (Number(next.revision) || 0) + 1;
+  const history = Array.isArray(next.history) ? next.history : [];
+  history.push({ action: "Re-Approved", by: actor, at: new Date().toISOString() });
+  next.history = history;
+  next.approvedByName = actor || next.approvedByName;
+  next.approvedAt = new Date().toISOString();
+  return upsertEmployee(next);
+};
+
+// Compute monthly gross / deductions / net for an employee
+export const computeSalary = (e, opts = {}) => {
+  const daysInMonth = opts.daysInMonth || 30;
+  const daysPresent = opts.daysPresent ?? daysInMonth;
+  const basic = Number(e.basic) || 0;
+  const hra = Number(e.hra) || 0;
+  const da = Number(e.da) || 0;
+  const special = Number(e.special) || 0;
+  const bonus = Number(e.bonus) || 0;
+  const gross = basic + hra + da + special + bonus;
+  const perDay = daysInMonth > 0 ? gross / daysInMonth : 0;
+  const earned = Math.round(perDay * daysPresent);
+  const pf = Math.round(basic * 0.12); // 12% of basic
+  const esic = gross <= 21000 ? Math.round(gross * 0.0075) : 0; // 0.75% if gross ≤ 21k
+  const proftax = gross > 10000 ? 200 : 0;
+  const tds = Math.round((earned * 0.0) || 0); // placeholder — user can override
+  const deductions = pf + esic + proftax + tds;
+  const net = Math.max(0, earned - deductions);
+  return { gross, earned, pf, esic, proftax, tds, deductions, net, daysInMonth, daysPresent };
+};
+
+// ==================== HR: ATTENDANCE ====================
+// A single attendance record covers ONE month for ONE employee:
+// { id: "att_{empId}_{YYYYMM}", empId, year, month, days: { "01": "P", "02": "A", "03": "L", ... } }
+export const getAttendance = () => read(KEYS.ATTENDANCE, []);
+export const saveAttendance = (list) => write(KEYS.ATTENDANCE, list);
+
+export const getMonthAttendance = (empId, year, month) => {
+  const key = `att_${empId}_${year}${String(month).padStart(2, "0")}`;
+  return getAttendance().find((a) => a.id === key) || { id: key, empId, year, month, days: {} };
+};
+
+export const upsertAttendance = (a) => {
+  const list = getAttendance();
+  const idx = list.findIndex((x) => x.id === a.id);
+  a.updatedAt = new Date().toISOString();
+  if (idx >= 0) list[idx] = a; else list.push(a);
+  saveAttendance(list);
+  if (getToken()) apiUpsertAttendance(a).catch(() => {});
+  return a;
+};
+
+// Post monthly aggregate payroll to Accounts as a "salary bill" entry.
+// Creates one aggregate bill per month grouping all finalized employees.
+export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
+  const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");
+  const monthStr = `${year}-${String(month).padStart(2, "0")}`;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  let gross = 0, pf = 0, esic = 0, proftax = 0, tds = 0, net = 0;
+  const rows = emps.map((e) => {
+    const attKey = `att_${e.id}_${year}${String(month).padStart(2, "0")}`;
+    const att = attendanceMap[attKey] || getMonthAttendance(e.id, year, month);
+    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const salary = computeSalary(e, { daysInMonth, daysPresent });
+    gross += salary.gross; pf += salary.pf; esic += salary.esic; proftax += salary.proftax; tds += salary.tds; net += salary.net;
+    return { empCode: e.empCode, name: e.fullName, ...salary };
+  });
+  const billId = `bill_hr_${monthStr}_${Date.now()}`;
+  const bill = {
+    id: billId,
+    step: 4, // awaiting GM final approval
+    tempRefId: `HR-PAY-${monthStr}`,
+    permanentBillNo: "",
+    refNo: `HR-PAY-${monthStr}`,
+    date: new Date().toISOString().slice(0, 10),
+    vendorCode: "HR-INTERNAL",
+    vendorSnapshot: { firmName: "HR Payroll — Internal", vendorCode: "HR-INTERNAL" },
+    workOrderNo: "",
+    projectCodeLocation: "Head Office",
+    workScope: `Monthly Payroll for ${monthStr} — ${emps.length} employees`,
+    basicAmount: net,
+    totalWOValue: gross,
+    items: rows.map((r, i) => ({
+      id: `it_${i}`, categoryScope: "Salary", description: `${r.name} (${r.empCode})`,
+      hsn: "", woQty: 1, unit: "Month", woRate: r.net, billedQty: 1,
+    })),
+    siteInchargeName: "HR", purchaseInchargeName: "HR", accountInchargeName: "Accounts",
+    approverName: "", history: [{ action: "Payroll pushed by HR", at: new Date().toISOString(), by: _me() }],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isPayrollBill: true,
+    payrollSummary: { year, month, employeeCount: emps.length, gross, pf, esic, proftax, tds, net, rows },
+  };
+  const bills = read(KEYS.BILLS, []);
+  bills.push(bill);
+  write(KEYS.BILLS, bills);
+  if (getToken()) apiUpsertBill(bill).catch(() => {});
+  return bill;
+};
+
+
   const snap = await apiFetchSnapshot();
   if (Array.isArray(snap.vendors)) write(KEYS.VENDORS, snap.vendors);
   if (Array.isArray(snap.bills)) write(KEYS.BILLS, snap.bills);
@@ -895,6 +1085,8 @@ export const syncFromCloud = async () => {
   if (Array.isArray(snap.expenses)) write(KEYS.EXPENSES, snap.expenses);
   if (Array.isArray(snap.boqs)) write(KEYS.BOQS, snap.boqs);
   if (Array.isArray(snap.work_orders)) write(KEYS.WOS, snap.work_orders);
+  if (Array.isArray(snap.employees)) write(KEYS.EMPLOYEES, snap.employees);
+  if (Array.isArray(snap.attendance)) write(KEYS.ATTENDANCE, snap.attendance);
   if (snap.counters) write(KEYS.COUNTERS, {
     vendorSerial: snap.counters.vendorSerial || 0,
     billSerial: snap.counters.billSerial || 0,
@@ -902,6 +1094,7 @@ export const syncFromCloud = async () => {
     expenseSerial: snap.counters.expenseSerial || 0,
     boqSerial: snap.counters.boqSerial || 0,
     woSerial: snap.counters.woSerial || 0,
+    empSerial: snap.counters.empSerial || 0,
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
   return snap;
