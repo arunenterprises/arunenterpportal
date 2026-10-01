@@ -1022,10 +1022,10 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
         <div style={{ gridColumn: "span 4", padding: 10, background: "#fff", border: "1px dashed #cbd5e1", borderRadius: 6 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#4c1d95", marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>Multi-Dept Clearance</div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {["hr", "accounts", "admin", "it", "store"].map((d) => (
+            {["hr", "accounts", "admin", "it", "store", "project"].map((d) => (
               <label key={d} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: cur.clearance?.[d] ? "#16a34a" : "#64748b", textTransform: "uppercase" }}>
                 <input type="checkbox" checked={!!cur.clearance?.[d]} onChange={(e) => setClear(d, e.target.checked)} data-testid={`exit-clear-${d}`} />
-                {d}
+                {d === "project" ? "Project Site" : d}
               </label>
             ))}
           </div>
