@@ -9,7 +9,7 @@ import {
   currentRole, canCreate, canApprove,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
   getWOs, createWODraft, upsertWO, advanceWOStep, computeWOTotal, WO_STEP_LABEL, deleteWO,
-  UNITS_DEFAULT, fmtDMY, getVendors,
+  UNITS_DEFAULT, fmtDMY, getVendors, amountToWords,
 } from "../lib/store";
 
 const TABS = [
@@ -270,6 +270,11 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                   ₹ {computeBOQTotal(boq).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1" }} />
+              </tr>
+              <tr style={{ background: "#f1f5f9" }} data-testid="boq-amount-words">
+                <td colSpan={7} style={{ padding: "7px 10px", border: "1px solid #cbd5e1", fontSize: 11.5, color: "#0f172a" }}>
+                  <b>Amount in Words:</b> <i>{amountToWords(computeBOQTotal(boq))}</i>
+                </td>
               </tr>
             </tbody>
           </table>
