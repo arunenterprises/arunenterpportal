@@ -1519,29 +1519,29 @@ const IDCardTab = () => {
   body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; color: #0f172a; }
   .wrap { display: flex; flex-direction: column; gap: 18px; align-items: center; padding: 20px; }
   .pair { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
-  .card { width: 56mm; height: 92mm; border-radius: 5mm; overflow: hidden; background: #fff; position: relative; box-shadow: 0 6px 18px rgba(15,23,42,.25); border: 1px solid #cbd5e1; }
+  .card { width: 60mm; height: 95mm; border-radius: 5mm; overflow: hidden; background: #fff; position: relative; box-shadow: 0 6px 18px rgba(15,23,42,.25); border: 1px solid #cbd5e1; }
   .lanyard { position: absolute; top: 3mm; left: 50%; transform: translateX(-50%); width: 10mm; height: 2.2mm; background: #0f172a; border-radius: 2mm; z-index: 5; }
   /* FRONT */
   .front .content { position: relative; z-index: 2; padding-top: 15mm; display: flex; flex-direction: column; align-items: center; height: 100%; }
-  .front .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; box-shadow: 0 1mm 2.5mm rgba(0,0,0,.3); border: 0.4mm solid #fff; }
+  .front .logo-box { width: 20mm; height: 20mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; box-shadow: 0 1.2mm 3mm rgba(0,0,0,.35); border: 0.6mm solid #fff; }
   .front .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
-  .front .cn { font-size: 13px; font-weight: 900; letter-spacing: 1.5px; color: #0f172a; margin-top: 2mm; }
-  .front .tag { font-size: 8px; font-weight: 900; letter-spacing: .5px; color: #dc2626; margin-top: 1px; }
-  .front .photo-ring { margin-top: 4mm; width: 38mm; height: 46mm; border-radius: 2mm; border: 0.7mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #64748b; font-weight: 700; box-shadow: 0 0.6mm 1.8mm rgba(30,58,138,.25); }
+  .front .cn { font-size: 14px; font-weight: 900; letter-spacing: 1.6px; color: #0f172a; margin-top: 2.5mm; }
+  .front .tag { font-size: 7.5px; font-weight: 900; letter-spacing: .3px; color: #dc2626; margin-top: 1.2mm; width: 92%; text-align: center; line-height: 1.2; padding: 0 2mm; }
+  .front .photo-ring { margin-top: 4mm; width: 46mm; height: 54mm; border-radius: 2mm; border: 0.8mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #64748b; font-weight: 700; box-shadow: 0 0.8mm 2.2mm rgba(30,58,138,.3); }
   .front .name { font-size: 13px; font-weight: 900; letter-spacing: 1px; color: #1e3a8a; margin-top: 2.5mm; text-align: center; padding: 0 6px; }
   .front .desig { font-size: 9px; font-weight: 800; color: #dc2626; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1mm; text-align: center; }
   .front .rule { width: 20mm; height: 1px; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 2mm auto; }
-  .front .data { width: 94%; margin: 1mm auto 0; font-size: 8px; }
-  .front .data div { display: flex; padding: 0.6mm 0; letter-spacing: .3px; }
-  .front .data .k { flex: 0 0 20mm; font-weight: 800; color: #0f172a; letter-spacing: .5px; }
-  .front .data .sep { flex: 0 0 2mm; color: #475569; font-weight: 700; }
-  .front .data .v { flex: 1; font-weight: 700; color: #0f172a; }
+  .front .data { width: 86%; margin: 1.5mm auto 0; font-size: 9px; }
+  .front .data div { display: grid; grid-template-columns: 24mm 2mm 1fr; align-items: center; padding: 0.9mm 0; letter-spacing: .3px; border-bottom: 0.1mm solid #f1f5f9; }
+  .front .data .k { font-weight: 800; color: #0f172a; letter-spacing: .5px; font-size: 8.5px; }
+  .front .data .sep { color: #475569; font-weight: 800; text-align: center; }
+  .front .data .v { font-weight: 800; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .front .sign { margin-top: auto; padding-bottom: 10mm; text-align: center; z-index: 3; position: relative; }
   .front .sign .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 13px; color: #0f172a; font-style: italic; }
   .front .sign .slabel { font-size: 7px; font-weight: 800; letter-spacing: 1.2px; color: #475569; margin-top: 1px; border-top: 0.4px solid #0f172a; padding-top: 1px; width: 34mm; margin-left: auto; margin-right: auto; }
   /* BACK */
   .back .btop { position: relative; height: 42mm; background: #1e3a8a; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
-  .back .btop .logo-box { width: 16mm; height: 16mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1mm 2.5mm rgba(0,0,0,.3); border: 0.4mm solid #fff; }
+  .back .btop .logo-box { width: 20mm; height: 20mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1.2mm 3mm rgba(0,0,0,.4); border: 0.6mm solid #fff; }
   .back .btop .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
   .back .btop .cn { font-size: 13px; font-weight: 900; letter-spacing: 1.5px; margin-top: 2mm; }
   .back .btop .tag { font-size: 6px; font-weight: 700; letter-spacing: .4px; color: #fbbf24; margin-top: 1px; }
@@ -1644,7 +1644,7 @@ const IDCardTab = () => {
   const emergency = emp ? (emp.contactAltMobile || emp.contactMobile || "—") : "—";
 
   // Reusable preview card dimensions
-  const CARD_W = 230, CARD_H = 380;
+  const CARD_W = 270, CARD_H = 430;
 
   return (
     <div style={{ padding: 18 }}>
@@ -1671,18 +1671,18 @@ const IDCardTab = () => {
             <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
             {/* Content */}
             <div style={{ position: "relative", zIndex: 3, paddingTop: 54, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-              <div style={{ width: 54, height: 54, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.25)", border: "2px solid #fff" }}>
+              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 10px rgba(0,0,0,.3)", border: "2.5px solid #fff" }}>
                 <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
               </div>
-              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1.5, color: "#0f172a", marginTop: 7 }}>ARUN ENTERPRISES</div>
-              <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: .5, color: "#dc2626", marginTop: 2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
-              <div style={{ marginTop: 10, width: 130, height: 155, borderRadius: 6, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#64748b", fontWeight: 700, boxShadow: "0 2px 6px rgba(30,58,138,.25)" }}>
+              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 1.6, color: "#0f172a", marginTop: 8 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: .3, color: "#dc2626", marginTop: 3, width: "92%", textAlign: "center", lineHeight: 1.2, padding: "0 4px", wordSpacing: "1px" }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+              <div style={{ marginTop: 10, width: 170, height: 200, borderRadius: 7, border: "2.5px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#64748b", fontWeight: 700, boxShadow: "0 3px 10px rgba(30,58,138,.3)" }}>
                 {emp.photoUrl ? "" : "PHOTO"}
               </div>
               <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, color: "#1e3a8a", marginTop: 8, textAlign: "center", padding: "0 6px" }}>{(emp.fullName || "—").toUpperCase()}</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: "#dc2626", letterSpacing: 1.3, textTransform: "uppercase", marginTop: 2, textAlign: "center" }}>{emp.designation || "—"}</div>
               <div style={{ width: 56, height: 1, background: "linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent)", margin: "6px auto" }} />
-              <div style={{ width: "90%", fontSize: 8, lineHeight: 1.5 }}>
+              <div style={{ width: "86%", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>
                 {[
                   ["EMPLOYEE ID", emp.empCode || emp.tempCode || "—"],
                   ["DEPARTMENT", (emp.department || "—").toUpperCase()],
@@ -1690,10 +1690,10 @@ const IDCardTab = () => {
                   ["DATE OF JOINING", emp.doj ? fmtDMY(emp.doj) : "—"],
                   ...(!hideMobile ? [["MOBILE", emp.contactMobile || "—"]] : []),
                 ].map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", padding: "1px 0" }}>
-                    <span style={{ flex: "0 0 68px", fontWeight: 800, color: "#0f172a", letterSpacing: .4 }}>{k}</span>
-                    <span style={{ flex: "0 0 8px", color: "#475569", fontWeight: 700 }}>:</span>
-                    <span style={{ flex: 1, fontWeight: 700, color: "#0f172a" }}>{v}</span>
+                  <div key={k} style={{ display: "grid", gridTemplateColumns: "95px 10px 1fr", alignItems: "center", padding: "3px 0", borderBottom: "0.5px solid #f1f5f9" }}>
+                    <span style={{ fontWeight: 800, color: "#0f172a", letterSpacing: .5, fontSize: 9 }}>{k}</span>
+                    <span style={{ color: "#475569", fontWeight: 800, textAlign: "center" }}>:</span>
+                    <span style={{ fontWeight: 800, color: "#1e3a8a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={v}>{v}</span>
                   </div>
                 ))}
               </div>
