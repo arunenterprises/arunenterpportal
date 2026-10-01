@@ -1058,10 +1058,11 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
         <F label="F&F Net (auto)"><input value={fnf.toLocaleString("en-IN")} readOnly style={{ ...inputStyle, background: fnf >= 0 ? "#dcfce7" : "#fee2e2", fontWeight: 800, color: fnf >= 0 ? "#166534" : "#991b1b", textAlign: "right" }} /></F>
         <div style={{ gridColumn: "span 4", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <button data-testid="exit-new" onClick={() => setCur(createExitDraft(emps[0]?.id || ""))} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> New</button>
-          <button data-testid="exit-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Edit3 size={13} style={{ verticalAlign: -2 }} /> Save / Edit</button>
+          <button data-testid="exit-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
+          <button data-testid="exit-edit" onClick={save} disabled={!writeAllowed || Number(cur.status) >= 2} style={{ padding: "6px 12px", background: Number(cur.status) >= 2 ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && Number(cur.status) < 2 ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Edit3 size={13} style={{ verticalAlign: -2 }} /> Edit</button>
           <button data-testid="exit-submit" onClick={submit} disabled={!writeAllowed || Number(cur.status) >= 2} style={{ padding: "6px 12px", background: Number(cur.status) >= 2 ? "#94a3b8" : "#be185d", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && Number(cur.status) < 2 ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to GM</button>
           <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: .5 }}>
-            Workflow: <span style={{ color: "#0f172a" }}>New → Save/Edit → Submit → GM → Accounts Payment</span>
+            Workflow: <span style={{ color: "#0f172a" }}>New → Save → Edit → Submit → GM → Accounts</span>
           </span>
         </div>
       </div>
