@@ -22,7 +22,7 @@ import {
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, sendPayslipWhatsApp } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, sendPayslipWhatsApp } from "../lib/hrLetters";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
@@ -1061,9 +1061,6 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
           <button data-testid="exit-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
           <button data-testid="exit-edit" onClick={save} disabled={!writeAllowed || Number(cur.status) >= 2} style={{ padding: "6px 12px", background: Number(cur.status) >= 2 ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && Number(cur.status) < 2 ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Edit3 size={13} style={{ verticalAlign: -2 }} /> Edit</button>
           <button data-testid="exit-submit" onClick={submit} disabled={!writeAllowed || Number(cur.status) >= 2} style={{ padding: "6px 12px", background: Number(cur.status) >= 2 ? "#94a3b8" : "#be185d", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && Number(cur.status) < 2 ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to GM</button>
-          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: .5 }}>
-            Workflow: <span style={{ color: "#0f172a" }}>New → Save → Edit → Submit → GM → Accounts</span>
-          </span>
         </div>
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
@@ -1086,6 +1083,7 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
                 {Number(x.status) === 1 && writeAllowed && <button data-testid={`exit-submit-${x.id}`} onClick={() => { setCur(x); submit(); }} style={{ padding: "3px 8px", background: "#fce7f3", color: "#be185d", border: "1px solid #f9a8d4", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}><Send size={10} style={{ verticalAlign: -1 }} /> Submit to GM</button>}
                 {Number(x.status) === 2 && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700, marginRight: 4 }}>⏳ Awaiting GM</span>}
                 {Number(x.status) === 3 && approveAllowed && <button data-testid={`exit-settle-${x.id}`} onClick={() => settleByAccounts(x)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>💰 Settle · Accounts Pay</button>}
+                <button data-testid={`exit-fnf-${x.id}`} onClick={() => printFnFStatement(emp, x)} style={{ padding: "3px 8px", background: "#f0fdf4", color: "#14532d", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}><Printer size={10} style={{ verticalAlign: -1 }} /> F&F PDF</button>
                 {Number(x.status) === 4 && emp && <>
                   <button data-testid={`exit-exp-${x.id}`} onClick={() => printExperienceLetter(emp, x)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Experience</button>
                   <button data-testid={`exit-rel-${x.id}`} onClick={() => printRelievingLetter(emp, x)} style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Relieving</button>

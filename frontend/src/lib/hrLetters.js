@@ -247,6 +247,106 @@ export const printRelievingLetter = (emp, exit) => {
   openPrint("Relieving Letter - " + emp.fullName, body);
 };
 
+// ============= FULL & FINAL SETTLEMENT STATEMENT =============
+export const printFnFStatement = (emp, exit) => {
+  if (!exit) return;
+  const refNo = `AE/HR/FNF/${new Date().getFullYear()}/${String(emp?.empCode || emp?.id || exit.id || "").slice(-6).toUpperCase()}`;
+  const today = fmtDMY(exit?.settledAt?.slice(0, 10) || new Date().toISOString().slice(0, 10));
+  const doj = fmtDMY(emp?.doj);
+  const resignDate = fmtDMY(exit?.resignDate);
+  const lwd = fmtDMY(exit?.lastWorkingDay);
+
+  const earnings = [
+    ["Pending Salary / Dues", Number(exit.pendingDues) || 0],
+    ["Bonus / Incentive Due", Number(exit.bonusDue) || 0],
+    ["Leave Encashment", Number(exit.leaveEncash) || 0],
+    ["Gratuity", Number(exit.gratuity) || 0],
+  ];
+  const deductions = [
+    ["Loan / Advance Recovery", Number(exit.loanDeduction) || 0],
+    ["Notice Period Recovery", Number(exit.noticeRecovery) || 0],
+  ];
+  const totalEarn = earnings.reduce((s, r) => s + r[1], 0);
+  const totalDed = deductions.reduce((s, r) => s + r[1], 0);
+  const net = totalEarn - totalDed;
+
+  const earnRows = earnings.map(([k, v]) => `<tr><td>${k}</td><td class="num">${inr(v)}</td></tr>`).join("");
+  const dedRows = deductions.map(([k, v]) => `<tr><td>${k}</td><td class="num">${inr(v)}</td></tr>`).join("");
+
+  const clearance = exit.clearance || {};
+  const clearRows = Object.keys(clearance).map((k) => {
+    const label = k === "project" ? "Project Site" : k.toUpperCase();
+    const done = clearance[k] ? "✓ Cleared" : "✗ Pending";
+    const tone = clearance[k] ? "#166534" : "#991b1b";
+    return `<tr><td>${label}</td><td style="color:${tone};font-weight:700">${done}</td></tr>`;
+  }).join("");
+
+  const body = `
+    <div class="meta">
+      <div class="ref">Ref: ${refNo}</div>
+      <div>Date: ${today}</div>
+    </div>
+    <h1 class="title">Full &amp; Final Settlement Statement</h1>
+    <table class="ctc" style="margin-top:14px">
+      <tr><td style="font-weight:700;background:#f1f5f9;width:35%">Employee Name</td><td>${emp?.fullName || exit.empName || "—"}</td><td style="font-weight:700;background:#f1f5f9;width:20%">Emp Code</td><td>${emp?.empCode || exit.empCode || "—"}</td></tr>
+      <tr><td style="font-weight:700;background:#f1f5f9">Designation</td><td>${emp?.designation || "—"}</td><td style="font-weight:700;background:#f1f5f9">Department</td><td>${emp?.department || exit.department || "—"}</td></tr>
+      <tr><td style="font-weight:700;background:#f1f5f9">Date of Joining</td><td>${doj}</td><td style="font-weight:700;background:#f1f5f9">Resignation Date</td><td>${resignDate}</td></tr>
+      <tr><td style="font-weight:700;background:#f1f5f9">Last Working Day</td><td>${lwd}</td><td style="font-weight:700;background:#f1f5f9">Reason</td><td>${exit.reason || "—"}</td></tr>
+      <tr><td style="font-weight:700;background:#f1f5f9">PAN No.</td><td>${emp?.pan || "—"}</td><td style="font-weight:700;background:#f1f5f9">Aadhaar</td><td>${emp?.aadhaar || "—"}</td></tr>
+    </table>
+
+    <table style="width:100%;border-collapse:collapse;margin-top:14px">
+      <tr><td style="width:50%;vertical-align:top;padding-right:6px">
+        <table class="ctc">
+          <thead><tr><th colspan="2" style="background:#166534;color:#fff">Earnings / Payable (₹)</th></tr></thead>
+          <tbody>
+            ${earnRows}
+            <tr class="total"><td style="font-weight:800">Total Earnings</td><td class="num" style="font-weight:800">${inr(totalEarn)}</td></tr>
+          </tbody>
+        </table>
+      </td><td style="width:50%;vertical-align:top;padding-left:6px">
+        <table class="ctc">
+          <thead><tr><th colspan="2" style="background:#991b1b;color:#fff">Deductions / Recovery (₹)</th></tr></thead>
+          <tbody>
+            ${dedRows}
+            <tr class="total"><td style="font-weight:800">Total Deductions</td><td class="num" style="font-weight:800">${inr(totalDed)}</td></tr>
+          </tbody>
+        </table>
+      </td></tr>
+    </table>
+
+    <table class="ctc" style="margin-top:14px">
+      <tr class="total">
+        <td style="font-weight:800;font-size:12.5pt;background:#0f172a;color:#fff">NET F&amp;F PAYABLE ${net < 0 ? "(RECOVERABLE)" : ""}</td>
+        <td class="num" style="font-weight:800;font-size:13pt;background:#0f172a;color:#fff">${inr(net)}</td>
+      </tr>
+    </table>
+
+    <p style="margin-top:10px;font-size:10.5pt;padding:8px 10px;background:#f1f5f9;border-left:3px solid #0f172a">
+      <b>Amount in Words:</b> <i>Rupees ${inr(net).replace("₹","").trim()} Only</i> (as per F&amp;F computation).
+      ${exit.linkedPvNo ? `<br/><b>Payment Voucher:</b> ${exit.linkedPvNo}` : ""}
+    </p>
+
+    <h2 style="font-size:12pt;margin-top:16px;border-bottom:1px solid #0f172a;padding-bottom:3px">Departmental Clearance</h2>
+    <table class="ctc"><tbody>${clearRows || `<tr><td colspan="2">— No clearance recorded —</td></tr>`}</tbody></table>
+
+    <div class="sign-block">
+      <div class="for">For ${COMPANY.name}</div>
+      <div class="sig-name">${SIGNATORY.name}</div><br/>
+      <div class="sig-desig">${SIGNATORY.designation} · Authorized Signatory</div>
+    </div>
+    <div class="accept">
+      <b>Acknowledgement by Employee</b>
+      <p style="font-size:10pt;margin-top:6px">I hereby acknowledge receipt of the Full &amp; Final Settlement amount as detailed above and confirm that I have no further claims against the Company whatsoever.</p>
+      <div class="accept-grid">
+        <div class="cell"><div class="line"></div>Signature of Employee</div>
+        <div class="cell"><div class="line"></div>Name &amp; Date</div>
+      </div>
+    </div>
+  `;
+  openPrint("F&F Statement - " + (emp?.fullName || exit.empName || "Employee"), body);
+};
+
 // ============= EMPLOYEE APPLICATION FORM (A4 Portrait) =============
 export const printEmployeeApplication = (emp) => {
   if (!emp) return;
