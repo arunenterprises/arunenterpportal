@@ -10,6 +10,8 @@ import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON, amountToWords,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
+  getPayBills, advancePayBillStep, PAYBILL_STATUS,
+  canApprove,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -379,10 +381,11 @@ export default function Reports() {
           <Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" />
 
           {/* Reports Tabs */}
-          <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8 }} data-testid="reports-tabs">
+          <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="reports-tabs">
             {[
               { id: "vouchers", label: "💳 Payment Vouchers", tone: "#7c3aed" },
               { id: "due", label: "📋 Due List", tone: "#0ea5e9" },
+              { id: "salary", label: "👥 Salary Bills (HR Payroll)", tone: "#be185d" },
               { id: "aging", label: "⏱️ Aging", tone: "#ea580c" },
               { id: "gsttds", label: "🧾 GST-TDS Register", tone: "#16a34a" },
             ].map((t) => (
@@ -405,6 +408,76 @@ export default function Reports() {
               </button>
             ))}
           </div>
+
+          {/* Aging & GST-TDS Register (conditional simple tables) */}
+          {reportsTab === "salary" && (
+            <div className="section" data-testid="reports-salary">
+              <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Salary Bills — HR Payroll · Accounts Processing Queue</span>
+                <span style={{ fontSize: 10.5, color: "#64748b", fontWeight: 600 }}>Flow: HR Draft → GM Approval → Accounts Settlement → Auto Payment Voucher</span>
+              </div>
+              <div className="sec-body" style={{ padding: 0 }}>
+                <table className="data-table" data-testid="salary-bills-table">
+                  <thead><tr>
+                    <th>Ref No</th>
+                    <th>Period</th>
+                    <th style={{ textAlign: "right" }}>Employees</th>
+                    <th style={{ textAlign: "right" }}>Gross</th>
+                    <th style={{ textAlign: "right" }}>Deductions</th>
+                    <th style={{ textAlign: "right" }}>Advance</th>
+                    <th style={{ textAlign: "right" }}>Net Payable</th>
+                    <th>Status</th>
+                    <th style={{ width: 240 }}>Accounts Action</th>
+                  </tr></thead>
+                  <tbody>
+                    {(() => {
+                      const paybills = getPayBills().slice().sort((a, b) => (b.monthKey || "").localeCompare(a.monthKey || ""));
+                      if (paybills.length === 0) {
+                        return <tr><td colSpan={9} style={{ textAlign: "center", color: "#64748b", padding: 20 }}>No Pay Bills yet · HR must create &amp; submit for GM approval first</td></tr>;
+                      }
+                      return paybills.map((pb) => {
+                        const monthName = new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en-IN", { month: "short" });
+                        const tone = Number(pb.step) === 4 ? "#166534" : Number(pb.step) === 3 ? "#be185d" : Number(pb.step) === 2 ? "#b45309" : "#64748b";
+                        const canSettle = canApprove() && Number(pb.step) === 3;
+                        return (
+                          <tr key={pb.id} data-testid={`salary-row-${pb.id}`}>
+                            <td className="mono">{pb.refNo}</td>
+                            <td><b>{monthName} {pb.year}</b></td>
+                            <td className="num">{pb.lines?.length || 0}</td>
+                            <td className="num">{inr(pb.totalGross)}</td>
+                            <td className="num">{inr(pb.totalDeductions)}</td>
+                            <td className="num">{inr(pb.totalAdvance)}</td>
+                            <td className="num"><b>{inr(pb.totalNet)}</b></td>
+                            <td style={{ color: tone, fontWeight: 700, fontSize: 11 }}>{PAYBILL_STATUS[pb.step]}</td>
+                            <td>
+                              {Number(pb.step) < 3 && <span style={{ padding: "3px 7px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Awaiting HR/GM</span>}
+                              {Number(pb.step) === 3 && (
+                                <button
+                                  data-testid={`salary-settle-${pb.id}`}
+                                  onClick={() => {
+                                    if (!canApprove()) { toast.error("Only Admin / SuperAdmin / Accounts"); return; }
+                                    if (!window.confirm(`Approve & Settle Pay Bill ${pb.refNo}? A Payment Voucher of ₹ ${Number(pb.totalNet || 0).toLocaleString("en-IN")} will be auto-generated.`)) return;
+                                    const n = advancePayBillStep(pb);
+                                    setRefresh((v) => v + 1);
+                                    toast.success(`Pay Bill settled · PV ${n.linkedPvNo || ""} auto-generated`);
+                                  }}
+                                  disabled={!canSettle}
+                                  style={{ padding: "4px 10px", background: canSettle ? "#16a34a" : "#94a3b8", color: "#fff", border: "none", borderRadius: 4, cursor: canSettle ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }}
+                                >💰 Approve & Generate PV</button>
+                              )}
+                              {Number(pb.step) === 4 && (
+                                <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PV: {pb.linkedPvNo || "generated"}</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Aging & GST-TDS Register (conditional simple tables) */}
           {reportsTab === "aging" && (
