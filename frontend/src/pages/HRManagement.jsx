@@ -34,6 +34,18 @@ const MAX_UPLOAD_KB = 500;
 const ATT_CODES = { P: { label: "Present", tone: "#16a34a" }, A: { label: "Absent", tone: "#dc2626" }, L: { label: "Leave", tone: "#f59e0b" }, H: { label: "Half-day", tone: "#0369a1" }, W: { label: "Week-off", tone: "#94a3b8" }, HL: { label: "Holiday", tone: "#7c3aed" } };
 const nextCode = { "": "P", "P": "A", "A": "L", "L": "H", "H": "W", "W": "HL", "HL": "" };
 
+// Module-scope reusable field wrapper + input style. These MUST live at module
+// scope — defining them inside the tab components caused React to create a
+// new component class on every state update, which unmounted + remounted the
+// input nodes and ate the user's focus/keystrokes.
+const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
+const F = ({ label, req, children }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+    <label style={{ fontSize: 11, fontWeight: 600, color: "#475569" }}>{label}{req && <span style={{ color: "#dc2626" }}> *</span>}</label>
+    {children}
+  </div>
+);
+
 // -------------- Dynamic rows helper (Family / Education / Experience / References) --------------
 const DynamicRows = ({ title, rows, onChange, columns, disabled, testPrefix }) => {
   const addRow = () => {
@@ -179,13 +191,6 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
   };
 
   if (!emp) return null;
-  const F = ({ label, req, children }) => (
-    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <label style={{ fontSize: 11, fontWeight: 600, color: "#475569" }}>{label}{req && <span style={{ color: "#dc2626" }}> *</span>}</label>
-      {children}
-    </div>
-  );
-  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
 
   return (
     <div style={{ padding: 14 }}>
@@ -856,9 +861,6 @@ const LeavesTab = ({ writeAllowed, approveAllowed }) => {
   };
   const remove = (id) => { if (!window.confirm("Delete leave?")) return; deleteLeave(id); refresh(); };
 
-  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
-  const F = ({ label, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block" }}>{label}</label>{children}</div>);
-
   if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Pehle Employees tab me kam se kam ek employee finalize karo.</div>;
 
   return (
@@ -928,9 +930,6 @@ const RecruitTab = ({ writeAllowed }) => {
     toast.success(`Employee draft ${emp.tempCode} auto-created. Switch to Employees tab to complete.`);
   };
   const remove = (id) => { if (!window.confirm("Delete?")) return; deleteRecruit(id); refresh(); };
-
-  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
-  const F = ({ label, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block" }}>{label}</label>{children}</div>);
 
   return (
     <div style={{ padding: 14 }}>
@@ -1018,8 +1017,6 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
   };
   const remove = (id) => { if (!window.confirm("Delete?")) return; deleteExit(id); refresh(); };
 
-  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
-  const F = ({ label, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block" }}>{label}</label>{children}</div>);
   const fnf = (Number(cur.pendingDues) || 0) + (Number(cur.bonusDue) || 0) + (Number(cur.leaveEncash) || 0) + (Number(cur.gratuity) || 0) - (Number(cur.loanDeduction) || 0) - (Number(cur.noticeRecovery) || 0);
 
   if (emps.length === 0 && getExits().length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No active employees to exit, and no exit history yet.</div>;
@@ -1347,8 +1344,6 @@ const AdvanceRegisterTab = () => {
 
 // -------------- Loan Management --------------
 const LoansTab = ({ writeAllowed, approveAllowed }) => {
-  const F = ({ label, req, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block", marginBottom: 2 }}>{label}{req && <span style={{ color: "#dc2626" }}> *</span>}</label>{children}</div>);
-  const inputStyle = { padding: "6px 10px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: "100%" };
   const emps = getEmployees().filter((e) => Number(e.step) === 5);
   const [list, setList] = useState([]);
   const [cur, setCur] = useState(null);
