@@ -1078,6 +1078,8 @@ export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
 };
 
 
+// ---- Cloud Sync helpers ----
+export const syncFromCloud = async () => {
   const snap = await apiFetchSnapshot();
   if (Array.isArray(snap.vendors)) write(KEYS.VENDORS, snap.vendors);
   if (Array.isArray(snap.bills)) write(KEYS.BILLS, snap.bills);

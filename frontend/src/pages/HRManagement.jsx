@@ -5,7 +5,7 @@ import { Toaster, toast } from "sonner";
 import {
   UserPlus, Users2, Calendar, IndianRupee, FileText, LogOut,
   UserCheck, Sparkles, Construction, Trash2, Save, Send, CheckCircle2, RefreshCw, Printer, Download,
-  ArrowRight,
+  ArrowRight, Cake, Trophy, PartyPopper,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import {
@@ -354,6 +354,115 @@ const PayrollTab = () => {
   );
 };
 
+// Celebrations: find employees whose birthday or work-anniversary falls in
+// the next `windowDays` (default 7). Returns { birthdays, anniversaries }.
+const getCelebrations = (emps, windowDays = 7) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const parse = (s) => { if (!s) return null; const d = new Date(s); return isNaN(d.getTime()) ? null : d; };
+  const nextOccurrence = (date) => {
+    const t = new Date(today.getFullYear(), date.getMonth(), date.getDate());
+    if (t < today) t.setFullYear(today.getFullYear() + 1);
+    return t;
+  };
+  const diffDays = (d) => Math.round((d - today) / 86400000);
+
+  const birthdays = [], anniversaries = [];
+  emps.filter((e) => Number(e.step) === 5 && (e.status || "Active") !== "Exited").forEach((e) => {
+    const dob = parse(e.dob);
+    if (dob) {
+      const nxt = nextOccurrence(dob);
+      const inDays = diffDays(nxt);
+      if (inDays >= 0 && inDays <= windowDays) birthdays.push({ emp: e, when: nxt, inDays });
+    }
+    const doj = parse(e.doj);
+    if (doj && doj < today) {
+      const nxt = nextOccurrence(doj);
+      const inDays = diffDays(nxt);
+      if (inDays >= 0 && inDays <= windowDays) {
+        const yearsCompleted = nxt.getFullYear() - doj.getFullYear();
+        if (yearsCompleted >= 1) anniversaries.push({ emp: e, when: nxt, inDays, yearsCompleted });
+      }
+    }
+  });
+  birthdays.sort((a, b) => a.inDays - b.inDays);
+  anniversaries.sort((a, b) => a.inDays - b.inDays);
+  return { birthdays, anniversaries };
+};
+
+const CelebrationBanner = ({ emps }) => {
+  const { birthdays, anniversaries } = useMemo(() => getCelebrations(emps, 7), [emps]);
+  if (birthdays.length === 0 && anniversaries.length === 0) {
+    return (
+      <div data-testid="hr-celebration-banner" style={{
+        marginTop: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10,
+        background: "#fff", border: "1px dashed #cbd5e1", borderRadius: 10,
+        fontSize: 12, color: "#64748b",
+      }}>
+        <PartyPopper size={16} style={{ color: "#be185d" }} />
+        Aane wale 7 din me koi birthday ya work anniversary nahi hai.
+      </div>
+    );
+  }
+  const whenLabel = (inDays, when) => {
+    if (inDays === 0) return "Today!";
+    if (inDays === 1) return "Tomorrow";
+    return `${when.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} · in ${inDays} d`;
+  };
+
+  const Pane = ({ title, items, tone, icon: Icon, renderExtra, emptyText }) => (
+    <div style={{ flex: 1, minWidth: 280, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.24)", borderRadius: 10, padding: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, fontWeight: 800, letterSpacing: .4, textTransform: "uppercase", marginBottom: 8 }}>
+        <Icon size={14} /> {title}
+        <span style={{ marginLeft: "auto", padding: "1px 8px", background: "rgba(255,255,255,.22)", borderRadius: 999, fontSize: 10, fontWeight: 700 }}>{items.length}</span>
+      </div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,.75)" }}>{emptyText}</div>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 5 }}>
+          {items.slice(0, 5).map((it) => (
+            <li key={it.emp.id} data-testid={`celebration-${it.emp.id}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", background: "rgba(255,255,255,.1)", borderRadius: 6, fontSize: 11.5 }}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: tone, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 10, flexShrink: 0 }}>
+                {(it.emp.fullName || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.emp.fullName}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,.78)" }}>{it.emp.designation || "—"} · {it.emp.empCode}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#fff" }}>{whenLabel(it.inDays, it.when)}</div>
+                {renderExtra && <div style={{ fontSize: 9.5, color: "#fde68a", fontWeight: 700 }}>{renderExtra(it)}</div>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  return (
+    <div data-testid="hr-celebration-banner" style={{
+      marginTop: 14, padding: 14,
+      background: "linear-gradient(135deg, #be185d 0%, #c2410c 55%, #a16207 100%)",
+      color: "#fff", borderRadius: 12,
+      boxShadow: "0 8px 24px rgba(190,24,93,.28)",
+      position: "relative", overflow: "hidden",
+    }}>
+      <div style={{ position: "absolute", right: -20, top: -20, opacity: .08, pointerEvents: "none" }}>
+        <PartyPopper size={160} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <PartyPopper size={20} />
+        <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase" }}>Celebrations This Week</div>
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <Pane title="Birthdays" items={birthdays} tone="#be185d" icon={Cake} emptyText="No birthdays in the next 7 days" />
+        <Pane title="Work Anniversaries" items={anniversaries} tone="#c2410c" icon={Trophy} emptyText="No anniversaries in the next 7 days" renderExtra={(it) => `${it.yearsCompleted} yr${it.yearsCompleted > 1 ? "s" : ""} completed`} />
+      </div>
+    </div>
+  );
+};
+
 // -------------- KPI dashboard --------------
 const KpiTile = ({ label, value, tone, icon: Icon }) => (
   <div style={{ padding: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 1px 3px rgba(15,23,42,.05)" }}>
@@ -433,7 +542,8 @@ export default function HRManagement() {
           <div style={{ marginTop: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12 }}>
             {tab === "dashboard" && (
               <div style={{ padding: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#4c1d95", letterSpacing: .5, textTransform: "uppercase", marginBottom: 12 }}>5-Step Approval Flow</div>
+                <CelebrationBanner emps={emps} />
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#4c1d95", letterSpacing: .5, textTransform: "uppercase", margin: "18px 0 12px" }}>5-Step Approval Flow</div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                   {[1, 2, 3, 4, 5].map((s, i) => (
                     <React.Fragment key={s}>
