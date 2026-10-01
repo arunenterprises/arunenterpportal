@@ -897,8 +897,8 @@ export const EMPLOYEE_STEP_LABEL = {
   5: "5. Finalized · Permanent EMP Code Issued",
 };
 
-const buildEmpCode = (serial) => `EMP${String(serial).padStart(4, "0")}${getFY()}`;
-const buildEmpTempCode = (serial) => `EMP-TMP-${String(serial).padStart(4, "0")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+const buildEmpCode = (serial) => `AE/EMP/${String(serial).padStart(6, "0")}/${getFY()}`;
+const buildEmpTempCode = (serial) => `AE/TMP/${String(serial).padStart(6, "0")}/${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 export const getEmployees = () => read(KEYS.EMPLOYEES, []);
 export const saveEmployees = (list) => write(KEYS.EMPLOYEES, list);
@@ -913,18 +913,38 @@ export const createEmployeeDraft = () => {
     tempCode: buildEmpTempCode(c.empSerial), // alpha+numeric temp code
     empCode: "", // permanent — issued at step 5 approval
     step: 1,
-    photoUrl: "",
+    // Application Reference (top of form)
+    advertisementNo: "", dateOfFiling: new Date().toISOString().slice(0, 10),
+    projectSite: "", location: "", appliedPost: "",
+    // Photo & Signature
+    photoUrl: "", signatureUrl: "",
+    // Personal
     fullName: "", fatherName: "", motherName: "", spouseName: "",
     dob: "", gender: "M", maritalStatus: "Single", bloodGroup: "", nationality: "Indian", religion: "", category: "General",
+    // Job
     doj: new Date().toISOString().slice(0, 10),
     designation: "", department: "Operations", reportingManager: "",
+    // Contact
     contactMobile: "", contactAltMobile: "", contactEmail: "",
+    // Structured addresses
+    presentLine: "", presentCity: "", presentState: "", presentPincode: "",
+    permanentLine: "", permanentCity: "", permanentState: "", permanentPincode: "",
+    sameAsPresent: false,
+    // Legacy fallback
     presentAddress: "", permanentAddress: "", address: "",
+    // KYC
     aadhaar: "", pan: "",
-    bankName: "", bankAccount: "", ifsc: "",
+    // Bank (expanded with IFSC auto-fill)
+    bankName: "", bankBranch: "", bankCity: "", bankAddress: "",
+    bankAccount: "", bankAccountType: "Savings", ifsc: "",
+    // Statutory
     pfNo: "", esicNo: "", uan: "",
+    // Salary
     ctcAnnual: 0, basic: 0, hra: 0, da: 0, special: 0, bonus: 0,
+    // Dynamic sections
     familyMembers: [], educations: [], experiences: [], references: [],
+    documents: [], // {type, name, dataUrl, sizeKB}
+    // Declaration
     declarationDate: new Date().toISOString().slice(0, 10),
     declarationPlace: "",
     createdByName: _me(), checkedByName: "", verifiedByName: "", approvedByName: "", finalizedByName: "",

@@ -18,10 +18,15 @@ import {
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printEmployeeApplication } from "../lib/hrLetters";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
+const APPLIED_POSTS = ["Manager", "Site Incharge", "Engineer", "Supervisor", "Accountant", "Cashier", "HR Officer", "Store Keeper", "Executive", "Assistant", "Sr. Mason", "Mason", "Sr. Helper", "Helper", "Peon", "Driver", "Security", "Other"];
+const ACCOUNT_TYPES = ["Savings", "Current", "Salary", "NRE", "NRO"];
+const IN_STATES = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman & Nicobar", "Chandigarh", "Dadra & Nagar Haveli and Daman & Diu", "Delhi", "Jammu & Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
+const DOC_TYPES = ["Aadhaar Card", "PAN Card", "Passport Size Photo", "Signature", "Educational Certificate", "Experience Letter", "Previous Payslip", "Resume / CV", "Address Proof", "Cancelled Cheque", "Other"];
+const MAX_UPLOAD_KB = 100;
 const ATT_CODES = { P: { label: "Present", tone: "#16a34a" }, A: { label: "Absent", tone: "#dc2626" }, L: { label: "Leave", tone: "#f59e0b" }, H: { label: "Half-day", tone: "#0369a1" }, W: { label: "Week-off", tone: "#94a3b8" }, HL: { label: "Holiday", tone: "#7c3aed" } };
 const nextCode = { "": "P", "P": "A", "A": "L", "L": "H", "H": "W", "W": "HL", "HL": "" };
 
@@ -82,10 +87,44 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
   const [emp, setEmp] = useState(null);
   const [list, setList] = useState([]);
   const [locked, setLocked] = useState(false);
+  const [ifscBusy, setIfscBusy] = useState(false);
+  const [ifscOk, setIfscOk] = useState(false);
 
   useEffect(() => { setList(getEmployees()); if (!emp) setEmp(createEmployeeDraft()); }, []);
   const refresh = () => setList(getEmployees());
   const set = (k, v) => setEmp((p) => ({ ...p, [k]: v }));
+
+  // IFSC → auto-fill bank details via Razorpay public API
+  useEffect(() => {
+    const code = (emp?.ifsc || "").toUpperCase().trim();
+    if (code.length !== 11) { setIfscOk(false); return; }
+    setIfscBusy(true);
+    fetch(`https://ifsc.razorpay.com/${code}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) { setIfscOk(false); toast.error(`IFSC "${code}" not found`); return; }
+        setEmp((p) => ({ ...p,
+          bankName: d.BANK || p.bankName,
+          bankBranch: d.BRANCH || p.bankBranch,
+          bankCity: d.CITY || p.bankCity,
+          bankAddress: d.ADDRESS || p.bankAddress,
+        }));
+        setIfscOk(true);
+        toast.success(`${d.BANK} · ${d.BRANCH}`);
+      })
+      .catch(() => setIfscOk(false))
+      .finally(() => setIfscBusy(false));
+  }, [emp?.ifsc]);
+
+  // Copy present → permanent when checkbox toggled
+  useEffect(() => {
+    if (emp?.sameAsPresent) {
+      setEmp((p) => ({ ...p,
+        permanentLine: p.presentLine, permanentCity: p.presentCity,
+        permanentState: p.presentState, permanentPincode: p.presentPincode,
+      }));
+    }
+  }, [emp?.sameAsPresent, emp?.presentLine, emp?.presentCity, emp?.presentState, emp?.presentPincode]);
 
   const startNew = () => { const d = createEmployeeDraft(); setEmp(d); setLocked(false); toast.info(`Draft ${d.tempCode}`); };
   const load = (e) => { setEmp({ ...e }); setLocked(Number(e.step) >= 5); };
@@ -148,36 +187,70 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         <button data-testid="hr-emp-new" onClick={startNew} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><UserPlus size={13} style={{ verticalAlign: -2 }} /> New</button>
         <button data-testid="hr-emp-save" onClick={save} disabled={!writeAllowed || locked} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
         <button data-testid="hr-emp-submit" onClick={submit} disabled={!writeAllowed || locked || Number(emp.step) >= 5} style={{ padding: "6px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && Number(emp.step) < 5 ? 1 : .5, fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit / Advance</button>
-        <button data-testid="hr-emp-approve" onClick={approve} disabled={!approveAllowed || Number(emp.step) >= 5} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed && Number(emp.step) < 5 ? 1 : .5, fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Final Approve</button>
+        <button data-testid="hr-emp-approve" onClick={approve} disabled={!approveAllowed || Number(emp.step) >= 5} style={{ padding: "6px 12px", background: !approveAllowed || Number(emp.step) >= 5 ? "#f1f5f9" : "#dc2626", color: !approveAllowed || Number(emp.step) >= 5 ? "#94a3b8" : "#fff", border: "none", borderRadius: 5, cursor: approveAllowed && Number(emp.step) < 5 ? "pointer" : "not-allowed", opacity: approveAllowed && Number(emp.step) < 5 ? 1 : .5, fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Final Approve</button>
         {Number(emp.step) >= 5 && (
           <button data-testid="hr-emp-reapprove" onClick={reapprove} disabled={!approveAllowed} style={{ padding: "6px 12px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed ? 1 : .5, fontWeight: 700, fontSize: 12 }}><RefreshCw size={13} style={{ verticalAlign: -2 }} /> Re-Approve</button>
         )}
+        <button data-testid="hr-emp-print" onClick={() => printEmployeeApplication(emp)} style={{ padding: "6px 12px", background: "#334155", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Portrait</button>
       </div>
 
       {/* Header codes */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <F label="Temp Code (Alpha-Num)"><input value={emp.tempCode} readOnly style={{ ...inputStyle, background: "#fef9c3", fontWeight: 700, color: "#78716c" }} data-testid="emp-temp-code" /></F>
-        <F label="Permanent EMP Code"><input value={emp.empCode} readOnly placeholder="Issued on Final Approval" style={{ ...inputStyle, background: emp.empCode ? "#dcfce7" : "#f1f5f9", fontWeight: 800, color: emp.empCode ? "#166534" : "#94a3b8", border: emp.empCode ? "1.5px solid #16a34a" : "1px solid #cbd5e1" }} data-testid="emp-perm-code" /></F>
+        <F label="Permanent EMP Code"><input value={emp.empCode} readOnly placeholder="AE/EMP/XXXXXX/FY — on Final Approval" style={{ ...inputStyle, background: emp.empCode ? "#dcfce7" : "#f1f5f9", fontWeight: 800, color: emp.empCode ? "#166534" : "#94a3b8", border: emp.empCode ? "1.5px solid #16a34a" : "1px solid #cbd5e1" }} data-testid="emp-perm-code" /></F>
         <F label="Status / Step"><input value={EMPLOYEE_STEP_LABEL[emp.step] || "-"} readOnly style={{ ...inputStyle, background: "#eef2ff", fontWeight: 700, color: "#1e3a8a" }} /></F>
         <F label="Revision"><input value={emp.revision || 0} readOnly style={{ ...inputStyle, background: "#f8fafc", textAlign: "center" }} /></F>
+      </div>
+
+      {/* Application Reference */}
+      <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#dbeafe", borderBottom: "1px solid #93c5fd", color: "#1e3a8a", textTransform: "uppercase", letterSpacing: .4 }}>Application Reference</div>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+          <F label="Advertisement No."><input value={emp.advertisementNo || ""} onChange={(e) => set("advertisementNo", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-advt" placeholder="AE/HR/ADVT/2026/001" /></F>
+          <F label="Date of Filing"><input type="date" value={emp.dateOfFiling || ""} onChange={(e) => set("dateOfFiling", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-filingdate" /></F>
+          <F label="Project / Site"><input value={emp.projectSite || ""} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-project" /></F>
+          <F label="Location"><input value={emp.location || ""} onChange={(e) => set("location", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-location" /></F>
+          <F label="Applied Post" req>
+            <select value={emp.appliedPost || ""} onChange={(e) => set("appliedPost", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-appliedpost">
+              <option value="">— Select —</option>
+              {APPLIED_POSTS.map((p) => <option key={p}>{p}</option>)}
+            </select>
+          </F>
+        </div>
       </div>
 
       {/* Bio-Data Application Form — Photo + Personal + Job */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>A. Personal Details</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "140px 1fr", gap: 12 }}>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "140px 140px 1fr", gap: 12 }}>
           {/* Photo */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
             <div style={{ width: 120, height: 150, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.photoUrl ? `url(${emp.photoUrl}) center/cover` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
-              {!emp.photoUrl && "Passport Photo\n(120×150)"}
+              {!emp.photoUrl && "Passport Photo\n(120×150, ≤ 100KB)"}
             </div>
             <label style={{ padding: "4px 10px", background: "#0369a1", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
-              Upload
+              Upload Photo
               <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
                 const f = e.target.files?.[0]; if (!f) return;
+                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Photo must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
                 const r = new FileReader(); r.onload = () => set("photoUrl", r.result); r.readAsDataURL(f);
               }} style={{ display: "none" }} data-testid="emp-photo" />
             </label>
+          </div>
+          {/* Signature */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 120, height: 60, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.signatureUrl ? `url(${emp.signatureUrl}) center/contain no-repeat #fff` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
+              {!emp.signatureUrl && "Signature\n(≤ 100KB)"}
+            </div>
+            <label style={{ padding: "4px 10px", background: "#7c3aed", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
+              Upload Signature
+              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Signature must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
+                const r = new FileReader(); r.onload = () => set("signatureUrl", r.result); r.readAsDataURL(f);
+              }} style={{ display: "none" }} data-testid="emp-signature" />
+            </label>
+            <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "center" }}>Standard: ≤ 100KB<br/>JPG / PNG</div>
           </div>
           {/* Personal fields grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
@@ -201,12 +274,40 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* Contact */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>B. Contact Details</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-          <F label="Mobile" req><input value={emp.contactMobile} onChange={(e) => set("contactMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={locked} style={inputStyle} data-testid="emp-mobile" /></F>
-          <F label="Alternate Mobile"><input value={emp.contactAltMobile || ""} onChange={(e) => set("contactAltMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={locked} style={inputStyle} /></F>
-          <F label="Email"><input value={emp.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="Present Address"><textarea value={emp.presentAddress || emp.address || ""} onChange={(e) => set("presentAddress", e.target.value)} disabled={locked} rows={2} style={{ ...inputStyle, gridColumn: "span 2", fontFamily: "inherit", resize: "vertical" }} /></F>
-          <F label="Permanent Address"><textarea value={emp.permanentAddress || ""} onChange={(e) => set("permanentAddress", e.target.value)} disabled={locked} rows={2} style={{ ...inputStyle, gridColumn: "span 2", fontFamily: "inherit", resize: "vertical" }} /></F>
+        <div style={{ padding: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 10 }}>
+            <F label="Mobile" req><input value={emp.contactMobile} onChange={(e) => set("contactMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={locked} style={inputStyle} data-testid="emp-mobile" /></F>
+            <F label="Alternate Mobile"><input value={emp.contactAltMobile || ""} onChange={(e) => set("contactAltMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={locked} style={inputStyle} /></F>
+            <F label="Email"><input value={emp.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+          </div>
+
+          {/* Present Address */}
+          <div style={{ padding: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#334155", marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>Present / Communication Address</div>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 0.8fr", gap: 10 }}>
+              <F label="Address Line (House / Street / Area)"><input value={emp.presentLine || ""} onChange={(e) => set("presentLine", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-present-line" /></F>
+              <F label="City / District"><input value={emp.presentCity || ""} onChange={(e) => set("presentCity", e.target.value)} disabled={locked} style={inputStyle} /></F>
+              <F label="State"><select value={emp.presentState || ""} onChange={(e) => set("presentState", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-present-state"><option value="">— Select —</option>{IN_STATES.map((s) => <option key={s}>{s}</option>)}</select></F>
+              <F label="PIN Code"><input value={emp.presentPincode || ""} onChange={(e) => set("presentPincode", e.target.value.replace(/\D/g, "").slice(0, 6))} disabled={locked} style={inputStyle} data-testid="emp-present-pin" /></F>
+            </div>
+          </div>
+
+          {/* Permanent Address */}
+          <div style={{ padding: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#334155", textTransform: "uppercase", letterSpacing: .4 }}>Permanent Address</div>
+              <label style={{ fontSize: 10.5, fontWeight: 700, color: "#0369a1", display: "flex", alignItems: "center", gap: 5 }}>
+                <input type="checkbox" checked={!!emp.sameAsPresent} onChange={(e) => set("sameAsPresent", e.target.checked)} disabled={locked} data-testid="emp-same-addr" />
+                Same as Present Address
+              </label>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 0.8fr", gap: 10 }}>
+              <F label="Address Line"><input value={emp.permanentLine || ""} onChange={(e) => set("permanentLine", e.target.value)} disabled={locked || emp.sameAsPresent} style={inputStyle} /></F>
+              <F label="City / District"><input value={emp.permanentCity || ""} onChange={(e) => set("permanentCity", e.target.value)} disabled={locked || emp.sameAsPresent} style={inputStyle} /></F>
+              <F label="State"><select value={emp.permanentState || ""} onChange={(e) => set("permanentState", e.target.value)} disabled={locked || emp.sameAsPresent} style={inputStyle}><option value="">— Select —</option>{IN_STATES.map((s) => <option key={s}>{s}</option>)}</select></F>
+              <F label="PIN Code"><input value={emp.permanentPincode || ""} onChange={(e) => set("permanentPincode", e.target.value.replace(/\D/g, "").slice(0, 6))} disabled={locked || emp.sameAsPresent} style={inputStyle} /></F>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -275,13 +376,30 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* Bank & Statutory */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>H. Bank &amp; Statutory</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
-          <F label="Bank Name"><input value={emp.bankName} onChange={(e) => set("bankName", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="Account No."><input value={emp.bankAccount} onChange={(e) => set("bankAccount", e.target.value.replace(/\D/g, ""))} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="IFSC"><input value={emp.ifsc} onChange={(e) => set("ifsc", e.target.value.toUpperCase().slice(0, 11))} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="PF Number"><input value={emp.pfNo} onChange={(e) => set("pfNo", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="UAN"><input value={emp.uan} onChange={(e) => set("uan", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
-          <F label="ESIC"><input value={emp.esicNo} onChange={(e) => set("esicNo", e.target.value)} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} /></F>
+        <div style={{ padding: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 10 }}>
+            <F label="IFSC Code (auto-fills bank)" req>
+              <div style={{ position: "relative" }}>
+                <input value={emp.ifsc || ""} onChange={(e) => set("ifsc", e.target.value.toUpperCase().slice(0, 11))} disabled={locked} style={{ ...inputStyle, textTransform: "uppercase", paddingRight: 42 }} data-testid="emp-ifsc" placeholder="SBIN0001234" />
+                {(emp.ifsc || "").length === 11 && (
+                  <span style={{ position: "absolute", right: 4, top: 4, padding: "2px 6px", fontSize: 10, fontWeight: 800, borderRadius: 3, background: ifscBusy ? "#fef3c7" : ifscOk ? "#dcfce7" : "#fee2e2", color: ifscBusy ? "#92400e" : ifscOk ? "#166534" : "#991b1b", border: `1px solid ${ifscBusy ? "#fcd34d" : ifscOk ? "#86efac" : "#fca5a5"}` }} data-testid="emp-ifsc-status">
+                    {ifscBusy ? "…" : ifscOk ? "✓" : "✗"}
+                  </span>
+                )}
+              </div>
+            </F>
+            <F label="Account Type"><select value={emp.bankAccountType || "Savings"} onChange={(e) => set("bankAccountType", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-acctype">{ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}</select></F>
+            <F label="Account No." req><input value={emp.bankAccount || ""} onChange={(e) => set("bankAccount", e.target.value.replace(/\D/g, ""))} disabled={locked} style={{ ...inputStyle, gridColumn: "span 2" }} data-testid="emp-bankac" /></F>
+            <F label="Bank Name"><input value={emp.bankName || ""} readOnly={ifscOk || locked} onChange={(e) => set("bankName", e.target.value)} style={{ ...inputStyle, gridColumn: "span 2", background: ifscOk ? "#f0fdf4" : "#fff" }} /></F>
+            <F label="Branch Name"><input value={emp.bankBranch || ""} readOnly={ifscOk || locked} onChange={(e) => set("bankBranch", e.target.value)} style={{ ...inputStyle, gridColumn: "span 2", background: ifscOk ? "#f0fdf4" : "#fff" }} /></F>
+            <F label="Branch City"><input value={emp.bankCity || ""} readOnly={ifscOk || locked} onChange={(e) => set("bankCity", e.target.value)} style={{ ...inputStyle, gridColumn: "span 2", background: ifscOk ? "#f0fdf4" : "#fff" }} /></F>
+            <F label="Branch Address"><input value={emp.bankAddress || ""} readOnly={ifscOk || locked} onChange={(e) => set("bankAddress", e.target.value)} style={{ ...inputStyle, gridColumn: "span 2", background: ifscOk ? "#f0fdf4" : "#fff" }} /></F>
+          </div>
+          <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: 10, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <F label="PF Number"><input value={emp.pfNo || ""} onChange={(e) => set("pfNo", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="UAN"><input value={emp.uan || ""} onChange={(e) => set("uan", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="ESIC"><input value={emp.esicNo || ""} onChange={(e) => set("esicNo", e.target.value)} disabled={locked} style={inputStyle} /></F>
+          </div>
         </div>
       </div>
 
@@ -313,10 +431,57 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         </div>
       </div>
 
+      {/* K. Documents Upload */}
+      <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>K. Documents Upload (Aadhaar, PAN, Education, Experience etc. · each ≤ 100KB)</span>
+          <label style={{ padding: "4px 10px", background: locked ? "#e2e8f0" : "#16a34a", color: locked ? "#64748b" : "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700 }}>
+            + Add Document
+            <input type="file" accept="image/*,.pdf" multiple disabled={locked} onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              const existing = Array.isArray(emp.documents) ? [...emp.documents] : [];
+              let anyRejected = false;
+              files.forEach((f) => {
+                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`"${f.name}" exceeds 100KB (${Math.round(f.size / 1024)}KB) — skipped`); anyRejected = true; return; }
+                const r = new FileReader();
+                r.onload = () => {
+                  existing.push({ _id: `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, type: "Other", name: f.name, dataUrl: r.result, sizeKB: Math.round(f.size / 1024) });
+                  set("documents", [...existing]);
+                };
+                r.readAsDataURL(f);
+              });
+              if (!anyRejected && files.length > 0) toast.success(`${files.length} document(s) uploaded`);
+              e.target.value = "";
+            }} style={{ display: "none" }} data-testid="emp-doc-add" />
+          </label>
+        </div>
+        <div style={{ padding: 12 }}>
+          {(emp.documents || []).length === 0 ? (
+            <div style={{ padding: 14, textAlign: "center", color: "#94a3b8", fontSize: 11, border: "1px dashed #e2e8f0", borderRadius: 6 }}>No documents uploaded yet — click "+ Add Document" above</div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
+              {(emp.documents || []).map((d, idx) => (
+                <div key={d._id || idx} data-testid={`emp-doc-${idx}`} style={{ display: "grid", gridTemplateColumns: "2fr 2.5fr 90px 70px 40px", gap: 8, alignItems: "center", padding: "5px 8px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 4, fontSize: 11.5 }}>
+                  <select value={d.type || "Other"} onChange={(e) => {
+                    const next = [...emp.documents]; next[idx] = { ...next[idx], type: e.target.value }; set("documents", next);
+                  }} disabled={locked} style={{ padding: 4, fontSize: 11, border: "1px solid #cbd5e1", borderRadius: 3 }}>
+                    {DOC_TYPES.map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                  <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.name}>{d.name}</span>
+                  <span style={{ fontSize: 10, color: "#64748b", textAlign: "right" }}>{d.sizeKB || "—"} KB</span>
+                  <a href={d.dataUrl} download={d.name} style={{ fontSize: 10, color: "#0369a1", fontWeight: 700, textAlign: "center", textDecoration: "none", border: "1px solid #93c5fd", borderRadius: 3, padding: "2px 4px" }}>View</a>
+                  <button type="button" disabled={locked} onClick={() => { const next = [...emp.documents]; next.splice(idx, 1); set("documents", next); }} data-testid={`emp-doc-del-${idx}`} style={{ padding: 2, background: locked ? "#f1f5f9" : "#fee2e2", color: locked ? "#94a3b8" : "#991b1b", border: `1px solid ${locked ? "#cbd5e1" : "#fca5a5"}`, borderRadius: 3, cursor: locked ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700 }}>🗑</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* All employees list */}
       {list.length > 0 && (
         <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-          <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>D. All Employees ({list.length})</div>
+          <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>L. All Employees ({list.length})</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
             <thead><tr style={{ background: "#f8fafc" }}>
               <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Code</th>
@@ -804,7 +969,7 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
   const F = ({ label, children }) => (<div><label style={{ fontSize: 11, fontWeight: 600, color: "#475569", display: "block" }}>{label}</label>{children}</div>);
   const fnf = (Number(cur.pendingDues) || 0) + (Number(cur.bonusDue) || 0) + (Number(cur.leaveEncash) || 0) + (Number(cur.gratuity) || 0) - (Number(cur.loanDeduction) || 0) - (Number(cur.noticeRecovery) || 0);
 
-  if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No active employees to exit.</div>;
+  if (emps.length === 0 && getExits().length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No active employees to exit, and no exit history yet.</div>;
 
   return (
     <div style={{ padding: 14 }}>

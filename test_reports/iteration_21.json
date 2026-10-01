@@ -1,0 +1,34 @@
+{
+  "summary": "Comprehensive Playwright test of 3 new HR features: Bio-Data employee form, Offer Letter generator, Experience & Relieving Letter generators. All 10 bio-data sections (A-J) render correctly, all 4 dynamic-row add buttons (emp-fam-add, emp-edu-add, emp-exp-add, emp-ref-add) create rows and corresponding emp-xxx-del-0 delete rows. Full flow executed as SuperAdmin: Save Employee -> Final Approve issued permanent EMP code (EMP00192627). Recruit Priya Verma created, status changed to 4 (Offered), rec-offer-<id> button appeared, popup opened with correct Offer Letter content (Ref AE/HR/OL/..., title, candidate name, position, department, Basic Salary breakup, TOTAL CTC row, 'K.L. Srivastava · Director', 🖨 Print button). Exit flow: resign/LWD/reason/clearance checkboxes/dues all saved, Finalize triggered, exit-exp-<id> and exit-rel-<id> buttons rendered and launched popups with correct Experience Certificate (TO WHOMSOEVER IT MAY CONCERN, Ref AE/HR/EXP/..., name, signatory) and Relieving Letter (name, LWD, F&F amount, signatory). Letter PDF generation feature works end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ExitTab", "issue": "Early-return at line 807 `if (emps.length === 0)` hides the ENTIRE Exit tab (including historical settled-exits table and the Experience/Relieving Letter buttons on past exits) when all employees have status 'Exited'. After finalising the only employee, re-opening the tab shows only 'No active employees to exit' — historical letters cannot be re-printed.", "selector": "Exit tab content", "priority": "MEDIUM"},
+      {"component": "EmployeeEditor - Final Approve button", "issue": "`hr-emp-approve` is NOT disabled for User role (test.user@arun.com). Expected: disabled when !canApprove. Observed: button is enabled for User. Clicking may fail server-side but the UI should block it visually per the task requirement 'Final Approve ... should remain disabled for non-approver roles'.", "selector": "[data-testid=\"hr-emp-approve\"]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Recruitment / Exit cross-user persistence", "issue": "Recruits and Exits are stored in localStorage ONLY and are NOT synced via cloud (ae_vm_employees is the only HR key present in User's localStorage). Priya Verma recruit saved as SuperAdmin was invisible when logging in as User. If this feature is intended to be shared across roles, add recruit/exit sync in syncFromCloud.", "affected_selectors": ["rec-row-*", "exit-row-*"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX: Disable hr-emp-approve button for non-approver roles (same guard as !approveAllowed already drives style/opacity but `disabled` attribute currently only checks step>=5).",
+    "FIX: ExitTab should NOT early-return the whole tab when all employees are exited — only hide the editor form, keep the history table + letter buttons visible.",
+    "ENHANCE (optional): Sync recruits & exits to cloud alongside employees so User role can view the recruiting pipeline and historical exits for letter re-print."
+  ],
+  "critical_code_review_comments": [
+    "HRManagement.jsx L151: `disabled={!approveAllowed || Number(emp.step) >= 5}` — this IS correct in theory, but the test shows User sees `is_enabled() === True`. Verify that `approveAllowed` prop is being passed correctly from parent to EmployeeEditor; it may be defaulting to true when role check fails to run before first render.",
+    "HRManagement.jsx L807 ExitTab: early-return hides the entire tab (including completed exits list) when `emps.length === 0`. Should instead render table of historical exits even without an active-emp to add.",
+    "hrLetters.js: Nice separation. Consider adding try/catch around `w.document.open/write` and resilient `window.print()` fallback for Safari.",
+    "store.js: recruits/exits appear to be localStorage-only (no cloud sync). If multi-user HR flow is intended, extend syncFromCloud."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "90%"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 — WORKING. User test.user@arun.com / User@2026 — WORKING.",
+  "seed_data_creation": "Created 1 employee (Rahul Sharma, EMP00192627), 1 recruit (Priya Verma, Accountant, 600000 CTC), 1 exit (settled) — all under SuperAdmin's localStorage. Employee record syncs to cloud; recruits/exits do not.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bio-Data form + Offer/Experience/Relieving letter generators are functionally correct and open popups with all expected content. Two bugs remain: (1) hr-emp-approve not disabled for User role, (2) ExitTab hides historical records when no active employees. Recruit/Exit records are localStorage-only and NOT cross-user. If retesting, log in with the SAME user (SuperAdmin) and reload — then recruit/exit tabs will show rows and the previously-generated letters can be re-printed.",
+  "rca of the issue": "RCA (approve btn): HRManagement.jsx line 151 — the disabled prop should include negation of role check. In tests the button rendered with `disabled={!approveAllowed||step>=5}` BUT playwright reports is_enabled()=True. Investigation suggests approveAllowed is being passed as truthy from parent to EmployeeEditor regardless of role. Main agent to grep for `approveAllowed=` prop drilling in HRManagement.jsx (likely around EmployeeTab wrapper) and ensure it is derived from `user.permissions.approve`. RCA (ExitTab hiding): line 807 early-return pattern — move the early-return into the form section only, keep the history table rendered."
+}

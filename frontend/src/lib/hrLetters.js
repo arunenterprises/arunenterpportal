@@ -240,3 +240,160 @@ export const printRelievingLetter = (emp, exit) => {
   `;
   openPrint("Relieving Letter - " + emp.fullName, body);
 };
+
+// ============= EMPLOYEE APPLICATION FORM (A4 Portrait) =============
+export const printEmployeeApplication = (emp) => {
+  if (!emp) return;
+  const addr = (line, city, state, pin) => [line, city, state, pin].filter(Boolean).join(", ");
+  const presentAddr = addr(emp.presentLine, emp.presentCity, emp.presentState, emp.presentPincode) || emp.presentAddress || emp.address || "—";
+  const permAddr = emp.sameAsPresent ? presentAddr : (addr(emp.permanentLine, emp.permanentCity, emp.permanentState, emp.permanentPincode) || emp.permanentAddress || "—");
+
+  const row = (lbl, val) => `<tr><td class="l">${lbl}</td><td class="v">${val || "—"}</td></tr>`;
+  const dynSection = (title, rows, cols) => {
+    if (!rows || rows.length === 0) return `<div class="dyn-empty">${title}: — None —</div>`;
+    const head = cols.map((c) => `<th>${c.label}</th>`).join("");
+    const body = rows.map((r) => `<tr>${cols.map((c) => `<td>${r[c.key] ?? "—"}</td>`).join("")}</tr>`).join("");
+    return `<div class="dyn"><div class="dyn-t">${title}</div><table class="dyn-tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  };
+
+  const body = `
+    <div class="app-head">
+      <div class="app-title">EMPLOYEE APPLICATION FORM</div>
+      <div class="app-sub">Form Ref: ${emp.tempCode || "—"} ${emp.empCode ? " · EMP Code: <b>" + emp.empCode + "</b>" : ""}</div>
+    </div>
+
+    <div class="refbox">
+      <div><b>Advertisement No.:</b> ${emp.advertisementNo || "—"}</div>
+      <div><b>Date of Filing:</b> ${fmtDMY(emp.dateOfFiling)}</div>
+      <div><b>Project / Site:</b> ${emp.projectSite || "—"}</div>
+      <div><b>Location:</b> ${emp.location || "—"}</div>
+      <div><b>Applied Post:</b> ${emp.appliedPost || "—"}</div>
+    </div>
+
+    <div class="row-top">
+      <div class="photo-box">
+        ${emp.photoUrl ? `<img src="${emp.photoUrl}" />` : `<div class="ph-ph">Passport Photo</div>`}
+      </div>
+      <table class="pers">
+        <tbody>
+          ${row("Full Name", `<b>${emp.fullName}</b>`)}
+          ${row("Father's Name", emp.fatherName)}
+          ${row("Mother's Name", emp.motherName)}
+          ${row("Spouse Name", emp.spouseName)}
+          ${row("Date of Birth", fmtDMY(emp.dob))}
+          ${row("Gender", { M: "Male", F: "Female", O: "Other" }[emp.gender] || emp.gender)}
+          ${row("Marital Status", emp.maritalStatus)}
+          ${row("Blood Group", emp.bloodGroup)}
+          ${row("Nationality", emp.nationality)}
+          ${row("Religion", emp.religion)}
+          ${row("Category", emp.category)}
+          ${row("Aadhaar No.", emp.aadhaar)}
+          ${row("PAN", emp.pan)}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec-t">Contact Details</div>
+    <table class="kv">
+      <tbody>
+        ${row("Mobile", emp.contactMobile)}
+        ${row("Alternate Mobile", emp.contactAltMobile)}
+        ${row("Email", emp.contactEmail)}
+        ${row("Present / Communication Address", presentAddr)}
+        ${row("Permanent Address", permAddr)}
+      </tbody>
+    </table>
+
+    <div class="sec-t">Job / Position</div>
+    <table class="kv">
+      <tbody>
+        ${row("Date of Joining", fmtDMY(emp.doj))}
+        ${row("Designation", emp.designation)}
+        ${row("Department", emp.department)}
+        ${row("Reporting Manager", emp.reportingManager)}
+      </tbody>
+    </table>
+
+    ${dynSection("Family Members", emp.familyMembers, [
+      { key: "name", label: "Name" }, { key: "relation", label: "Relation" },
+      { key: "dob", label: "DOB" }, { key: "occupation", label: "Occupation" }, { key: "contact", label: "Contact" },
+    ])}
+    ${dynSection("Educational Qualifications", emp.educations, [
+      { key: "qualification", label: "Qualification" }, { key: "board", label: "Board / University" },
+      { key: "institute", label: "Institute" }, { key: "year", label: "Year" }, { key: "percentage", label: "% / CGPA" },
+    ])}
+    ${dynSection("Previous Work Experience", emp.experiences, [
+      { key: "company", label: "Company" }, { key: "designation", label: "Designation" },
+      { key: "from", label: "From" }, { key: "to", label: "To" }, { key: "lastSalary", label: "Last Salary" }, { key: "reason", label: "Reason" },
+    ])}
+    ${dynSection("References", emp.references, [
+      { key: "name", label: "Name" }, { key: "designation", label: "Designation" },
+      { key: "company", label: "Company / Org." }, { key: "mobile", label: "Mobile" }, { key: "relation", label: "Known For" },
+    ])}
+
+    <div class="sec-t">Bank &amp; Statutory Details</div>
+    <table class="kv">
+      <tbody>
+        ${row("Bank Name", emp.bankName)}
+        ${row("Branch", `${emp.bankBranch || "—"}${emp.bankCity ? ", " + emp.bankCity : ""}`)}
+        ${row("Account No.", emp.bankAccount)}
+        ${row("Account Type", emp.bankAccountType)}
+        ${row("IFSC Code", emp.ifsc)}
+        ${row("PF No. / UAN", `${emp.pfNo || "—"} / ${emp.uan || "—"}`)}
+        ${row("ESIC No.", emp.esicNo)}
+      </tbody>
+    </table>
+
+    <div class="decl">
+      <div class="sec-t">Declaration</div>
+      <p>I hereby declare that the information furnished above is true, correct and complete to the best of my knowledge and belief. I understand that in case any particular is found to be false or incorrect at any stage, my candidature / services are liable to be terminated without notice.</p>
+      <div class="decl-foot">
+        <div><b>Place:</b> ${emp.declarationPlace || "—"}</div>
+        <div><b>Date:</b> ${fmtDMY(emp.declarationDate)}</div>
+        <div class="sig-cell">
+          ${emp.signatureUrl ? `<img src="${emp.signatureUrl}" class="sig-img" />` : ""}
+          <div class="sig-line">Signature of Candidate</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf-foot">
+      <b>HR Workflow:</b> Create → Edit → Prepared → Submit → ${Number(emp.step) >= 5 ? "<b>Final Approved</b>" : "Approval Pending"} · Current Step: <b>${emp.step || 1}</b> · Revision: ${emp.revision || 0}
+    </div>
+  `;
+
+  // Override letter CSS for application form
+  const extraCss = `
+    .app-head { text-align: center; margin: 4px 0 10px; }
+    .app-title { font-size: 15pt; font-weight: 800; letter-spacing: 2px; text-decoration: underline; }
+    .app-sub { font-size: 10pt; color: #475569; margin-top: 3px; }
+    .refbox { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 14px; border: 1px solid #0f172a; background: #f8fafc; padding: 7px 10px; font-size: 10pt; margin-bottom: 10px; }
+    .row-top { display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-bottom: 10px; }
+    .photo-box { width: 110px; height: 140px; border: 1.5px solid #0f172a; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff; }
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .ph-ph { font-size: 8.5pt; color: #94a3b8; text-align: center; padding: 4px; }
+    table.pers, table.kv, table.dyn-tbl { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    table.pers td.l, table.kv td.l { width: 36%; background: #f1f5f9; padding: 4px 8px; border: 1px solid #cbd5e1; font-weight: 700; }
+    table.pers td.v, table.kv td.v { padding: 4px 8px; border: 1px solid #cbd5e1; }
+    .sec-t { font-size: 10.5pt; font-weight: 800; background: #0f172a; color: #fff; padding: 4px 10px; margin: 10px 0 6px; letter-spacing: 1px; }
+    .dyn-empty { font-size: 9.5pt; color: #94a3b8; padding: 4px 8px; border: 1px dashed #cbd5e1; margin-bottom: 8px; font-style: italic; }
+    .dyn { margin-bottom: 8px; }
+    .dyn-t { font-size: 10pt; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+    table.dyn-tbl th, table.dyn-tbl td { border: 1px solid #334155; padding: 3px 6px; text-align: left; font-size: 9pt; }
+    table.dyn-tbl th { background: #e2e8f0; font-weight: 700; }
+    .decl { margin-top: 10px; border: 1.5px solid #78350f; padding: 8px 10px; background: #fffbeb; }
+    .decl p { font-size: 9.5pt; margin: 4px 0; text-align: justify; }
+    .decl-foot { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 10px; margin-top: 20px; font-size: 10pt; }
+    .sig-cell { text-align: right; }
+    .sig-img { max-height: 40px; max-width: 180px; }
+    .sig-line { border-top: 1px solid #0f172a; padding-top: 3px; font-size: 9pt; font-weight: 700; text-align: center; margin-top: 4px; }
+    .wf-foot { margin-top: 14px; padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #0f172a; font-size: 9pt; color: #334155; }
+    @media print { .noprint-btn { display: none; } }
+  `;
+
+  const html = `
+    <style>${extraCss}</style>
+    ${body}
+  `;
+  openPrint("Employee Application - " + (emp.fullName || emp.tempCode), html);
+};
