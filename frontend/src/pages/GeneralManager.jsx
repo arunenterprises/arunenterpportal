@@ -4,13 +4,17 @@ import { Toaster, toast } from "sonner";
 import {
   ArrowRight, CheckCircle2, RefreshCw, ClipboardList, Users, FileText,
   Wallet, Receipt, CreditCard, Clock, TrendingUp, LayoutDashboard, ShieldCheck,
+  UserCheck, Calendar, LogOut, Briefcase,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import {
   getVendors, getBills, getPayments, getExpenses, getBOQs, getWOs,
+  getEmployees, getLeaves, getExits, getRecruitments,
   canApprove,
   advanceVendorStep, advanceBillStep, advanceExpenseStep, advanceBOQStep, advanceWOStep,
+  advanceEmployeeStep, approveLeave, finalizeExit, upsertRecruit,
   reapproveVendor, reapproveBill, reapproveExpense, reapproveBOQ, reapproveVoucher, reapproveWO,
+  reapproveEmployee,
   savePayments,
   currentUserProfile,
 } from "../lib/store";
@@ -225,6 +229,10 @@ export default function GeneralManager() {
   const expenses = getExpenses();
   const boqs = getBOQs();
   const wos = getWOs();
+  const employees = getEmployees();
+  const leaves = getLeaves();
+  const exits = getExits();
+  const recruits = getRecruitments();
 
   const stats = useMemo(() => {
     const vendorPending = vendors.filter((v) => v.step === 2);
@@ -239,11 +247,20 @@ export default function GeneralManager() {
     const boqsApproved = boqs.filter((b) => Number(b.step) === 4);
     const wosPending = wos.filter((w) => Number(w.step) === 3);
     const wosApproved = wos.filter((w) => Number(w.step) === 4);
-    return { vendorPending, vendorApproved, billsPending, billsApproved, vouchersPending, vouchersApproved, expensesPending, expensesApproved, boqsPending, boqsApproved, wosPending, wosApproved };
-  }, [vendors, bills, payments, expenses, boqs, wos, tick]);
+    // HR items pending GM final approval
+    const empsPending = employees.filter((e) => Number(e.step) === 4);
+    const empsApproved = employees.filter((e) => Number(e.step) === 5);
+    const leavesPending = leaves.filter((l) => Number(l.status) === 2);
+    const leavesApproved = leaves.filter((l) => Number(l.status) === 3);
+    const exitsPending = exits.filter((x) => Number(x.status) === 3);
+    const exitsApproved = exits.filter((x) => Number(x.status) === 4);
+    const recruitsPending = recruits.filter((r) => Number(r.status) === 3);
+    const recruitsApproved = recruits.filter((r) => Number(r.status) >= 4);
+    return { vendorPending, vendorApproved, billsPending, billsApproved, vouchersPending, vouchersApproved, expensesPending, expensesApproved, boqsPending, boqsApproved, wosPending, wosApproved, empsPending, empsApproved, leavesPending, leavesApproved, exitsPending, exitsApproved, recruitsPending, recruitsApproved };
+  }, [vendors, bills, payments, expenses, boqs, wos, employees, leaves, exits, recruits, tick]);
 
-  const totalPending = stats.vendorPending.length + stats.billsPending.length + stats.vouchersPending.length + stats.expensesPending.length + stats.boqsPending.length + stats.wosPending.length;
-  const totalApproved = stats.vendorApproved.length + stats.billsApproved.length + stats.vouchersApproved.length + stats.expensesApproved.length + stats.boqsApproved.length + stats.wosApproved.length;
+  const totalPending = stats.vendorPending.length + stats.billsPending.length + stats.vouchersPending.length + stats.expensesPending.length + stats.boqsPending.length + stats.wosPending.length + stats.empsPending.length + stats.leavesPending.length + stats.exitsPending.length + stats.recruitsPending.length;
+  const totalApproved = stats.vendorApproved.length + stats.billsApproved.length + stats.vouchersApproved.length + stats.expensesApproved.length + stats.boqsApproved.length + stats.wosApproved.length + stats.empsApproved.length + stats.leavesApproved.length + stats.exitsApproved.length + stats.recruitsApproved.length;
 
   const approveVendor = (v) => { if (!canDo) return toast.error("Not permitted"); const next = advanceVendorStep(v); toast.success(`Vendor ${next.firmName || next.tempRefId} approved by ${next.approvedByName}`); bump(); };
   const approveBill = (b) => { if (!canDo) return toast.error("Not permitted"); const next = advanceBillStep(b); toast.success(`Bill ${next.permanentBillNo || next.refNo} approved by ${next.approverName}`); bump(); };
@@ -277,6 +294,34 @@ export default function GeneralManager() {
   const doReapproveBOQ = (b) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveBOQ(b); toast.success(`BOQ ${n.boqNo} re-approved by ${n.approvedByName}`); bump(); };
   const doReapproveWO = (w) => { if (!canDo) return toast.error("Not permitted"); const n = reapproveWO(w); toast.success(`Work Order ${n.woNo} re-approved by ${n.approvedByName}`); bump(); };
 
+  // ----- HR actions (new) -----
+  const approveEmployee = (e) => {
+    if (!canDo) return toast.error("Not permitted");
+    let cur = { ...e, doj: e.doj || new Date().toISOString().slice(0, 10) };
+    while (Number(cur.step) < 5) cur = advanceEmployeeStep(cur);
+    toast.success(`Employee ${cur.fullName} finalized · EMP Code: ${cur.empCode}`); bump();
+  };
+  const approveLeaveGM = (l) => {
+    if (!canDo) return toast.error("Not permitted");
+    approveLeave(l.id, true);
+    toast.success(`Leave of ${l.empName || l.empCode || "employee"} approved`); bump();
+  };
+  const approveExitGM = (x) => {
+    if (!canDo) return toast.error("Not permitted");
+    finalizeExit(x.id);
+    toast.success(`Exit finalized · F&F settled for ${x.empName || x.empCode || "employee"}`); bump();
+  };
+  const approveRecruitGM = (r) => {
+    if (!canDo) return toast.error("Not permitted");
+    upsertRecruit({ ...r, status: 4, offerApprovedByName: gmName, offerApprovedAt: new Date().toISOString() });
+    toast.success(`Offer released for ${r.candidateName}`); bump();
+  };
+  const doReapproveEmp = (e) => {
+    if (!canDo) return toast.error("Not permitted");
+    const n = reapproveEmployee(e);
+    toast.success(`Employee ${n.fullName} re-approved`); bump();
+  };
+
   const pendingInbox = (
     <div data-testid="gm-inbox-pending">
       <DeptGroup index={1} title="Vendor Management" tone="#0369a1">
@@ -294,6 +339,12 @@ export default function GeneralManager() {
       </DeptGroup>
       <DeptGroup index={5} title="Payment Vouchers" tone="#7c3aed">
         <InboxSection testid="inbox-vouchers" title="Payment Vouchers pending" tone="#7c3aed" icon={CreditCard} items={stats.vouchersPending} onOpen={() => nav("/final")} onApprove={approveVoucher} colLabels={["PV No.", "Vendor", "Amount"]} rowRender={(p) => [p.pvNo, p.vendorSnapshot?.firmName || p.vendorCode, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`]} />
+      </DeptGroup>
+      <DeptGroup index={6} title="HR Management — Employees, Leaves, Recruitment, Exit" tone="#c026d3">
+        <InboxSection testid="inbox-emps" title="Employees pending Final Approval" tone="#c026d3" icon={UserCheck} items={stats.empsPending} onOpen={() => nav("/hr")} onApprove={approveEmployee} colLabels={["Temp Code", "Name", "Applied Post"]} rowRender={(e) => [e.tempCode || "—", e.fullName || "—", e.appliedPost || e.designation || "—"]} />
+        <InboxSection testid="inbox-leaves" title="Leave Applications pending" tone="#f59e0b" icon={Calendar} items={stats.leavesPending} onOpen={() => nav("/hr")} onApprove={approveLeaveGM} colLabels={["Employee", "Type", "Days (From → To)"]} rowRender={(l) => [l.empName || l.empCode || "—", l.type || "—", `${l.days || 0} days · ${l.from || "—"} → ${l.to || "—"}`]} />
+        <InboxSection testid="inbox-recruits" title="Recruitment Offers pending release" tone="#16a34a" icon={Briefcase} items={stats.recruitsPending} onOpen={() => nav("/hr")} onApprove={approveRecruitGM} colLabels={["Candidate", "Position", "Offer CTC"]} rowRender={(r) => [r.candidateName || "—", `${r.position || "—"} · ${r.department || "—"}`, `₹ ${Number(r.offerCTC || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-exits" title="Exit & F&F pending finalization" tone="#991b1b" icon={LogOut} items={stats.exitsPending} onOpen={() => nav("/hr")} onApprove={approveExitGM} colLabels={["Employee", "LWD", "Net F&F"]} rowRender={(x) => [x.empName || x.empCode || "—", x.lastWorkingDay || "—", `₹ ${Number(x.fnfNet || 0).toLocaleString("en-IN")}`]} />
       </DeptGroup>
     </div>
   );
@@ -324,18 +375,22 @@ export default function GeneralManager() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div style={{ minHeight: "100vh", background: "#f1f5f9", paddingBottom: 40 }}>
-        <div style={{ maxWidth: 1360, margin: "0 auto", padding: "18px 20px" }} data-testid="gm-page">
+        <div style={{ maxWidth: "100%", margin: "0 auto", padding: "18px 24px" }} data-testid="gm-page">
           {/* Hero header */}
           <HeroHeader gmName={gmName} canDo={canDo} totalPending={totalPending} totalApproved={totalApproved} />
 
           {/* KPI grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginTop: 16 }} data-testid="gm-kpi-grid">
-            <KpiCard testid="kpi-vendors"  icon={Users}         label="Vendors"         tone="#0369a1" pending={stats.vendorPending.length}    approved={stats.vendorApproved.length}   total={vendors.length}  onOpen={() => nav("/vendor")} />
-            <KpiCard testid="kpi-boqs"     icon={ClipboardList} label="BOQs"            tone="#0ea5e9" pending={stats.boqsPending.length}      approved={stats.boqsApproved.length}     total={boqs.length}     onOpen={() => nav("/purchase")} />
-            <KpiCard testid="kpi-wos"      icon={FileText}      label="Work Orders"     tone="#15803d" pending={stats.wosPending.length}       approved={stats.wosApproved.length}      total={wos.length}      onOpen={() => nav("/purchase")} />
-            <KpiCard testid="kpi-bills"    icon={Receipt}       label="Bills"           tone="#16a34a" pending={stats.billsPending.length}     approved={stats.billsApproved.length}    total={bills.length}    onOpen={() => nav("/bill")} />
-            <KpiCard testid="kpi-expenses" icon={Wallet}        label="Expenses"        tone="#f59e0b" pending={stats.expensesPending.length}  approved={stats.expensesApproved.length} total={expenses.length} onOpen={() => nav("/expense")} />
-            <KpiCard testid="kpi-vouchers" icon={CreditCard}    label="Payment Vouchers" tone="#7c3aed" pending={stats.vouchersPending.length}  approved={stats.vouchersApproved.length} total={payments.length} onOpen={() => nav("/final")} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginTop: 16 }} data-testid="gm-kpi-grid">
+            <KpiCard testid="kpi-vendors"  icon={Users}         label="Vendors"          tone="#0369a1" pending={stats.vendorPending.length}    approved={stats.vendorApproved.length}   total={vendors.length}   onOpen={() => nav("/vendor")} />
+            <KpiCard testid="kpi-boqs"     icon={ClipboardList} label="BOQs"             tone="#0ea5e9" pending={stats.boqsPending.length}      approved={stats.boqsApproved.length}     total={boqs.length}      onOpen={() => nav("/purchase")} />
+            <KpiCard testid="kpi-wos"      icon={FileText}      label="Work Orders"      tone="#15803d" pending={stats.wosPending.length}       approved={stats.wosApproved.length}      total={wos.length}       onOpen={() => nav("/purchase")} />
+            <KpiCard testid="kpi-bills"    icon={Receipt}       label="Bills"            tone="#16a34a" pending={stats.billsPending.length}     approved={stats.billsApproved.length}    total={bills.length}     onOpen={() => nav("/bill")} />
+            <KpiCard testid="kpi-expenses" icon={Wallet}        label="Expenses"         tone="#f59e0b" pending={stats.expensesPending.length}  approved={stats.expensesApproved.length} total={expenses.length}  onOpen={() => nav("/expense")} />
+            <KpiCard testid="kpi-vouchers" icon={CreditCard}    label="Payment Vouchers" tone="#7c3aed" pending={stats.vouchersPending.length}  approved={stats.vouchersApproved.length} total={payments.length}  onOpen={() => nav("/final")} />
+            <KpiCard testid="kpi-hr-emps"  icon={UserCheck}     label="HR · Employees"   tone="#c026d3" pending={stats.empsPending.length}      approved={stats.empsApproved.length}     total={employees.length} onOpen={() => nav("/hr")} />
+            <KpiCard testid="kpi-hr-leaves" icon={Calendar}     label="HR · Leaves"      tone="#f59e0b" pending={stats.leavesPending.length}    approved={stats.leavesApproved.length}   total={leaves.length}    onOpen={() => nav("/hr")} />
+            <KpiCard testid="kpi-hr-recruits" icon={Briefcase}  label="HR · Recruitment" tone="#16a34a" pending={stats.recruitsPending.length}  approved={stats.recruitsApproved.length} total={recruits.length}  onOpen={() => nav("/hr")} />
+            <KpiCard testid="kpi-hr-exits"  icon={LogOut}       label="HR · Exit & F&F"  tone="#991b1b" pending={stats.exitsPending.length}     approved={stats.exitsApproved.length}    total={exits.length}     onOpen={() => nav("/hr")} />
           </div>
 
           {/* Segmented tab bar */}

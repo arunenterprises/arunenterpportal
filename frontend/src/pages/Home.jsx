@@ -222,36 +222,63 @@ export default function Home() {
 
       <div className="app-shell">
         <div className="a4 home-a4" data-testid="home-a4">
-          <Header formTitle="Departmental Control Panel" />
+          <Header formTitle="Organisation Control Panel" />
 
-          <div className="dept-grid" data-testid="dept-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
-            {visibleDepts.map((d) => {
-              const allowed = d.id === "users" ? superAdmin : d.roles.includes(role);
-              return (
-                <DepartmentCard
-                  key={d.id}
-                  dept={d}
-                  badge={badges[d.id]}
-                  allowed={allowed}
-                  onClick={() => { if (allowed) nav(d.to); }}
-                />
-              );
-            })}
+          {/* ---------- TIER 1 — Executive (GM) ---------- */}
+          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center", margin: "6px 0 0" }}>
+            <div style={{ width: "min(560px, 100%)" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 6 }}>Executive · Approval Authority</div>
+              {(() => {
+                const gm = DEPARTMENTS.find((d) => d.id === "gm");
+                const allowed = gm.roles.includes(role) || superAdmin;
+                return <DepartmentCard dept={gm} badge={badges.gm} allowed={allowed} onClick={() => allowed && nav(gm.to)} />;
+              })()}
+            </div>
           </div>
 
-          {superAdmin && (
-            <div className="home-super-row" data-testid="home-super-row">
-              <button
-                className="super-btn"
-                data-testid="btn-open-users"
-                onClick={() => nav("/users")}
-              >
-                <UserCog size={16} /> User Management (SuperAdmin) →
-              </button>
-              <div className="super-note">
-                Super Admin panel: employee onboarding, role assignment, password reset, logo upload, reset all data.
-              </div>
+          {/* Connector line */}
+          <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "4px 0" }}>
+            <div style={{ width: 2, height: 22, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
+          </div>
+          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 8%, #cbd5e1 15%, #cbd5e1 85%, transparent 92%)", margin: "0 4%" }} />
+
+          {/* ---------- TIER 2 — Operating Departments ---------- */}
+          <div data-testid="org-tier-2" style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#0f172a", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 8 }}>Operating Departments</div>
+            <div className="dept-grid" data-testid="dept-grid" style={{ gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+              {["vendor", "purchase", "accounts", "hr", "reports"].map((id) => {
+                const d = DEPARTMENTS.find((x) => x.id === id);
+                if (!d) return null;
+                const allowed = d.roles.includes(role) || superAdmin;
+                return (
+                  <DepartmentCard
+                    key={d.id}
+                    dept={d}
+                    badge={badges[d.id]}
+                    allowed={allowed}
+                    onClick={() => { if (allowed) nav(d.to); }}
+                  />
+                );
+              })}
             </div>
+          </div>
+
+          {/* ---------- TIER 3 — Administration (SuperAdmin only) ---------- */}
+          {superAdmin && (
+            <>
+              <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "10px 0 4px" }}>
+                <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
+              </div>
+              <div data-testid="org-tier-3" style={{ display: "flex", justifyContent: "center" }}>
+                <div style={{ width: "min(560px, 100%)" }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#991b1b", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 6 }}>System Administration · SuperAdmin</div>
+                  {(() => {
+                    const u = DEPARTMENTS.find((d) => d.id === "users");
+                    return <DepartmentCard dept={u} badge={badges.users} allowed={true} onClick={() => nav(u.to)} />;
+                  })()}
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
