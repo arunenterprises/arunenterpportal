@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { CheckCircle2, Search, Plus, X } from "lucide-react";
+import { CheckCircle2, Search, Plus, X, FilePlus2, Save, Pencil, Send, Printer, Download, FileSearch } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
@@ -12,7 +12,7 @@ import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
-  getWOs,
+  getWOs, canCreate, canApprove,
 } from "../lib/store";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
@@ -428,6 +428,31 @@ export default function BillProcessing() {
 
         <div className="a4" data-testid="bill-page">
           <Header formTitle="ACCOUNTS DEPARTMENT · BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />
+
+          {/* Inline Action Buttons — matches BOQ / WO / HR style */}
+          <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="bill-action-row">
+            {/* Left — Workflow */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Workflow</span>
+              <button data-testid="bill-btn-new" onClick={handleNew} disabled={!canCreate()} style={{ padding: "7px 12px", background: canCreate() ? "#0369a1" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><FilePlus2 size={13} /> New Bill</button>
+              <button data-testid="bill-btn-edit" onClick={handleEdit} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", background: bill.step >= 5 ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Pencil size={13} /> Edit</button>
+              <button data-testid="bill-btn-save" onClick={handleSave} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Save size={13} /> Save Bill</button>
+              <button data-testid="bill-btn-submit" onClick={handleSubmit} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Send size={13} /> Submit</button>
+              <button data-testid="bill-btn-query" onClick={() => openQuery()} style={{ padding: "7px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><FileSearch size={13} /> Vendor Query</button>
+            </div>
+            {/* Center — Approval */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <button data-testid="bill-btn-approve" onClick={handleApprove} disabled={!canApprove() || bill.step !== 4} style={{ padding: "7px 14px", background: canApprove() && bill.step === 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() && bill.step === 4 ? "pointer" : "not-allowed", opacity: canApprove() && bill.step === 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><CheckCircle2 size={13} /> Final Approval</button>
+            </div>
+            {/* Right — Export */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Export</span>
+              <button data-testid="bill-btn-export-json" onClick={handleExportJSON} style={{ padding: "7px 12px", background: "#64748b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Download size={13} /> JSON</button>
+              <button data-testid="bill-btn-export-excel" onClick={handleExportExcel} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>⬇ Excel</button>
+              <button data-testid="bill-btn-print" onClick={handlePrint} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print</button>
+            </div>
+          </div>
+
           <StepTabs
             step={bill.step}
             labels={[BILL_STEP_LABEL[1], BILL_STEP_LABEL[2], BILL_STEP_LABEL[3], BILL_STEP_LABEL[4], BILL_STEP_LABEL[5]]}

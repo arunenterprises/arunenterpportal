@@ -98,18 +98,6 @@ export const TopActionBar = ({
 
   return (
     <div className={`top-action ${variant === "dark" ? "dark" : ""}`} data-testid="top-action-bar">
-      <form className="search-wrap" onSubmit={submitSearch}>
-        <input
-          data-testid="search-input"
-          placeholder={searchPlaceholder}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </form>
-      <button className="btn-color btn-search" data-testid="btn-search" onClick={submitSearch}>
-        <FileSearch size={14} /><span className="lbl">{searchLabel}</span>
-      </button>
-
       {prevLabel && (
         <button className="btn-color btn-prev" data-testid="btn-prev-page" onClick={() => navigate(prevTo)}>
           <ArrowLeft size={14} /><span className="lbl">{prevLabel}</span>
@@ -174,9 +162,6 @@ export const TopActionBar = ({
         </>
       )}
 
-      <div className="user-chip" data-testid="user-chip">
-        <User size={14} /><b style={{ fontSize: 13, letterSpacing: 0.3 }}>{user || "admin"}</b>
-      </div>
     </div>
   );
 };
