@@ -1528,7 +1528,7 @@ const IDCardTab = () => {
   .front .ftop .logo-box img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
   .front .ftop .cn { font-size: 11.5px; font-weight: 900; letter-spacing: 1.4px; margin-top: 1.2mm; }
   .front .ftop .tag { font-size: 6.5px; font-weight: 700; letter-spacing: .3px; color: #fbbf24; margin-top: 0.8mm; width: 92%; text-align: center; line-height: 1.2; }
-  .front .fmid { padding: 2mm 3mm 1mm; flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .front .fmid { padding: 2mm 3mm 0.5mm; flex: 1; display: flex; flex-direction: column; align-items: center; }
   .front .fmid .photo-ring { width: 26mm; height: 30mm; border-radius: 1.5mm; border: 0.6mm solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #64748b; font-weight: 700; box-shadow: 0 0.5mm 1.5mm rgba(30,58,138,.25); flex-shrink: 0; }
   .front .fmid .name { font-size: 11px; font-weight: 900; letter-spacing: .8px; color: #1e3a8a; margin-top: 1.2mm; text-align: center; line-height: 1.1; }
   .front .fmid .desig { font-size: 8px; font-weight: 800; color: #dc2626; letter-spacing: 1.1px; text-transform: uppercase; margin-top: 0.5mm; text-align: center; }
@@ -1538,9 +1538,9 @@ const IDCardTab = () => {
   .front .fmid .data .k { font-weight: 800; color: #0f172a; letter-spacing: .4px; font-size: 8px; }
   .front .fmid .data .sep { color: #475569; font-weight: 800; text-align: center; }
   .front .fmid .data .v { font-weight: 800; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8.5px; }
-  .front .fbot { background: #1e3a8a; color: #fff; padding: 1.5mm 3mm 2mm; text-align: center; }
-  .front .fbot .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 12px; color: #fff; font-style: italic; line-height: 1; }
-  .front .fbot .slabel { font-size: 6.5px; font-weight: 800; letter-spacing: 1px; color: #fbbf24; border-top: 0.3mm solid #fff; padding-top: 0.5mm; margin-top: 0.5mm; width: 32mm; margin-left: auto; margin-right: auto; }
+  .front .fbot { background: #1e3a8a; color: #fff; padding: 1mm 3mm 1.2mm; text-align: center; }
+  .front .fbot .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 11px; color: #fff; font-style: italic; line-height: 1; }
+  .front .fbot .slabel { font-size: 6px; font-weight: 800; letter-spacing: 1px; color: #fbbf24; border-top: 0.3mm solid #fff; padding-top: 0.3mm; margin-top: 0.3mm; width: 30mm; margin-left: auto; margin-right: auto; }
   /* BACK */
   .back .btop { position: relative; height: 42mm; background: #1e3a8a; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
   .back .btop .logo-box { width: 20mm; height: 20mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1.2mm 3mm rgba(0,0,0,.4); border: 0.6mm solid #fff; }
@@ -1675,7 +1675,7 @@ const IDCardTab = () => {
               <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .3, color: "#fbbf24", marginTop: 2, width: "92%", textAlign: "center", lineHeight: 1.2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
             </div>
             {/* Middle white block — photo + name + designation + data rows */}
-            <div style={{ padding: "8px 12px 6px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", minHeight: 0 }}>
+            <div style={{ padding: "8px 12px 4px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", minHeight: 0 }}>
               <div style={{ width: 95, height: 110, borderRadius: 5, border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#64748b", fontWeight: 700, boxShadow: "0 2px 5px rgba(30,58,138,.25)", flexShrink: 0 }}>
                 {emp.photoUrl ? "" : "PHOTO"}
               </div>
@@ -1698,10 +1698,10 @@ const IDCardTab = () => {
                 ))}
               </div>
             </div>
-            {/* Bottom navy block — signature */}
-            <div style={{ background: "#1e3a8a", color: "#fff", padding: "4px 12px 6px", textAlign: "center" }}>
-              <div style={{ fontFamily: "'Brush Script MT','Lucida Handwriting',cursive", fontSize: 13, fontStyle: "italic", color: "#fff", lineHeight: 1 }}>{(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
-              <div style={{ fontSize: 6.5, fontWeight: 800, letterSpacing: 1, color: "#fbbf24", borderTop: "0.5px solid #fff", paddingTop: 1, marginTop: 1, width: 115, marginLeft: "auto", marginRight: "auto" }}>AUTHORIZED SIGNATURE</div>
+            {/* Bottom navy block — signature (compact) */}
+            <div style={{ background: "#1e3a8a", color: "#fff", padding: "3px 12px 4px", textAlign: "center" }}>
+              <div style={{ fontFamily: "'Brush Script MT','Lucida Handwriting',cursive", fontSize: 12, fontStyle: "italic", color: "#fff", lineHeight: 1 }}>{(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
+              <div style={{ fontSize: 6, fontWeight: 800, letterSpacing: 1, color: "#fbbf24", borderTop: "0.5px solid #fff", paddingTop: 1, marginTop: 1, width: 110, marginLeft: "auto", marginRight: "auto" }}>AUTHORIZED SIGNATURE</div>
             </div>
           </div>
 
