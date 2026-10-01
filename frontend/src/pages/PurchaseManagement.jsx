@@ -334,6 +334,32 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
         <button data-testid="boq-btn-new" onClick={startNew} style={{ padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
           <FilePlus2 size={13} /> New
         </button>
+        <button data-testid="boq-btn-edit" onClick={() => {
+          const approved = Number(boq.step) >= 4;
+          if (approved) {
+            if (!canDeleteApproved()) { toast.error("Only Admin / SuperAdmin can re-open Approved BOQ"); return; }
+            const label = boq.boqNo || boq.tempRefId || boq.projectSite || "this BOQ";
+            if (!window.confirm(`⚠ Re-open APPROVED BOQ "${label}" for editing?\n\n• Status wapas "Submitted — Pending Approval" (step 3) ho jayega\n• BOQ number intact rahega\n• Changes ke baad Re-Approval zaruri hogi\n\nContinue?`)) return;
+            const reopened = {
+              ...boq,
+              step: 3,
+              approvedByName: "",
+              approvalDate: "",
+              history: [...(boq.history || []), { action: "Re-opened for Edit by Admin", at: new Date().toISOString() }],
+            };
+            const saved = upsertBOQ(reopened);
+            setBoq(saved);
+            setLocked(false);
+            refresh();
+            toast.success("BOQ re-opened. Make changes → Save → Re-Approve.");
+            return;
+          }
+          if (!writeAllowed) { toast.error("Not permitted"); return; }
+          if (!locked) { toast.success("Already in edit mode"); return; }
+          setLocked(false); toast.success("Edit mode enabled");
+        }} disabled={Number(boq.step) >= 4 ? !canDeleteApproved() : !writeAllowed} style={{ padding: "8px 14px", background: Number(boq.step) >= 4 ? (canDeleteApproved() ? "#b45309" : "#94a3b8") : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: (Number(boq.step) >= 4 ? canDeleteApproved() : writeAllowed) ? "pointer" : "not-allowed", opacity: (Number(boq.step) >= 4 ? canDeleteApproved() : writeAllowed) ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          ✏ {Number(boq.step) >= 4 ? "Re-open & Edit (Admin)" : "Edit"}
+        </button>
         <button data-testid="boq-btn-save" onClick={handleSave} disabled={!writeAllowed || locked} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Save size={13} /> Save
         </button>
@@ -386,16 +412,21 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                       <button
                         data-testid={`boq-list-delete-${b.id}`}
                         onClick={() => {
-                          if (!writeAllowed) { toast.error("Not permitted"); return; }
-                          if (Number(b.step) >= 4) { toast.error("Approved BOQ delete nahi kar sakte"); return; }
-                          if (!window.confirm(`Delete BOQ ${b.boqNo || b.tempRefId || b.projectSite}?`)) return;
+                          const approved = Number(b.step) >= 4;
+                          if (approved && !canDeleteApproved()) { toast.error("Only Admin / SuperAdmin can delete Approved BOQ"); return; }
+                          if (!approved && !writeAllowed) { toast.error("Not permitted"); return; }
+                          const label = b.boqNo || b.tempRefId || b.projectSite || "";
+                          const msg = approved
+                            ? `⚠ DANGER: Delete APPROVED BOQ ${label}?\n\nThis permanently removes an approved BOQ and cannot be undone.\n\nPress OK only if you are absolutely sure.`
+                            : `Delete BOQ ${label}?`;
+                          if (!window.confirm(msg)) return;
                           deleteBOQ(b.id);
-                          toast.success("BOQ deleted");
+                          toast.success(approved ? "Approved BOQ deleted (admin override)" : "BOQ deleted");
                           setList(getBOQs());
                           if (boq && boq.id === b.id) startNew();
                         }}
-                        title={Number(b.step) >= 4 ? "Approved BOQ cannot be deleted" : "Delete this BOQ"}
-                        disabled={!writeAllowed || Number(b.step) >= 4}
+                        title={Number(b.step) >= 4 ? (canDeleteApproved() ? "Admin override — delete Approved BOQ" : "Only Admin / SuperAdmin can delete Approved BOQ") : "Delete this BOQ"}
+                        disabled={Number(b.step) >= 4 ? !canDeleteApproved() : !writeAllowed}
                         style={{
                           padding: "3px 8px",
                           background: (!writeAllowed || Number(b.step) >= 4) ? "#f1f5f9" : "#fee2e2",
