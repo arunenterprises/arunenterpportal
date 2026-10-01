@@ -789,6 +789,22 @@ body {
   display: flex; flex-direction: column; gap: 10px;
   font: inherit;
 }
+/* ---- Home fit-on-screen compact overrides ---- */
+.home-fit .dept-card {
+  min-height: 0;
+  height: 100%;
+  padding: 10px 12px;
+  gap: 5px;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, .14);
+}
+.home-fit .dept-card-header { gap: 8px; }
+.home-fit .dept-card-header svg { width: 22px; height: 22px; }
+.home-fit .dept-title { font-size: 13px; letter-spacing: .2px; }
+.home-fit .dept-sub { font-size: 8.5px; margin-top: 0; }
+.home-fit .dept-lines { font-size: 10px; line-height: 1.35; padding-left: 14px; margin: 3px 0 0 0; }
+.home-fit .dept-lines li { margin-bottom: 1px; }
+.home-fit .dept-cta { padding: 4px 8px; font-size: 10px; margin-top: auto; }
 .dept-card:hover:not(:disabled) {
   transform: translateY(-3px);
   box-shadow: 0 12px 32px rgba(15, 23, 42, .25);
