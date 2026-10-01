@@ -233,9 +233,9 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* Bio-Data Application Form — Photo + Personal + Job */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a" }}>A. Personal Details</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 150px", gap: 16 }}>
           {/* Personal fields grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             <F label="Full Name" req><input value={emp.fullName} onChange={(e) => set("fullName", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-name" /></F>
             <F label="Father's Name"><input value={emp.fatherName} onChange={(e) => set("fatherName", e.target.value)} disabled={locked} style={inputStyle} /></F>
             <F label="Mother's Name"><input value={emp.motherName || ""} onChange={(e) => set("motherName", e.target.value)} disabled={locked} style={inputStyle} /></F>
@@ -247,15 +247,15 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
             <F label="Nationality"><input value={emp.nationality || "Indian"} onChange={(e) => set("nationality", e.target.value)} disabled={locked} style={inputStyle} /></F>
             <F label="Religion"><input value={emp.religion || ""} onChange={(e) => set("religion", e.target.value)} disabled={locked} style={inputStyle} /></F>
             <F label="Category"><select value={emp.category || "General"} onChange={(e) => set("category", e.target.value)} disabled={locked} style={inputStyle}><option>General</option><option>OBC</option><option>SC</option><option>ST</option><option>EWS</option></select></F>
-            <F label="Aadhaar"><input value={emp.aadhaar} onChange={(e) => set("aadhaar", e.target.value.replace(/\D/g, "").slice(0, 12))} disabled={locked} style={inputStyle} /></F>
-            <F label="PAN"><input value={emp.pan} onChange={(e) => set("pan", e.target.value.toUpperCase().slice(0, 10))} disabled={locked} style={inputStyle} /></F>
+            <F label="Aadhaar No."><input value={emp.aadhaar} onChange={(e) => set("aadhaar", e.target.value.replace(/\D/g, "").slice(0, 12))} disabled={locked} style={inputStyle} placeholder="12 digits" /></F>
+            <F label="PAN No."><input value={emp.pan} onChange={(e) => set("pan", e.target.value.toUpperCase().slice(0, 10))} disabled={locked} style={inputStyle} placeholder="ABCDE1234F" /></F>
           </div>
           {/* Photo (right-top) */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 120, height: 150, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.photoUrl ? `url(${emp.photoUrl}) center/cover` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
-              {!emp.photoUrl && "Passport Photo\n(120×150, ≤ 500KB)"}
+            <div style={{ width: 130, height: 160, border: "2px solid #0f172a", borderRadius: 4, background: emp.photoUrl ? `url(${emp.photoUrl}) center/cover` : "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center", lineHeight: 1.3 }}>
+              {!emp.photoUrl && (<span>Passport<br/>Photo<br/>(120×150)<br/>≤ 500KB</span>)}
             </div>
-            <label style={{ padding: "4px 10px", background: "#0369a1", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
+            <label style={{ padding: "5px 14px", background: "#0369a1", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700, opacity: locked ? .5 : 1 }}>
               Upload Photo
               <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
                 const f = e.target.files?.[0]; if (!f) return;
@@ -263,7 +263,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
                 const r = new FileReader(); r.onload = () => set("photoUrl", r.result); r.readAsDataURL(f);
               }} style={{ display: "none" }} data-testid="emp-photo" />
             </label>
-            <div style={{ fontSize: 9, color: "#94a3b8", textAlign: "center" }}>JPG / PNG · ≤ 500KB</div>
+            <div style={{ fontSize: 9, color: "#64748b", textAlign: "center" }}>JPG / PNG · ≤ 500KB</div>
           </div>
         </div>
       </div>
@@ -414,41 +414,10 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         </div>
       </div>
 
-      {/* Declaration */}
-      <div className="section" style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, marginBottom: 12 }}>
-        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#fef3c7", borderBottom: "1px solid #fde68a", color: "#78350f" }}>I. Declaration</div>
-        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 180px", gap: 14, alignItems: "start" }}>
-          <div>
-            <div style={{ fontSize: 11.5, color: "#78350f", lineHeight: 1.6, marginBottom: 10 }}>
-              I hereby declare that the information furnished above is true, correct and complete to the best of my knowledge and belief. I understand that in case any particular is found to be false or incorrect at any stage, my candidature / services are liable to be terminated without notice.
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-              <F label="Place"><input value={emp.declarationPlace || ""} onChange={(e) => set("declarationPlace", e.target.value)} disabled={locked} style={inputStyle} /></F>
-              <F label="Date"><input type="date" value={emp.declarationDate || ""} onChange={(e) => set("declarationDate", e.target.value)} disabled={locked} style={inputStyle} /></F>
-            </div>
-          </div>
-          {/* Signature (right-bottom) */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 160, height: 70, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.signatureUrl ? `url(${emp.signatureUrl}) center/contain no-repeat #fff` : "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
-              {!emp.signatureUrl && "Candidate\nSignature\n(≤ 500KB)"}
-            </div>
-            <label style={{ padding: "4px 10px", background: "#7c3aed", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
-              Upload Signature
-              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
-                const f = e.target.files?.[0]; if (!f) return;
-                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Signature must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
-                const r = new FileReader(); r.onload = () => set("signatureUrl", r.result); r.readAsDataURL(f);
-              }} style={{ display: "none" }} data-testid="emp-signature" />
-            </label>
-            <div style={{ fontSize: 9, color: "#64748b", textAlign: "center" }}>Signature of Candidate<br/>JPG / PNG · ≤ 500KB</div>
-          </div>
-        </div>
-      </div>
-
-      {/* J. Documents Upload */}
+      {/* I. Documents Upload */}
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>J. Documents Upload (Aadhaar, PAN, Education, Experience etc. · each ≤ 500KB)</span>
+          <span>I. Documents Upload (Aadhaar, PAN, Education, Experience etc. · each ≤ 500KB)</span>
           <label style={{ padding: "4px 10px", background: locked ? "#e2e8f0" : "#16a34a", color: locked ? "#64748b" : "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10.5, fontWeight: 700 }}>
             + Add Document
             <input type="file" accept="image/*,.pdf" multiple disabled={locked} onChange={(e) => {
@@ -492,6 +461,37 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         </div>
       </div>
 
+      {/* J. Declaration (moved below Documents) */}
+      <div className="section" style={{ background: "#fffbeb", border: "1.5px solid #fde68a", borderRadius: 8, marginBottom: 12 }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#fef3c7", borderBottom: "1px solid #fde68a", color: "#78350f" }}>J. Declaration</div>
+        <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1fr 180px", gap: 14, alignItems: "start" }}>
+          <div>
+            <div style={{ fontSize: 11.5, color: "#78350f", lineHeight: 1.6, marginBottom: 10 }}>
+              I hereby declare that the information furnished above is true, correct and complete to the best of my knowledge and belief. I understand that in case any particular is found to be false or incorrect at any stage, my candidature / services are liable to be terminated without notice.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+              <F label="Place"><input value={emp.declarationPlace || ""} onChange={(e) => set("declarationPlace", e.target.value)} disabled={locked} style={inputStyle} /></F>
+              <F label="Date"><input type="date" value={emp.declarationDate || ""} onChange={(e) => set("declarationDate", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            </div>
+          </div>
+          {/* Signature (right-bottom) */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 160, height: 70, border: "1.5px dashed #94a3b8", borderRadius: 6, background: emp.signatureUrl ? `url(${emp.signatureUrl}) center/contain no-repeat #fff` : "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 10, textAlign: "center" }}>
+              {!emp.signatureUrl && "Candidate\nSignature\n(≤ 500KB)"}
+            </div>
+            <label style={{ padding: "4px 10px", background: "#7c3aed", color: "#fff", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: locked ? .5 : 1 }}>
+              Upload Signature
+              <input type="file" accept="image/*" disabled={locked} onChange={(e) => {
+                const f = e.target.files?.[0]; if (!f) return;
+                if (f.size > MAX_UPLOAD_KB * 1024) { toast.error(`Signature must be ≤ ${MAX_UPLOAD_KB}KB (uploaded ${Math.round(f.size / 1024)}KB)`); e.target.value = ""; return; }
+                const r = new FileReader(); r.onload = () => set("signatureUrl", r.result); r.readAsDataURL(f);
+              }} style={{ display: "none" }} data-testid="emp-signature" />
+            </label>
+            <div style={{ fontSize: 9, color: "#64748b", textAlign: "center" }}>Signature of Candidate<br/>JPG / PNG · ≤ 500KB</div>
+          </div>
+        </div>
+      </div>
+
       {/* All employees list */}
       {list.length > 0 && (
         <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
@@ -523,6 +523,34 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
           </table>
         </div>
       )}
+
+      {/* Bottom Workflow Button Bar (full width) */}
+      <div className="section" style={{ marginTop: 14, background: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)", border: "1.5px solid #0f172a", borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ padding: "8px 14px", background: "#0f172a", color: "#fff", fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Workflow · Approval Chain</span>
+          <span style={{ fontSize: 10.5, fontWeight: 600, color: "#cbd5e1", textTransform: "none", letterSpacing: 0 }}>Current Step: <b style={{ color: "#fbbf24" }}>{EMPLOYEE_STEP_LABEL[emp.step] || "-"}</b> · Rev: {emp.revision || 0}</span>
+        </div>
+        <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+          <button data-testid="wf-new" onClick={startNew} style={{ padding: "12px 10px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <UserPlus size={18} /> New
+          </button>
+          <button data-testid="wf-save" onClick={save} disabled={!writeAllowed || locked} style={{ padding: "12px 10px", background: !writeAllowed || locked ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 6, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <Save size={18} /> Save
+          </button>
+          <button data-testid="wf-edited" onClick={save} disabled={!writeAllowed || locked} title="Save current edits" style={{ padding: "12px 10px", background: !writeAllowed || locked ? "#cbd5e1" : "#0891b2", color: "#fff", border: "none", borderRadius: 6, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <RefreshCw size={18} /> Edited
+          </button>
+          <button data-testid="wf-submitted" onClick={submit} disabled={!writeAllowed || locked || Number(emp.step) >= 5} style={{ padding: "12px 10px", background: !writeAllowed || locked || Number(emp.step) >= 5 ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 6, cursor: !writeAllowed || locked || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !writeAllowed || locked || Number(emp.step) >= 5 ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <Send size={18} /> Submitted
+          </button>
+          <button data-testid="wf-approval" onClick={approve} disabled={!approveAllowed || Number(emp.step) >= 5} style={{ padding: "12px 10px", background: !approveAllowed || Number(emp.step) >= 5 ? "#cbd5e1" : "#dc2626", color: "#fff", border: "none", borderRadius: 6, cursor: !approveAllowed || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !approveAllowed || Number(emp.step) >= 5 ? .6 : 1, fontWeight: 800, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <CheckCircle2 size={18} /> Approval
+          </button>
+        </div>
+        <div style={{ padding: "8px 14px", background: "#fef3c7", borderTop: "1px dashed #f59e0b", fontSize: 10.5, color: "#78350f", lineHeight: 1.5 }}>
+          <b>Permissions:</b> <span style={{ background: "#dcfce7", color: "#166534", padding: "1px 6px", borderRadius: 3, fontWeight: 700 }}>New / Save / Edited / Submitted</span> → available for <b>All (User / Admin / SuperAdmin)</b>. <span style={{ background: "#fee2e2", color: "#991b1b", padding: "1px 6px", borderRadius: 3, fontWeight: 700 }}>Approval</span> → only <b>Admin / SuperAdmin</b> can finalize &amp; issue permanent EMP code.
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,83 +1,88 @@
-# Vendor Management — Arun Enterprises
+# Arun Enterprises — Vendor Management & HR System · PRD
 
-## Original problem
-3-page vendor management HTML app for Arun Enterprises. Every page has the same
-7 workflow buttons (New, Save, Edit, Submit, Final Approval, Export JSON/Excel,
-Print), A4 portrait layout with company header, and a linear approval workflow.
-
-## User choices
-- Storage: browser **localStorage** only (no backend)
-- Auth: **user list with admin/admin@123 seed**; admin can create/delete users
-- Exports: Excel + JSON + Print (all pages)
-- Vendor code: temp `TMP-XXXXXXXX` (issued on first Save) → permanent `AE####JV####` after Final Approval
-- Bill numbering: temp `AE####FY` (on draft) → permanent `BILL####FY` (primary key on Step 5)
-- Bill fields: standard set + full multi-stage approval + Item & Work Scope breakdown
+## Original Problem Statement
+Build a multi-page Vendor Management, Bill Processing, Expense Management, Purchase Management (BOQ/WO), General Manager Dashboard, Reports, User Management, and HR Management application for Arun Enterprises. Hindi/Hinglish user. Strict A4 Landscape layout for most pages, A4 Portrait for HR letters and Employee Application.
 
 ## Architecture
-- React 19 SPA under `/app/frontend`; router: `react-router-dom`
-- State: local component state + `localStorage` via `/src/lib/store.js`
-- Excel: `xlsx` (SheetJS); JSON: browser Blob; Print: `@media print` A4 rules
-- **All 7 workflow buttons + Search + Prev/Next nav + Upload Logo + Logout** live
-  in a single fixed-bottom colored footer (`TopActionBar`), one row on desktop
-- Corporate look: navy `#0b3d91` / `#1e3a8a` + gold accent, Georgia/Segoe serif
+- **Backend**: FastAPI + MongoDB (Motor async driver). All API routes `/api/*`.
+- **Frontend**: React + Tailwind + Shadcn UI. Cross-device sync via `/api/snapshot` + `/api/sync` endpoints.
+- **State**: Hybrid — `localStorage` cache + cloud push/pull via `store.js`.
+- **Print**: Strict `@page { size: A4 landscape; margin: 8mm }` globally; A4 Portrait for HR letters via `window.open` in `hrLetters.js`.
+- **Auth**: JWT via `/api/auth/login`. Role-based + per-user permissions override (`permissions.{create,edit,submit,approve}` in auth profile, admin-editable via Users page tick/untick).
 
-## What's implemented (Feb 2026 — iteration 11)
-- **Feb 2026 (post-fix) Session Updates**:
-  - **P0 fix**: Added missing `fmtDMY` import to `VendorRegistration.jsx` — /vendor was throwing a runtime error and rendering blank for all roles. This was the root cause of the "user role me kaam nahi kar raha" complaint. Verified `/vendor` now compiles 200 and renders for all roles.
-  - **UNITS_DEFAULT dedupe**: removed duplicate "Container" and "Bar" entries — kills the React duplicate-key console warnings on Purchase page. 182 unique units remaining.
-  - **UsersAdmin gate hardened**: /users now explicitly allows `isSuperAdmin(me?.user)` in addition to `role === "Admin"` so a SuperAdmin whose stored role is anything other than literal "Admin" cannot be locked out.
-  - **GM Dashboard full redesign**: hero gradient header + 6 KPI cards (interactive, hover-lift, progress bar) + segmented pill tabs + numbered department groups + polished inbox cards with dept icons.
-  - **Per-user permission toggles**: `PATCH /api/users/{email}/permissions` endpoint; store.js `canCreate/edit/submit/approve` honour per-user overrides; UsersAdmin permission chips are now clickable toggles for SuperAdmin.
+## Core Modules
+1. **Vendor Registration** — Multi-step vendor onboarding with IFSC auto-fetch (Razorpay API).
+2. **Purchase Management** — BOQ → Work Orders → auto-sync to external Vendor Portal.
+3. **Bill Processing / Accounts** — Multi-step invoice approval.
+4. **Expense Process** — Expense claims with voucher generation.
+5. **General Manager Dashboard** — Centralized Pending Inbox for all approvals.
+6. **Reports** — Cross-module reporting with Excel export.
+7. **User Management** — Role + permission management (SuperAdmin / Admin / User).
+8. **HR Management** — Complete HR module (details below).
 
-## What's implemented (Feb 2026 — iteration 10)
-- **Feb 2026 Session Updates**:
-  - GeneralManager: added Work Order Approve / Re-Approve module (parity with BOQ) grouped department-wise (Purchase · Vendor · Accounts · Expense); removed redundant "Signed in as" role banner.
-  - BillProcessing: Work Order No. field now auto-fetches full WO data (vendor, dates, project, scope, line items) from approved Work Orders via datalist + onBlur lookup.
-  - Home page: all authed users (User / Purchase / Accounts / GM / Viewer) now see all department cards; only User Management stays SuperAdmin-only.
-  - App root: 1-second Arun Enterprises brand splash on first mount (session-scoped, does not repeat).
-  - PurchaseManagement: `A. BOQ Details` layout redesigned to a 12-col grid with 4 logical rows; removed the extra branded Header strip; BOQ subtitle `Bid of Quantity`; WO subtitle removed `(4-step)`.
-- Login (admin/**Arun2023@12** seed — updated Feb 2026, cloud-backed; admin can change via `/users`)
-- **Page 1 — Vendor Registration**: temp ID issued on first save, permanent
-  `AE####JV####` on Final Approval, expiry = approval + 2 years, project/site,
-  contact + address (city/state/pincode), bank details, 3-substep workflow with
-  role names, approval banner, colored A/B/C/... sections
-- **Page 2 — Bill Processing**: 5-step workflow (Submission → WO Verify →
-  Accounts Check → Mgmt Approval → Payment Due List), vendor autofill via Fetch
-  button, Work Order + Item summary, **Item & Work Scope Breakdown** with
-  add-row / delete / computed Amount / subtotal → Basic Amount, GST/TDS compute
-  panel, multi-stage substeps with checker/purchaser/accountant/approver names,
-  payment schedule with priority/mode/todo/release status, 4-signature row
-- **Page 3 — Final Processing** (single A4): Summary Dashboard, Due List with
-  overdue pill, **inline** Payment Voucher (D/E/F/G sections + signatures) and
-  **User Management** with create/delete (admin-only, seed admin protected)
-- **Footer bar** on every page: Search input + Search, Prev / Next page, New,
-  Save, Edit, Submit, Final Approval, Export (JSON / Excel), Print, Upload Logo,
-  Logout — all colored, one row, fixed to viewport bottom
-- **Logo upload**: PNG/JPG/SVG/WEBP → base64 in localStorage → visible in every
-  page header
-- Print CSS with A4 page-break rules
+## HR Management Module — Current Scope
 
-## Test credentials
-See `/app/memory/test_credentials.md`.
+### Tabs
+- Dashboard · Celebrations banner (birthdays + anniversaries · 7-day window)
+- **Employees** — Full Bio-Data Application Form (details below)
+- Attendance · Monthly grid with cycle-click P/A/L/H/W/HL
+- Leaves · Apply/Submit/Approve flow with auto-attendance marking
+- Payroll Slip · Salary slip + Push monthly aggregate to Accounts
+- Compliance · PF/ESIC/PT/TDS snapshot with Excel export
+- Recruitment · Candidate funnel with Offer Letter PDF generation
+- Exit & F&F · Resignation → Clearance → F&F → Experience + Relieving Letter PDFs
 
-## Deferred / backlog
-- Departmental Control Panel Home (4 big dept cards + SVG flow diagram) — **Done Feb 2026** (`/home` route after login; cards for Vendor, Purchase, Account, User Management; User Management gated to Super Admin)
-- Expense Process page (`/expense`) — **Done Feb 2026** (4-step workflow: Draft → Prepared → Checked → Approved & Paid; categories/payment modes/GST-TDS compute; receipt upload 300 KB; expenses register data sheet)
-- Approved Voucher Excel export (single or multi-select) — **Done Feb 2026** (per-row checkbox + Select-All + green "📥 Export Approved to Excel" button in Payments Register header)
-- Category Scope: Transportation & Loading/Unloading added; **Km** unit added — **Done Feb 2026**
-- "Item Description (Summary)" → "**Item Summary**" label rename — **Done Feb 2026**
-- "Previous Advance / Paid Amount" → "**Previous Bill & Amount**" (info only, not adjusted) — **Done Feb 2026**
-- Billed Qty ≤ WO Qty clamp + per-row Balance column + cumulative WO/Billed/Balance/WO-Value totals — **Done Feb 2026**
-- Work Order file upload (PDF/image, max 300 KB) + View link on Reports Due List (vendor-facing view) — **Done Feb 2026**
-- UTR/Ref appears on Reports Due List (`due-utr-*`) — vendor sees UTR after voucher approval — **Done Feb 2026**
-- HSN/SAC per-item field on Bill page — **Done Feb 2026**
-- Approved Bill Re-Approve — **Done Feb 2026**
-- Change Password from Admin Users panel — **Done Feb 2026**
-- Reset All Data (Danger Zone) — **Done Feb 2026**
-- Partial payments against a bill (multi-voucher allocation & live balance)
-- Vendor directory listing with filters
-- Aging buckets (0-30 / 31-60 / 61-90 / 90+) on due list
-- Excel/JSON import to restore data across browsers
-- Favicon replace (Arun logo)
-- Print watermark (faint Arun logo)
-- 1s splash-screen logo
+### Employee Application Form (A4 Portrait printable)
+
+**Header Codes Row**: Temp Code (AE/TMP/XXXXXX/XXX) · Permanent EMP Code (AE/EMP/XXXXXX/YY-YY) · Status/Step · Revision
+
+**Section Order**:
+1. **Application Reference & Position** (header) — Advertisement No, Date of Filing, Project/Site, Location, Applied Post (dropdown: Manager / Site Incharge / Engineer / Mason / Helper / Peon / Cashier / etc), Allotted Designation, Department, Reporting Manager, Date of Joining (readonly, auto-fills on Final Approval), Employment Status
+2. **A. Personal Details** — Left: Full Name, Father, Mother, Spouse, DOB, Gender, Marital, Blood Group, Nationality, Religion, Category, Aadhaar, PAN · Right: Passport Photo upload (120×150, ≤ 500KB)
+3. **B. Contact Details** — Mobile, Alt Mobile, Email · Present Address card (Line / City / State dropdown — 36 Indian states/UTs / PIN 6-digit) · Permanent Address card with "Same as Present" checkbox
+4. **C. Family Members** — Dynamic rows: Name, Relation (Father/Mother/Spouse/Son/Daughter/etc), DOB, Occupation, Contact
+5. **D. References** — Compact 2 cards: Name + Mobile + Relationship
+6. **E. Educational Qualifications** — Dynamic rows: Qualification, Board, Institute, Year, % / CGPA
+7. **F. Previous Work Experience** — Dynamic rows: Company, Designation, From, To, Last Salary, Reason
+8. **G. Bank & Statutory** — IFSC auto-fetch (Razorpay) + Account Type dropdown (Savings/Current/Salary/NRE/NRO) · Account No · auto-filled Bank/Branch/City/Address · PF/UAN/ESIC
+9. **H. Salary Structure** — Basic / HRA / DA / Special / Bonus / Gross (auto)
+10. **I. Documents Upload** — Multi-upload (≤500KB each): Aadhaar, PAN, Photo, Signature, Educational, Experience, etc. — categorized dropdown + View + Delete
+11. **J. Declaration** — Declaration text + Place + Date · Right: Candidate Signature upload (≤500KB)
+12. **K. All Employees** — Paginated list with Edit/Delete
+13. **Bottom Workflow Button Bar** (full-width, 5 buttons):
+    - **New / Save / Edited / Submitted** → All (User / Admin / SuperAdmin)
+    - **Approval** → only Admin / SuperAdmin
+    - Permission note strip visible below the buttons
+
+### HR Letter Generators (A4 Portrait · window.open)
+- **Offer Letter** — Recruitment tab, status ≥ Offered. Letterhead (logo + name + tagline + address + Tel/Email/Web + GSTIN), Ref No AE/HR/OL/YYYY/XXXXX, candidate addressee, CTC breakup table (Basic 50% / HRA 20% / DA 10% / Special 15% / Bonus 5% + Employer PF 12% + Gratuity 4.81% = Total CTC), 8 T&C clauses, signatory K.L. Srivastava · Director, candidate acceptance block.
+- **Experience Letter** — Exit tab, finalized. "TO WHOMSOEVER IT MAY CONCERN", Ref AE/HR/EXP/YYYY/XXXXXX, name/EMP code, tenure DOJ→LWD, 4 standard paragraphs, signatory.
+- **Relieving Letter** — Exit tab, finalized. Ref AE/HR/REL/YYYY/XXXXXX, addressee block, resignation acceptance, LWD, F&F amount, acknowledgement block, signatory.
+- **Employee Application Form (A4 Portrait)** — "Print A4 Portrait" button in form. Enhanced letterhead on top (name + tagline + full address + phone + email + web + GSTIN) + consolidated reference box + Photo embedded + all sections rendered as tables + Declaration with signature image + 4-column **"HR Workflow & Approval Chain"** table at bottom (Prepared By / Verified By / Department Manager / Authorized Signatory with names + designations + dates).
+
+## Completed Work (This Session — Feb 2026)
+- 2026-02-01: Bio-Data Employee Application form (10 sections) + Offer/Experience/Relieving letter generators
+- 2026-02-01: Field expansions — advertisementNo, dateOfFiling, projectSite, location, appliedPost, photoUrl, signatureUrl, structured addresses with 36-state dropdown, bank with Account Type + IFSC auto-fetch, documents multi-upload (≤500KB)
+- 2026-02-01: EMP code format → `AE/EMP/000NNN/YY-YY` (hyphenated FY via new `getFYHyphen()` helper)
+- 2026-02-01: Section reorganization — Job fields merged into Application Reference, compact 2-reference section
+- 2026-02-01: Section A layout — Personal fields LEFT (3-col grid), Photo TOP-RIGHT (130×160 bordered); Section I Declaration — content LEFT, Signature upload BOTTOM-RIGHT
+- 2026-02-01: Reordered — Declaration moved BELOW Documents (I. Documents → J. Declaration → K. All Employees)
+- 2026-02-01: Bottom full-width workflow button bar — New / Save / Edited / Submitted (All roles) / Approval (Admin+SuperAdmin only) with inline permission note
+- 2026-02-01: Enhanced Print PDF letterhead (phone + GSTIN) + 4-col "HR Workflow & Approval Chain" table at footer with auto-filled names
+- 2026-02-01: DOJ auto-fills with today's date on Final Approve
+- 2026-02-01: Upload size limit raised 100KB → 500KB (photo + signature + documents)
+- 2026-02-01: Fixed Exit Tab history visibility when no active employees · Approve button properly disabled for non-approvers in UI style
+
+## Pending / Backlog (P1 → P3)
+- **P1**: Refactor `/app/frontend/src/lib/store.js` (1340+ lines) → split into `auth_store.js`, `hr_store.js`, `vendor_store.js`, `api_client.js`
+- **P2**: Backend sync for Recruits + Exits (currently localStorage-only — not shared across users)
+- **P2**: Server-side validation for Employee Application fields + Aadhaar/PAN format validation
+- **P3**: Signature pad (draw on canvas) as alternative to image upload
+- **P3**: Pincode → City/State auto-fill via India Post API
+- **P3**: Government ID OCR auto-fill for Aadhaar/PAN fields
+
+## Known Infra Blocker
+- Production deployment stuck on AWS ECR limit (`customers-app` repo = 100K image cap). Platform-side issue, not code.
+
+## Test Credentials
+See `/app/memory/test_credentials.md`
