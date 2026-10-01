@@ -807,9 +807,9 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                 list[idx] = updated;
                 saveWOs(list);
                 setWo(updated);
-                const url = `${window.location.origin}/vendor-portal/wo/${wo.id}`;
+                const url = `https://vendor-portal-458.emergent.host/vendor-portal/wo/${wo.id}`;
                 navigator.clipboard?.writeText(url);
-                toast.success(`Vendor portal link copied: ${url.slice(0, 50)}…`);
+                toast.success(`Vendor portal link copied: ${url}`);
               }}
               style={{ padding: "7px 12px", background: wo.vendorPortalPublished ? "#059669" : "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(8,145,178,.3)" }}
             >
