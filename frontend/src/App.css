@@ -793,18 +793,18 @@ body {
 .home-fit .dept-card {
   min-height: 0;
   height: 100%;
-  padding: 10px 12px;
-  gap: 5px;
-  border-radius: 10px;
-  box-shadow: 0 3px 10px rgba(15, 23, 42, .14);
+  padding: 14px 16px;
+  gap: 7px;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .16);
 }
-.home-fit .dept-card-header { gap: 8px; }
-.home-fit .dept-card-header svg { width: 22px; height: 22px; }
-.home-fit .dept-title { font-size: 13px; letter-spacing: .2px; }
-.home-fit .dept-sub { font-size: 8.5px; margin-top: 0; }
-.home-fit .dept-lines { font-size: 10px; line-height: 1.35; padding-left: 14px; margin: 3px 0 0 0; }
-.home-fit .dept-lines li { margin-bottom: 1px; }
-.home-fit .dept-cta { padding: 4px 8px; font-size: 10px; margin-top: auto; }
+.home-fit .dept-card-header { gap: 10px; }
+.home-fit .dept-card-header svg { width: 26px; height: 26px; }
+.home-fit .dept-title { font-size: 15px; letter-spacing: .3px; }
+.home-fit .dept-sub { font-size: 9px; margin-top: 1px; }
+.home-fit .dept-lines { font-size: 11px; line-height: 1.45; padding-left: 16px; margin: 5px 0 0 0; }
+.home-fit .dept-lines li { margin-bottom: 2px; }
+.home-fit .dept-cta { padding: 6px 10px; font-size: 11px; margin-top: auto; }
 .dept-card:hover:not(:disabled) {
   transform: translateY(-3px);
   box-shadow: 0 12px 32px rgba(15, 23, 42, .25);

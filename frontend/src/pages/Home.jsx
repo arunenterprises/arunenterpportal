@@ -241,9 +241,9 @@ export default function Home() {
           </div>
 
           {/* ---------- TIER 1 — Executive (GM) ---------- */}
-          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center", flex: "0 0 auto" }}>
+          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center", flex: "0 0 auto", marginTop: 10 }}>
             <div style={{ width: 320 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 4, padding: "2px 10px", background: "#ede9fe", borderRadius: 4, display: "inline-block", width: "100%" }}>Executive · Approval Authority</div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#ede9fe", borderRadius: 4, display: "inline-block", width: "100%" }}>Executive · Approval Authority</div>
               {(() => {
                 const gm = DEPARTMENTS.find((d) => d.id === "gm");
                 const allowed = gm.roles.includes(role) || superAdmin;
@@ -253,15 +253,15 @@ export default function Home() {
           </div>
 
           {/* Connector */}
-          <div aria-hidden style={{ display: "flex", justifyContent: "center", flex: "0 0 auto" }}>
-            <div style={{ width: 2, height: 14, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
+          <div aria-hidden style={{ display: "flex", justifyContent: "center", flex: "0 0 auto", marginTop: 6 }}>
+            <div style={{ width: 2, height: 18, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
           </div>
-          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 6%, #94a3b8 12%, #94a3b8 88%, transparent 94%)", margin: "0 2%", borderRadius: 2, flex: "0 0 auto" }} />
+          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 6%, #94a3b8 12%, #94a3b8 88%, transparent 94%)", margin: "0 6%", borderRadius: 2, flex: "0 0 auto" }} />
 
           {/* ---------- TIER 2 — Operating Departments ---------- */}
-          <div data-testid="org-tier-2" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: "#0f172a", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 4, padding: "2px 10px", background: "#e2e8f0", borderRadius: 4, margin: "2px auto 6px", width: "fit-content" }}>Operating Departments</div>
-            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, alignItems: "stretch", justifyContent: "center", flex: "1 1 auto", minHeight: 0 }}>
+          <div data-testid="org-tier-2" style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", minHeight: 0, marginTop: 4 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#0f172a", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#e2e8f0", borderRadius: 4, margin: "0 auto 10px", width: "fit-content" }}>Operating Departments</div>
+            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 18, alignItems: "stretch", justifyContent: "center", flex: "1 1 auto", minHeight: 0, maxWidth: 1600, width: "100%", margin: "0 auto" }}>
               {["hr", "vendor", "purchase", "accounts", "reports"].map((id) => {
                 const d = DEPARTMENTS.find((x) => x.id === id);
                 if (!d) return null;
