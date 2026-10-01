@@ -638,13 +638,13 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
       {/* A. WO Details */}
       <div className="section">
         <div className="sec-head">A. Work Order Details</div>
-        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px 14px" }}>
           <div><label>WO No. (auto on approval)</label><input data-testid="wo-no" value={wo.woNo || "— will be issued on approval —"} readOnly style={{ background: "#eef2ff", fontWeight: 700, color: wo.woNo ? "#166534" : "#64748b" }} /></div>
           <div><label>WO Date</label><input data-testid="wo-date" type="date" value={wo.woDate} onChange={(e) => set("woDate", e.target.value)} disabled={locked} /></div>
           <div><label>Expiry Date {wo.woNo ? "(locked)" : "*"}</label><input data-testid="wo-expiry" type="date" value={wo.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} disabled={locked || wo.step >= 4} min={wo.woDate || undefined} /></div>
           <div><label>Status</label><input data-testid="wo-status" value={WO_STEP_LABEL[wo.step] || "-"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
 
-          <div>
+          <div style={{ gridColumn: "span 2" }}>
             <label>BOQ Reference * (auto-fill from)</label>
             <select data-testid="wo-boqref" value={wo.boqRefId} onChange={(e) => pickBoq(e.target.value)} disabled={locked}>
               <option value="">— Select BOQ —</option>
@@ -655,9 +655,12 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
           </div>
           <div><label>BOQ Ref No. (auto)</label><input data-testid="wo-boqrefno" value={wo.boqRefNo || "—"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
           <div><label>Project / Site</label><input data-testid="wo-project" value={wo.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} /></div>
-          <div><label>Client Name</label><input data-testid="wo-client" value={wo.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
 
-          <div>
+          <div style={{ gridColumn: "span 2" }}><label>Client Name</label><input data-testid="wo-client" value={wo.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
+          <div><label>GST Slab (%)</label><input data-testid="wo-gst" type="number" value={wo.gstSlab} onChange={(e) => set("gstSlab", Number(e.target.value))} disabled={locked} /></div>
+          <div><label>Retention (%)</label><input data-testid="wo-ret" type="number" value={wo.retentionPct} onChange={(e) => set("retentionPct", Number(e.target.value))} disabled={locked} /></div>
+
+          <div style={{ gridColumn: "span 3" }}>
             <label>Vendor Code * (approved only)</label>
             <select data-testid="wo-vendor-select" value={wo.vendorCode} onChange={(e) => pickVendor(e.target.value)} disabled={locked}>
               <option value="">— Select Vendor —</option>
@@ -669,8 +672,6 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
             </select>
           </div>
           <div><label>Vendor Name (auto)</label><input data-testid="wo-vendor" value={wo.vendorName} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
-          <div><label>GST Slab (%)</label><input data-testid="wo-gst" type="number" value={wo.gstSlab} onChange={(e) => set("gstSlab", Number(e.target.value))} disabled={locked} /></div>
-          <div><label>Retention (%)</label><input data-testid="wo-ret" type="number" value={wo.retentionPct} onChange={(e) => set("retentionPct", Number(e.target.value))} disabled={locked} /></div>
         </div>
       </div>
 
