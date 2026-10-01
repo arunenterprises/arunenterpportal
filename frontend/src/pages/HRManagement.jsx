@@ -25,8 +25,8 @@ import {
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, sendPayslipWhatsApp } from "../lib/hrLetters";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
-const DESIGNATIONS = ["Engineer", "Supervisor", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
-const APPLIED_POSTS = ["Manager", "Site Incharge", "Engineer", "Supervisor", "Accountant", "Cashier", "HR Officer", "Store Keeper", "Executive", "Assistant", "Sr. Mason", "Mason", "Sr. Helper", "Helper", "Peon", "Driver", "Security", "Other"];
+const DESIGNATIONS = ["Engineer", "Supervisor", "Sr. Operation Manager", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
+const APPLIED_POSTS = ["Sr. Operation Manager", "Manager", "Site Incharge", "Engineer", "Supervisor", "Accountant", "Cashier", "HR Officer", "Store Keeper", "Executive", "Assistant", "Sr. Mason", "Mason", "Sr. Helper", "Helper", "Peon", "Driver", "Security", "Other"];
 const ACCOUNT_TYPES = ["Savings", "Current", "Salary", "NRE", "NRO"];
 const IN_STATES = ["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman & Nicobar", "Chandigarh", "Dadra & Nagar Haveli and Daman & Diu", "Delhi", "Jammu & Kashmir", "Ladakh", "Lakshadweep", "Puducherry"];
 const DOC_TYPES = ["Aadhaar Card", "PAN Card", "Passport Size Photo", "Signature", "Educational Certificate", "Experience Letter", "Previous Payslip", "Resume / CV", "Address Proof", "Cancelled Cheque", "Other"];
@@ -219,8 +219,8 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
           <F label="Allotted Designation" req><input list="hr-designations" value={emp.designation} onChange={(e) => set("designation", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-designation" /></F>
           <F label="Department"><select value={emp.department} onChange={(e) => set("department", e.target.value)} disabled={locked} style={inputStyle}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
           <F label="Reporting Manager"><input value={emp.reportingManager || ""} onChange={(e) => set("reportingManager", e.target.value)} disabled={locked} style={inputStyle} /></F>
-          <F label="Date of Joining (auto on Final Approval)">
-            <input type="date" value={emp.doj || ""} readOnly style={{ ...inputStyle, background: emp.doj && Number(emp.step) >= 5 ? "#dcfce7" : "#fef3c7", fontWeight: 700, color: Number(emp.step) >= 5 ? "#166534" : "#78350f" }} data-testid="emp-doj" />
+          <F label="Date of Joining">
+            <input type="date" value={emp.doj || ""} onChange={(e) => set("doj", e.target.value)} disabled={locked} style={{ ...inputStyle, background: emp.doj ? "#dcfce7" : "#fff", fontWeight: 700, color: emp.doj ? "#166534" : "#0f172a" }} data-testid="emp-doj" />
           </F>
           <F label="Employment Status"><select value={emp.status || "Active"} onChange={(e) => set("status", e.target.value)} disabled={locked} style={inputStyle}><option>Active</option><option>Probation</option><option>On Leave</option><option>Exit Pending</option><option>Exited</option></select></F>
         </div>
@@ -501,16 +501,18 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
               <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Dept</th>
               <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Mobile</th>
               <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Status</th>
+              <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Approval Date</th>
               <th style={{ padding: 6, textAlign: "center", borderBottom: "1px solid #e2e8f0", width: 160 }}>Actions</th>
             </tr></thead>
             <tbody>{list.map((e, i) => (
               <tr key={e.id} data-testid={`hr-emp-row-${e.id}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
-                <td style={{ padding: 6, fontWeight: 700, color: e.empCode ? "#166534" : "#78716c" }}>{e.empCode || e.tempCode}</td>
+                <td onClick={() => load(e)} data-testid={`hr-emp-code-${e.id}`} title="Click to load this employee into the form" style={{ padding: 6, fontWeight: 700, color: e.empCode ? "#166534" : "#78716c", cursor: "pointer", textDecoration: "underline" }}>{e.empCode || e.tempCode}</td>
                 <td style={{ padding: 6 }}>{e.fullName}</td>
                 <td style={{ padding: 6 }}>{e.designation}</td>
                 <td style={{ padding: 6 }}>{e.department}</td>
                 <td style={{ padding: 6 }}>{e.contactMobile}</td>
                 <td style={{ padding: 6, fontSize: 10.5 }}>{EMPLOYEE_STEP_LABEL[e.step] || "-"}</td>
+                <td style={{ padding: 6, fontSize: 10.5, color: e.approvalDate ? "#166534" : "#94a3b8", fontWeight: 700 }} data-testid={`hr-emp-approval-${e.id}`}>{e.approvalDate ? fmtDMY(e.approvalDate) : "—"}</td>
                 <td style={{ padding: 4, textAlign: "center", whiteSpace: "nowrap" }}>
                   <button onClick={() => load(e)} data-testid={`hr-emp-edit-${e.id}`} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✏ Edit</button>
                   <button onClick={() => remove(e.id, e.empCode || e.tempCode)} disabled={!writeAllowed || Number(e.step) >= 5} data-testid={`hr-emp-del-${e.id}`} style={{ padding: "3px 8px", background: (!writeAllowed || Number(e.step) >= 5) ? "#f1f5f9" : "#fee2e2", color: (!writeAllowed || Number(e.step) >= 5) ? "#94a3b8" : "#991b1b", border: `1px solid ${(!writeAllowed || Number(e.step) >= 5) ? "#cbd5e1" : "#fca5a5"}`, borderRadius: 3, cursor: (!writeAllowed || Number(e.step) >= 5) ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700 }}>🗑 Delete</button>
@@ -526,7 +528,24 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         {/* Left — Workflow */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button data-testid="wf-new" onClick={startNew} style={{ padding: "7px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><UserPlus size={13} /> New</button>
-          <button data-testid="wf-edited" onClick={save} disabled={!writeAllowed || locked} title="Save current edits" style={{ padding: "7px 12px", background: !writeAllowed || locked ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><RefreshCw size={13} /> Edit</button>
+          <button data-testid="wf-edited" onClick={() => {
+            if (!emp.id) { toast.error("No employee loaded. Pehle list se employee ko click karen ya New draft bana len."); return; }
+            const approved = Number(emp.step) >= 5;
+            if (approved) {
+              if (!approveAllowed) { toast.error("Only Admin / SuperAdmin can re-open an Approved Employee"); return; }
+              const label = emp.empCode || emp.fullName || "this employee";
+              if (!window.confirm(`⚠ Re-open APPROVED Employee "${label}" for editing?\n\n• EMP Code intact rahega\n• Changes ke baad Re-Approval zaruri hogi\n\nContinue?`)) return;
+              setLocked(false);
+              toast.success("Employee re-opened. Make changes → Save → Re-Approve.");
+              return;
+            }
+            if (!writeAllowed) { toast.error("Not permitted"); return; }
+            if (!locked) { toast.info("Already in edit mode"); return; }
+            setLocked(false);
+            toast.success("Edit mode enabled");
+          }} disabled={!emp.id || (Number(emp.step) >= 5 ? !approveAllowed : !writeAllowed)} title={Number(emp.step) >= 5 ? "Admin override — re-open Approved Employee" : "Unlock form to edit"} style={{ padding: "7px 12px", background: !emp.id || (Number(emp.step) >= 5 ? !approveAllowed : !writeAllowed) ? "#94a3b8" : (Number(emp.step) >= 5 ? "#b45309" : "#eab308"), color: "#fff", border: "none", borderRadius: 5, cursor: !emp.id || (Number(emp.step) >= 5 ? !approveAllowed : !writeAllowed) ? "not-allowed" : "pointer", opacity: !emp.id || (Number(emp.step) >= 5 ? !approveAllowed : !writeAllowed) ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <Edit3 size={13} /> {Number(emp.step) >= 5 ? "Re-open & Edit (Admin)" : "Edit"}
+          </button>
           <button data-testid="wf-save" onClick={save} disabled={!writeAllowed || locked} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: !writeAllowed || locked ? "not-allowed" : "pointer", opacity: !writeAllowed || locked ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Save size={13} /> Save</button>
           <button data-testid="wf-submitted" onClick={submit} disabled={!writeAllowed || locked || Number(emp.step) >= 5} style={{ padding: "7px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: !writeAllowed || locked || Number(emp.step) >= 5 ? "not-allowed" : "pointer", opacity: !writeAllowed || locked || Number(emp.step) >= 5 ? .5 : 1, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Send size={13} /> Submit</button>
         </div>
@@ -1442,6 +1461,182 @@ const LoansTab = ({ writeAllowed, approveAllowed }) => {
   );
 };
 
+// -------------- ID Card Generator (Front + Back printable) --------------
+const IDCardTab = () => {
+  const emps = useMemo(() => getEmployees().filter((e) => Number(e.step) === 5), []);
+  const [selectedId, setSelectedId] = useState(emps[0]?.id || "");
+  const emp = emps.find((e) => e.id === selectedId);
+
+  const COMPANY = {
+    name: "M/s ARUN ENTERPRISES",
+    tagline: "OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY",
+    address: "209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011",
+  };
+
+  const isManagerRole = (desig = "") => {
+    const d = String(desig).toLowerCase();
+    return d.includes("manager") || d.includes("director") || d.includes("incharge");
+  };
+
+  const printCard = () => {
+    if (!emp) { toast.error("Select an employee"); return; }
+    const logo = (typeof window !== "undefined" && window.localStorage?.getItem("ae_vm_logo")) || "/arun-logo.jpg";
+    const photo = emp.photoUrl || "";
+    const hideMobile = isManagerRole(emp.designation);
+    const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><title>ID Card ${esc(emp.empCode || "")}</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; color: #0f172a; }
+  .wrap { display: flex; flex-direction: column; gap: 18px; align-items: center; padding: 20px; }
+  .pair { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+  .card { width: 54mm; height: 85mm; border: 1.5px solid #0f172a; border-radius: 6mm; overflow: hidden; background: #fff; position: relative; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+  .front .top { background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%); color: #fff; padding: 6px 8px 8px; text-align: center; }
+  .front .top img { height: 32px; max-width: 90%; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px; }
+  .front .top .cn { font-size: 11px; font-weight: 900; letter-spacing: .5px; margin-top: 4px; text-transform: uppercase; line-height: 1.1; }
+  .front .top .tag { font-size: 7px; font-weight: 600; letter-spacing: .5px; margin-top: 2px; opacity: .95; }
+  .front .photo { display: flex; justify-content: center; margin-top: 10px; }
+  .front .photo .ph { width: 32mm; height: 32mm; border: 2px solid #0369a1; border-radius: 4px; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #64748b; font-weight: 700; overflow: hidden; }
+  .front .name { text-align: center; font-size: 12px; font-weight: 800; margin-top: 8px; padding: 0 6px; letter-spacing: .3px; color: #0f172a; }
+  .front .desig { text-align: center; font-size: 9px; font-weight: 700; color: #0369a1; margin-top: 2px; letter-spacing: .5px; text-transform: uppercase; }
+  .front .meta { margin: 8px 6px 0; font-size: 8px; line-height: 1.4; color: #334155; }
+  .front .meta .row { display: flex; justify-content: space-between; padding: 1px 0; border-bottom: 1px dashed #cbd5e1; }
+  .front .meta b { color: #0f172a; }
+  .front .footer { position: absolute; bottom: 0; left: 0; right: 0; background: #0f172a; color: #fff; text-align: center; font-size: 7px; padding: 3px; letter-spacing: .5px; font-weight: 700; }
+  .back { background: #f8fafc; }
+  .back .top { background: #0f172a; color: #fff; padding: 6px 8px; text-align: center; font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
+  .back .body { padding: 8px; font-size: 8.5px; line-height: 1.5; color: #0f172a; }
+  .back .body h4 { margin: 4px 0 2px; font-size: 8.5px; font-weight: 800; color: #0369a1; text-transform: uppercase; letter-spacing: .4px; }
+  .back .body .kv { margin: 1px 0; }
+  .back .body .kv b { color: #0f172a; }
+  .back .rules { font-size: 7px; line-height: 1.4; color: #475569; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1; }
+  .back .sign { margin-top: 8px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 7px; }
+  .back .sign .box { border-top: 1px solid #0f172a; padding-top: 2px; min-width: 20mm; text-align: center; font-weight: 700; }
+  .back .issuer { position: absolute; bottom: 0; left: 0; right: 0; background: #0369a1; color: #fff; text-align: center; font-size: 7px; padding: 3px; font-weight: 700; letter-spacing: .3px; }
+  .noprint { padding: 10px 20px; background: #0f172a; color: #fff; border: none; border-radius: 5px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+  @media print { .noprint { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <button class="noprint" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <div class="pair">
+    <div class="card front">
+      <div class="top">
+        <img src="${logo}" alt="logo" onerror="this.style.display='none'" />
+        <div class="cn">${COMPANY.name}</div>
+        <div class="tag">${COMPANY.tagline}</div>
+      </div>
+      <div class="photo">
+        <div class="ph" ${photo ? `style="background-image:url('${photo}')"` : ""}>${photo ? "" : "PHOTO"}</div>
+      </div>
+      <div class="name">${esc(emp.fullName || "—")}</div>
+      <div class="desig">${esc(emp.designation || "—")}</div>
+      <div class="meta">
+        <div class="row"><span>EMP Code</span><b>${esc(emp.empCode || emp.tempCode || "—")}</b></div>
+        <div class="row"><span>Department</span><b>${esc(emp.department || "—")}</b></div>
+        <div class="row"><span>DOJ</span><b>${emp.doj ? new Date(emp.doj).toLocaleDateString("en-GB") : "—"}</b></div>
+        <div class="row"><span>Blood Group</span><b>${esc(emp.bloodGroup || "—")}</b></div>
+        ${hideMobile ? "" : `<div class="row"><span>Mobile</span><b>${esc(emp.contactMobile || "—")}</b></div>`}
+      </div>
+      <div class="footer">EMPLOYEE IDENTITY CARD</div>
+    </div>
+    <div class="card back">
+      <div class="top">If Found Please Return</div>
+      <div class="body">
+        <h4>Issued To</h4>
+        <div class="kv"><b>${esc(emp.fullName || "—")}</b></div>
+        <div class="kv">S/o: ${esc(emp.fatherName || "—")}</div>
+        <h4>Address</h4>
+        <div class="kv">${esc(emp.presentLine || "—")}</div>
+        <div class="kv">${esc(emp.presentCity || "")} ${esc(emp.presentState || "")}${emp.presentPincode ? " - " + esc(emp.presentPincode) : ""}</div>
+        <h4>Emergency Contact</h4>
+        <div class="kv"><b>${esc(emp.contactAltMobile || emp.contactMobile || "—")}</b></div>
+        <div class="rules">This card remains the property of M/s ARUN ENTERPRISES and must be returned on resignation / termination.</div>
+        <div class="sign"><div class="box">Holder Signature</div><div class="box">Authorised Signatory</div></div>
+      </div>
+      <div class="issuer">${COMPANY.address}</div>
+    </div>
+  </div>
+</div>
+</body></html>`;
+    const w = window.open("", "_blank", "width=900,height=1100");
+    if (!w) { toast.error("Allow pop-ups to generate the ID Card"); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    toast.success(`ID Card generated for ${emp.empCode || emp.fullName}`);
+  };
+
+  if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No finalized employees yet. Finalize at least one employee first.</div>;
+
+  const hideMobile = emp ? isManagerRole(emp.designation) : false;
+
+  return (
+    <div style={{ padding: 18 }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap", padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+        <label style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>Select Employee (by EMP Code):</label>
+        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} data-testid="idcard-emp-select" style={{ ...inputStyle, maxWidth: 420, width: "auto", flex: "1 1 320px" }}>
+          {emps.map((e) => <option key={e.id} value={e.id}>{`${e.empCode || e.tempCode} — ${e.fullName}${e.designation ? " · " + e.designation : ""}`}</option>)}
+        </select>
+        <button onClick={printCard} data-testid="idcard-print" style={{ padding: "8px 16px", background: "linear-gradient(135deg,#0369a1 0%,#0ea5e9 100%)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 4px rgba(14,165,233,.3)" }}>
+          <Printer size={14} /> Print Card (Front + Back)
+        </button>
+      </div>
+
+      {emp && (
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", padding: 20, background: "#f1f5f9", borderRadius: 8 }} data-testid="idcard-preview">
+          <div style={{ width: 240, minHeight: 370, border: "1.5px solid #0f172a", borderRadius: 14, overflow: "hidden", background: "#fff", boxShadow: "0 4px 12px rgba(0,0,0,.15)" }}>
+            <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0ea5e9 100%)", color: "#fff", padding: "8px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: .4, textTransform: "uppercase" }}>M/s ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 7.5, fontWeight: 600, letterSpacing: .5, opacity: .95, marginTop: 2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+              <div style={{ width: 110, height: 110, border: "2px solid #0369a1", borderRadius: 4, background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#64748b", fontWeight: 700 }}>
+                {emp.photoUrl ? "" : "PHOTO"}
+              </div>
+            </div>
+            <div style={{ textAlign: "center", fontSize: 13, fontWeight: 800, marginTop: 8, padding: "0 8px" }}>{emp.fullName || "—"}</div>
+            <div style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: "#0369a1", marginTop: 2, letterSpacing: .5, textTransform: "uppercase" }}>{emp.designation || "—"}</div>
+            <div style={{ padding: "10px 10px 32px", fontSize: 9, lineHeight: 1.6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>EMP Code</span><b>{emp.empCode || emp.tempCode || "—"}</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>Department</span><b>{emp.department || "—"}</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>DOJ</span><b>{emp.doj ? fmtDMY(emp.doj) : "—"}</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>Blood Group</span><b>{emp.bloodGroup || "—"}</b></div>
+              {!hideMobile && <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>Mobile</span><b>{emp.contactMobile || "—"}</b></div>}
+            </div>
+            <div style={{ position: "relative", marginTop: -24, background: "#0f172a", color: "#fff", textAlign: "center", fontSize: 8, padding: 4, letterSpacing: .5, fontWeight: 700 }}>EMPLOYEE IDENTITY CARD</div>
+          </div>
+
+          <div style={{ width: 240, minHeight: 370, border: "1.5px solid #0f172a", borderRadius: 14, overflow: "hidden", background: "#f8fafc", boxShadow: "0 4px 12px rgba(0,0,0,.15)", position: "relative" }}>
+            <div style={{ background: "#0f172a", color: "#fff", padding: "7px 10px", textAlign: "center", fontSize: 10, fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>If Found Please Return</div>
+            <div style={{ padding: 10, fontSize: 10, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0369a1", textTransform: "uppercase", marginTop: 4 }}>Issued To</div>
+              <div style={{ fontWeight: 800 }}>{emp.fullName || "—"}</div>
+              <div style={{ color: "#64748b" }}>S/o: {emp.fatherName || "—"}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0369a1", textTransform: "uppercase", marginTop: 6 }}>Address</div>
+              <div>{emp.presentLine || "—"}</div>
+              <div>{emp.presentCity} {emp.presentState}{emp.presentPincode ? " - " + emp.presentPincode : ""}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0369a1", textTransform: "uppercase", marginTop: 6 }}>Emergency Contact</div>
+              <div style={{ fontWeight: 800 }}>{emp.contactAltMobile || emp.contactMobile || "—"}</div>
+              <div style={{ fontSize: 8, color: "#475569", marginTop: 8, paddingTop: 6, borderTop: "1px dashed #cbd5e1", lineHeight: 1.4 }}>This card remains the property of M/s ARUN ENTERPRISES and must be returned on resignation / termination.</div>
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", fontSize: 8 }}>
+                <div style={{ borderTop: "1px solid #0f172a", paddingTop: 2, minWidth: 70, textAlign: "center", fontWeight: 700 }}>Holder Signature</div>
+                <div style={{ borderTop: "1px solid #0f172a", paddingTop: 2, minWidth: 70, textAlign: "center", fontWeight: 700 }}>Authorised Signatory</div>
+              </div>
+            </div>
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "#0369a1", color: "#fff", textAlign: "center", fontSize: 8, padding: 4, fontWeight: 700, letterSpacing: .3 }}>{COMPANY.address}</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 12, padding: 10, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 6, fontSize: 11, color: "#78350f" }}>
+        <b>Note:</b> Company GST / PAN print nahi hota ID card pe. Manager / Director / Incharge roles ke card pe mobile number automatically hide ho jata hai privacy ke liye.
+      </div>
+    </div>
+  );
+};
+
 // -------------- KPI dashboard --------------
 const KpiTile = ({ label, value, tone, icon: Icon }) => (
   <div style={{ padding: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 1px 3px rgba(15,23,42,.05)" }}>
@@ -1519,6 +1714,7 @@ export default function HRManagement() {
               { id: "compliance", label: "Compliance", tone: "#7c3aed", icon: ShieldCheck },
               { id: "recruit", label: "Recruitment", tone: "#16a34a", icon: Briefcase },
               { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
+              { id: "idcard", label: "ID Card", tone: "#0ea5e9", icon: UserCheck },
             ].map((t) => {
               const Icon = t.icon; const active = tab === t.id;
               return <button key={t.id} data-testid={`hr-tab-${t.id}`} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: active ? t.tone : "transparent", color: active ? "#fff" : "#334155", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Icon size={13} /> {t.label}</button>;
@@ -1541,6 +1737,7 @@ export default function HRManagement() {
             {tab === "compliance" && <ComplianceTab />}
             {tab === "recruit" && <RecruitTab writeAllowed={write} />}
             {tab === "exit" && <ExitTab writeAllowed={write} approveAllowed={approve} />}
+            {tab === "idcard" && <IDCardTab />}
           </div>
         </div>
       </div>
