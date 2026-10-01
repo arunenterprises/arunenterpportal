@@ -163,7 +163,7 @@ body {
 .a4 + .a4 { margin-top: 20px; }
 
 /* ---- Document letterhead (styled like printed letterhead) ---- */
-.doc-header { padding: 4px 0 6px; border-bottom: 2px solid #c81e2b; position: relative; }
+.doc-header { padding: 4px 0 6px; position: relative; }
 .doc-header .dh-top-row {
   display: flex; justify-content: space-between; align-items: center;
   font-size: 12px; font-weight: 700; color: #0f172a;
