@@ -229,15 +229,21 @@ export default function Home() {
       <div style={{ minHeight: "100vh", background: "#f1f5f9", paddingBottom: 40 }}>
         <div style={{ maxWidth: "100%", margin: "0 auto", padding: "18px 24px" }} data-testid="home-page">
 
-          {/* Compact letterhead */}
-          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 20px", marginBottom: 14, display: "flex", alignItems: "center", gap: 14 }}>
-            <Header formTitle="Organisation Control Panel" compact />
+          {/* Centered Letterhead */}
+          <div style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 12, padding: "16px 24px", marginBottom: 18, boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
+            <Header formTitle="" compact />
+          </div>
+
+          {/* Organisation Structure banner */}
+          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 10, padding: "14px 24px", marginBottom: 18, textAlign: "center", boxShadow: "0 4px 12px rgba(91,33,182,.25)" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: "#e9d5ff", letterSpacing: 3, textTransform: "uppercase", marginBottom: 2 }}>Enterprise Hierarchy</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 2.5, textTransform: "uppercase" }}>Organisation Structure</div>
           </div>
 
           {/* ---------- TIER 1 — Executive (GM) ---------- */}
           <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center" }}>
             <div style={{ width: "min(620px, 48%)" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 6 }}>Executive · Approval Authority</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 8, padding: "4px 10px", background: "#ede9fe", borderRadius: 4, display: "inline-block", width: "100%" }}>Executive · Approval Authority</div>
               {(() => {
                 const gm = DEPARTMENTS.find((d) => d.id === "gm");
                 const allowed = gm.roles.includes(role) || superAdmin;
@@ -246,31 +252,28 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Connector line */}
-          <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "6px 0" }}>
-            <div style={{ width: 2, height: 26, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
+          {/* Connector */}
+          <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "8px 0" }}>
+            <div style={{ width: 3, height: 32, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
           </div>
-          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 6%, #cbd5e1 12%, #cbd5e1 88%, transparent 94%)", margin: "0 2%" }} />
-          <div aria-hidden style={{ display: "flex", justifyContent: "space-around", margin: "0" }}>
-            {[0, 1, 2, 3, 4].map((i) => <div key={i} style={{ width: 2, height: 20, background: "#cbd5e1" }} />)}
+          <div aria-hidden style={{ height: 3, background: "linear-gradient(to right, transparent 6%, #94a3b8 12%, #94a3b8 88%, transparent 94%)", margin: "0 2%", borderRadius: 2 }} />
+          <div aria-hidden style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", margin: "0 2%" }}>
+            {[0, 1, 2, 3, 4].map((i) => <div key={i} style={{ display: "flex", justifyContent: "center" }}><div style={{ width: 3, height: 22, background: "#94a3b8" }} /></div>)}
           </div>
 
           {/* ---------- TIER 2 — Operating Departments ---------- */}
           <div data-testid="org-tier-2" style={{ marginTop: 6 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#0f172a", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 10 }}>Operating Departments</div>
-            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#0f172a", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 10, padding: "4px 10px", background: "#e2e8f0", borderRadius: 4, display: "inline-block", margin: "0 auto 12px", width: "fit-content" }}>Operating Departments</div>
+            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16, alignItems: "stretch" }}>
               {["vendor", "purchase", "accounts", "hr", "reports"].map((id) => {
                 const d = DEPARTMENTS.find((x) => x.id === id);
                 if (!d) return null;
                 const allowed = d.roles.includes(role) || superAdmin;
                 return (
-                  <DepartmentCard
-                    key={d.id}
-                    dept={d}
-                    badge={badges[d.id]}
-                    allowed={allowed}
-                    onClick={() => { if (allowed) nav(d.to); }}
-                  />
+                  <div key={d.id} style={{ display: "flex", flexDirection: "column" }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: "#334155", letterSpacing: 1.2, textTransform: "uppercase", textAlign: "center", marginBottom: 6 }}>{d.title}</div>
+                    <DepartmentCard dept={d} badge={badges[d.id]} allowed={allowed} onClick={() => { if (allowed) nav(d.to); }} />
+                  </div>
                 );
               })}
             </div>
@@ -279,12 +282,12 @@ export default function Home() {
           {/* ---------- TIER 3 — SuperAdmin ---------- */}
           {superAdmin && (
             <>
-              <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "14px 0 4px" }}>
-                <div style={{ width: 2, height: 22, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
+              <div aria-hidden style={{ display: "flex", justifyContent: "center", margin: "18px 0 4px" }}>
+                <div style={{ width: 3, height: 30, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
               </div>
               <div data-testid="org-tier-3" style={{ display: "flex", justifyContent: "center" }}>
                 <div style={{ width: "min(620px, 48%)" }}>
-                  <div style={{ fontSize: 10, fontWeight: 800, color: "#991b1b", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 6 }}>System Administration · SuperAdmin</div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#991b1b", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 8, padding: "4px 10px", background: "#fee2e2", borderRadius: 4 }}>System Administration · SuperAdmin</div>
                   {(() => {
                     const u = DEPARTMENTS.find((d) => d.id === "users");
                     return <DepartmentCard dept={u} badge={badges.users} allowed={true} onClick={() => nav(u.to)} />;

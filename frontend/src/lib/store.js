@@ -16,6 +16,7 @@ const KEYS = {
   EMPLOYEES: "ae_vm_employees",
   ATTENDANCE: "ae_vm_attendance",
   PAYBILLS: "ae_vm_paybills",
+  LOANS: "ae_vm_loans",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
@@ -1289,13 +1290,109 @@ export const advancePayBillStep = (pb) => {
   const next = { ...pb, step: Math.min(4, (Number(pb.step) || 1) + 1), updatedAt: now };
   if (next.step === 2) { next.submittedByName = me; next.submittedAt = now; next.history = [...(pb.history || []), { action: "Submitted to GM", at: now, by: me }]; }
   if (next.step === 3) { next.approvedByName = me; next.approvedAt = now; next.history = [...(pb.history || []), { action: "Approved by GM", at: now, by: me }]; }
-  if (next.step === 4) { next.settledByName = me; next.settledAt = now; next.history = [...(pb.history || []), { action: "Settled & paid", at: now, by: me }]; }
+  if (next.step === 4) {
+    next.settledByName = me; next.settledAt = now;
+    next.history = [...(pb.history || []), { action: "Settled & paid", at: now, by: me }];
+    // ---- Auto-generate Payment Voucher for the net salary payout ----
+    try {
+      const payments = getPayments();
+      const pvNo = `PV/HR/${pb.year}-${String(pb.month).padStart(2, "0")}/${payments.length + 1}`;
+      const monthName = new Date(pb.year, pb.month - 1).toLocaleString("en-IN", { month: "long" });
+      const pv = {
+        id: `pv_pb_${pb.id}`,
+        pvNo,
+        pvDate: now.slice(0, 10),
+        source: "HR Pay Bill",
+        sourceRef: pb.refNo,
+        vendorCode: "AE-HR-PAYROLL",
+        vendorSnapshot: { firmName: `Payroll Payout · ${monthName} ${pb.year}` },
+        amount: pb.totalNet || 0,
+        remarks: `Auto-generated from Pay Bill ${pb.refNo} · ${pb.lines?.length || 0} employees · Net ₹${(pb.totalNet || 0).toLocaleString("en-IN")}`,
+        status: "Submitted",
+        createdByName: me,
+        createdAt: now,
+      };
+      payments.push(pv);
+      savePayments(payments);
+      next.linkedPvNo = pvNo;
+      next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
+    } catch (e) { /* ignore */ }
+  }
   const list = getPayBills().map((x) => x.id === next.id ? next : x);
   savePayBills(list);
   return next;
 };
 
 export const deletePayBill = (id) => savePayBills(getPayBills().filter((x) => x.id !== id));
+
+// --- Advance Register (per-employee aggregated across all pay bills) ---
+export const getAdvanceRegister = () => {
+  const bills = getPayBills();
+  const emps = getEmployees();
+  const map = {};
+  bills.forEach((pb) => {
+    (pb.lines || []).forEach((l) => {
+      if (!Number(l.advance)) return;
+      if (!map[l.empId]) {
+        const e = emps.find((x) => x.id === l.empId);
+        map[l.empId] = { empId: l.empId, empCode: l.empCode, name: l.name || e?.fullName, department: e?.department, lines: [], totalAdvance: 0 };
+      }
+      map[l.empId].lines.push({ year: pb.year, month: pb.month, refNo: pb.refNo, amount: Number(l.advance), step: pb.step });
+      map[l.empId].totalAdvance += Number(l.advance);
+    });
+  });
+  return Object.values(map).sort((a, b) => b.totalAdvance - a.totalAdvance);
+};
+
+// --- Loan Management ---
+export const LOAN_STATUS = { 1: "Draft", 2: "Submitted", 3: "GM Approved", 4: "Disbursed", 5: "Fully Repaid", 6: "Written Off" };
+export const getLoans = () => read(KEYS.LOANS || "ae_vm_loans", []);
+export const saveLoans = (list) => write(KEYS.LOANS || "ae_vm_loans", list);
+export const createLoanDraft = (empId = "") => {
+  const emp = getEmployees().find((e) => e.id === empId) || {};
+  return {
+    id: `ln_${Date.now()}`,
+    empId: emp.id || "", empCode: emp.empCode || "", empName: emp.fullName || "",
+    department: emp.department || "", designation: emp.designation || "",
+    loanType: "Personal", principal: 0, interestRate: 0, tenureMonths: 12,
+    emiAmount: 0, startMonth: new Date().toISOString().slice(0, 7),
+    purpose: "", outstanding: 0, paidEMIs: 0, paidAmount: 0,
+    status: 1,
+    createdByName: _me() || "", createdAt: new Date().toISOString(),
+    emiHistory: [], // {month, amount, paidViaPayBillRef}
+  };
+};
+export const computeLoanEMI = (principal, rate, tenure) => {
+  const P = Number(principal) || 0;
+  const n = Number(tenure) || 1;
+  const r = (Number(rate) || 0) / 100 / 12;
+  if (r === 0) return Math.round(P / n);
+  return Math.round(P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1));
+};
+export const upsertLoan = (l) => {
+  const emi = computeLoanEMI(l.principal, l.interestRate, l.tenureMonths);
+  const outstanding = Math.max(0, (Number(l.principal) || 0) - (Number(l.paidAmount) || 0));
+  const updated = { ...l, emiAmount: emi, outstanding, updatedAt: new Date().toISOString() };
+  const list = getLoans();
+  const idx = list.findIndex((x) => x.id === updated.id);
+  if (idx >= 0) list[idx] = updated; else list.push(updated);
+  saveLoans(list);
+  return updated;
+};
+export const advanceLoanStep = (l) => {
+  const now = new Date().toISOString();
+  const next = { ...l, status: Math.min(6, (Number(l.status) || 1) + 1), updatedAt: now };
+  if (next.status === 4) { next.disbursedAt = now; next.outstanding = next.principal; }
+  saveLoans(getLoans().map((x) => x.id === next.id ? next : x));
+  return next;
+};
+export const deleteLoan = (id) => saveLoans(getLoans().filter((x) => x.id !== id));
+// Get active loans for an employee (status 4 = Disbursed = EMI deductions ongoing)
+export const getActiveLoanEMI = (empId) => {
+  const l = getLoans().find((x) => x.empId === empId && Number(x.status) === 4 && x.outstanding > 0);
+  if (!l) return 0;
+  return Math.min(l.emiAmount || 0, l.outstanding || 0);
+};
 
 export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");

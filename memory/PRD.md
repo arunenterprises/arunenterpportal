@@ -1,69 +1,59 @@
 # Arun Enterprises — Vendor + HR Management System · PRD
 
-## Original Problem Statement
-Multi-page Vendor Management, Bill Processing, Expense Management, Purchase Management (BOQ/WO), General Manager Dashboard, Reports, User Management, and HR Management for Arun Enterprises. Hindi/Hinglish user.
-
 ## Architecture
-- Backend: FastAPI + MongoDB (Motor async). All API routes `/api/*`.
-- Frontend: React + Tailwind. Hybrid localStorage + cloud sync via `/api/snapshot` + `/api/sync`.
-- Auth: JWT, role-based + per-user permissions override (SuperAdmin/Admin/User).
-- Print: Global `@page size: A4 landscape`; per-document `@page` overrides via `window.open` in `hrLetters.js`.
+- Backend: FastAPI + MongoDB. Frontend: React + Tailwind. Auth: JWT + per-user permissions.
+- Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Home — Organisation Structure (3-Tier · Full Width)
-- **Tier 1 (Executive)**: General Manager — centered, 620px max, with pending badge
-- **Tier 2 (Operating Departments)**: Vendor · Purchase · Accounts · **HR (shows live headcount X/Y)** · Reports — 5-column grid, full width
-- **Tier 3 (System Admin · SuperAdmin only)**: User Management — centered red card
-- Vertical SVG-style connectors between tiers · maxWidth 100% (removed A4 constraint)
+1. **Centered Letterhead** (company logo + branding, bordered card)
+2. **"ORGANISATION STRUCTURE" banner** (gradient blue→purple→pink background)
+3. **Tier 1 (Executive · Approval Authority)**: General Manager card centered with pending badge
+4. **Tier 2 (Operating Departments)**: Vendor · Purchase · Accounts · HR · Reports — 5-col with name labels + live headcount on HR
+5. **Tier 3 (SuperAdmin only)**: User Management
+- Gradient connectors between tiers with 5-vertical-stub drop-downs
 
-## GM Dashboard — Consolidated Approval Inbox
-- **11 KPI cards**: Vendors · BOQs · WOs · Bills · Expenses · Vouchers · HR Employees · HR Leaves · HR Recruitment · HR Exit & F&F · **HR Pay Bills**
-- Full-width layout (maxWidth: 100%)
-- 2 tabs: Pending Approval / Approved · Re-Approve
-- 6 DeptGroups in pending inbox: Vendor · Purchase · Accounts · Expenses · Vouchers · **HR Management (5 sub-sections including Monthly Pay Bills)**
-- HR approvals route to GM: Employee Final Approval, Leave Approval, Recruit Offer Release, Exit Finalization, **Pay Bill Approval**
+## GM Dashboard
+- **11 KPI cards** incl. HR Pay Bills + Live HR headcount
+- 6 DeptGroups in pending inbox: Vendor · Purchase · Accounts · Expenses · Vouchers · HR (5 sub-sections)
 
-## HR Management Module (9 tabs)
-Dashboard · Employees · Attendance · Leaves · Payroll Slip · **Pay Bill** (NEW) · Compliance · Recruitment · Exit & F&F
+## HR Management (11 tabs)
+Dashboard · Employees · Attendance · Leaves · Payroll Slip · Pay Bill · **Advance Register** · **Loan Mgmt.** · Compliance · Recruitment · Exit & F&F
 
-### Employee Application Form (13 sections, bio-data, A4 Portrait)
-Header codes · Application Reference & Position · A Personal (Photo top-right) · B Contact (3-col + structured addresses) · C Family · D References (compact 2) · E Education · F Experience · G Bank (IFSC auto-fetch) · H Salary · I Documents (≤500KB) · J Declaration (Signature bottom-right) · K All Employees · **Bottom Workflow Bar** (6-7 clean full-width buttons)
+### Monthly Pay Bill
+- Month/Year picker + Auto-compute from Attendance for finalized employees
+- Editable Advance + Other Deductions · Live NET recalc · Grand totals
+- 4-step workflow: Draft → Submitted to GM → GM Approved → **Settled** (auto-creates Payment Voucher)
+- Print A4 Landscape with 4-signature block
 
-### Monthly Pay Bill (NEW)
-- Month/Year picker + Create Draft (auto-compute from Attendance)
-- Full employee grid with editable **Advance** + **Other Deductions** columns
-- Live computed NET per employee + Grand Totals (Gross/Ded/Adv/NET)
-- 4-step workflow: Draft → Submitted to GM → GM Approved → Settled & Paid
-- Permissions: Create/Save/Submit → All · Approve → GM only
-- Print A4 Landscape sheet with 18-column layout + 4-signature block
-- Ref format: `AE/HR/PB/YYYY-MM`
+### Advance Register (NEW)
+- Live aggregation from all Pay Bills — per-employee advance ledger
+- Shows monthly entries + Total Advance Granted summary at top
+- Yellow-amber themed table (matches advance highlight colour)
 
-### HR Print Generators (7 total, open via window.open)
-Offer Letter · Experience Letter · Relieving Letter · Employee Application · Attendance Sheet · Leave Application · Payroll Slip · **Pay Bill Sheet (A4 Landscape)**
+### Loan Management (NEW)
+- 6-stage workflow: Draft → Submitted → GM Approved → Disbursed → Fully Repaid → Written Off
+- Auto EMI compute (principal, interest %, tenure) with India-standard formula
+- Loan types: Personal / Medical / Festival / Housing / Education / Vehicle
+- Outstanding + Paid EMIs tracker · Linked to active employees only
+- `getActiveLoanEMI(empId)` helper for future auto-deduction in pay bills
 
-### WhatsApp Payslip Delivery (NEW · wa.me deep link)
-- Button in Payroll Slip tab: "💬 Send on WhatsApp"
-- Opens WhatsApp with pre-filled message (EMP code, Gross, Deductions, Net) and candidate's mobile
-- No API keys required · uses `https://wa.me/91{mobile}?text=...`
+### PayBill → Payment Voucher (NEW auto-link)
+- When Pay Bill moves to step 4 (Settled & Paid), a Payment Voucher is auto-created in `payments` store
+- PV No format: `PV/HR/YYYY-MM/N`, Vendor "AE-HR-PAYROLL", amount = Pay Bill totalNet
+- `linkedPvNo` stored on the Pay Bill + history entry logged
 
-### EMP Code: `AE/EMP/000NNN/YY-YY`
+### WhatsApp Payslip Delivery
+- "💬 Send on WhatsApp" in Payroll Slip tab via `wa.me/91{mobile}?text=…`
 
-## Completed Work (Feb 2026 session · summary)
-- Bio-Data Employee Form (13 sections) with Photo top-right + Signature bottom-right + 500KB upload
-- EMP code hyphenated FY format
-- 3-tier Home Organisation Structure with full-width layout + live headcount badge on HR
-- GM Dashboard integration: 5 HR items routed through GM (Employees/Leaves/Recruits/Exits/**PayBills**)
-- 11 KPI cards + 5-section HR Dept Group in GM inbox
-- **Monthly Pay Bill module** with Advance adjustment, 4-step workflow, Print A4 Landscape
-- **WhatsApp Payslip Delivery** via wa.me deep link
-- 7 Print generators (Offer/Experience/Relieving/EmpApp/Attendance/Leave/Payroll/**PayBill**)
-- Clean bottom workflow bar on Employee form · DOJ auto-fill on Final Approve · 500KB uploads
+### 8 HR Print Generators
+Offer / Experience / Relieving / Employee Application / Attendance / Leave / Payroll Slip / Pay Bill Sheet
 
 ## Pending / Backlog
-- P1: Refactor `store.js` (1420+ lines) → domain modules
-- P2: Backend sync for Recruits + Exits + Leaves + PayBills
-- P3: Pincode auto-fill · Signature pad · Govt ID OCR · Pay Bill history filters
+- P1: Refactor `store.js` (1550+ lines)
+- P2: Backend sync for Recruits + Exits + Leaves + PayBills + Loans
+- P3: Auto-deduct active loan EMI in Pay Bill lines · Loan EMI schedule printable
 
 ## Infra Blocker
-Production deployment stuck on AWS ECR quota (platform-side, not code).
+Deploy stuck on AWS ECR quota (platform).
 
 ## Credentials: `/app/memory/test_credentials.md`
