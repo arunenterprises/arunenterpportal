@@ -727,6 +727,11 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                 <td style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 800 }} data-testid="wo-total">₹ {computeWOTotal(wo).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                 <td style={{ border: "1px solid #cbd5e1" }} />
               </tr>
+              <tr style={{ background: "#f1f5f9" }} data-testid="wo-amount-words">
+                <td colSpan={7} style={{ padding: "7px 10px", border: "1px solid #cbd5e1", fontSize: 11.5, color: "#0f172a" }}>
+                  <b>Amount in Words:</b> <i>{amountToWords(computeWOTotal(wo))}</i>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
