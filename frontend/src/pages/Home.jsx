@@ -242,7 +242,7 @@ export default function Home() {
 
           {/* ---------- TIER 1 — Executive (GM) ---------- */}
           <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ width: 300 }}>
+            <div style={{ width: 340 }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 8, padding: "4px 10px", background: "#ede9fe", borderRadius: 4, display: "inline-block", width: "100%" }}>Executive · Approval Authority</div>
               {(() => {
                 const gm = DEPARTMENTS.find((d) => d.id === "gm");
@@ -264,7 +264,7 @@ export default function Home() {
           {/* ---------- TIER 2 — Operating Departments ---------- */}
           <div data-testid="org-tier-2" style={{ marginTop: 6 }}>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#0f172a", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 10, padding: "4px 10px", background: "#e2e8f0", borderRadius: 4, display: "inline-block", margin: "0 auto 12px", width: "fit-content" }}>Operating Departments</div>
-            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 300px)", gap: 20, alignItems: "stretch", justifyContent: "center" }}>
+            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 340px)", gap: 22, alignItems: "stretch", justifyContent: "center" }}>
               {["vendor", "purchase", "accounts", "hr", "reports"].map((id) => {
                 const d = DEPARTMENTS.find((x) => x.id === id);
                 if (!d) return null;
@@ -286,7 +286,7 @@ export default function Home() {
                 <div style={{ width: 3, height: 30, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
               </div>
               <div data-testid="org-tier-3" style={{ display: "flex", justifyContent: "center" }}>
-                <div style={{ width: 300 }}>
+                <div style={{ width: 340 }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#991b1b", letterSpacing: 1.5, textTransform: "uppercase", textAlign: "center", marginBottom: 8, padding: "4px 10px", background: "#fee2e2", borderRadius: 4 }}>System Administration · SuperAdmin</div>
                   {(() => {
                     const u = DEPARTMENTS.find((d) => d.id === "users");
