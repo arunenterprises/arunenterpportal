@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { toast, Toaster } from "sonner";
 import * as XLSX from "xlsx";
-import { Wallet, Search } from "lucide-react";
+import { Wallet, Search, FilePlus2, Save, Pencil, Send, Printer, Download, CheckCircle2 } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
@@ -9,6 +9,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import {
   createExpenseDraft, computeExpense, upsertExpense, advanceExpenseStep,
   EXPENSE_STEP_LABEL, currentUser, exportJSON, getExpenses, amountToWords,
+  canCreate, canApprove,
 } from "../lib/store";
 
 const F = ({ label, req, children }) => (
@@ -387,6 +388,20 @@ export default function ExpenseProcess() {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Inline Action Buttons — uniform left-to-right alignment */}
+          <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-start", alignItems: "stretch", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="exp-action-row">
+            <button data-testid="exp-btn-new" onClick={handleNew} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: canCreate() ? "#0369a1" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><FilePlus2 size={13} /> New Expense</button>
+            <button data-testid="exp-btn-edit" onClick={handleEdit} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", opacity: canCreate() ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Pencil size={13} /> Edit</button>
+            <button data-testid="exp-btn-save" onClick={handleSave} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", opacity: canCreate() ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Save size={13} /> Save</button>
+            <button data-testid="exp-btn-submit" onClick={handleSubmit} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", opacity: canCreate() ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Send size={13} /> Submit</button>
+            <button data-testid="exp-btn-approve" onClick={handleApprove} disabled={!canApprove()} style={{ padding: "7px 12px", height: 32, background: canApprove() ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() ? "pointer" : "not-allowed", opacity: canApprove() ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><CheckCircle2 size={13} /> Final Approval</button>
+            <span style={{ width: 1, height: 24, background: "#cbd5e1", margin: "4px 6px", alignSelf: "center" }} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", letterSpacing: 1, textTransform: "uppercase", padding: "7px 12px", height: 32, background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", borderRadius: 5, boxShadow: "0 1px 3px rgba(79,70,229,.35)", display: "inline-flex", alignItems: "center", lineHeight: 1, boxSizing: "border-box" }}>Export</span>
+            <button data-testid="exp-btn-export-json" onClick={handleExportJSON} style={{ padding: "7px 12px", height: 32, background: "#2563eb", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(37,99,235,.3)", lineHeight: 1 }}><Download size={13} /> JSON</button>
+            <button data-testid="exp-btn-export-excel" onClick={handleExportExcel} style={{ padding: "7px 12px", height: 32, background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(5,150,105,.3)", lineHeight: 1 }}>⬇ Excel</button>
+            <button data-testid="exp-btn-print" onClick={handlePrint} style={{ padding: "7px 12px", height: 32, background: "#ea580c", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(234,88,12,.3)", lineHeight: 1 }}><Printer size={13} /> Print</button>
           </div>
         </div>
       </div>
