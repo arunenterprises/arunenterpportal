@@ -1,45 +1,83 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Printer, FileSearch, ShieldCheck } from "lucide-react";
-import { getWOs, getVendors } from "../lib/store";
+import { Printer, FileSearch, ShieldCheck, Loader2 } from "lucide-react";
 import { printWorkOrder } from "../lib/woPrint";
 
-// Public, read-only Vendor Portal view of an approved Work Order.
-// Accessible without login; shows WO details to the vendor directly.
+const API = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "") + "/api";
+
+// Public, read-only Vendor Portal view of an approved + published Work Order.
+// Fetches directly from the shared backend so vendors can view it on any device
+// without needing to log in or share localStorage with the publisher.
 const VendorPortalWO = () => {
   const { id } = useParams();
   const [wo, setWo] = useState(null);
   const [vendor, setVendor] = useState(null);
+  const [status, setStatus] = useState("loading"); // loading | ok | notfound | restricted | error
 
   useEffect(() => {
-    const w = getWOs().find((x) => x.id === id);
-    setWo(w || null);
-    if (w) {
-      const v = getVendors().find((x) => x.vendorCode === w.vendorCode);
-      setVendor(v || null);
-    }
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await fetch(`${API}/public/work_orders/${encodeURIComponent(id)}`);
+        if (res.status === 404) { if (!cancelled) setStatus("notfound"); return; }
+        if (res.status === 403) { if (!cancelled) setStatus("restricted"); return; }
+        if (!res.ok) { if (!cancelled) setStatus("error"); return; }
+        const data = await res.json();
+        if (cancelled) return;
+        setWo(data);
+        setVendor(data.vendor || null);
+        setStatus("ok");
+      } catch (e) {
+        if (!cancelled) setStatus("error");
+      }
+    };
+    run();
+    return () => { cancelled = true; };
   }, [id]);
 
-  if (!wo) {
+  if (status === "loading") {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <Loader2 size={28} className="spin" style={{ animation: "spin 1s linear infinite" }} />
+          <div style={{ fontSize: 14, letterSpacing: 1 }}>Loading Work Order…</div>
+        </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
+
+  if (status === "notfound") {
     return (
       <div style={{ minHeight: "100vh", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
         <div style={{ maxWidth: 500, textAlign: "center", background: "#1e293b", padding: 40, borderRadius: 10, border: "1px solid #334155" }}>
           <FileSearch size={48} color="#f59e0b" style={{ marginBottom: 16 }} />
           <h2 style={{ margin: 0, fontSize: 20 }}>Work Order Not Found</h2>
-          <p style={{ color: "#94a3b8", marginTop: 10, fontSize: 13 }}>The requested WO ID <code style={{ background: "#0f172a", padding: "2px 6px", borderRadius: 3 }}>{id}</code> is not available on this device, or the link is invalid.</p>
+          <p style={{ color: "#94a3b8", marginTop: 10, fontSize: 13 }}>The requested WO ID <code style={{ background: "#0f172a", padding: "2px 6px", borderRadius: 3 }}>{id}</code> is not available or the link is invalid.</p>
           <p style={{ color: "#64748b", marginTop: 10, fontSize: 11 }}>Please contact ARUN ENTERPRISES Purchase Department.</p>
         </div>
       </div>
     );
   }
 
-  if (!wo.vendorPortalPublished) {
+  if (status === "restricted") {
     return (
       <div style={{ minHeight: "100vh", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
         <div style={{ maxWidth: 500, textAlign: "center", background: "#1e293b", padding: 40, borderRadius: 10, border: "1px solid #334155" }}>
           <ShieldCheck size={48} color="#f87171" style={{ marginBottom: 16 }} />
           <h2 style={{ margin: 0, fontSize: 20 }}>Access Restricted</h2>
           <p style={{ color: "#94a3b8", marginTop: 10, fontSize: 13 }}>This Work Order has not been published to the vendor portal yet.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "error" || !wo) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ maxWidth: 500, textAlign: "center", background: "#1e293b", padding: 40, borderRadius: 10, border: "1px solid #334155" }}>
+          <h2 style={{ margin: 0, fontSize: 20 }}>Unable to Load</h2>
+          <p style={{ color: "#94a3b8", marginTop: 10, fontSize: 13 }}>Network error. Please try again later.</p>
         </div>
       </div>
     );

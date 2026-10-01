@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast, Toaster } from "sonner";
+import { Toaster } from "sonner";
 import { Shield, LogIn } from "lucide-react";
-import { login } from "../lib/store";
+import { login, currentUserProfile } from "../lib/store";
+import AuthSplash from "../components/AuthSplash";
 
 export default function Login() {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [splash, setSplash] = useState(null); // { name }
   const nav = useNavigate();
 
   const submitLogin = async (e) => {
@@ -18,8 +20,8 @@ export default function Login() {
     try {
       const ok = await login(u, p);
       if (ok) {
-        toast.success("Signed in · Cloud data synced");
-        nav("/home");
+        const nm = currentUserProfile()?.name || u.split("@")[0] || "User";
+        setSplash({ name: nm });
       } else {
         setErr("Invalid email or password. Please contact administrator if you don't have an account.");
       }
@@ -32,6 +34,13 @@ export default function Login() {
 
   return (
     <div className="login-wrap" data-testid="login-page">
+      {splash && (
+        <AuthSplash
+          mode="welcome"
+          userName={splash.name}
+          onDone={() => nav("/home")}
+        />
+      )}
       <Toaster position="top-center" richColors />
       <div className="hero-banner" data-testid="hero-banner">
         <div className="hero-logo hero-logo-image">

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo, isSuperAdmin, canApprove, canCreate, isReadOnly, currentRole } from "../lib/store";
+import AuthSplash from "./AuthSplash";
 
 export const TopActionBar = ({
   searchPlaceholder = "Vendor Code / ID / Name",
@@ -26,6 +27,7 @@ export const TopActionBar = ({
   const [openExport, setOpenExport] = useState(false);
   const [ddPos, setDdPos] = useState({ bottom: 0, right: 0 });
   const [hasLogo, setHasLogo] = useState(!!getLogo());
+  const [goodbye, setGoodbye] = useState(null);
   const ddRef = useRef(null);
   const exportBtnRef = useRef(null);
   const menuRef = useRef(null);
@@ -79,7 +81,11 @@ export const TopActionBar = ({
     window.dispatchEvent(new Event("ae-logo-changed"));
     toast.success("Logo removed");
   };
-  const doLogout = () => { logout(); navigate("/login"); };
+  const doLogout = () => {
+    const prof = currentUserProfile();
+    const nm = prof?.name || prof?.user?.split("@")[0] || "User";
+    setGoodbye({ name: nm });
+  };
   const roleAllowsApprove = canApprove();
   const roleAllowsWrite = canCreate();
   const readOnly = isReadOnly();
@@ -97,7 +103,15 @@ export const TopActionBar = ({
   };
 
   return (
-    <div className={`top-action ${variant === "dark" ? "dark" : ""}`} data-testid="top-action-bar" style={{ display: "none" }} />
+    <div className={`top-action ${variant === "dark" ? "dark" : ""}`} data-testid="top-action-bar" style={{ display: "none" }}>
+      {goodbye && (
+        <AuthSplash
+          mode="goodbye"
+          userName={goodbye.name}
+          onDone={() => { logout(); navigate("/login"); }}
+        />
+      )}
+    </div>
   );
 };
 

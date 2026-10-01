@@ -5,6 +5,7 @@ import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle } from "l
 import { currentUserProfile, logout, resetLocalCache } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
+import AuthSplash from "../components/AuthSplash";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
@@ -57,6 +58,7 @@ export default function UsersAdmin() {
   const me = currentUserProfile();
   const [users, setUsers] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [goodbye, setGoodbye] = useState(null);
   // Create user form
   const [f, setF] = useState({ name: "", email: "", mobile: "", employee_id: "", designation: "", role: "User", password: "", password2: "" });
   // Self change-password form
@@ -198,7 +200,10 @@ export default function UsersAdmin() {
             <button data-testid="btn-back-vendor" onClick={() => nav("/vendor")} style={{ padding: "6px 12px", background: "#e2e8f0", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <ArrowLeft size={13} /> Back to App
             </button>
-            <button data-testid="btn-logout-admin" onClick={() => { logout(); nav("/login"); }} style={{ padding: "9px 18px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 13, letterSpacing: 0.4 }}>
+            <button data-testid="btn-logout-admin" onClick={() => {
+              const nm = me?.name || me?.user?.split("@")[0] || "User";
+              setGoodbye({ name: nm });
+            }} style={{ padding: "9px 18px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 13, letterSpacing: 0.4 }}>
               Logout
             </button>
           </div>

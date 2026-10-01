@@ -430,7 +430,7 @@ export default function BillProcessing() {
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 
         <div className="a4" data-testid="bill-page">
-          <Header formTitle="ACCOUNTS DEPARTMENT · BILL PROCESSING & PAYMENT APPROVAL VOUCHER" />
+          <Header formTitle="ACCOUNTS DEPARTMENT" />
 
           {/* View Switcher — Vendor Bills · HR Payroll · Employee Advance */}
           <div style={{ display: "flex", gap: 0, marginTop: 10, marginBottom: 12, borderBottom: "2px solid #cbd5e1", background: "#fff", borderRadius: 6, overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,.05)" }} data-testid="bill-view-tabs">

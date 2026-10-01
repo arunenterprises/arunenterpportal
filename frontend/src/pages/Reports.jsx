@@ -1055,10 +1055,10 @@ export default function Reports() {
                     <table>
                       <thead><tr><th>Particulars</th><th style={{ textAlign: "right" }}>Amount (₹)</th></tr></thead>
                       <tbody>
-                        <tr><td>Bill Basic</td><td className="num">{pv.basic.toFixed(2)}</td></tr>
-                        <tr><td>GST</td><td className="num">{pv.gst.toFixed(2)}</td></tr>
-                        <tr><td>TDS Deducted</td><td className="num">{pv.tds.toFixed(2)}</td></tr>
-                        <tr><td>Bill Net</td><td className="num">{pv.net.toFixed(2)}</td></tr>
+                        <tr><td>Bill Basic</td><td className="num">{Number(pv.basic || 0).toFixed(2)}</td></tr>
+                        <tr><td>GST</td><td className="num">{Number(pv.gst || 0).toFixed(2)}</td></tr>
+                        <tr><td>TDS Deducted</td><td className="num">{Number(pv.tds || 0).toFixed(2)}</td></tr>
+                        <tr><td>Bill Net</td><td className="num">{Number(pv.net || pv.amount || 0).toFixed(2)}</td></tr>
                         <tr className="total"><td>Voucher Amount</td><td className="num" data-testid="pv-voucher-amount">{Number(pv.amount || 0).toFixed(2)}</td></tr>
                       </tbody>
                     </table>

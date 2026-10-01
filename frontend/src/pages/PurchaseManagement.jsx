@@ -799,7 +799,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
           {wo.step >= 4 && (
             <button
               data-testid="wo-btn-portal"
-              onClick={() => {
+              onClick={async () => {
                 const list = getWOs();
                 const idx = list.findIndex((x) => x.id === wo.id);
                 if (idx < 0) { toast.error("Save WO first"); return; }
@@ -807,8 +807,16 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                 list[idx] = updated;
                 saveWOs(list);
                 setWo(updated);
+                // Push to shared backend so the vendor's public-link view can fetch it
+                try {
+                  const { apiUpsertWO } = await import("../lib/api");
+                  await apiUpsertWO(updated);
+                } catch (e) {
+                  toast.error("Published locally but cloud sync failed — vendor may not see it. Check connection.");
+                  return;
+                }
                 const url = `https://vendor-portal-458.emergent.host/vendor-portal/wo/${wo.id}`;
-                navigator.clipboard?.writeText(url);
+                try { await navigator.clipboard?.writeText(url); } catch {}
                 toast.success(`Vendor portal link copied: ${url}`);
               }}
               style={{ padding: "7px 12px", background: wo.vendorPortalPublished ? "#059669" : "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(8,145,178,.3)" }}

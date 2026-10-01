@@ -3,14 +3,20 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { logout, currentUser, currentUserProfile, setLogo, clearLogo, getLogo, isSuperAdmin } from "../lib/store";
 import { LogOut, User, ImageUp, ImageOff } from "lucide-react";
 import { toast } from "sonner";
+import AuthSplash from "./AuthSplash";
 
 export const TopNav = () => {
   const navigate = useNavigate();
   const user = currentUser();
   const fileRef = useRef(null);
   const [hasLogo, setHasLogo] = useState(!!getLogo());
+  const [goodbye, setGoodbye] = useState(null);
 
-  const doLogout = () => { logout(); navigate("/login"); };
+  const doLogout = () => {
+    const prof = currentUserProfile();
+    const nm = prof?.name || prof?.user?.split("@")[0] || "User";
+    setGoodbye({ name: nm });
+  };
 
   const onPickFile = (e) => {
     const f = e.target.files?.[0];
@@ -44,6 +50,13 @@ export const TopNav = () => {
 
   return (
     <div className="top-nav" data-testid="top-nav">
+      {goodbye && (
+        <AuthSplash
+          mode="goodbye"
+          userName={goodbye.name}
+          onDone={() => { logout(); navigate("/login"); }}
+        />
+      )}
       <div className="tabs">
         <NavLink to="/vendor" className={({ isActive }) => isActive ? "active" : ""} data-testid="nav-vendor">
           Page 1 · Vendor Registration

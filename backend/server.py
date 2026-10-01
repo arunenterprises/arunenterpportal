@@ -483,6 +483,32 @@ async def delete_wo(wid: str, user: Dict = Depends(get_current_user)):
     return {"ok": True, "deleted": r.deleted_count}
 
 
+# ==================== PUBLIC VENDOR PORTAL ====================
+# Public read-only access for approved + published Work Orders. No auth required
+# because vendors receive a direct share-link and should not need an account.
+@api_router.get("/public/work_orders/{wo_id}")
+async def public_get_wo(wo_id: str):
+    doc = await db.work_orders.find_one({"id": wo_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Work Order not found")
+    if not doc.get("vendorPortalPublished"):
+        raise HTTPException(status_code=403, detail="This Work Order has not been published to the vendor portal yet")
+    wo = _clean(doc)
+    # Attach a lightweight vendor snapshot (public-safe fields only) if we have it
+    vendor_code = wo.get("vendorCode")
+    if vendor_code:
+        v = await db.vendors.find_one({"vendorCode": vendor_code})
+        if v:
+            wo["vendor"] = {
+                "firmName": v.get("firmName") or "",
+                "vendorCode": v.get("vendorCode") or "",
+                "gstNo": v.get("gstNo") or "",
+                "contactPerson": v.get("contactPerson") or "",
+                "mobile": v.get("mobile") or "",
+            }
+    return wo
+
+
 # ==================== DANGER ZONE: RESET ALL DATA ====================
 @api_router.post("/admin/reset-data")
 async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(require_super_admin)):

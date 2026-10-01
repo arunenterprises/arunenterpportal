@@ -3,13 +3,18 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Home as HomeIcon, LogOut, ArrowLeft, ImageUp, ImageOff } from "lucide-react";
 import { toast } from "sonner";
 import { logout, currentUser, currentUserProfile, isSuperAdmin, setLogo, clearLogo, getLogo } from "../lib/store";
+import AuthSplash from "./AuthSplash";
 
 const HomeNavBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const me = currentUserProfile();
   const superAdmin = isSuperAdmin(me?.user);
-  const doLogout = () => { logout(); navigate("/login"); };
+  const [goodbye, setGoodbye] = useState(null);
+  const doLogout = () => {
+    const nm = me?.name || me?.user?.split("@")[0] || "User";
+    setGoodbye({ name: nm });
+  };
 
   const fileRef = useRef(null);
   const [hasLogo, setHasLogo] = useState(!!getLogo());
@@ -39,6 +44,13 @@ const HomeNavBar = () => {
 
   return (
     <div className="home-navbar" data-testid="home-navbar">
+      {goodbye && (
+        <AuthSplash
+          mode="goodbye"
+          userName={goodbye.name}
+          onDone={() => { logout(); navigate("/login"); }}
+        />
+      )}
       <div className="hn-brand" onClick={() => navigate("/home")} data-testid="hn-brand">
         <HomeIcon size={16} /> <span>ARUN ENTERPRISES</span>
       </div>

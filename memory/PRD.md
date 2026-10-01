@@ -4,6 +4,17 @@
 - Backend: FastAPI + MongoDB. Frontend: React + Tailwind. Auth: JWT + per-user permissions.
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
+## Recent Updates (Feb 2026 session)
+- **Login/Logout full-page splash** — `AuthSplash.jsx` component renders a colorful gradient overlay with floating emoji particles, animated gradient title + progress bar. Login shows "Welcome to ARUN ENTERPRISES ERP, {name}" for ~2.2s then navigates to /home; Logout shows "BYE-BYE, {name}" for ~1.8s then clears auth + navigates to /login. Rendered via `createPortal(document.body)` so it covers any page. Wired into: `Login.jsx`, `HomeNavBar.jsx`, `TopNav.jsx`, `TopActionBar.jsx`, `UsersAdmin.jsx`.
+- **BillProcessing switcher tabs** — 3-way top switcher (`activeView` state): [Vendor Bills] | [HR Payroll] | [Employee Advance]. Only one view renders at a time (true React conditional, not display:none). Scrolls to top on tab click. Tested E2E — 100% pass (iteration_25.json).
+- **Header formTitle** on Bill Processing simplified to just "ACCOUNTS DEPARTMENT".
+- **Vendor Portal (critical fix)** — Previously `VendorPortalWO.jsx` read WO from device-local `getWOs()` so shared link showed empty on any other browser/device. NOW:
+  - New public backend endpoint `GET /api/public/work_orders/{wo_id}` — returns WO (with vendor snapshot) only if `vendorPortalPublished=true`, no auth required.
+  - `VendorPortalWO.jsx` fetches from backend via REACT_APP_BACKEND_URL + public endpoint.
+  - Publish button in PurchaseManagement now `await apiUpsertWO(updated)` before copying the share link, ensuring the vendor can see the latest WO on any device.
+  - Share URL points to `https://vendor-portal-458.emergent.host/vendor-portal/wo/{id}` (user-specified live domain).
+- **Reports.jsx bug fix** — PV breakup `pv.basic.toFixed()` crashed for HR-auto-generated PVs (which only have `amount`). Now defaults missing fields to 0 safely.
+
 ## Home — Organisation Structure (3-Tier · Full Width)
 1. **Centered Letterhead** (company logo + branding, bordered card)
 2. **"ORGANISATION STRUCTURE" banner** (gradient blue→purple→pink background)
