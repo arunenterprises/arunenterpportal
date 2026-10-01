@@ -775,16 +775,30 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
       </div>
 
       {/* Actions */}
-      <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-        <button data-testid="wo-btn-new" onClick={() => startNew()} style={{ padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><FilePlus2 size={13} /> New</button>
-        {locked && wo.step < 4 && writeAllowed && (
-          <button data-testid="wo-btn-reopen" onClick={() => { setLocked(false); toast.success("Edit mode enabled"); }} style={{ padding: "8px 14px", background: "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>✏ Reopen · Edit</button>
-        )}
-        <button data-testid="wo-btn-save" onClick={handleSave} disabled={!writeAllowed || locked} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Save size={13} /> Save</button>
-        <button data-testid="wo-btn-submit" onClick={handleSubmit} disabled={!writeAllowed || locked || wo.step >= 3} style={{ padding: "8px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && wo.step < 3 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Send size={13} /> Submit</button>
-        <button data-testid="wo-btn-approve" onClick={handleApprove} disabled={!approveAllowed || wo.step < 3 || wo.step >= 4} style={{ padding: "8px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", opacity: approveAllowed && wo.step >= 3 && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>Final Approval (issue WO No.)</button>
-        <button data-testid="wo-btn-download" onClick={() => downloadWOExcel()} style={{ padding: "8px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>⬇ Download Excel</button>
-        <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "8px 14px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Printer size={13} /> Print PDF (A4)</button>
+      <div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+        {/* Left group — Workflow */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Workflow</span>
+          <button data-testid="wo-btn-new" onClick={() => startNew()} style={{ padding: "7px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><FilePlus2 size={13} /> New</button>
+          <button data-testid="wo-btn-edit" onClick={() => {
+            if (!writeAllowed) { toast.error("Not permitted"); return; }
+            if (wo.step >= 4) { toast.error("Approved WO cannot be edited"); return; }
+            if (!locked) { toast.success("Already in edit mode"); return; }
+            setLocked(false); toast.success("Edit mode enabled");
+          }} disabled={!writeAllowed || wo.step >= 4} style={{ padding: "7px 12px", background: wo.step >= 4 ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && wo.step < 4 ? "pointer" : "not-allowed", opacity: writeAllowed && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>✏ Edit</button>
+          <button data-testid="wo-btn-save" onClick={handleSave} disabled={!writeAllowed || locked} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Save size={13} /> Save</button>
+          <button data-testid="wo-btn-submit" onClick={handleSubmit} disabled={!writeAllowed || locked || wo.step >= 3} style={{ padding: "7px 12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !locked ? "pointer" : "not-allowed", opacity: writeAllowed && !locked && wo.step < 3 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Send size={13} /> Submit</button>
+        </div>
+        {/* Center group — Approval */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <button data-testid="wo-btn-approve" onClick={handleApprove} disabled={!approveAllowed || wo.step < 3 || wo.step >= 4} style={{ padding: "7px 14px", background: approveAllowed && wo.step >= 3 && wo.step < 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed && wo.step >= 3 && wo.step < 4 ? "pointer" : "not-allowed", opacity: approveAllowed && wo.step >= 3 && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>✓ Final Approval (issue WO No.)</button>
+        </div>
+        {/* Right group — Export */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginRight: 4 }}>Export</span>
+          <button data-testid="wo-btn-download" onClick={() => downloadWOExcel()} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>⬇ Excel</button>
+          <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print PDF (A4)</button>
+        </div>
       </div>
 
       {/* All WOs list */}
