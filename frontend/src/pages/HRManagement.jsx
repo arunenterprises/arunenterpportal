@@ -1462,21 +1462,45 @@ const LoansTab = ({ writeAllowed, approveAllowed }) => {
 };
 
 // -------------- ID Card Generator (Front + Back printable) --------------
+// Design modelled after the user's reference artwork — portrait "lanyard" cards
+// with navy + red decorative curves, round photo, signature line, and a note +
+// emergency contact block on the back. Data mapping is unchanged.
 const IDCardTab = () => {
   const emps = useMemo(() => getEmployees().filter((e) => Number(e.step) === 5), []);
   const [selectedId, setSelectedId] = useState(emps[0]?.id || "");
   const emp = emps.find((e) => e.id === selectedId);
 
   const COMPANY = {
-    name: "M/s ARUN ENTERPRISES",
+    short: "ARUN ENTERPRISES",
     tagline: "OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY",
-    address: "209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011",
+    addrLines: ["Arun Enterprises", "209H/1F/1 Ops Nagar", "Kalindipuram", "Prayagraj - 211011"],
+    phone: "7080320222",
   };
 
+  // Managers / Directors / Incharge → hide personal mobile on the FRONT only.
+  // (The back always shows company email & phone — safe to display.)
   const isManagerRole = (desig = "") => {
     const d = String(desig).toLowerCase();
     return d.includes("manager") || d.includes("director") || d.includes("incharge");
   };
+
+  // Returns the SVG markup for the top navy+red curved banner used on BOTH
+  // front and back. Rendered via dangerouslySetInnerHTML + string template in
+  // the print window.
+  const TOP_SVG = `<svg viewBox="0 0 300 110" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:100%;height:110px;">
+    <path d="M0,0 L300,0 L300,70 Q220,110 150,80 Q70,55 0,95 Z" fill="#1e3a8a"/>
+    <path d="M200,0 L300,0 L300,65 Q260,70 230,45 Q210,28 200,0 Z" fill="#dc2626"/>
+  </svg>`;
+
+  const BOTTOM_SVG = `<svg viewBox="0 0 300 70" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;bottom:0;left:0;width:100%;height:70px;">
+    <path d="M0,70 L0,20 Q90,-10 180,20 Q240,38 300,10 L300,70 Z" fill="#1e3a8a"/>
+    <path d="M0,70 L0,35 Q80,20 170,35 Q230,48 300,30 L300,70 Z" fill="#dc2626" opacity="0.95"/>
+  </svg>`;
+
+  const BACK_MIDDLE_WAVE = `<svg viewBox="0 0 300 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:40px;display:block;">
+    <path d="M0,0 L300,0 L300,20 Q220,45 150,20 Q70,-5 0,25 Z" fill="#1e3a8a"/>
+    <path d="M0,0 L300,0 L300,12 Q220,32 150,12 Q70,-5 0,15 Z" fill="#dc2626" opacity="0.9"/>
+  </svg>`;
 
   const printCard = () => {
     if (!emp) { toast.error("Select an employee"); return; }
@@ -1484,6 +1508,9 @@ const IDCardTab = () => {
     const photo = emp.photoUrl || "";
     const hideMobile = isManagerRole(emp.designation);
     const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const emergency = emp.contactAltMobile || emp.contactMobile || "—";
+    const empEmail = emp.contactEmail || "";
+    const empMobile = emp.contactMobile || "";
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/><title>ID Card ${esc(emp.empCode || "")}</title>
 <style>
@@ -1492,29 +1519,51 @@ const IDCardTab = () => {
   body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; color: #0f172a; }
   .wrap { display: flex; flex-direction: column; gap: 18px; align-items: center; padding: 20px; }
   .pair { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
-  .card { width: 54mm; height: 85mm; border: 1.5px solid #0f172a; border-radius: 6mm; overflow: hidden; background: #fff; position: relative; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
-  .front .top { background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%); color: #fff; padding: 6px 8px 8px; text-align: center; }
-  .front .top img { height: 32px; max-width: 90%; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px; }
-  .front .top .cn { font-size: 11px; font-weight: 900; letter-spacing: .5px; margin-top: 4px; text-transform: uppercase; line-height: 1.1; }
-  .front .top .tag { font-size: 7px; font-weight: 600; letter-spacing: .5px; margin-top: 2px; opacity: .95; }
-  .front .photo { display: flex; justify-content: center; margin-top: 10px; }
-  .front .photo .ph { width: 32mm; height: 32mm; border: 2px solid #0369a1; border-radius: 4px; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #64748b; font-weight: 700; overflow: hidden; }
-  .front .name { text-align: center; font-size: 12px; font-weight: 800; margin-top: 8px; padding: 0 6px; letter-spacing: .3px; color: #0f172a; }
-  .front .desig { text-align: center; font-size: 9px; font-weight: 700; color: #0369a1; margin-top: 2px; letter-spacing: .5px; text-transform: uppercase; }
-  .front .meta { margin: 8px 6px 0; font-size: 8px; line-height: 1.4; color: #334155; }
-  .front .meta .row { display: flex; justify-content: space-between; padding: 1px 0; border-bottom: 1px dashed #cbd5e1; }
-  .front .meta b { color: #0f172a; }
-  .front .footer { position: absolute; bottom: 0; left: 0; right: 0; background: #0f172a; color: #fff; text-align: center; font-size: 7px; padding: 3px; letter-spacing: .5px; font-weight: 700; }
-  .back { background: #f8fafc; }
-  .back .top { background: #0f172a; color: #fff; padding: 6px 8px; text-align: center; font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
-  .back .body { padding: 8px; font-size: 8.5px; line-height: 1.5; color: #0f172a; }
-  .back .body h4 { margin: 4px 0 2px; font-size: 8.5px; font-weight: 800; color: #0369a1; text-transform: uppercase; letter-spacing: .4px; }
-  .back .body .kv { margin: 1px 0; }
-  .back .body .kv b { color: #0f172a; }
-  .back .rules { font-size: 7px; line-height: 1.4; color: #475569; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1; }
-  .back .sign { margin-top: 8px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 7px; }
-  .back .sign .box { border-top: 1px solid #0f172a; padding-top: 2px; min-width: 20mm; text-align: center; font-weight: 700; }
-  .back .issuer { position: absolute; bottom: 0; left: 0; right: 0; background: #0369a1; color: #fff; text-align: center; font-size: 7px; padding: 3px; font-weight: 700; letter-spacing: .3px; }
+  .card { width: 56mm; height: 92mm; border-radius: 5mm; overflow: hidden; background: #fff; position: relative; box-shadow: 0 6px 18px rgba(15,23,42,.25); border: 1px solid #cbd5e1; }
+  .lanyard { position: absolute; top: 3mm; left: 50%; transform: translateX(-50%); width: 10mm; height: 2.2mm; background: #0f172a; border-radius: 2mm; z-index: 5; }
+  /* FRONT */
+  .front .content { position: relative; z-index: 2; padding-top: 15mm; display: flex; flex-direction: column; align-items: center; height: 100%; }
+  .front .logo-box { width: 11mm; height: 11mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 2px; }
+  .front .logo-box img { width: 100%; height: 100%; object-fit: contain; }
+  .front .cn { font-size: 11px; font-weight: 900; letter-spacing: 1.4px; color: #0f172a; margin-top: 1mm; }
+  .front .tag { font-size: 6.5px; font-weight: 700; letter-spacing: .4px; color: #dc2626; margin-top: 1px; }
+  .front .photo-ring { margin-top: 3mm; width: 28mm; height: 28mm; border-radius: 50%; border: 2px solid #1e3a8a; overflow: hidden; background: #f1f5f9 center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #64748b; font-weight: 700; }
+  .front .name { font-size: 13px; font-weight: 900; letter-spacing: 1px; color: #1e3a8a; margin-top: 2.5mm; text-align: center; padding: 0 6px; }
+  .front .desig { font-size: 9px; font-weight: 800; color: #dc2626; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1mm; text-align: center; }
+  .front .rule { width: 20mm; height: 1px; background: linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent); margin: 2mm auto; }
+  .front .data { width: 94%; margin: 1mm auto 0; font-size: 8px; }
+  .front .data div { display: flex; padding: 0.6mm 0; letter-spacing: .3px; }
+  .front .data .k { flex: 0 0 20mm; font-weight: 800; color: #0f172a; letter-spacing: .5px; }
+  .front .data .sep { flex: 0 0 2mm; color: #475569; font-weight: 700; }
+  .front .data .v { flex: 1; font-weight: 700; color: #0f172a; }
+  .front .sign { margin-top: auto; padding-bottom: 10mm; text-align: center; z-index: 3; position: relative; }
+  .front .sign .sline { font-family: "Brush Script MT", "Lucida Handwriting", cursive; font-size: 13px; color: #0f172a; font-style: italic; }
+  .front .sign .slabel { font-size: 7px; font-weight: 800; letter-spacing: 1.2px; color: #475569; margin-top: 1px; border-top: 0.4px solid #0f172a; padding-top: 1px; width: 34mm; margin-left: auto; margin-right: auto; }
+  /* BACK */
+  .back .btop { position: relative; height: 42mm; background: #1e3a8a; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+  .back .btop .logo-box { width: 11mm; height: 11mm; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; }
+  .back .btop .logo-box img { width: 100%; height: 100%; object-fit: contain; }
+  .back .btop .cn { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; margin-top: 2mm; }
+  .back .btop .tag { font-size: 6px; font-weight: 700; letter-spacing: .4px; color: #fbbf24; margin-top: 1px; }
+  .back .bmid { padding: 3mm 5mm 1mm; font-size: 8px; color: #0f172a; }
+  .back .bmid .empstrip { display: flex; align-items: center; gap: 2.5mm; padding: 1.5mm 2mm; margin-bottom: 2mm; background: #f8fafc; border: 0.3mm dashed #cbd5e1; border-radius: 1.5mm; }
+  .back .bmid .empstrip .ph { width: 11mm; height: 11mm; border-radius: 50%; border: 0.5mm solid #1e3a8a; background: #f1f5f9 center/cover no-repeat; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 6px; color: #64748b; font-weight: 700; }
+  .back .bmid .empstrip .info { flex: 1; min-width: 0; }
+  .back .bmid .empstrip .eid { font-size: 10px; font-weight: 900; color: #1e3a8a; letter-spacing: .4px; }
+  .back .bmid .empstrip .enm { font-size: 8.5px; font-weight: 800; color: #0f172a; margin-top: 0.5mm; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .back .bmid .empstrip .edg { font-size: 6.5px; font-weight: 700; color: #dc2626; letter-spacing: .5px; text-transform: uppercase; margin-top: 0.3mm; }
+  .back .bmid h5 { margin: 0 0 1mm; font-size: 8.5px; font-weight: 900; color: #dc2626; letter-spacing: .8px; display: flex; align-items: center; gap: 2mm; }
+  .back .bmid .line { margin: 0.3mm 0; font-weight: 700; color: #0f172a; }
+  .back .bmid .block { margin-bottom: 2.5mm; }
+  .back .bmid .ico { color: #dc2626; font-size: 10px; }
+  .back .bbot { position: relative; margin-top: auto; background: #1e3a8a; color: #fff; padding: 2mm 4mm 3mm; }
+  .back .bbot h5 { margin: 0 0 1mm; font-size: 8px; font-weight: 900; color: #fff; letter-spacing: 1px; }
+  .back .bbot ul { list-style: none; padding: 0; margin: 0; }
+  .back .bbot ul li { font-size: 6.8px; padding: 0.3mm 0 0.3mm 2.5mm; position: relative; color: #e2e8f0; }
+  .back .bbot ul li:before { content: "•"; color: #dc2626; position: absolute; left: 0; }
+  .back .emg { background: #fff; color: #1e3a8a; padding: 1.5mm; margin-top: 2mm; text-align: center; border-radius: 1mm; }
+  .back .emg .lbl { font-size: 6.5px; font-weight: 800; letter-spacing: .4px; color: #0f172a; }
+  .back .emg .num { font-size: 11px; font-weight: 900; color: #dc2626; letter-spacing: 1px; margin-top: 0.5mm; }
   .noprint { padding: 10px 20px; background: #0f172a; color: #fff; border: none; border-radius: 5px; font-weight: 700; cursor: pointer; margin-top: 6px; }
   @media print { .noprint { display: none; } }
 </style>
@@ -1523,41 +1572,72 @@ const IDCardTab = () => {
 <div class="wrap">
   <button class="noprint" onclick="window.print()">🖨 Print / Save as PDF</button>
   <div class="pair">
+    <!-- FRONT -->
     <div class="card front">
-      <div class="top">
-        <img src="${logo}" alt="logo" onerror="this.style.display='none'" />
-        <div class="cn">${COMPANY.name}</div>
-        <div class="tag">${COMPANY.tagline}</div>
+      ${TOP_SVG}
+      <div class="lanyard"></div>
+      <div class="content">
+        <div class="logo-box"><img src="${logo}" alt="logo" onerror="this.style.display='none'"/></div>
+        <div class="cn">${esc(COMPANY.short)}</div>
+        <div class="tag">${esc(COMPANY.tagline)}</div>
+        <div class="photo-ring" ${photo ? `style="background-image:url('${photo}')"` : ""}>${photo ? "" : "PHOTO"}</div>
+        <div class="name">${esc(emp.fullName || "—").toUpperCase()}</div>
+        <div class="desig">${esc(emp.designation || "—")}</div>
+        <div class="rule"></div>
+        <div class="data">
+          <div><span class="k">EMPLOYEE ID</span><span class="sep">:</span><span class="v">${esc(emp.empCode || emp.tempCode || "—")}</span></div>
+          <div><span class="k">DEPARTMENT</span><span class="sep">:</span><span class="v">${esc((emp.department || "—").toUpperCase())}</span></div>
+          <div><span class="k">BLOOD GROUP</span><span class="sep">:</span><span class="v">${esc(emp.bloodGroup || "—")}</span></div>
+          <div><span class="k">DATE OF JOINING</span><span class="sep">:</span><span class="v">${emp.doj ? new Date(emp.doj).toLocaleDateString("en-GB") : "—"}</span></div>
+          ${hideMobile ? "" : `<div><span class="k">MOBILE</span><span class="sep">:</span><span class="v">${esc(empMobile || "—")}</span></div>`}
+        </div>
+        <div class="sign">
+          <div class="sline">${esc(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
+          <div class="slabel">AUTHORIZED SIGNATURE</div>
+        </div>
       </div>
-      <div class="photo">
-        <div class="ph" ${photo ? `style="background-image:url('${photo}')"` : ""}>${photo ? "" : "PHOTO"}</div>
-      </div>
-      <div class="name">${esc(emp.fullName || "—")}</div>
-      <div class="desig">${esc(emp.designation || "—")}</div>
-      <div class="meta">
-        <div class="row"><span>EMP Code</span><b>${esc(emp.empCode || emp.tempCode || "—")}</b></div>
-        <div class="row"><span>Department</span><b>${esc(emp.department || "—")}</b></div>
-        <div class="row"><span>DOJ</span><b>${emp.doj ? new Date(emp.doj).toLocaleDateString("en-GB") : "—"}</b></div>
-        <div class="row"><span>Blood Group</span><b>${esc(emp.bloodGroup || "—")}</b></div>
-        ${hideMobile ? "" : `<div class="row"><span>Mobile</span><b>${esc(emp.contactMobile || "—")}</b></div>`}
-      </div>
-      <div class="footer">EMPLOYEE IDENTITY CARD</div>
+      ${BOTTOM_SVG}
     </div>
+    <!-- BACK -->
     <div class="card back">
-      <div class="top">If Found Please Return</div>
-      <div class="body">
-        <h4>Issued To</h4>
-        <div class="kv"><b>${esc(emp.fullName || "—")}</b></div>
-        <div class="kv">S/o: ${esc(emp.fatherName || "—")}</div>
-        <h4>Address</h4>
-        <div class="kv">${esc(emp.presentLine || "—")}</div>
-        <div class="kv">${esc(emp.presentCity || "")} ${esc(emp.presentState || "")}${emp.presentPincode ? " - " + esc(emp.presentPincode) : ""}</div>
-        <h4>Emergency Contact</h4>
-        <div class="kv"><b>${esc(emp.contactAltMobile || emp.contactMobile || "—")}</b></div>
-        <div class="rules">This card remains the property of M/s ARUN ENTERPRISES and must be returned on resignation / termination.</div>
-        <div class="sign"><div class="box">Holder Signature</div><div class="box">Authorised Signatory</div></div>
+      <div class="lanyard"></div>
+      <div class="btop">
+        <div class="logo-box"><img src="${logo}" alt="logo" onerror="this.style.display='none'"/></div>
+        <div class="cn">${esc(COMPANY.short)}</div>
+        <div class="tag">${esc(COMPANY.tagline)}</div>
       </div>
-      <div class="issuer">${COMPANY.address}</div>
+      <div class="bmid">
+        <div class="empstrip">
+          <div class="ph" ${photo ? `style="background-image:url('${photo}')"` : ""}>${photo ? "" : "PH"}</div>
+          <div class="info">
+            <div class="eid">${esc(emp.empCode || emp.tempCode || "—")}</div>
+            <div class="enm">${esc(emp.fullName || "—")}</div>
+            <div class="edg">${esc(emp.designation || "—")}</div>
+          </div>
+        </div>
+        <div class="block">
+          <h5><span class="ico">📍</span> REGISTERED OFFICE</h5>
+          ${COMPANY.addrLines.map((l) => `<div class="line">${esc(l)}</div>`).join("")}
+        </div>
+        <div class="block">
+          <h5><span class="ico">📞</span> CONTACT DETAILS</h5>
+          <div class="line">✉ ${esc(empEmail || "—")}</div>
+          <div class="line">🌐 ${esc(COMPANY.phone)}</div>
+        </div>
+      </div>
+      ${BACK_MIDDLE_WAVE}
+      <div class="bbot">
+        <h5>NOTE:</h5>
+        <ul>
+          <li>This ID Card is the property of Arun Enterprises.</li>
+          <li>This card is non-transferable.</li>
+          <li>Return this card if found.</li>
+        </ul>
+        <div class="emg">
+          <div class="lbl">IN CASE OF EMERGENCY, PLEASE CONTACT</div>
+          <div class="num">${esc(emergency)}</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1571,6 +1651,10 @@ const IDCardTab = () => {
   if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No finalized employees yet. Finalize at least one employee first.</div>;
 
   const hideMobile = emp ? isManagerRole(emp.designation) : false;
+  const emergency = emp ? (emp.contactAltMobile || emp.contactMobile || "—") : "—";
+
+  // Reusable preview card dimensions
+  const CARD_W = 230, CARD_H = 380;
 
   return (
     <div style={{ padding: 18 }}>
@@ -1579,53 +1663,115 @@ const IDCardTab = () => {
         <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} data-testid="idcard-emp-select" style={{ ...inputStyle, maxWidth: 420, width: "auto", flex: "1 1 320px" }}>
           {emps.map((e) => <option key={e.id} value={e.id}>{`${e.empCode || e.tempCode} — ${e.fullName}${e.designation ? " · " + e.designation : ""}`}</option>)}
         </select>
-        <button onClick={printCard} data-testid="idcard-print" style={{ padding: "8px 16px", background: "linear-gradient(135deg,#0369a1 0%,#0ea5e9 100%)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 4px rgba(14,165,233,.3)" }}>
+        <button onClick={printCard} data-testid="idcard-print" style={{ padding: "8px 16px", background: "linear-gradient(135deg,#1e3a8a 0%,#dc2626 100%)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 4px rgba(30,58,138,.3)" }}>
           <Printer size={14} /> Print Card (Front + Back)
         </button>
       </div>
 
       {emp && (
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", padding: 20, background: "#f1f5f9", borderRadius: 8 }} data-testid="idcard-preview">
-          <div style={{ width: 240, minHeight: 370, border: "1.5px solid #0f172a", borderRadius: 14, overflow: "hidden", background: "#fff", boxShadow: "0 4px 12px rgba(0,0,0,.15)" }}>
-            <div style={{ background: "linear-gradient(135deg,#0369a1 0%,#0ea5e9 100%)", color: "#fff", padding: "8px 10px", textAlign: "center" }}>
-              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: .4, textTransform: "uppercase" }}>M/s ARUN ENTERPRISES</div>
-              <div style={{ fontSize: 7.5, fontWeight: 600, letterSpacing: .5, opacity: .95, marginTop: 2 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-              <div style={{ width: 110, height: 110, border: "2px solid #0369a1", borderRadius: 4, background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#64748b", fontWeight: 700 }}>
+        <div style={{ display: "flex", gap: 30, flexWrap: "wrap", justifyContent: "center", padding: 24, background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)", borderRadius: 10 }} data-testid="idcard-preview">
+          {/* FRONT PREVIEW */}
+          <div style={{ width: CARD_W, height: CARD_H, position: "relative", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 10px 30px rgba(15,23,42,.25)", border: "1px solid #cbd5e1" }}>
+            {/* Top SVG decoration */}
+            <svg viewBox="0 0 300 110" preserveAspectRatio="none" style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 90 }}>
+              <path d="M0,0 L300,0 L300,70 Q220,110 150,80 Q70,55 0,95 Z" fill="#1e3a8a"/>
+              <path d="M200,0 L300,0 L300,65 Q260,70 230,45 Q210,28 200,0 Z" fill="#dc2626"/>
+            </svg>
+            {/* Lanyard dot */}
+            <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
+            {/* Content */}
+            <div style={{ position: "relative", zIndex: 3, paddingTop: 54, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }}>
+                <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1.4, color: "#0f172a", marginTop: 4 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: .3, color: "#dc2626", marginTop: 1 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+              <div style={{ marginTop: 10, width: 80, height: 80, borderRadius: "50%", border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#64748b", fontWeight: 700 }}>
                 {emp.photoUrl ? "" : "PHOTO"}
               </div>
-            </div>
-            <div style={{ textAlign: "center", fontSize: 13, fontWeight: 800, marginTop: 8, padding: "0 8px" }}>{emp.fullName || "—"}</div>
-            <div style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: "#0369a1", marginTop: 2, letterSpacing: .5, textTransform: "uppercase" }}>{emp.designation || "—"}</div>
-            <div style={{ padding: "10px 10px 32px", fontSize: 9, lineHeight: 1.6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>EMP Code</span><b>{emp.empCode || emp.tempCode || "—"}</b></div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>Department</span><b>{emp.department || "—"}</b></div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>DOJ</span><b>{emp.doj ? fmtDMY(emp.doj) : "—"}</b></div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>Blood Group</span><b>{emp.bloodGroup || "—"}</b></div>
-              {!hideMobile && <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px dashed #cbd5e1", padding: "1px 0" }}><span>Mobile</span><b>{emp.contactMobile || "—"}</b></div>}
-            </div>
-            <div style={{ position: "relative", marginTop: -24, background: "#0f172a", color: "#fff", textAlign: "center", fontSize: 8, padding: 4, letterSpacing: .5, fontWeight: 700 }}>EMPLOYEE IDENTITY CARD</div>
-          </div>
-
-          <div style={{ width: 240, minHeight: 370, border: "1.5px solid #0f172a", borderRadius: 14, overflow: "hidden", background: "#f8fafc", boxShadow: "0 4px 12px rgba(0,0,0,.15)", position: "relative" }}>
-            <div style={{ background: "#0f172a", color: "#fff", padding: "7px 10px", textAlign: "center", fontSize: 10, fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>If Found Please Return</div>
-            <div style={{ padding: 10, fontSize: 10, lineHeight: 1.5 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0369a1", textTransform: "uppercase", marginTop: 4 }}>Issued To</div>
-              <div style={{ fontWeight: 800 }}>{emp.fullName || "—"}</div>
-              <div style={{ color: "#64748b" }}>S/o: {emp.fatherName || "—"}</div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0369a1", textTransform: "uppercase", marginTop: 6 }}>Address</div>
-              <div>{emp.presentLine || "—"}</div>
-              <div>{emp.presentCity} {emp.presentState}{emp.presentPincode ? " - " + emp.presentPincode : ""}</div>
-              <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0369a1", textTransform: "uppercase", marginTop: 6 }}>Emergency Contact</div>
-              <div style={{ fontWeight: 800 }}>{emp.contactAltMobile || emp.contactMobile || "—"}</div>
-              <div style={{ fontSize: 8, color: "#475569", marginTop: 8, paddingTop: 6, borderTop: "1px dashed #cbd5e1", lineHeight: 1.4 }}>This card remains the property of M/s ARUN ENTERPRISES and must be returned on resignation / termination.</div>
-              <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", fontSize: 8 }}>
-                <div style={{ borderTop: "1px solid #0f172a", paddingTop: 2, minWidth: 70, textAlign: "center", fontWeight: 700 }}>Holder Signature</div>
-                <div style={{ borderTop: "1px solid #0f172a", paddingTop: 2, minWidth: 70, textAlign: "center", fontWeight: 700 }}>Authorised Signatory</div>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: 1, color: "#1e3a8a", marginTop: 8, textAlign: "center", padding: "0 6px" }}>{(emp.fullName || "—").toUpperCase()}</div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: "#dc2626", letterSpacing: 1.3, textTransform: "uppercase", marginTop: 2, textAlign: "center" }}>{emp.designation || "—"}</div>
+              <div style={{ width: 56, height: 1, background: "linear-gradient(90deg, transparent, #1e3a8a 25%, #dc2626 75%, transparent)", margin: "6px auto" }} />
+              <div style={{ width: "90%", fontSize: 8, lineHeight: 1.5 }}>
+                {[
+                  ["EMPLOYEE ID", emp.empCode || emp.tempCode || "—"],
+                  ["DEPARTMENT", (emp.department || "—").toUpperCase()],
+                  ["BLOOD GROUP", emp.bloodGroup || "—"],
+                  ["DATE OF JOINING", emp.doj ? fmtDMY(emp.doj) : "—"],
+                  ...(!hideMobile ? [["MOBILE", emp.contactMobile || "—"]] : []),
+                ].map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", padding: "1px 0" }}>
+                    <span style={{ flex: "0 0 68px", fontWeight: 800, color: "#0f172a", letterSpacing: .4 }}>{k}</span>
+                    <span style={{ flex: "0 0 8px", color: "#475569", fontWeight: 700 }}>:</span>
+                    <span style={{ flex: 1, fontWeight: 700, color: "#0f172a" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: "auto", paddingBottom: 30, textAlign: "center", position: "relative", zIndex: 3 }}>
+                <div style={{ fontFamily: "'Brush Script MT','Lucida Handwriting',cursive", fontSize: 15, fontStyle: "italic", color: "#0f172a" }}>{(emp.fullName || "—").split(" ").slice(0, 2).join(" ")}</div>
+                <div style={{ fontSize: 7, fontWeight: 800, letterSpacing: 1.2, color: "#475569", borderTop: "0.5px solid #0f172a", paddingTop: 2, marginTop: 1, width: 130, marginLeft: "auto", marginRight: "auto" }}>AUTHORIZED SIGNATURE</div>
               </div>
             </div>
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "#0369a1", color: "#fff", textAlign: "center", fontSize: 8, padding: 4, fontWeight: 700, letterSpacing: .3 }}>{COMPANY.address}</div>
+            {/* Bottom SVG */}
+            <svg viewBox="0 0 300 70" preserveAspectRatio="none" style={{ position: "absolute", bottom: 0, left: 0, width: "100%", height: 55 }}>
+              <path d="M0,70 L0,20 Q90,-10 180,20 Q240,38 300,10 L300,70 Z" fill="#1e3a8a"/>
+              <path d="M0,70 L0,35 Q80,20 170,35 Q230,48 300,30 L300,70 Z" fill="#dc2626" opacity="0.95"/>
+            </svg>
+          </div>
+
+          {/* BACK PREVIEW */}
+          <div style={{ width: CARD_W, height: CARD_H, position: "relative", background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 10px 30px rgba(15,23,42,.25)", border: "1px solid #cbd5e1", display: "flex", flexDirection: "column" }}>
+            {/* Lanyard dot */}
+            <div style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)", width: 30, height: 6, background: "#0f172a", borderRadius: 3, zIndex: 5 }} />
+            {/* Top navy block */}
+            <div style={{ background: "#1e3a8a", color: "#fff", padding: "26px 10px 14px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <img src="/arun-logo.jpg" alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} onError={(e) => { e.target.style.display = "none"; }} />
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.4, marginTop: 6 }}>ARUN ENTERPRISES</div>
+              <div style={{ fontSize: 6.5, fontWeight: 700, letterSpacing: .4, color: "#fbbf24", marginTop: 1 }}>OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY</div>
+            </div>
+            {/* Middle white block */}
+            <div style={{ padding: "10px 12px", fontSize: 9, color: "#0f172a", flex: 1 }}>
+              {/* Short employee strip — photo + EMP ID + name + designation */}
+              <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", marginBottom: 8, background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 5 }}>
+                <div style={{ width: 42, height: 42, borderRadius: "50%", border: "2px solid #1e3a8a", overflow: "hidden", background: emp.photoUrl ? `#f1f5f9 center/cover no-repeat url('${emp.photoUrl}')` : "#f1f5f9", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, color: "#64748b", fontWeight: 700 }}>{emp.photoUrl ? "" : "PH"}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: "#1e3a8a", letterSpacing: .4, lineHeight: 1 }}>{emp.empCode || emp.tempCode || "—"}</div>
+                  <div style={{ fontSize: 8.5, fontWeight: 800, color: "#0f172a", letterSpacing: .2, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{emp.fullName}</div>
+                  <div style={{ fontSize: 7, fontWeight: 700, color: "#dc2626", letterSpacing: .5, textTransform: "uppercase", marginTop: 1 }}>{emp.designation}</div>
+                </div>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: "#dc2626", letterSpacing: .7, marginBottom: 3 }}>📍 REGISTERED OFFICE</div>
+                {COMPANY.addrLines.map((l, i) => <div key={i} style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>{l}</div>)}
+              </div>
+              <div>
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: "#dc2626", letterSpacing: .7, marginBottom: 3 }}>📞 CONTACT DETAILS</div>
+                <div style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>✉ {emp.contactEmail || "—"}</div>
+                <div style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>🌐 {COMPANY.phone}</div>
+              </div>
+            </div>
+            {/* Middle wave */}
+            <svg viewBox="0 0 300 40" preserveAspectRatio="none" style={{ width: "100%", height: 28, display: "block" }}>
+              <path d="M0,0 L300,0 L300,20 Q220,45 150,20 Q70,-5 0,25 Z" fill="#1e3a8a"/>
+              <path d="M0,0 L300,0 L300,12 Q220,32 150,12 Q70,-5 0,15 Z" fill="#dc2626" opacity="0.9"/>
+            </svg>
+            {/* Bottom navy with NOTE + Emergency */}
+            <div style={{ background: "#1e3a8a", color: "#fff", padding: "8px 12px 14px" }}>
+              <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: 1, marginBottom: 2 }}>NOTE:</div>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {["This ID Card is the property of Arun Enterprises.", "This card is non-transferable.", "Return this card if found."].map((t) => (
+                  <li key={t} style={{ fontSize: 6.5, color: "#e2e8f0", padding: "1px 0 1px 8px", position: "relative", lineHeight: 1.35 }}>
+                    <span style={{ position: "absolute", left: 0, color: "#dc2626" }}>•</span>{t}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ background: "#fff", color: "#1e3a8a", padding: "4px 6px", marginTop: 6, textAlign: "center", borderRadius: 3 }}>
+                <div style={{ fontSize: 6.5, fontWeight: 800, color: "#0f172a", letterSpacing: .3 }}>IN CASE OF EMERGENCY, PLEASE CONTACT</div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#dc2626", letterSpacing: 1 }}>{emergency}</div>
+              </div>
+            </div>
           </div>
         </div>
       )}
