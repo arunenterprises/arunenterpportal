@@ -415,34 +415,6 @@ export default function Reports() {
             ))}
           </div>
 
-          {/* Per-tab Action Bar — context-aware working buttons */}
-          <div data-testid="reports-action-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)", border: "1px solid #e2e8f0", borderTop: "none", flexWrap: "wrap", gap: 10 }}>
-            <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, lineHeight: 1.4 }}>
-              {reportsTab === "vouchers" && <>💳 <b>Payment Vouchers</b> · Browse, edit, re-approve or export approved vouchers. Form below mein voucher generate & submit kar sakte ho.</>}
-              {reportsTab === "due" && <>📋 <b>Due List</b> · Pending (unpaid) approved bills — click row to generate voucher. Export Due Excel for review.</>}
-              {reportsTab === "salary" && <>👥 <b>Salary Bills (HR Payroll)</b> · GM-approved pay bills ko Accounts yaha settle karega → auto PV generation.</>}
-              {reportsTab === "advance" && <>💰 <b>Employee Advances</b> · Per-employee advance ledger from pay bills + on-demand advances.</>}
-              {reportsTab === "aging" && <>⏱️ <b>Aging Report</b> · Payables ageing bucket-wise (0-30 / 31-60 / 61-90 / 90+).</>}
-              {reportsTab === "gsttds" && <>🧾 <b>GST-TDS Register</b> · Compliance-ready register of approved bills with GST & TDS splits.</>}
-            </div>
-            <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
-              {reportsTab === "vouchers" && <>
-                <button data-testid="rpt-btn-export-approved" onClick={exportApprovedVouchers} style={bbtn("#16a34a")}>⬇ Export Approved</button>
-                <button data-testid="rpt-btn-new-voucher" onClick={() => { setPv(null); setSelectedBillId(""); window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); toast.info("Scroll to form below · Select a bill and Generate Voucher"); }} style={bbtn("#7c3aed")}>🆕 New Voucher</button>
-                <button data-testid="rpt-btn-print" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
-                <button data-testid="rpt-btn-export-json" onClick={handleExportJSON} style={bbtn("#0369a1")}>🧾 Export JSON</button>
-              </>}
-              {reportsTab === "due" && <>
-                <button data-testid="rpt-btn-export-dues" onClick={exportDuesExcel} style={bbtn("#16a34a")}>⬇ Export Due List</button>
-                <button data-testid="rpt-btn-print-due" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
-              </>}
-              {reportsTab === "salary" && (<button data-testid="rpt-btn-print-salary" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-              {reportsTab === "advance" && (<button data-testid="rpt-btn-print-advance" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-              {reportsTab === "aging" && (<button data-testid="rpt-btn-print-aging" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-              {reportsTab === "gsttds" && (<button data-testid="rpt-btn-print-gsttds" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-            </div>
-          </div>
-
           {/* Aging & GST-TDS Register (conditional simple tables) */}
           {reportsTab === "salary" && (
             <div className="section" data-testid="reports-salary">
@@ -1214,6 +1186,34 @@ export default function Reports() {
           )}
           </>
           )}
+
+          {/* Per-tab Action Bar — context-aware working buttons (page bottom) */}
+          <div data-testid="reports-action-bar" style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", color: "#fff", borderRadius: 8, flexWrap: "wrap", gap: 10, boxShadow: "0 4px 12px rgba(15,23,42,.25)" }}>
+            <div style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, lineHeight: 1.5 }}>
+              {reportsTab === "vouchers" && <>💳 <b style={{ color: "#fbbf24" }}>Payment Vouchers</b> · Browse, edit, re-approve or export approved vouchers. Form above mein voucher generate & submit kar sakte ho.</>}
+              {reportsTab === "due" && <>📋 <b style={{ color: "#fbbf24" }}>Due List</b> · Pending (unpaid) approved bills — click row to generate voucher. Export Due Excel for review.</>}
+              {reportsTab === "salary" && <>👥 <b style={{ color: "#fbbf24" }}>Salary Bills (HR Payroll)</b> · GM-approved pay bills ko Accounts yaha settle karega → auto PV generation.</>}
+              {reportsTab === "advance" && <>💰 <b style={{ color: "#fbbf24" }}>Employee Advances</b> · Per-employee advance ledger from pay bills + on-demand advances.</>}
+              {reportsTab === "aging" && <>⏱️ <b style={{ color: "#fbbf24" }}>Aging Report</b> · Payables ageing bucket-wise (0-30 / 31-60 / 61-90 / 90+).</>}
+              {reportsTab === "gsttds" && <>🧾 <b style={{ color: "#fbbf24" }}>GST-TDS Register</b> · Compliance-ready register of approved bills with GST & TDS splits.</>}
+            </div>
+            <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+              {reportsTab === "vouchers" && <>
+                <button data-testid="rpt-btn-export-approved" onClick={exportApprovedVouchers} style={bbtn("#16a34a")}>⬇ Export Approved</button>
+                <button data-testid="rpt-btn-new-voucher" onClick={() => { setPv(null); setSelectedBillId(""); window.scrollTo({ top: 0, behavior: "smooth" }); toast.info("Scroll to form · Select a bill and Generate Voucher"); }} style={bbtn("#7c3aed")}>🆕 New Voucher</button>
+                <button data-testid="rpt-btn-print" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
+                <button data-testid="rpt-btn-export-json" onClick={handleExportJSON} style={bbtn("#0369a1")}>🧾 Export JSON</button>
+              </>}
+              {reportsTab === "due" && <>
+                <button data-testid="rpt-btn-export-dues" onClick={exportDuesExcel} style={bbtn("#16a34a")}>⬇ Export Due List</button>
+                <button data-testid="rpt-btn-print-due" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
+              </>}
+              {reportsTab === "salary" && (<button data-testid="rpt-btn-print-salary" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+              {reportsTab === "advance" && (<button data-testid="rpt-btn-print-advance" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+              {reportsTab === "aging" && (<button data-testid="rpt-btn-print-aging" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+              {reportsTab === "gsttds" && (<button data-testid="rpt-btn-print-gsttds" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+            </div>
+          </div>
         </div>
       </div>
     </>
