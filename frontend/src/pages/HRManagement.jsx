@@ -772,19 +772,12 @@ const PayrollTab = () => {
             <b style={{ fontSize: 20 }}>₹ {Number(salary.net || 0).toLocaleString("en-IN")}</b>
           </div>
 
-          {pbLine && existingPB && (
-            <div data-testid="hr-payroll-pb-link" style={{ marginTop: 8, padding: "6px 12px", background: Number(existingPB.step) === 4 ? "#dcfce7" : "#dbeafe", border: `1px solid ${Number(existingPB.step) === 4 ? "#86efac" : "#93c5fd"}`, borderRadius: 5, fontSize: 11, fontWeight: 700, color: Number(existingPB.step) === 4 ? "#166534" : "#1e3a8a", textAlign: "center" }}>
-              🔗 Aligned with <b>Approved Pay Bill {existingPB.refNo}</b> · Status: <b>{PAYBILL_STATUS[existingPB.step]}</b>{existingPB.linkedPvNo ? <> · PV: <b>{existingPB.linkedPvNo}</b></> : null}
-            </div>
-          )}
-
           <div data-testid="hr-payroll-amount-words" style={{ marginTop: 8, padding: "8px 12px", background: "#f1f5f9", border: "1px dashed #94a3b8", borderRadius: 6, fontSize: 12, color: "#0f172a" }}>
             <b>Amount in Words:</b> <i>{amountToWords(Number(salary.net || 0))}</i>
           </div>
 
           <div style={{ marginTop: 20, padding: "10px 14px", background: "#fef3c7", border: "1.5px dashed #f59e0b", borderRadius: 6, fontSize: 11, color: "#78350f", textAlign: "center", fontStyle: "italic", fontWeight: 700, letterSpacing: .4 }}>
-            ⚙️ This is a System-Generated Payslip · Signature Not Required<br/>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "#92400e" }}>Payroll pushed to Accounts as monthly aggregate for GM final approval.</span>
+            ⚙️ This is a System-Generated Payslip · Signature Not Required
           </div>
         </div>
       )}
