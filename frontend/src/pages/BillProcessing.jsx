@@ -17,6 +17,7 @@ import {
   getAdvanceRegister,
   getAdvanceRequests, advanceAdvanceRequestStep, rejectAdvanceRequest, ADVANCE_REQ_STATUS,
   getExits, advanceExitStep, EXIT_STATUS,
+  getEmployees,
 } from "../lib/store";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
@@ -1323,7 +1324,13 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
         selectable selected={selected} onToggle={toggle} onToggleAll={() => toggleAll(gmApproved)}
         renderActions={(b, i) => canApprove() ? <button data-testid={`pb-settle-${i}`} onClick={() => settle(b)} style={btnSm("#16a34a")}>Settle & Generate PV</button> : null} />
       <PayBillSection title={`Settled · Payment Vouchers Generated (${settled.length})`} rows={settled} tone="#16a34a" testid="pb-settled"
-        renderActions={(b) => <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{b.linkedPvNo}</span>} />
+        renderActions={(b, i) => (
+          <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700, padding: "3px 6px", background: "#dcfce7", borderRadius: 3 }}>{b.linkedPvNo}</span>
+            <button data-testid={`pb-export-xlsx-${i}`} onClick={() => exportBankTransferXLSX(b)} style={btnSm("#059669")}>⬇ Excel</button>
+            <button data-testid={`pb-print-advice-${i}`} onClick={() => printBankTransferAdvice(b)} style={btnSm("#be185d")}>🖨 Bank Advice</button>
+          </div>
+        )} />
     </div>
   );
 };
@@ -1446,3 +1453,169 @@ const KpiBox = ({ label, value, tone, sub }) => (
 );
 
 const btnSm = (bg) => ({ padding: "3px 8px", background: bg, color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 });
+
+// ===================== Bank Transfer Export (Excel + A4 Print) =====================
+// Returns array of bank transfer rows for a settled Pay Bill
+const _buildTransferRows = (pb) => {
+  const emps = getEmployees();
+  const active = (pb.lines || []).filter((l) => !l.excluded && (Number(l.net) || 0) > 0);
+  return active.map((l, i) => {
+    const emp = emps.find((e) => e.id === l.empId) || {};
+    return {
+      sr: i + 1,
+      empCode: l.empCode || emp.empCode || "—",
+      name: l.name || emp.fullName || "—",
+      designation: l.designation || emp.designation || "",
+      department: emp.department || "",
+      bankName: emp.bankName || "—",
+      bankBranch: emp.bankBranch || "",
+      accountNo: emp.bankAccount || emp.accountNumber || "—",
+      ifsc: emp.ifsc || emp.ifscCode || "—",
+      accountType: emp.bankAccountType || "Savings",
+      netAmount: Number(l.net) || 0,
+    };
+  });
+};
+
+const exportBankTransferXLSX = (pb) => {
+  const rows = _buildTransferRows(pb);
+  if (!rows.length) { toast.error("No eligible employee transfers in this pay bill"); return; }
+  const monthName = new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en", { month: "long" });
+  const total = rows.reduce((a, r) => a + r.netAmount, 0);
+
+  const aoa = [
+    [`M/s ARUN ENTERPRISES · BANK TRANSFER SHEET · ${monthName} ${pb.year}`],
+    [`Pay Bill: ${pb.refNo} · PV No: ${pb.linkedPvNo || "—"} · Employees: ${rows.length} · Total: ₹ ${total.toLocaleString("en-IN")}`],
+    [],
+    ["Sr.", "EMP Code", "Name", "Designation", "Department", "Bank Name", "Branch", "A/C No", "IFSC", "A/C Type", "Net Amount (₹)"],
+    ...rows.map((r) => [r.sr, r.empCode, r.name, r.designation, r.department, r.bankName, r.bankBranch, r.accountNo, r.ifsc, r.accountType, r.netAmount]),
+    [],
+    ["", "", "", "", "", "", "", "", "", "TOTAL (₹)", total],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 5 }, { wch: 14 }, { wch: 24 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 16 }];
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Bank Transfer");
+  XLSX.writeFile(wb, `BankTransfer_${(pb.refNo || "draft").replace(/\//g, "_")}_${monthName}${pb.year}.xlsx`);
+  toast.success(`Bank Transfer sheet exported · ${rows.length} employees · ₹ ${total.toLocaleString("en-IN")}`);
+};
+
+const printBankTransferAdvice = (pb) => {
+  const rows = _buildTransferRows(pb);
+  if (!rows.length) { toast.error("No eligible employee transfers in this pay bill"); return; }
+  const monthName = new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en", { month: "long" });
+  const total = rows.reduce((a, r) => a + r.netAmount, 0);
+  const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const esc = (s) => String(s || "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+  const inr = (n) => Number(n || 0).toLocaleString("en-IN");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Bank Transfer Advice - ${esc(pb.refNo)}</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Arial", sans-serif; color: #0f172a; margin: 0; padding: 0; font-size: 10pt; }
+  .sheet { padding: 0; }
+  .hdr { border-bottom: 3px double #0f172a; padding-bottom: 8px; margin-bottom: 10px; text-align: center; }
+  .hdr .co { font-size: 20pt; font-weight: 900; color: #c81e2b; letter-spacing: 1.5px; }
+  .hdr .tag { font-size: 9pt; font-weight: 700; color: #0f172a; letter-spacing: 1px; text-transform: uppercase; }
+  .hdr .addr { font-size: 8.5pt; color: #334155; margin-top: 2px; }
+  .banner { background: #0f172a; color: #fff; padding: 8px 14px; text-align: center; font-size: 14pt; font-weight: 900; letter-spacing: 2px; margin-bottom: 8px; }
+  .meta-row { display: flex; justify-content: space-between; padding: 6px 10px; background: #f1f5f9; border-left: 4px solid #c81e2b; font-size: 9pt; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+  .meta-row b { color: #c81e2b; }
+  .addressee { padding: 8px 12px; background: #fff7ed; border: 1px solid #fed7aa; margin-bottom: 8px; font-size: 9.5pt; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  th { background: #0f172a; color: #fff; padding: 6px 4px; text-align: left; border: 1px solid #1e293b; font-size: 8pt; letter-spacing: .3px; }
+  td { padding: 5px 4px; border: 1px solid #cbd5e1; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .num { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  tfoot td { background: #fef3c7 !important; font-weight: 900; font-size: 10pt; padding: 8px 4px; border-top: 2px solid #0f172a; }
+  .words { padding: 8px 12px; background: #ecfdf5; border: 1px dashed #10b981; margin-top: 8px; font-size: 10pt; font-style: italic; }
+  .foot { margin-top: 24px; display: flex; justify-content: space-between; }
+  .sig-box { text-align: center; min-width: 180px; }
+  .sig-box .line { border-top: 1px solid #0f172a; margin-bottom: 3px; height: 45px; }
+  .sig-box .name { font-weight: 800; font-size: 9pt; }
+  .sig-box .desig { font-size: 8pt; color: #64748b; }
+  .instr { margin-top: 10px; padding: 8px 12px; background: #fef9c3; border: 1px solid #fde047; font-size: 8pt; color: #713f12; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="hdr">
+    <div class="co">M/s ARUN ENTERPRISES</div>
+    <div class="tag">Govt. Civil Work Contractor &amp; General Order Supplier</div>
+    <div class="addr">209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011 · Toll Free: 9429694552 · Email: info@arunenterprises.online</div>
+  </div>
+  <div class="banner">💳 Bank Transfer Advice · Salary Payout · ${esc(monthName)} ${esc(pb.year)}</div>
+  <div class="meta-row">
+    <span><b>Pay Bill Ref:</b> ${esc(pb.refNo)}</span>
+    <span><b>PV No:</b> ${esc(pb.linkedPvNo || "—")}</span>
+    <span><b>Period:</b> ${esc(monthName)} ${esc(pb.year)}</span>
+    <span><b>Employees:</b> ${rows.length}</span>
+    <span><b>Advice Date:</b> ${esc(today)}</span>
+  </div>
+  <div class="addressee">
+    <b>To:</b> The Branch Manager<br/>
+    <b>Subject:</b> Request for salary disbursement to the following beneficiaries vide RTGS / NEFT / IMPS from our account.<br/>
+    <br/>
+    Please transfer the amounts listed below to the respective beneficiary accounts on priority. Charges, if any, may be debited to our account.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:3%">Sr.</th>
+        <th style="width:9%">EMP Code</th>
+        <th style="width:16%">Beneficiary Name</th>
+        <th style="width:11%">Department</th>
+        <th style="width:13%">Bank Name</th>
+        <th style="width:11%">Branch</th>
+        <th style="width:14%">A/C No</th>
+        <th style="width:10%">IFSC</th>
+        <th style="width:6%">A/C Type</th>
+        <th style="width:7%; text-align:right">Net Amount (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map((r) => `
+        <tr>
+          <td>${r.sr}</td>
+          <td><b>${esc(r.empCode)}</b></td>
+          <td><b>${esc(r.name)}</b><div style="font-size:7.5pt;color:#64748b">${esc(r.designation)}</div></td>
+          <td>${esc(r.department)}</td>
+          <td>${esc(r.bankName)}</td>
+          <td>${esc(r.bankBranch)}</td>
+          <td style="font-family:'Courier New',monospace">${esc(r.accountNo)}</td>
+          <td style="font-family:'Courier New',monospace;font-weight:700">${esc(r.ifsc)}</td>
+          <td>${esc(r.accountType)}</td>
+          <td class="num">${inr(r.netAmount)}</td>
+        </tr>`).join("")}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="9" style="text-align:right">GRAND TOTAL (${rows.length} beneficiaries)</td>
+        <td class="num">₹ ${inr(total)}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="words"><b>Amount in Words:</b> ${esc(amountToWords(total))}</div>
+  <div class="instr">
+    <b>Instructions:</b> Kindly process the above transfers on the same working day. In case of any mismatch or discrepancy in beneficiary details, please contact HR/Accounts department before processing. All transfers to be made via RTGS/NEFT/IMPS as applicable.
+  </div>
+  <div class="foot">
+    <div class="sig-box"><div class="line"></div><div class="name">Prepared By · HR Department</div><div class="desig">${esc(pb.submittedByName || "")}</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Verified By · Accounts</div><div class="desig">${esc(pb.settledByName || "")}</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Authorized Signatory</div><div class="desig">K.L. Srivastava · Director</div></div>
+  </div>
+</div>
+<script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>
+</body>
+</html>`;
+  const w = window.open("", "_blank", "width=1200,height=800");
+  if (!w) { toast.error("Please allow pop-ups to generate the Bank Advice"); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  toast.success(`Bank Transfer Advice ready to print · ${rows.length} beneficiaries`);
+};
