@@ -658,21 +658,26 @@ const PayrollTab = () => {
   const att = emp ? getMonthAttendance(emp.id, year, month) : null;
   const daysPresent = att ? Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length : 0;
 
-  // Prefer existing PayBill line (same month) so Payslip aligns with Accounts PayBill totals.
-  // Falls back to on-the-fly computeSalary when no PayBill draft exists yet.
+  // Payslip STRICTLY aligns with GM-approved / Settled Pay Bill (step >= 3) of the same month.
+  // If no approved PayBill exists → disable the slip and prompt user to Push → Approve first.
   const existingPB = useMemo(() => {
     const monthKey = `${year}${String(month).padStart(2, "0")}`;
-    return getPayBills().find((p) => p.monthKey === monthKey);
+    const bills = getPayBills().filter((p) => p.monthKey === monthKey);
+    // Prefer Settled (step 4) → else GM Approved (step 3). Draft/Submitted ignored.
+    return bills.find((p) => Number(p.step) === 4) || bills.find((p) => Number(p.step) === 3) || null;
   }, [year, month]);
+  const draftPB = useMemo(() => {
+    if (existingPB) return null;
+    const monthKey = `${year}${String(month).padStart(2, "0")}`;
+    return getPayBills().find((p) => p.monthKey === monthKey) || null;
+  }, [year, month, existingPB]);
   const pbLine = existingPB?.lines?.find((l) => l.empId === selectedId);
-  const salary = emp
-    ? (pbLine
-        ? { basic: pbLine.basic, hra: pbLine.hra, da: pbLine.da, special: pbLine.special, bonus: pbLine.bonus,
-            gross: pbLine.gross, earned: pbLine.gross, pf: pbLine.pf, esic: pbLine.esic, proftax: pbLine.proftax,
-            tds: pbLine.tds, otherDeductions: pbLine.otherDeductions || 0, advance: pbLine.advance || 0,
-            deductions: (pbLine.pf || 0) + (pbLine.esic || 0) + (pbLine.proftax || 0) + (pbLine.tds || 0) + (pbLine.otherDeductions || 0),
-            net: pbLine.net, daysInMonth, daysPresent }
-        : computeSalary(emp, { daysInMonth, daysPresent }))
+  const salary = emp && pbLine
+    ? { basic: pbLine.basic, hra: pbLine.hra, da: pbLine.da, special: pbLine.special, bonus: pbLine.bonus,
+        gross: pbLine.gross, earned: pbLine.gross, pf: pbLine.pf, esic: pbLine.esic, proftax: pbLine.proftax,
+        tds: pbLine.tds, otherDeductions: pbLine.otherDeductions || 0, advance: pbLine.advance || 0,
+        deductions: (pbLine.pf || 0) + (pbLine.esic || 0) + (pbLine.proftax || 0) + (pbLine.tds || 0) + (pbLine.otherDeductions || 0),
+        net: pbLine.net, daysInMonth, daysPresent }
     : null;
 
   const pushToAccounts = () => {
@@ -702,11 +707,19 @@ const PayrollTab = () => {
         <button data-testid="hr-payroll-push" onClick={pushToAccounts} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Push Monthly Payroll → Accounts</button>
       </div>
 
+      {emp && !salary && (
+        <div data-testid="hr-payroll-not-approved" style={{ margin: "0 auto", maxWidth: 800, padding: 24, textAlign: "center", background: "#fef9c3", border: "1.5px dashed #eab308", borderRadius: 8, color: "#78350f" }}>
+          <div style={{ fontSize: 36, marginBottom: 6 }}>🔒</div>
+          <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4 }}>No GM-Approved Pay Bill for {new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })}</div>
+          <div style={{ fontSize: 11, color: "#92400e", lineHeight: 1.6, marginBottom: 10 }}>
+            Payslip sirf GM-Approved ya Settled Pay Bill ke baad hi show hoga (data consistency ensure karne ke liye).<br/>
+            {draftPB ? <>Pay Bill <b>{draftPB.refNo}</b> is currently in <b>{PAYBILL_STATUS[draftPB.step]}</b> stage. HR → Submit karo → GM Approve karein.</> : <>Pehle "Push Monthly Payroll → Accounts" button se Pay Bill create karo, phir HR Submit → GM Approve.</>}
+          </div>
+        </div>
+      )}
       {emp && salary && (
         <div className="a4" style={{ background: "#fff", border: "1px solid #cbd5e1", padding: 24, borderRadius: 8, maxWidth: 800, margin: "0 auto" }} data-testid="hr-payroll-slip">
-          <Header formTitle={`SALARY SLIP · ${new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" }).toUpperCase()}`} />
-
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 12, marginTop: 12 }}>
+          <Header formTitle={`SALARY SLIP · ${new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" }).toUpperCase()}`} /><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 12, marginTop: 12 }}>
             <tbody>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9", width: "25%" }}>Emp Code</td><td style={{ padding: 5 }}>{emp.empCode}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9", width: "25%" }}>Name</td><td style={{ padding: 5 }}>{emp.fullName}</td></tr>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Designation</td><td style={{ padding: 5 }}>{emp.designation}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Department</td><td style={{ padding: 5 }}>{emp.department}</td></tr>
@@ -748,9 +761,9 @@ const PayrollTab = () => {
             <b style={{ fontSize: 20 }}>₹ {Number(salary.net || 0).toLocaleString("en-IN")}</b>
           </div>
 
-          {pbLine && (
-            <div data-testid="hr-payroll-pb-link" style={{ marginTop: 8, padding: "6px 12px", background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: 5, fontSize: 11, fontWeight: 700, color: "#1e3a8a", textAlign: "center" }}>
-              🔗 Aligned with Pay Bill <b>{existingPB.refNo}</b> · Status: <b>{PAYBILL_STATUS[existingPB.step]}</b> · This Payslip reflects the latest PayBill values
+          {pbLine && existingPB && (
+            <div data-testid="hr-payroll-pb-link" style={{ marginTop: 8, padding: "6px 12px", background: Number(existingPB.step) === 4 ? "#dcfce7" : "#dbeafe", border: `1px solid ${Number(existingPB.step) === 4 ? "#86efac" : "#93c5fd"}`, borderRadius: 5, fontSize: 11, fontWeight: 700, color: Number(existingPB.step) === 4 ? "#166534" : "#1e3a8a", textAlign: "center" }}>
+              🔗 Aligned with <b>Approved Pay Bill {existingPB.refNo}</b> · Status: <b>{PAYBILL_STATUS[existingPB.step]}</b>{existingPB.linkedPvNo ? <> · PV: <b>{existingPB.linkedPvNo}</b></> : null}
             </div>
           )}
 
