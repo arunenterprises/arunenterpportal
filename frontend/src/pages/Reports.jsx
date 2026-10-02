@@ -10,9 +10,9 @@ import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON, amountToWords,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
-  getPayBills, advancePayBillStep, PAYBILL_STATUS,
+  getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
-  canApprove,
+  canApprove, currentRole,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -469,6 +469,24 @@ export default function Reports() {
                               )}
                               {Number(pb.step) === 4 && (
                                 <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PV: {pb.linkedPvNo || "generated"}</span>
+                              )}
+                              {currentRole() === "SuperAdmin" && Number(pb.step) >= 3 && (
+                                <button
+                                  data-testid={`salary-sa-del-${pb.id}`}
+                                  onClick={() => {
+                                    if (!window.confirm(`⚠️ SuperAdmin Override\n\nDelete Pay Bill ${pb.refNo}?\n\nStatus: ${PAYBILL_STATUS[pb.step]}\nNet: ₹${Number(pb.totalNet || 0).toLocaleString("en-IN")}\n${pb.linkedPvNo ? `Linked PV: ${pb.linkedPvNo} (will remain in Payments)\n` : ""}\nThis action is logged in audit trail.`)) return;
+                                    try {
+                                      const log = JSON.parse(localStorage.getItem("ae_vm_pb_delete_log") || "[]");
+                                      log.push({ refNo: pb.refNo, step: pb.step, totalNet: pb.totalNet, linkedPvNo: pb.linkedPvNo || "", source: "Reports", deletedBy: currentUser() || "SuperAdmin", deletedAt: new Date().toISOString() });
+                                      localStorage.setItem("ae_vm_pb_delete_log", JSON.stringify(log));
+                                    } catch (err) {}
+                                    deletePayBill(pb.id);
+                                    setRefresh((v) => v + 1);
+                                    toast.success(`Pay Bill ${pb.refNo} deleted (SuperAdmin override)`);
+                                  }}
+                                  style={{ marginLeft: 6, padding: "3px 10px", background: "#7f1d1d", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                                  title="SuperAdmin override · Delete pay bill after approval"
+                                >👑 Delete</button>
                               )}
                             </td>
                           </tr>
