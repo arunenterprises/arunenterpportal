@@ -657,11 +657,31 @@ const PayrollTab = () => {
   const emp = emps.find((e) => e.id === selectedId);
   const att = emp ? getMonthAttendance(emp.id, year, month) : null;
   const daysPresent = att ? Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length : 0;
-  const salary = emp ? computeSalary(emp, { daysInMonth, daysPresent }) : null;
+
+  // Prefer existing PayBill line (same month) so Payslip aligns with Accounts PayBill totals.
+  // Falls back to on-the-fly computeSalary when no PayBill draft exists yet.
+  const existingPB = useMemo(() => {
+    const monthKey = `${year}${String(month).padStart(2, "0")}`;
+    return getPayBills().find((p) => p.monthKey === monthKey);
+  }, [year, month]);
+  const pbLine = existingPB?.lines?.find((l) => l.empId === selectedId);
+  const salary = emp
+    ? (pbLine
+        ? { basic: pbLine.basic, hra: pbLine.hra, da: pbLine.da, special: pbLine.special, bonus: pbLine.bonus,
+            gross: pbLine.gross, earned: pbLine.gross, pf: pbLine.pf, esic: pbLine.esic, proftax: pbLine.proftax,
+            tds: pbLine.tds, otherDeductions: pbLine.otherDeductions || 0, advance: pbLine.advance || 0,
+            deductions: (pbLine.pf || 0) + (pbLine.esic || 0) + (pbLine.proftax || 0) + (pbLine.tds || 0) + (pbLine.otherDeductions || 0),
+            net: pbLine.net, daysInMonth, daysPresent }
+        : computeSalary(emp, { daysInMonth, daysPresent }))
+    : null;
 
   const pushToAccounts = () => {
-    const bill = sendPayrollToAccounts(year, month);
-    toast.success(`Monthly payroll pushed to Accounts as ${bill.refNo} · Total ₹${bill.basicAmount.toLocaleString("en-IN")}`);
+    // Align with PayBill: create (or refresh) PayBill draft for this month, upsert it.
+    // Accounts department Settle & auto-PV flow consumes this record.
+    const draft = createPayBillDraft(Number(year), Number(month));
+    if (!draft.lines.length) { toast.error("No active finalized employees to push"); return; }
+    const saved = upsertPayBill(draft);
+    toast.success(`Monthly payroll pushed to Accounts as Pay Bill ${saved.refNo} · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
   };
 
   if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Payroll dikhane ke liye pehle Employees tab me kam se kam ek employee finalize karo.</div>;
@@ -701,33 +721,41 @@ const PayrollTab = () => {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead><tr><th colSpan={2} style={{ padding: 6, background: "#dcfce7", color: "#166534", textAlign: "left" }}>Earnings</th></tr></thead>
               <tbody>
-                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>Basic</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{emp.basic.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>HRA</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{emp.hra.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>DA</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{emp.da.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>Special</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{emp.special.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5 }}>Bonus</td><td style={{ padding: 5, textAlign: "right" }}>{emp.bonus.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5, fontWeight: 800, background: "#dcfce7" }}>Gross Earned</td><td style={{ padding: 5, textAlign: "right", fontWeight: 800, background: "#dcfce7" }}>₹ {salary.earned.toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>Basic</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.basic || emp.basic || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>HRA</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.hra || emp.hra || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>DA</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.da || emp.da || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>Special</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.special || emp.special || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5 }}>Bonus</td><td style={{ padding: 5, textAlign: "right" }}>{Number(salary.bonus || emp.bonus || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, fontWeight: 800, background: "#dcfce7" }}>Gross Earned</td><td style={{ padding: 5, textAlign: "right", fontWeight: 800, background: "#dcfce7" }}>₹ {Number(salary.earned || salary.gross || 0).toLocaleString("en-IN")}</td></tr>
               </tbody>
             </table>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead><tr><th colSpan={2} style={{ padding: 6, background: "#fee2e2", color: "#991b1b", textAlign: "left" }}>Deductions</th></tr></thead>
               <tbody>
-                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>PF (12% Basic)</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{salary.pf.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>ESIC (0.75%)</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{salary.esic.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>Prof. Tax</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{salary.proftax.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5 }}>TDS</td><td style={{ padding: 5, textAlign: "right" }}>{salary.tds.toLocaleString("en-IN")}</td></tr>
-                <tr><td style={{ padding: 5, fontWeight: 800, background: "#fee2e2" }}>Total Deductions</td><td style={{ padding: 5, textAlign: "right", fontWeight: 800, background: "#fee2e2" }}>₹ {salary.deductions.toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>PF (12% Basic)</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.pf || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>ESIC (0.75%)</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.esic || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>Prof. Tax</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.proftax || 0).toLocaleString("en-IN")}</td></tr>
+                <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0" }}>TDS</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0" }}>{Number(salary.tds || 0).toLocaleString("en-IN")}</td></tr>
+                {Number(salary.advance || 0) > 0 && <tr><td style={{ padding: 5, borderBottom: "1px dashed #e2e8f0", color: "#78350f" }}>Advance Recovery</td><td style={{ padding: 5, textAlign: "right", borderBottom: "1px dashed #e2e8f0", color: "#78350f" }}>{Number(salary.advance).toLocaleString("en-IN")}</td></tr>}
+                {Number(salary.otherDeductions || 0) > 0 && <tr><td style={{ padding: 5 }}>Other Ded.</td><td style={{ padding: 5, textAlign: "right" }}>{Number(salary.otherDeductions).toLocaleString("en-IN")}</td></tr>}
+                <tr><td style={{ padding: 5, fontWeight: 800, background: "#fee2e2" }}>Total Deductions</td><td style={{ padding: 5, textAlign: "right", fontWeight: 800, background: "#fee2e2" }}>₹ {Number((salary.deductions || 0) + (salary.advance || 0)).toLocaleString("en-IN")}</td></tr>
               </tbody>
             </table>
           </div>
 
           <div style={{ marginTop: 14, padding: 12, background: "#0f172a", color: "#fff", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 }}>
             <b>NET SALARY PAYABLE</b>
-            <b style={{ fontSize: 20 }}>₹ {salary.net.toLocaleString("en-IN")}</b>
+            <b style={{ fontSize: 20 }}>₹ {Number(salary.net || 0).toLocaleString("en-IN")}</b>
           </div>
 
+          {pbLine && (
+            <div data-testid="hr-payroll-pb-link" style={{ marginTop: 8, padding: "6px 12px", background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: 5, fontSize: 11, fontWeight: 700, color: "#1e3a8a", textAlign: "center" }}>
+              🔗 Aligned with Pay Bill <b>{existingPB.refNo}</b> · Status: <b>{PAYBILL_STATUS[existingPB.step]}</b> · This Payslip reflects the latest PayBill values
+            </div>
+          )}
+
           <div data-testid="hr-payroll-amount-words" style={{ marginTop: 8, padding: "8px 12px", background: "#f1f5f9", border: "1px dashed #94a3b8", borderRadius: 6, fontSize: 12, color: "#0f172a" }}>
-            <b>Amount in Words:</b> <i>{amountToWords(salary.net)}</i>
+            <b>Amount in Words:</b> <i>{amountToWords(Number(salary.net || 0))}</i>
           </div>
 
           <div style={{ marginTop: 20, padding: "10px 14px", background: "#fef3c7", border: "1.5px dashed #f59e0b", borderRadius: 6, fontSize: 11, color: "#78350f", textAlign: "center", fontStyle: "italic", fontWeight: 700, letterSpacing: .4 }}>
