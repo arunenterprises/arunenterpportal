@@ -18,6 +18,7 @@ import {
   getAdvanceRequests, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
   getExits, advanceExitStep, deleteExit, EXIT_STATUS,
   getEmployees,
+  purgeLegacyPayrollBills,
 } from "../lib/store";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 const GST_SLABS = [0, 5, 12, 18, 28];
@@ -56,6 +57,18 @@ export default function BillProcessing() {
   const [activeView, setActiveView] = useState("vendor"); // vendor | advance | paybill | exit
   const [rev, setRev] = useState(0);
   const bumpRev = () => setRev((r) => r + 1);
+
+  // Auto-cleanup legacy HR-INTERNAL / isPayrollBill rows from Bills table on first mount.
+  // These were created by the old sendPayrollToAccounts flow and now live in `paybills` collection.
+  useEffect(() => {
+    const removed = purgeLegacyPayrollBills();
+    if (removed > 0) {
+      setRefresh((r) => r + 1);
+      // toast is defined later via sonner — safe no-op if window.sonnerQueue is not yet set
+      try { toast.success(`Legacy HR-INTERNAL bills cleaned up (${removed} rows). HR Pay Bills ab sirf 'Pay Bills Process' tab mein hain.`); } catch (_e) {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Exclude HR-sourced legacy payroll bills (vendorCode "HR-INTERNAL" / isPayrollBill flag).
   // HR Pay Bills are managed via Accounts > Pay Bills Process tab, NOT Vendor Bills.

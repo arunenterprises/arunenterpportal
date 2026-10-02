@@ -1,5 +1,5 @@
 import {
-  apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments,
+  apiUpsertVendor, apiUpsertBill, apiDeleteBill, apiUpsertExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments,
   apiDeleteBOQ, apiDeleteWO,
   apiUpsertEmployee, apiDeleteEmployee, apiUpsertAttendance,
   apiUpsertPayBill, apiDeletePayBill, apiUpsertLoan, apiDeleteLoan,
@@ -1324,6 +1324,21 @@ export const getComplianceSnapshot = (year, month) => {
 
 // --- Monthly Pay Bill (HR → GM approval) ---
 export const PAYBILL_STATUS = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved", 4: "Settled & Paid" };
+
+// Legacy cleanup: remove old HR-INTERNAL / isPayrollBill entries from the Bills table.
+// HR Pay Bills now live in the dedicated `paybills` collection; these legacy rows were created
+// by the old sendPayrollToAccounts flow and should no longer appear in Vendor Bills.
+export const purgeLegacyPayrollBills = () => {
+  const bills = getBills();
+  const kept = bills.filter((b) => !b.isPayrollBill && b.vendorCode !== "HR-INTERNAL");
+  const removed = bills.length - kept.length;
+  if (removed > 0) {
+    saveBills(kept);
+    // Mirror delete to backend
+    bills.forEach((b) => { if ((b.isPayrollBill || b.vendorCode === "HR-INTERNAL") && getToken()) apiDeleteBill?.(b.id).catch(() => {}); });
+  }
+  return removed;
+};
 
 export const getPayBills = () => read(KEYS.PAYBILLS, []);
 export const savePayBills = (list) => write(KEYS.PAYBILLS, list);
