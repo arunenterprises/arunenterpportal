@@ -5,6 +5,8 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
+- **Recruitment Requisition Workflow (NEW)** — `RecruitTab` revamped from candidate-tracker to full requisition flow: Draft → Save → Edit → Submit to GM → GM Approve (auto-generates `ADV{NNNN}-{FY}` Advertisement No + fills `gmApprovedAt` date) → Offered → Joined. Added fields: `requisitionDate`, `vacancies`, `experienceRequired`, `qualificationRequired`, `budgetCTC`, `reasonForHire`, `targetJoinDate`. Candidate details section unlocks only after GM approval. Reject with reason supported. Store: new `advanceRecruitStep` + `rejectRecruit` + `nextAdvertisementNo` (counter `adsSerial`). Deletion blocked after GM approval.
+- **ID Card Company Contact** — COMPANY now includes `email: info@arunenterprises.online` and `mobile: 9429694552`. Back of ID Card (both HTML print template + live preview) shows company email + company mobile + company landline (removed per-employee email). Emergency fallback updated to `9429694552`.
 - **Accounts Department · Top Switcher (NEW)** — `BillProcessing.jsx` ab 4 top tabs serve karta hai: [Vendor Bills] · [Advance Reg.] · [Pay Bills Process] · [Exit & F&F]. Each HR-sourced tab shows pending/approved/paid queues with role-gated Approve/Settle/Reject actions. Auto PV generation on settle:
   - Advance Reg: Status 2 (Submitted) → Accounts Approve → Status 3 → Generate PV & Pay → Status 4 (`PV/ADV/{FY}/N`)
   - Pay Bills: Status 2 (Submitted to GM) → GM Approve → Status 3 → Settle → Status 4 (`PV/HR/{Y-M}/N`)

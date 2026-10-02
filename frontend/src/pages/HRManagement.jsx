@@ -18,7 +18,7 @@ import {
   getAdvanceRequests, createAdvanceRequestDraft, upsertAdvanceRequest, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
   getLoans, createLoanDraft, upsertLoan, advanceLoanStep, deleteLoan, computeLoanEMI, LOAN_STATUS,
   getLeaves, createLeaveDraft, upsertLeave, deleteLeave, approveLeave, LEAVE_TYPES, LEAVE_STATUS,
-  getRecruitments, createRecruitDraft, upsertRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
+  getRecruitments, createRecruitDraft, upsertRecruit, advanceRecruitStep, rejectRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, advanceExitStep, EXIT_STATUS,
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
@@ -931,67 +931,170 @@ const LeavesTab = ({ writeAllowed, approveAllowed }) => {
 };
 
 // ================== RECRUITMENT ==================
-const RecruitTab = ({ writeAllowed }) => {
+const RecruitTab = ({ writeAllowed, approveAllowed }) => {
   const [list, setList] = useState(getRecruitments());
   const [cur, setCur] = useState(createRecruitDraft());
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
   const refresh = () => setList(getRecruitments());
   const set = (k, v) => setCur((p) => ({ ...p, [k]: v }));
+  const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
 
+  const isNew = !list.find((x) => x.id === cur.id);
+  const locked = Number(cur.status) >= 2; // locked after submission
+  const canEdit = writeAllowed && !locked;
+
+  const startNew = () => { setCur(createRecruitDraft()); toast.info("New requisition draft"); };
+  const loadRow = (r) => setCur({ ...r });
   const save = () => {
-    if (!cur.candidateName.trim()) return toast.error("Candidate name required");
-    if (!cur.position.trim()) return toast.error("Position required");
-    upsertRecruit(cur); refresh();
-    toast.success("Candidate saved");
+    if (!writeAllowed) return toast.error("Not permitted");
+    if (!cur.position.trim()) return toast.error("Position / Designation required");
+    if (!cur.department) return toast.error("Department required");
+    if (!cur.vacancies || Number(cur.vacancies) < 1) return toast.error("Vacancies must be ≥ 1");
+    const saved = upsertRecruit(cur); setCur(saved); refresh();
+    toast.success(`Requisition ${isNew ? "created" : "updated"} · Draft saved`);
   };
-  const changeStatus = (r, newStatus) => { upsertRecruit({ ...r, status: newStatus }); refresh(); };
+  const submit = () => {
+    if (!writeAllowed) return toast.error("Not permitted");
+    if (isNew) return toast.error("Save draft first");
+    if (Number(cur.status) !== 1) return toast.error("Already submitted");
+    const n = advanceRecruitStep(cur); setCur(n); refresh();
+    toast.success("Submitted to GM for approval");
+  };
+  const gmApprove = (r) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin / GM can approve");
+    const target = r || cur;
+    if (Number(target.status) !== 2) return toast.error("Not awaiting GM approval");
+    const n = advanceRecruitStep(target); refresh();
+    if (cur.id === n.id) setCur(n);
+    toast.success(`GM Approved · Advertisement ${n.advertisementNo} published`);
+  };
+  const markOffered = (r) => {
+    if (!writeAllowed) return toast.error("Not permitted");
+    const target = r || cur;
+    if (!target.candidateName?.trim()) return toast.error("Fill candidate name before offering");
+    if (Number(target.status) !== 3) return toast.error("Must be GM-approved first");
+    const n = advanceRecruitStep(target); refresh();
+    if (cur.id === n.id) setCur(n);
+    toast.success("Offer Letter issued");
+  };
   const convertToEmp = (r) => {
-    if (!window.confirm(`Convert ${r.candidateName} into an Employee draft?`)) return;
+    if (!window.confirm(`Convert ${r.candidateName} into Employee draft?`)) return;
     const emp = convertRecruitToEmployee(r); refresh();
-    toast.success(`Employee draft ${emp.tempCode} auto-created. Switch to Employees tab to complete.`);
+    toast.success(`Employee draft ${emp.tempCode} auto-created. Switch to Employees tab.`);
   };
-  const remove = (id) => { if (!window.confirm("Delete?")) return; deleteRecruit(id); refresh(); };
+  const doReject = (r) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin / GM can reject");
+    if (!rejectReason.trim()) return toast.error("Enter rejection reason");
+    rejectRecruit(r, rejectReason);
+    setRejectingId(null); setRejectReason(""); refresh();
+    if (cur.id === r.id) setCur({ ...r, status: 6, rejectReason });
+    toast.success("Requisition rejected");
+  };
+  const remove = (id) => {
+    if (!writeAllowed) return toast.error("Not permitted");
+    const r = list.find((x) => x.id === id);
+    if (r && Number(r.status) >= 3) return toast.error("Cannot delete after GM approval");
+    if (!window.confirm("Delete this requisition?")) return;
+    deleteRecruit(id); if (cur.id === id) setCur(createRecruitDraft()); refresh();
+    toast.success("Deleted");
+  };
+
+  const statusTone = { 1: "#64748b", 2: "#f59e0b", 3: "#16a34a", 4: "#0369a1", 5: "#0f766e", 6: "#dc2626" };
 
   return (
-    <div style={{ padding: 14 }}>
-      <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-        <F label="Candidate Name"><input value={cur.candidateName} onChange={(e) => set("candidateName", e.target.value)} style={inputStyle} data-testid="rec-name" /></F>
-        <F label="Mobile"><input value={cur.candidateMobile} onChange={(e) => set("candidateMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} style={inputStyle} /></F>
-        <F label="Email"><input value={cur.candidateEmail} onChange={(e) => set("candidateEmail", e.target.value)} style={inputStyle} /></F>
-        <F label="Position Applied"><input value={cur.position} onChange={(e) => set("position", e.target.value)} style={inputStyle} data-testid="rec-pos" /></F>
-        <F label="Department"><select value={cur.department} onChange={(e) => set("department", e.target.value)} style={inputStyle}>{["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"].map((d) => <option key={d}>{d}</option>)}</select></F>
-        <F label="Experience (yrs)"><input type="number" value={cur.experienceYears} onChange={(e) => set("experienceYears", +e.target.value || 0)} style={inputStyle} /></F>
-        <F label="Qualification"><input value={cur.qualification} onChange={(e) => set("qualification", e.target.value)} style={inputStyle} /></F>
-        <F label="Offered CTC (annual ₹)"><input type="number" value={cur.offerCTC} onChange={(e) => set("offerCTC", +e.target.value || 0)} style={inputStyle} /></F>
-        <F label="Offer Date"><input type="date" value={cur.offerDate} onChange={(e) => set("offerDate", e.target.value)} style={inputStyle} /></F>
-        <F label="Remarks"><input value={cur.remarks} onChange={(e) => set("remarks", e.target.value)} style={inputStyle} /></F>
-        <div style={{ gridColumn: "span 4", display: "flex", gap: 6 }}>
-          <button data-testid="rec-save" onClick={save} disabled={!writeAllowed} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Candidate</button>
-          <button onClick={() => setCur(createRecruitDraft())} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>New</button>
+    <div style={{ padding: 14 }} data-testid="recruit-tab">
+      {/* Header strip with Advertisement No + Status */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0f172a", color: "#fff", padding: "10px 14px", borderRadius: "8px 8px 0 0", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>
+          RECRUITMENT REQUISITION
+          <span style={{ background: statusTone[cur.status] || "#fbbf24", color: "#fff", padding: "1px 8px", borderRadius: 3, marginLeft: 10, fontSize: 10 }}>{RECRUIT_STATUS[cur.status]}</span>
+          {cur.advertisementNo && <span style={{ marginLeft: 10, background: "#fbbf24", color: "#78350f", padding: "2px 10px", borderRadius: 3, fontSize: 11, fontWeight: 800 }} data-testid="rec-adv-no">📢 {cur.advertisementNo}</span>}
+        </div>
+        <div style={{ fontSize: 10.5, color: "#cbd5e1" }}>
+          {cur.gmApprovedAt && <>Approved: <b style={{ color: "#86efac" }}>{fmtDMY(cur.gmApprovedAt)}</b> by <b>{cur.gmApprovedByName || "—"}</b></>}
         </div>
       </div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-        <thead><tr style={{ background: "#f8fafc" }}>{["Candidate", "Position", "Dept", "Exp", "CTC", "Status", "Actions"].map((h) => <th key={h} style={{ padding: 7, textAlign: "left", borderBottom: "1px solid #e2e8f0", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase" }}>{h}</th>)}</tr></thead>
-        <tbody>{list.length === 0 ? <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No candidates yet</td></tr> : list.map((r, i) => (
-          <tr key={r.id} data-testid={`rec-row-${r.id}`} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
-            <td style={{ padding: 7 }}>{r.candidateName}<div style={{ fontSize: 9.5, color: "#64748b" }}>{r.candidateMobile} · {r.candidateEmail}</div></td>
-            <td style={{ padding: 7 }}>{r.position}</td>
-            <td style={{ padding: 7 }}>{r.department}</td>
-            <td style={{ padding: 7, textAlign: "center" }}>{r.experienceYears}</td>
-            <td style={{ padding: 7, textAlign: "right" }}>₹ {Number(r.offerCTC || 0).toLocaleString("en-IN")}</td>
-            <td style={{ padding: 7 }}>
-              <select value={r.status} onChange={(e) => changeStatus(r, +e.target.value)} disabled={r.status === 5} style={{ padding: 3, fontSize: 10, fontWeight: 700, borderRadius: 4 }}>
-                {Object.entries(RECRUIT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </td>
-            <td style={{ padding: 4, whiteSpace: "nowrap" }}>
-              {(r.status >= 4) && <button data-testid={`rec-offer-${r.id}`} onClick={() => printOfferLetter(r)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Offer Letter</button>}
-              {r.status === 4 && !r.joinedEmpId && <button data-testid={`rec-convert-${r.id}`} onClick={() => convertToEmp(r)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>→ Emp Draft</button>}
-              {r.joinedEmpId && <span style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginRight: 4 }}>✓ Joined</span>}
-              <button onClick={() => remove(r.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
-            </td>
-          </tr>
-        ))}</tbody>
-      </table>
+
+      {/* Form */}
+      <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderTop: "none", borderRadius: "0 0 8px 8px", marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <F label="Requisition Date" req><input type="date" value={cur.requisitionDate} onChange={(e) => set("requisitionDate", e.target.value)} disabled={!canEdit} style={inputStyle} data-testid="rec-req-date" /></F>
+        <F label="Position / Designation" req><input value={cur.position} onChange={(e) => set("position", e.target.value)} disabled={!canEdit} style={inputStyle} data-testid="rec-pos" /></F>
+        <F label="Department" req><select value={cur.department} onChange={(e) => set("department", e.target.value)} disabled={!canEdit} style={inputStyle} data-testid="rec-dept">{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
+        <F label="Vacancies (Nos)" req><input type="number" min="1" value={cur.vacancies} onChange={(e) => set("vacancies", +e.target.value || 1)} disabled={!canEdit} style={inputStyle} data-testid="rec-vac" /></F>
+        <F label="Experience Required"><input value={cur.experienceRequired} onChange={(e) => set("experienceRequired", e.target.value)} disabled={!canEdit} style={inputStyle} placeholder="e.g. 3-5 years" /></F>
+        <F label="Qualification Required"><input value={cur.qualificationRequired} onChange={(e) => set("qualificationRequired", e.target.value)} disabled={!canEdit} style={inputStyle} placeholder="e.g. B.Tech / Diploma" /></F>
+        <F label="Budget CTC (annual ₹)"><input type="number" value={cur.budgetCTC} onChange={(e) => set("budgetCTC", +e.target.value || 0)} disabled={!canEdit} style={inputStyle} data-testid="rec-budget" /></F>
+        <F label="Target Join Date"><input type="date" value={cur.targetJoinDate} onChange={(e) => set("targetJoinDate", e.target.value)} disabled={!canEdit} style={inputStyle} /></F>
+        <div style={{ gridColumn: "span 4" }}>
+          <F label="Reason for Hire / Justification"><textarea value={cur.reasonForHire} onChange={(e) => set("reasonForHire", e.target.value)} disabled={!canEdit} style={{ ...inputStyle, minHeight: 50, resize: "vertical" }} placeholder="Replacement / New project / Expansion..." data-testid="rec-reason" /></F>
+        </div>
+
+        {/* Candidate section — appears after GM approval */}
+        {Number(cur.status) >= 3 && (
+          <>
+            <div style={{ gridColumn: "span 4", padding: "6px 10px", background: "#dbeafe", borderRadius: 4, fontSize: 11, fontWeight: 800, color: "#1e3a8a", letterSpacing: .5, textTransform: "uppercase" }}>Candidate Details · After Advertisement</div>
+            <F label="Candidate Name"><input value={cur.candidateName} onChange={(e) => set("candidateName", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} data-testid="rec-name" /></F>
+            <F label="Mobile"><input value={cur.candidateMobile} onChange={(e) => set("candidateMobile", e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+            <F label="Email"><input value={cur.candidateEmail} onChange={(e) => set("candidateEmail", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+            <F label="Experience (yrs)"><input type="number" value={cur.experienceYears} onChange={(e) => set("experienceYears", +e.target.value || 0)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+            <F label="Qualification"><input value={cur.qualification} onChange={(e) => set("qualification", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+            <F label="Offered CTC (₹)"><input type="number" value={cur.offerCTC} onChange={(e) => set("offerCTC", +e.target.value || 0)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+            <F label="Offer Date"><input type="date" value={cur.offerDate} onChange={(e) => set("offerDate", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+            <F label="Remarks"><input value={cur.remarks} onChange={(e) => set("remarks", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+          </>
+        )}
+
+        {/* Action buttons */}
+        <div style={{ gridColumn: "span 4", display: "flex", gap: 6, flexWrap: "wrap", paddingTop: 8, borderTop: "1px solid #e2e8f0", marginTop: 4 }}>
+          <button data-testid="rec-new" onClick={startNew} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> New</button>
+          <button data-testid="rec-save" onClick={save} disabled={!canEdit} style={{ padding: "7px 14px", background: canEdit ? "#16a34a" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: canEdit ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Draft</button>
+          <button data-testid="rec-edit" onClick={() => toast.info(locked ? "Cannot edit after submission" : "Editing enabled below")} disabled={!canEdit || isNew} style={{ padding: "7px 14px", background: canEdit && !isNew ? "#eab308" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: canEdit && !isNew ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Edit3 size={13} style={{ verticalAlign: -2 }} /> Edit</button>
+          <button data-testid="rec-submit" onClick={submit} disabled={!writeAllowed || isNew || Number(cur.status) !== 1} style={{ padding: "7px 14px", background: writeAllowed && !isNew && Number(cur.status) === 1 ? "#7c3aed" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !isNew && Number(cur.status) === 1 ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to GM</button>
+          {Number(cur.status) === 2 && <button data-testid="rec-approve" onClick={() => gmApprove(cur)} disabled={!approveAllowed} style={{ padding: "7px 14px", background: approveAllowed ? "#dc2626" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> GM Approve & Publish Ad</button>}
+          {Number(cur.status) === 3 && cur.candidateName && <button data-testid="rec-offer" onClick={() => markOffered(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><FileText size={13} style={{ verticalAlign: -2 }} /> Issue Offer</button>}
+          {Number(cur.status) === 4 && !cur.joinedEmpId && <button data-testid="rec-convert" onClick={() => convertToEmp(cur)} style={{ padding: "7px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>→ Create Emp Draft</button>}
+          {!isNew && Number(cur.status) < 3 && <button data-testid="rec-delete" onClick={() => remove(cur.id)} disabled={!writeAllowed} style={{ padding: "7px 14px", background: writeAllowed ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete</button>}
+          {[2, 3].includes(Number(cur.status)) && approveAllowed && <button data-testid="rec-reject" onClick={() => setRejectingId(cur.id)} style={{ padding: "7px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><X size={13} style={{ verticalAlign: -2 }} /> Reject</button>}
+        </div>
+        {rejectingId === cur.id && (
+          <div style={{ gridColumn: "span 4", padding: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 5, display: "flex", gap: 8, alignItems: "center" }}>
+            <input autoFocus placeholder="Rejection reason..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} style={{ ...inputStyle, flex: 1 }} data-testid="rec-reject-reason" />
+            <button onClick={() => doReject(cur)} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Confirm Reject</button>
+            <button onClick={() => { setRejectingId(null); setRejectReason(""); }} style={{ padding: "6px 12px", background: "#64748b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Cancel</button>
+          </div>
+        )}
+      </div>
+
+      {/* List */}
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>Recruitment Requisitions ({list.length}) · Click to open</div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead><tr style={{ background: "#f8fafc" }}>{["Advertisement No", "Req Date", "Position", "Dept", "Vac.", "Budget CTC", "Candidate", "Status", "GM Approved", "Actions"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}</tr></thead>
+          <tbody>
+            {list.length === 0 ? <tr><td colSpan={10} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No requisitions yet. Click "New" to create.</td></tr> : list.slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).map((r, i) => (
+              <tr key={r.id} data-testid={`rec-row-${r.id}`} style={{ background: i % 2 ? "#fafbfc" : "#fff", cursor: "pointer" }} onClick={() => loadRow(r)}>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 800, fontSize: 10, color: r.advertisementNo ? "#16a34a" : "#94a3b8" }}>{r.advertisementNo || "— (pending)"}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.requisitionDate || "—"}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700 }}>{r.position || "—"}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.department}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center", fontWeight: 700 }}>{r.vacancies || 1}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontSize: 10 }}>₹ {inrN(r.budgetCTC)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.candidateName || <span style={{ color: "#94a3b8" }}>—</span>}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: statusTone[r.status] || "#64748b", color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{RECRUIT_STATUS[r.status]}</span></td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, color: "#166534", fontWeight: 700 }}>{r.gmApprovedAt ? fmtDMY(r.gmApprovedAt) : "—"}</td>
+                <td style={{ padding: 4, whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                  {Number(r.status) === 2 && approveAllowed && <button data-testid={`rec-row-approve-${r.id}`} onClick={() => gmApprove(r)} style={{ padding: "3px 8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>GM Approve</button>}
+                  {Number(r.status) >= 3 && <button data-testid={`rec-offer-${r.id}`} onClick={() => printOfferLetter(r)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>📄 Letter</button>}
+                  {Number(r.status) === 4 && !r.joinedEmpId && <button data-testid={`rec-row-convert-${r.id}`} onClick={() => convertToEmp(r)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>→ Emp</button>}
+                  {r.joinedEmpId && <span style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginRight: 3 }}>✓ Joined</span>}
+                  {Number(r.status) < 3 && writeAllowed && <button onClick={() => remove(r.id)} style={{ padding: "3px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
@@ -1640,6 +1743,8 @@ const IDCardTab = () => {
     tagline: "OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY",
     addrLines: ["Arun Enterprises", "209H/1F/1 Ops Nagar", "Kalindipuram", "Prayagraj - 211011"],
     phone: "7080320222",
+    email: "info@arunenterprises.online",
+    mobile: "9429694552",
   };
 
   // Managers / Directors / Incharge → hide personal mobile on the FRONT only.
@@ -1673,7 +1778,7 @@ const IDCardTab = () => {
     const photo = emp.photoUrl || "";
     const hideMobile = isManagerRole(emp.designation);
     const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    const emergency = emp.contactAltMobile || emp.contactMobile || "—";
+    const emergency = emp.contactAltMobile || emp.contactMobile || "9429694552";
     const empEmail = emp.contactEmail || "";
     const empMobile = emp.contactMobile || "";
     const html = `<!DOCTYPE html>
@@ -1778,7 +1883,8 @@ const IDCardTab = () => {
         </div>
         <div class="block">
           <h5><span class="ico">📞</span> CONTACT DETAILS</h5>
-          <div class="line">✉ ${esc(empEmail || "—")}</div>
+          <div class="line">✉ ${esc(COMPANY.email)}</div>
+          <div class="line">📱 ${esc(COMPANY.mobile)}</div>
           <div class="line">🌐 ${esc(COMPANY.phone)}</div>
         </div>
       </div>
@@ -1808,7 +1914,7 @@ const IDCardTab = () => {
   if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>No finalized employees yet. Finalize at least one employee first.</div>;
 
   const hideMobile = emp ? isManagerRole(emp.designation) : false;
-  const emergency = emp ? (emp.contactAltMobile || emp.contactMobile || "—") : "—";
+  const emergency = emp ? (emp.contactAltMobile || emp.contactMobile || "9429694552") : "9429694552";
 
   // Reusable preview card dimensions
   const CARD_W = 270, CARD_H = 430;
@@ -1890,8 +1996,8 @@ const IDCardTab = () => {
               </div>
               <div>
                 <div style={{ fontSize: 9.5, fontWeight: 900, color: "#dc2626", letterSpacing: .7, marginBottom: 3 }}>📞 CONTACT DETAILS</div>
-                <div style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>✉ {emp.contactEmail || "—"}</div>
-                <div style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>🌐 {COMPANY.phone}</div>
+                <div style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>✉ {COMPANY.email}</div>
+                <div style={{ fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>📱 {COMPANY.mobile}</div>
               </div>
             </div>
             {/* Middle wave */}
@@ -2057,7 +2163,7 @@ export default function HRManagement() {
             {tab === "advance" && <AdvanceRegisterTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "loans" && <LoansTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "compliance" && <ComplianceTab />}
-            {tab === "recruit" && <RecruitTab writeAllowed={write} />}
+            {tab === "recruit" && <RecruitTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "exit" && <ExitTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "idcard" && <IDCardTab />}
           </div>

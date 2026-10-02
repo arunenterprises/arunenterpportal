@@ -1125,26 +1125,70 @@ export const approveLeave = (id, approve = true) => {
 };
 
 // ==================== HR: RECRUITMENT ====================
-export const RECRUIT_STATUS = { 1: "Applied", 2: "Shortlisted", 3: "Interview", 4: "Offered", 5: "Joined", 6: "Rejected" };
+// Workflow: 1 Draft → 2 Submitted to GM → 3 GM Approved (Advertisement Published) → 4 Offered → 5 Joined → 6 Rejected
+export const RECRUIT_STATUS = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved · Published", 4: "Offered", 5: "Joined", 6: "Rejected" };
 const RECRUITS_KEY = "ae_vm_hr_recruits";
 export const getRecruitments = () => read(RECRUITS_KEY, []);
 export const saveRecruitments = (list) => write(RECRUITS_KEY, list);
+// Advertisement No: ADV + 4-digit serial + FY (e.g., ADV0001-2526)
+const nextAdvertisementNo = () => {
+  const c = getCounters();
+  c.adsSerial = (c.adsSerial || 0) + 1;
+  saveCounters(c);
+  return `ADV${String(c.adsSerial).padStart(4, "0")}-${getFY()}`;
+};
 export const createRecruitDraft = () => ({
   id: `rec_${Date.now()}`,
+  advertisementNo: "", // auto on GM approval
+  requisitionDate: new Date().toISOString().slice(0, 10),
   position: "", department: "Operations",
+  vacancies: 1,
+  experienceRequired: "", qualificationRequired: "",
+  budgetCTC: 0,
+  reasonForHire: "", targetJoinDate: "",
+  // Candidate fields (filled after advert runs)
   candidateName: "", candidateMobile: "", candidateEmail: "",
   experienceYears: 0, qualification: "",
   offerCTC: 0, offerDate: "",
   status: 1,
   remarks: "",
-  createdBy: _me(), createdAt: new Date().toISOString(),
+  gmApprovedByName: "", gmApprovedAt: "",
+  submittedByName: "", submittedAt: "",
+  createdBy: _me(), createdByName: _me(), createdAt: new Date().toISOString(),
+  history: [],
 });
 export const upsertRecruit = (r) => {
   const list = getRecruitments();
   const idx = list.findIndex((x) => x.id === r.id);
-  if (idx >= 0) list[idx] = r; else list.push(r);
+  const next = { ...r, updatedAt: new Date().toISOString() };
+  if (idx >= 0) list[idx] = next; else list.push(next);
   saveRecruitments(list);
-  return r;
+  return next;
+};
+// Advance workflow: Draft(1) → Submitted(2) → GM Approved(3) → Offered(4) → Joined(5)
+export const advanceRecruitStep = (r) => {
+  const now = new Date().toISOString();
+  const me = _me();
+  const next = { ...r, status: Math.min(5, (Number(r.status) || 1) + 1), updatedAt: now };
+  next.history = [...(r.history || [])];
+  if (next.status === 2) { next.submittedByName = me; next.submittedAt = now; next.history.push({ action: "Submitted to GM", at: now, by: me }); }
+  if (next.status === 3) {
+    next.gmApprovedByName = me;
+    next.gmApprovedAt = now;
+    if (!next.advertisementNo) next.advertisementNo = nextAdvertisementNo();
+    next.history.push({ action: `GM Approved · Advertisement ${next.advertisementNo} published`, at: now, by: me });
+  }
+  if (next.status === 4) { next.offeredByName = me; next.offeredAt = now; next.history.push({ action: "Offer Letter Issued", at: now, by: me }); }
+  saveRecruitments(getRecruitments().map((x) => x.id === next.id ? next : x));
+  return next;
+};
+export const rejectRecruit = (r, reason = "") => {
+  const now = new Date().toISOString();
+  const me = _me();
+  const next = { ...r, status: 6, rejectReason: reason, rejectedByName: me, rejectedAt: now, updatedAt: now };
+  next.history = [...(r.history || []), { action: `Rejected: ${reason || "—"}`, at: now, by: me }];
+  saveRecruitments(getRecruitments().map((x) => x.id === next.id ? next : x));
+  return next;
 };
 export const deleteRecruit = (id) => { saveRecruitments(getRecruitments().filter((x) => x.id !== id)); };
 // Convert accepted offer → auto-create employee draft
