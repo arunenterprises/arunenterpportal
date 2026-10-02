@@ -1203,6 +1203,16 @@ export default function Reports() {
                 <button data-testid="rpt-btn-new-voucher" onClick={() => { setPv(null); setSelectedBillId(""); window.scrollTo({ top: 0, behavior: "smooth" }); toast.info("Scroll to form · Select a bill and Generate Voucher"); }} style={bbtn("#7c3aed")}>🆕 New Voucher</button>
                 <button data-testid="rpt-btn-print" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
                 <button data-testid="rpt-btn-export-json" onClick={handleExportJSON} style={bbtn("#0369a1")}>🧾 Export JSON</button>
+                {pv && pv.status !== "Approved" && <button data-testid="rpt-btn-delete-voucher" onClick={() => deletePayment(pv.pvNo)} style={bbtn("#dc2626")}>🗑 Delete Voucher</button>}
+                {pv && pv.status === "Approved" && (
+                  <SuperAdminDelete
+                    label={`Payment Voucher ${pv.pvNo}`}
+                    meta={{ "Vendor": pv.vendorName || pv.vendorCode, "Amount": `₹${Number(pv.amount || 0).toLocaleString("en-IN")}`, "Status": pv.status, "Approved By": pv.approvedByName || "—", "UTR": pv.utrNo || "—" }}
+                    auditKey="ae_vm_pv_delete_log"
+                    testid="rpt-btn-sa-del-voucher"
+                    onDelete={() => deletePayment(pv.pvNo)}
+                  />
+                )}
               </>}
               {reportsTab === "due" && <>
                 <button data-testid="rpt-btn-export-dues" onClick={exportDuesExcel} style={bbtn("#16a34a")}>⬇ Export Due List</button>
