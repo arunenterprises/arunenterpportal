@@ -39,6 +39,17 @@ export default function Reports() {
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
   const payments = useMemo(() => getPayments(), [refresh]);
+  // Vendor-only PVs for the Payment Vouchers tab — HR-origin PVs (payroll / advance / F&F)
+  // are shown in Salary Bills + Employee Advances tabs instead.
+  const vendorPayments = useMemo(
+    () => payments.filter((p) => {
+      const isHrSource = /^PV\/(HR|ADV|HR-FNF)/i.test(String(p.pvNo || ""))
+        || ["AE-HR-PAYROLL", "AE-HR-ADVANCE", "AE-HR-FNF"].includes(p.vendorCode)
+        || (p.source && /HR|Advance|Pay Bill/i.test(p.source));
+      return !isHrSource;
+    }),
+    [payments]
+  );
 
   const approvedBills = bills.filter((b) => b.step === 5);
   const vouchersByBill = useMemo(() => {
@@ -279,10 +290,10 @@ export default function Reports() {
     toast.success("Reports exported as JSON");
   };
 
-  // ---- Approved Voucher export (selected or all) ----
+  // ---- Approved Voucher export (selected or all) — vendor PVs only ----
   const approvedPayments = useMemo(
-    () => payments.filter((p) => p.status === "Approved"),
-    [payments]
+    () => vendorPayments.filter((p) => p.status === "Approved"),
+    [vendorPayments]
   );
   const toggleSelectPv = (pvNo) => {
     setSelectedPvs((prev) => {
@@ -531,6 +542,7 @@ export default function Reports() {
                             <th>Department</th>
                             <th style={{ textAlign: "center" }}>Advance Entries</th>
                             <th style={{ textAlign: "right" }}>Total Advance (₹)</th>
+                            <th>Linked PVs</th>
                             <th>Pay Bill Status</th>
                           </tr></thead>
                           <tbody>
@@ -538,6 +550,8 @@ export default function Reports() {
                               const activeLines = r.lines || [];
                               const allSettled = activeLines.every((l) => Number(l.step) === 4);
                               const anyPending = activeLines.some((l) => Number(l.step) < 4);
+                              // Collect linked advance PVs for this employee from Payments store
+                              const empAdvPvs = payments.filter((p) => String(p.pvNo || "").startsWith("PV/ADV") && (p.remarks || "").includes(r.empCode || "zzzz"));
                               return (
                                 <tr key={r.empId} data-testid={`advance-row-${r.empId}`}>
                                   <td className="mono">{r.empCode}</td>
@@ -545,6 +559,9 @@ export default function Reports() {
                                   <td>{r.department || "—"}</td>
                                   <td style={{ textAlign: "center" }}>{activeLines.length}</td>
                                   <td className="num" style={{ fontWeight: 800, color: "#78350f" }}>₹ {Number(r.totalAdvance).toLocaleString("en-IN")}</td>
+                                  <td style={{ fontSize: 10 }}>
+                                    {empAdvPvs.length === 0 ? <span style={{ color: "#94a3b8" }}>—</span> : empAdvPvs.map((p) => <span key={p.pvNo} style={{ display: "inline-block", padding: "2px 6px", margin: 1, background: "#dbeafe", color: "#1e3a8a", borderRadius: 3, border: "1px solid #93c5fd", fontWeight: 700 }}>{p.pvNo}</span>)}
+                                  </td>
                                   <td>
                                     {allSettled && <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ All Settled</span>}
                                     {anyPending && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Pending in Pay Bill</span>}
@@ -830,7 +847,7 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.map((p) => (
+                    {vendorPayments.map((p) => (
                       <tr key={p.pvNo} data-testid={`pay-row-${p.pvNo}`}>
                         <td style={{ textAlign: "center" }}>
                           <input

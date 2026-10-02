@@ -681,10 +681,13 @@ const PayrollTab = () => {
     : null;
 
   const pushToAccounts = () => {
-    // Align with PayBill: create (or refresh) PayBill draft for this month, upsert it.
-    // Accounts department Settle & auto-PV flow consumes this record.
+    // IDEMPOTENT push: if PayBill for this month already approved/settled, don't overwrite.
     const draft = createPayBillDraft(Number(year), Number(month));
     if (!draft.lines.length) { toast.error("No active finalized employees to push"); return; }
+    if (Number(draft.step) >= 2) {
+      toast.info(`Pay Bill ${draft.refNo} already ${PAYBILL_STATUS[draft.step]} · Accounts Pay Bills Process tab mein jaake process karo`);
+      return;
+    }
     const saved = upsertPayBill(draft);
     toast.success(`Monthly payroll pushed to Accounts as Pay Bill ${saved.refNo} · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
   };
@@ -1337,15 +1340,21 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   const createDraft = () => {
     const d = createPayBillDraft(Number(year), Number(month));
     if (!d.lines.length) { toast.error("No active finalized employees found. Create & approve employees first."); return; }
-    // In selective mode, mark all excluded by default — user picks who to include
+    // If a PayBill for this month is already approved/settled, don't overwrite — just load it.
+    if (Number(d.step) >= 2) {
+      setCur(d); refresh();
+      toast.info(`Pay Bill ${d.refNo} already ${PAYBILL_STATUS[d.step]} · Loaded for view (not re-created)`);
+      return;
+    }
+    // Draft stage: honor selection mode on first create; preserve excluded flags on refresh
     const lines = selectionMode === "selective"
-      ? d.lines.map((l) => ({ ...l, excluded: true }))
+      ? d.lines.map((l) => ({ ...l, excluded: l.excluded ?? true }))
       : d.lines.map((l) => ({ ...l, excluded: false }));
     const saved = upsertPayBill({ ...d, lines, selectionMode });
     setCur(saved); refresh();
     toast.success(selectionMode === "selective"
-      ? `Draft created with ${saved.lines.length} employees · All deselected. Tick to include.`
-      : `Draft Pay Bill created · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
+      ? `Draft refreshed with ${saved.lines.length} employees · Tick to include.`
+      : `Draft Pay Bill ready · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
   };
 
   const toggleRow = (idx) => {

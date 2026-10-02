@@ -1331,35 +1331,49 @@ export const savePayBills = (list) => write(KEYS.PAYBILLS, list);
 export const createPayBillDraft = (year, month) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");
   const daysInMonth = new Date(year, month, 0).getDate();
+  const monthKey = `${year}${String(month).padStart(2, "0")}`;
+  // IDEMPOTENT: if a PayBill already exists for this month, respect its stage.
+  // - If approved/settled (step >= 2): return it unchanged — do NOT auto-overwrite data user already processed.
+  // - If still Draft (step === 1): keep same id + refNo + createdAt, just refresh lines from latest attendance/salary.
+  const existing = getPayBills().find((p) => p.monthKey === monthKey);
+  if (existing && Number(existing.step) >= 2) return existing;
   const lines = emps.map((e) => {
     const att = getMonthAttendance(e.id, year, month);
     const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
     const s = computeSalary(e, { daysInMonth, daysPresent });
+    // Preserve manually-edited values from existing draft line (if present) so admin edits persist across refresh.
+    const prev = existing?.lines?.find((l) => l.empId === e.id);
     return {
       _id: `l_${e.id}`,
       empId: e.id, empCode: e.empCode, name: e.fullName,
       department: e.department, designation: e.designation,
       daysInMonth, daysPresent,
       basic: s.basic || 0, hra: s.hra || 0, da: s.da || 0, special: s.special || 0, bonus: s.bonus || 0,
-      gross: s.earned || 0, pf: s.pf || 0, esic: s.esic || 0, proftax: s.proftax || 0, tds: s.tds || 0,
-      advance: 0, otherDeductions: 0,
+      gross: s.earned || 0,
+      pf: prev?.pf ?? (s.pf || 0),
+      esic: prev?.esic ?? (s.esic || 0),
+      proftax: prev?.proftax ?? (s.proftax || 0),
+      tds: prev?.tds ?? (s.tds || 0),
+      advance: prev?.advance ?? 0,
+      otherDeductions: prev?.otherDeductions ?? 0,
       net: s.net || 0,
+      excluded: prev?.excluded ?? false,
     };
   });
   return {
-    id: `pb_${year}${String(month).padStart(2, "0")}_${Date.now()}`,
+    id: existing?.id || `pb_${monthKey}_${Date.now()}`,
     year, month,
-    monthKey: `${year}${String(month).padStart(2, "0")}`,
-    refNo: `AE/HR/PB/${year}-${String(month).padStart(2, "0")}`,
+    monthKey,
+    refNo: existing?.refNo || `AE/HR/PB/${year}-${String(month).padStart(2, "0")}`,
     lines,
     totalGross: lines.reduce((a, l) => a + (l.gross || 0), 0),
     totalDeductions: lines.reduce((a, l) => a + (l.pf || 0) + (l.esic || 0) + (l.proftax || 0) + (l.tds || 0) + (l.otherDeductions || 0), 0),
     totalAdvance: 0,
     totalNet: lines.reduce((a, l) => a + (l.net || 0), 0),
     step: 1,
-    createdByName: _me() || "",
-    createdAt: new Date().toISOString(),
-    history: [{ action: "Draft created", at: new Date().toISOString(), by: _me() }],
+    createdByName: existing?.createdByName || _me() || "",
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    history: existing?.history || [{ action: "Draft created", at: new Date().toISOString(), by: _me() }],
   };
 };
 

@@ -57,7 +57,9 @@ export default function BillProcessing() {
   const [rev, setRev] = useState(0);
   const bumpRev = () => setRev((r) => r + 1);
 
-  const allBills = useMemo(() => getBills(), [refresh, bill.id]);
+  // Exclude HR-sourced legacy payroll bills (vendorCode "HR-INTERNAL" / isPayrollBill flag).
+  // HR Pay Bills are managed via Accounts > Pay Bills Process tab, NOT Vendor Bills.
+  const allBills = useMemo(() => getBills().filter((b) => !b.isPayrollBill && b.vendorCode !== "HR-INTERNAL"), [refresh, bill.id]);
   const loadBill = (b) => {
     // Normalize step in case it was serialised as string
     const normalized = { ...b, step: Number(b.step) || 1 };
@@ -1150,7 +1152,9 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const pending = reqs.filter((r) => Number(r.status) === 2);
+  // Pending bucket now includes Draft(1) + Submitted(2) so Accounts sees HR-side pipeline
+  // and can nudge HR to Submit if needed. Approve action is still gated to status===2.
+  const pending = reqs.filter((r) => Number(r.status) <= 2);
   const approved = reqs.filter((r) => Number(r.status) === 3);
   const paid = reqs.filter((r) => Number(r.status) === 4);
   const totalPending = pending.reduce((a, r) => a + Number(r.amount || 0), 0);
