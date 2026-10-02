@@ -21,9 +21,11 @@ import {
   getRecruitments, createRecruitDraft, upsertRecruit, advanceRecruitStep, rejectRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, advanceExitStep, EXIT_STATUS,
   getComplianceSnapshot,
-  currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
+  getPayments,
+  currentRole, canCreate, canApprove, canDelete, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice } from "../lib/hrLetters";
+import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
@@ -517,7 +519,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
                 <td style={{ padding: 6, fontSize: 10.5, color: e.approvalDate ? "#166534" : "#94a3b8", fontWeight: 700 }} data-testid={`hr-emp-approval-${e.id}`}>{e.approvalDate ? fmtDMY(e.approvalDate) : "—"}</td>
                 <td style={{ padding: 4, textAlign: "center", whiteSpace: "nowrap" }}>
                   <button onClick={() => load(e)} data-testid={`hr-emp-edit-${e.id}`} style={{ padding: "3px 8px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✏ Edit</button>
-                  <button onClick={() => remove(e.id, e.empCode || e.tempCode)} disabled={!writeAllowed || Number(e.step) >= 5} data-testid={`hr-emp-del-${e.id}`} style={{ padding: "3px 8px", background: (!writeAllowed || Number(e.step) >= 5) ? "#f1f5f9" : "#fee2e2", color: (!writeAllowed || Number(e.step) >= 5) ? "#94a3b8" : "#991b1b", border: `1px solid ${(!writeAllowed || Number(e.step) >= 5) ? "#cbd5e1" : "#fca5a5"}`, borderRadius: 3, cursor: (!writeAllowed || Number(e.step) >= 5) ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700 }}>🗑 Delete</button>
+                  <button onClick={() => { if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; } remove(e.id, e.empCode || e.tempCode); }} disabled={!canDelete() || Number(e.step) >= 5} data-testid={`hr-emp-del-${e.id}`} style={{ padding: "3px 8px", background: (!canDelete() || Number(e.step) >= 5) ? "#f1f5f9" : "#fee2e2", color: (!canDelete() || Number(e.step) >= 5) ? "#94a3b8" : "#991b1b", border: `1px solid ${(!canDelete() || Number(e.step) >= 5) ? "#cbd5e1" : "#fca5a5"}`, borderRadius: 3, cursor: (!canDelete() || Number(e.step) >= 5) ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700 }} title={canDelete() ? "Delete employee" : "Only Admin / SuperAdmin can delete"}>🗑 Delete</button>
                 </td>
               </tr>
             ))}</tbody>
@@ -967,7 +969,7 @@ const LeavesTab = ({ writeAllowed, approveAllowed }) => {
                   <button data-testid={`lv-reject-${l.id}`} onClick={() => decide(l.id, false)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>✕ Reject</button>
                 </>}
                 <button data-testid={`lv-print-${l.id}`} onClick={() => printLeaveApplication(l, emp)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Print</button>
-                <button onClick={() => remove(l.id)} style={{ padding: "3px 8px", background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
+                <button onClick={() => { if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; } remove(l.id); }} disabled={!canDelete()} title={canDelete() ? "Delete leave" : "Only Admin / SuperAdmin can delete"} style={{ padding: "3px 8px", background: canDelete() ? "#f1f5f9" : "#f8fafc", color: canDelete() ? "#475569" : "#cbd5e1", border: "1px solid #cbd5e1", borderRadius: 3, cursor: canDelete() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}>🗑</button>
               </td>
             </tr>
           );
@@ -1103,7 +1105,7 @@ const RecruitTab = ({ writeAllowed, approveAllowed }) => {
           {Number(cur.status) >= 3 && <button data-testid="rec-copy-portal" onClick={() => { const url = `${window.location.origin}/careers`; navigator.clipboard?.writeText(url); toast.success(`Portal link copied: ${url}`); }} style={{ padding: "7px 14px", background: "#0ea5e9", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>🔗 Copy Careers Portal Link</button>}
           {Number(cur.status) === 3 && cur.candidateName && <button data-testid="rec-offer" onClick={() => markOffered(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><FileText size={13} style={{ verticalAlign: -2 }} /> Issue Offer</button>}
           {Number(cur.status) === 4 && !cur.joinedEmpId && <button data-testid="rec-convert" onClick={() => convertToEmp(cur)} style={{ padding: "7px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>→ Create Emp Draft</button>}
-          {!isNew && Number(cur.status) < 3 && <button data-testid="rec-delete" onClick={() => remove(cur.id)} disabled={!writeAllowed} style={{ padding: "7px 14px", background: writeAllowed ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete</button>}
+          {!isNew && Number(cur.status) < 3 && <button data-testid="rec-delete" onClick={() => { if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; } remove(cur.id); }} disabled={!canDelete()} style={{ padding: "7px 14px", background: canDelete() ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: canDelete() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, marginLeft: "auto" }} title={canDelete() ? "Delete recruitment" : "Only Admin / SuperAdmin can delete"}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete</button>}
           {[2, 3].includes(Number(cur.status)) && approveAllowed && <button data-testid="rec-reject" onClick={() => setRejectingId(cur.id)} style={{ padding: "7px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><X size={13} style={{ verticalAlign: -2 }} /> Reject</button>}
         </div>
         {rejectingId === cur.id && (
@@ -1139,7 +1141,7 @@ const RecruitTab = ({ writeAllowed, approveAllowed }) => {
                   {Number(r.status) >= 3 && <button data-testid={`rec-offer-${r.id}`} onClick={() => printOfferLetter(r)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>📄 Letter</button>}
                   {Number(r.status) === 4 && !r.joinedEmpId && <button data-testid={`rec-row-convert-${r.id}`} onClick={() => convertToEmp(r)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>→ Emp</button>}
                   {r.joinedEmpId && <span style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginRight: 3 }}>✓ Joined</span>}
-                  {Number(r.status) < 3 && writeAllowed && <button onClick={() => remove(r.id)} style={{ padding: "3px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
+                  {Number(r.status) < 3 && canDelete() && <button onClick={() => remove(r.id)} title="Delete recruitment" style={{ padding: "3px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
                 </td>
               </tr>
             ))}
@@ -1253,8 +1255,14 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
                   <button data-testid={`exit-rel-${x.id}`} onClick={() => printRelievingLetter(emp, x)} style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Relieving</button>
                   {x.linkedPvNo && <span style={{ padding: "3px 8px", background: "#e0e7ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, fontSize: 10, fontWeight: 700, marginRight: 4 }}>PV: {x.linkedPvNo}</span>}
                 </>}
-                {Number(x.status) < 3 && writeAllowed && <button onClick={() => remove(x.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
-                {Number(x.status) >= 3 && <SuperAdminDelete label={`Exit F&F · ${x.empName || x.empCode}`} meta={{ "Status": EXIT_STATUS[x.status], "F&F Net": `₹${Number(x.fnfNet || 0).toLocaleString("en-IN")}`, "Linked PV": x.linkedPvNo || "—" }} auditKey="ae_vm_exit_delete_log" testid={`exit-sa-del-${x.id}`} onDelete={() => { deleteExit(x.id); refresh(); toast.success(`Exit F&F deleted (SuperAdmin override)`); }} />}
+                {Number(x.status) < 3 && canDelete() && <button onClick={() => remove(x.id)} title="Delete exit" style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
+                {Number(x.status) >= 3 && (() => {
+                  const pv = x.linkedPvNo ? getPayments().find((p) => p.pvNo === x.linkedPvNo) : null;
+                  const blockReason = (Number(x.status) === 4 && x.linkedPvNo && !(pv && pv.utrNo))
+                    ? `Delete locked · ${x.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
+                    : "";
+                  return <SuperAdminDelete label={`Exit F&F · ${x.empName || x.empCode}`} meta={{ "Status": EXIT_STATUS[x.status], "F&F Net": `₹${Number(x.fnfNet || 0).toLocaleString("en-IN")}`, "Linked PV": x.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_exit_delete_log" testid={`exit-sa-del-${x.id}`} blockReason={blockReason} onDelete={() => { deleteExit(x.id); refresh(); toast.success(`Exit F&F deleted (SuperAdmin override)`); }} />;
+                })()}
               </td>
             </tr>
           );
@@ -1331,11 +1339,20 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [list, setList] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [cur, setCur] = useState(null);
   const [selectionMode, setSelectionMode] = useState("all"); // "all" | "selective"
 
-  useEffect(() => { setList(getPayBills()); }, []);
-  const refresh = () => setList(getPayBills());
+  const refresh = () => { setList(getPayBills()); setPayments(getPayments()); };
+  useEffect(() => {
+    refresh();
+    const onFocus = () => refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisible); };
+  }, []);
+  const pvByNo = (pvNo) => payments.find((p) => p.pvNo === pvNo) || null;
 
   const createDraft = () => {
     const d = createPayBillDraft(Number(year), Number(month));
@@ -1494,10 +1511,15 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
         <div style={{ marginTop: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
           <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>Pay Bill History ({list.length})</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-            <thead><tr style={{ background: "#f8fafc" }}>{["Ref No.", "Period", "Employees", "Gross", "Advance", "Net Payable", "Status", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}</tr></thead>
+            <thead><tr style={{ background: "#f8fafc" }}>{["Ref No.", "Period", "Employees", "Gross", "Advance", "Net Payable", "Status", "Payment / UTR", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}</tr></thead>
             <tbody>
-              {list.sort((a, b) => (b.monthKey || "").localeCompare(a.monthKey || "")).map((p) => (
-                <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => setCur(p)}>
+              {list.sort((a, b) => (b.monthKey || "").localeCompare(a.monthKey || "")).map((p) => {
+                const pv = p.linkedPvNo ? pvByNo(p.linkedPvNo) : null;
+                const isSettled = Number(p.step) === 4;
+                const hasUtr = !!(pv && pv.utrNo);
+                const rowBg = isSettled && !hasUtr ? "#fef2f2" : "#fff";
+                return (
+                <tr key={p.id} style={{ cursor: "pointer", background: rowBg }} onClick={() => setCur(p)}>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{p.refNo}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>{new Date(p.year, p.month - 1).toLocaleString("en", { month: "long" })} {p.year}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>{p.lines?.length || 0}</td>
@@ -1505,13 +1527,34 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", color: "#78350f" }}>₹{inrN(p.totalAdvance)}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#166534" }}>₹{inrN(p.totalNet)}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700 }}>{PAYBILL_STATUS[p.step] || "Draft"}</td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }} data-testid={`pb-utr-cell-${p.id}`}>
+                    {!isSettled ? (
+                      <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
+                    ) : hasUtr ? (
+                      <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontFamily: "monospace" }}>✓ {pv.utrNo}</span>
+                    ) : (
+                      <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800, animation: "pulse 2s infinite" }}>⚠ AWAITING UTR {p.linkedPvNo ? `· ${p.linkedPvNo}` : ""}</span>
+                    )}
+                  </td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>
                     <button onClick={(e) => { e.stopPropagation(); printPayBillSheet(p); }} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Print</button>
-                    {approveAllowed && Number(p.step) === 1 && <button data-testid={`pb-del-${p.id}`} onClick={(e) => { e.stopPropagation(); remove(p.id); }} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
-                    {currentRole() === "SuperAdmin" && Number(p.step) >= 2 && <button data-testid={`pb-sa-del-${p.id}`} onClick={(e) => { e.stopPropagation(); if (!window.confirm(`⚠️ SuperAdmin Override\n\nDelete GM-approved Pay Bill ${p.refNo}?\n\nStatus: ${PAYBILL_STATUS[p.step]}\nNet: ₹${inrN(p.totalNet)}\n${p.linkedPvNo ? `Linked PV: ${p.linkedPvNo} (will remain in Payments)\n` : ""}\nThis action is logged in audit trail.`)) return; try { const log = JSON.parse(localStorage.getItem("ae_vm_pb_delete_log") || "[]"); log.push({ refNo: p.refNo, step: p.step, totalNet: p.totalNet, linkedPvNo: p.linkedPvNo || "", deletedBy: currentUser()?.name || currentUser()?.email || "SuperAdmin", deletedAt: new Date().toISOString() }); localStorage.setItem("ae_vm_pb_delete_log", JSON.stringify(log)); } catch (err) {} deletePayBill(p.id); if (cur?.id === p.id) setCur(null); refresh(); toast.success(`Pay Bill ${p.refNo} deleted (SuperAdmin override)`); }} style={{ padding: "3px 8px", background: "#7f1d1d", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginLeft: 4 }} title="SuperAdmin override · Delete approved pay bill">👑 Delete</button>}
+                    {Number(p.step) >= 3 && <button data-testid={`pb-hr-xlsx-${p.id}`} onClick={(e) => { e.stopPropagation(); exportBankTransferXLSX(p); }} style={{ padding: "3px 8px", background: "#ecfdf5", color: "#065f46", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }} title="Export Bank Transfer Excel">⬇ Excel</button>}
+                    {Number(p.step) >= 3 && <button data-testid={`pb-hr-advice-${p.id}`} onClick={(e) => { e.stopPropagation(); printBankTransferAdvice(p); }} style={{ padding: "3px 8px", background: "#fdf2f8", color: "#9d174d", border: "1px solid #f9a8d4", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }} title="Print A4 Landscape Bank Advice for Branch Manager">🖨 Bank Advice</button>}
+                    {canDelete() && Number(p.step) === 1 && <button data-testid={`pb-del-${p.id}`} onClick={(e) => { e.stopPropagation(); remove(p.id); }} title="Delete draft pay bill" style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
+                    {Number(p.step) >= 2 && (() => {
+                      const blockReason = (Number(p.step) === 4 && p.linkedPvNo && !hasUtr)
+                        ? `Delete locked · ${p.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
+                        : "";
+                      return (
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <SuperAdminDelete label={`Pay Bill ${p.refNo}`} meta={{ "Status": PAYBILL_STATUS[p.step], "Net": `₹${inrN(p.totalNet)}`, "Linked PV": p.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_pb_delete_log" testid={`pb-sa-del-${p.id}`} blockReason={blockReason} onDelete={() => { deletePayBill(p.id); if (cur?.id === p.id) setCur(null); refresh(); toast.success(`Pay Bill ${p.refNo} deleted (SuperAdmin override)`); }} />
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1525,11 +1568,20 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5);
   const [reg, setReg] = useState([]);
   const [reqs, setReqs] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [cur, setCur] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
-  const refresh = () => { setReg(getAdvanceRegister()); setReqs(getAdvanceRequests()); };
-  useEffect(() => { refresh(); }, []);
+  const refresh = () => { setReg(getAdvanceRegister()); setReqs(getAdvanceRequests()); setPayments(getPayments()); };
+  useEffect(() => {
+    refresh();
+    const onFocus = () => refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisible); };
+  }, []);
+  const pvByNo = (pvNo) => payments.find((p) => p.pvNo === pvNo) || null;
   const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
   const totalAdvance = reg.reduce((a, r) => a + r.totalAdvance, 0);
 
@@ -1638,7 +1690,7 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
               {Number(cur.status) === 2 && approveAllowed && <button data-testid="adv-approve" onClick={() => approveNow(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Accounts Approve</button>}
               {Number(cur.status) === 3 && approveAllowed && <button data-testid="adv-pay" onClick={() => payNow(cur)} style={{ padding: "7px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><IndianRupee size={13} style={{ verticalAlign: -2 }} /> Generate PV & Pay</button>}
               {[2, 3].includes(Number(cur.status)) && approveAllowed && <button data-testid="adv-reject" onClick={() => setRejectingId(cur.id)} style={{ padding: "7px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><X size={13} style={{ verticalAlign: -2 }} /> Reject</button>}
-              {cur.id && Number(cur.status) < 2 && writeAllowed && <button data-testid="adv-delete" onClick={() => remove(cur.id)} style={{ padding: "7px 14px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete Draft</button>}
+              {cur.id && Number(cur.status) < 2 && canDelete() && <button data-testid="adv-delete" onClick={() => remove(cur.id)} title="Delete draft advance" style={{ padding: "7px 14px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete Draft</button>}
             </div>
             {rejectingId === cur.id && (
               <div style={{ padding: 12, background: "#fef2f2", borderTop: "1px solid #fecaca", display: "flex", gap: 8, alignItems: "center" }}>
@@ -1657,12 +1709,17 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
                 <tr style={{ background: "#f8fafc" }}>
-                  {["Ref No.", "Date", "Employee", "Amount", "Repayment", "Status", "PV No.", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}
+                  {["Ref No.", "Date", "Employee", "Amount", "Repayment", "Status", "PV No.", "Payment / UTR", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
-                {reqs.slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).map((r, i) => (
-                  <tr key={r.id} data-testid={`adv-req-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff", cursor: "pointer" }} onClick={() => setCur(r)}>
+                {reqs.slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).map((r, i) => {
+                  const pv = r.linkedPvNo ? pvByNo(r.linkedPvNo) : null;
+                  const isPaid = Number(r.status) === 4;
+                  const hasUtr = !!(pv && pv.utrNo);
+                  const rowBg = isPaid && !hasUtr ? "#fef2f2" : (i % 2 ? "#fafbfc" : "#fff");
+                  return (
+                  <tr key={r.id} data-testid={`adv-req-row-${i}`} style={{ background: rowBg, cursor: "pointer" }} onClick={() => setCur(r)}>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{r.refNo}</td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.requestDate}</td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><b>{r.empCode}</b> · {r.empName}</td>
@@ -1670,14 +1727,29 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.repaymentMode}{r.repaymentMode === "EMI" ? ` · ${r.emiMonths}m` : ""}</td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: statusTone[r.status] || "#64748b", color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{ADVANCE_REQ_STATUS[r.status]}</span></td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700, color: "#16a34a" }}>{r.linkedPvNo || "—"}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }} data-testid={`adv-utr-cell-${i}`}>
+                      {!isPaid ? (
+                        <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
+                      ) : hasUtr ? (
+                        <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontFamily: "monospace" }}>✓ {pv.utrNo}</span>
+                      ) : (
+                        <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800 }}>⚠ AWAITING UTR</span>
+                      )}
+                    </td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }} onClick={(e) => e.stopPropagation()}>
                       {Number(r.status) === 2 && approveAllowed && <button data-testid={`adv-row-approve-${i}`} onClick={() => approveNow(r)} style={{ padding: "3px 8px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Approve</button>}
                       {Number(r.status) === 3 && approveAllowed && <button data-testid={`adv-row-pay-${i}`} onClick={() => payNow(r)} style={{ padding: "3px 8px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Pay</button>}
-                      {Number(r.status) < 2 && writeAllowed && <button data-testid={`adv-row-del-${i}`} onClick={() => remove(r.id)} style={{ padding: "3px 6px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
-                      {Number(r.status) >= 3 && <SuperAdminDelete label={`Advance Request ${r.refNo}`} meta={{ "Employee": `${r.empCode} · ${r.empName}`, "Amount": `₹${inrN(r.amount)}`, "Status": ADVANCE_REQ_STATUS[r.status], "Linked PV": r.linkedPvNo || "—" }} auditKey="ae_vm_adv_req_delete_log" testid={`adv-sa-del-${i}`} onDelete={() => { deleteAdvanceRequest(r.id); if (cur?.id === r.id) setCur(null); refresh(); toast.success(`Advance request deleted (SuperAdmin override)`); }} />}
+                      {Number(r.status) < 2 && canDelete() && <button data-testid={`adv-row-del-${i}`} onClick={() => remove(r.id)} title="Delete draft advance" style={{ padding: "3px 6px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
+                      {Number(r.status) >= 3 && (() => {
+                        const blockReason = (Number(r.status) === 4 && r.linkedPvNo && !hasUtr)
+                          ? `Delete locked · ${r.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
+                          : "";
+                        return <SuperAdminDelete label={`Advance Request ${r.refNo}`} meta={{ "Employee": `${r.empCode} · ${r.empName}`, "Amount": `₹${inrN(r.amount)}`, "Status": ADVANCE_REQ_STATUS[r.status], "Linked PV": r.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_adv_req_delete_log" testid={`adv-sa-del-${i}`} blockReason={blockReason} onDelete={() => { deleteAdvanceRequest(r.id); if (cur?.id === r.id) setCur(null); refresh(); toast.success(`Advance request deleted (SuperAdmin override)`); }} />;
+                      })()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1815,7 +1887,7 @@ const LoansTab = ({ writeAllowed, approveAllowed }) => {
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", color: "#991b1b", fontWeight: 700 }}>₹{inrN(l.outstanding)}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>{l.paidEMIs || 0}/{l.tenureMonths}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700 }}>{LOAN_STATUS[l.status]}</td>
-                  <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><button onClick={(e) => { e.stopPropagation(); remove(l.id); }} style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10 }}>🗑</button></td>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><button onClick={(e) => { e.stopPropagation(); if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; } remove(l.id); }} disabled={!canDelete()} title={canDelete() ? "Delete loan" : "Only Admin / SuperAdmin can delete"} style={{ padding: "2px 6px", background: canDelete() ? "#fee2e2" : "#f1f5f9", color: canDelete() ? "#991b1b" : "#94a3b8", border: `1px solid ${canDelete() ? "#fca5a5" : "#cbd5e1"}`, borderRadius: 3, cursor: canDelete() ? "pointer" : "not-allowed", fontSize: 10 }}>🗑</button></td>
                 </tr>
               ))}
             </tbody>
@@ -2141,6 +2213,7 @@ export default function HRManagement() {
   const [tab, setTab] = useState("dashboard");
   const write = canCreate();
   const approve = canApprove();
+  const del = canDelete();
 
   const emps = getEmployees();
   const finalized = emps.filter((e) => Number(e.step) === 5).length;

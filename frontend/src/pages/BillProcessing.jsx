@@ -12,14 +12,16 @@ import {
   createBillDraft, computeBill, upsertBill, findVendorByCode, advanceBillStep,
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
-  getWOs, canCreate, canApprove,
+  getWOs, canCreate, canApprove, canDelete,
   getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
   getAdvanceRequests, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
   getExits, advanceExitStep, deleteExit, EXIT_STATUS,
   getEmployees,
+  getPayments,
   purgeLegacyPayrollBills,
 } from "../lib/store";
+import { exportBankTransferXLSX as _sharedXlsx, printBankTransferAdvice as _sharedAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
@@ -1222,12 +1224,22 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
       />
 
       <AdvanceSection title={`Paid · Payment Vouchers Generated (${paid.length})`} rows={paid} tone="#16a34a"
-        testid="adv-paid" renderActions={(r, i) => (
-          <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
-            <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{r.linkedPvNo}</span>
-            <SuperAdminDelete label={`Advance Request ${r.refNo}`} meta={{ "Employee": `${r.empCode} · ${r.empName}`, "Amount": `₹${inrN(r.amount)}`, "Status": ADVANCE_REQ_STATUS[r.status], "Linked PV": r.linkedPvNo || "—" }} auditKey="ae_vm_adv_req_delete_log" testid={`adv-paid-sa-del-${i}`} onDelete={() => { deleteAdvanceRequest(r.id); bumpRev(); toast.success(`Advance Request deleted (SuperAdmin override)`); }} />
-          </div>
-        )}
+        testid="adv-paid" renderActions={(r, i) => {
+          const pv = r.linkedPvNo ? getPayments().find((p) => p.pvNo === r.linkedPvNo) : null;
+          const hasUtr = !!(pv && pv.utrNo);
+          const blockReason = (r.linkedPvNo && !hasUtr)
+            ? `Delete locked · ${r.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
+            : "";
+          return (
+            <div style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{r.linkedPvNo}</span>
+              {hasUtr
+                ? <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontSize: 10, fontFamily: "monospace" }} data-testid={`adv-paid-utr-${i}`}>✓ UTR {pv.utrNo}</span>
+                : <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800, fontSize: 10 }} data-testid={`adv-paid-utr-${i}`}>⚠ AWAITING UTR</span>}
+              <SuperAdminDelete label={`Advance Request ${r.refNo}`} meta={{ "Employee": `${r.empCode} · ${r.empName}`, "Amount": `₹${inrN(r.amount)}`, "Status": ADVANCE_REQ_STATUS[r.status], "Linked PV": r.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_adv_req_delete_log" testid={`adv-paid-sa-del-${i}`} blockReason={blockReason} onDelete={() => { deleteAdvanceRequest(r.id); bumpRev(); toast.success(`Advance Request deleted (SuperAdmin override)`); }} />
+            </div>
+          );
+        }}
       />
     </div>
   );
@@ -1367,14 +1379,24 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
         selectable selected={selected} onToggle={toggle} onToggleAll={() => toggleAll(gmApproved)}
         renderActions={(b, i) => canApprove() ? <button data-testid={`pb-settle-${i}`} onClick={() => settle(b)} style={btnSm("#16a34a")}>Settle & Generate PV</button> : null} />
       <PayBillSection title={`Settled · Payment Vouchers Generated (${settled.length})`} rows={settled} tone="#16a34a" testid="pb-settled"
-        renderActions={(b, i) => (
-          <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700, padding: "3px 6px", background: "#dcfce7", borderRadius: 3 }}>{b.linkedPvNo}</span>
-            <button data-testid={`pb-export-xlsx-${i}`} onClick={() => exportBankTransferXLSX(b)} style={btnSm("#059669")}>⬇ Excel</button>
-            <button data-testid={`pb-print-advice-${i}`} onClick={() => printBankTransferAdvice(b)} style={btnSm("#be185d")}>🖨 Bank Advice</button>
-            <SuperAdminDelete label={`Pay Bill ${b.refNo}`} meta={{ "Period": `${new Date(b.year, (b.month || 1) - 1).toLocaleString("en", { month: "short" })} ${b.year}`, "Employees": b.lines?.length || 0, "Net": `₹${inrN(b.totalNet)}`, "Linked PV": b.linkedPvNo || "—" }} auditKey="ae_vm_pb_delete_log" testid={`pb-settled-sa-del-${i}`} onDelete={() => { deletePayBill(b.id); bumpRev(); toast.success(`Pay Bill ${b.refNo} deleted (SuperAdmin override)`); }} />
-          </div>
-        )} />
+        renderActions={(b, i) => {
+          const pv = b.linkedPvNo ? getPayments().find((p) => p.pvNo === b.linkedPvNo) : null;
+          const hasUtr = !!(pv && pv.utrNo);
+          const blockReason = (b.linkedPvNo && !hasUtr)
+            ? `Delete locked · ${b.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
+            : "";
+          return (
+            <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700, padding: "3px 6px", background: "#dcfce7", borderRadius: 3 }}>{b.linkedPvNo}</span>
+              {hasUtr
+                ? <span style={{ padding: "3px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontSize: 10, fontFamily: "monospace" }} data-testid={`pb-settled-utr-${i}`}>✓ UTR {pv.utrNo}</span>
+                : <span style={{ padding: "3px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800, fontSize: 10 }} data-testid={`pb-settled-utr-${i}`}>⚠ AWAITING UTR</span>}
+              <button data-testid={`pb-export-xlsx-${i}`} onClick={() => exportBankTransferXLSX(b)} style={btnSm("#059669")}>⬇ Excel</button>
+              <button data-testid={`pb-print-advice-${i}`} onClick={() => printBankTransferAdvice(b)} style={btnSm("#be185d")}>🖨 Bank Advice</button>
+              <SuperAdminDelete label={`Pay Bill ${b.refNo}`} meta={{ "Period": `${new Date(b.year, (b.month || 1) - 1).toLocaleString("en", { month: "short" })} ${b.year}`, "Employees": b.lines?.length || 0, "Net": `₹${inrN(b.totalNet)}`, "Linked PV": b.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_pb_delete_log" testid={`pb-settled-sa-del-${i}`} blockReason={blockReason} onDelete={() => { deletePayBill(b.id); bumpRev(); toast.success(`Pay Bill ${b.refNo} deleted (SuperAdmin override)`); }} />
+            </div>
+          );
+        }} />
     </div>
   );
 };
@@ -1449,7 +1471,19 @@ const AccountsExitView = ({ rev, bumpRev }) => {
         renderActions={(x, i) => (
           <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
             <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{x.linkedPvNo}</span>
-            <SuperAdminDelete label={`Exit F&F · ${x.empName || x.empCode}`} meta={{ "F&F Net": `₹${inrN(x.fnfNet)}`, "Resign": x.resignDate, "Linked PV": x.linkedPvNo || "—" }} auditKey="ae_vm_exit_delete_log" testid={`exit-settled-sa-del-${i}`} onDelete={() => { deleteExit(x.id); bumpRev(); toast.success(`Exit F&F deleted (SuperAdmin override)`); }} />
+            {(() => {
+              const pv = x.linkedPvNo ? getPayments().find((p) => p.pvNo === x.linkedPvNo) : null;
+              const hasUtr = !!(pv && pv.utrNo);
+              const blockReason = (x.linkedPvNo && !hasUtr)
+                ? `Delete locked · ${x.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
+                : "";
+              return <>
+                {hasUtr
+                  ? <span style={{ padding: "3px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontSize: 10, fontFamily: "monospace", marginRight: 4 }} data-testid={`exit-settled-utr-${i}`}>✓ UTR {pv.utrNo}</span>
+                  : <span style={{ padding: "3px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800, fontSize: 10, marginRight: 4 }} data-testid={`exit-settled-utr-${i}`}>⚠ AWAITING UTR</span>}
+                <SuperAdminDelete label={`Exit F&F · ${x.empName || x.empCode}`} meta={{ "F&F Net": `₹${inrN(x.fnfNet)}`, "Resign": x.resignDate, "Linked PV": x.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_exit_delete_log" testid={`exit-settled-sa-del-${i}`} blockReason={blockReason} onDelete={() => { deleteExit(x.id); bumpRev(); toast.success(`Exit F&F deleted (SuperAdmin override)`); }} />
+              </>;
+            })()}
           </div>
         )} />
     </div>

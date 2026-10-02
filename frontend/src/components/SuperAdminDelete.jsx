@@ -1,22 +1,31 @@
 // Reusable SuperAdmin-only Delete button for approved/approval-stage records.
 // Writes to localStorage audit log before invoking onDelete.
+// If `blockReason` is provided (non-empty string), the button is disabled with that reason
+// — used to prevent deleting financial records until the linked Payment Voucher's UTR is entered.
 import React from "react";
+import { toast } from "sonner";
 import { currentRole, currentUser } from "../lib/store";
 
 /**
  * SuperAdminDelete — gated button visible only when currentRole() === "SuperAdmin"
  *
- * @param {string}  label       e.g. "Pay Bill PB/2026-02/001"
- * @param {object}  meta        audit payload (keys show up in confirm popup + log)
- * @param {string}  auditKey    localStorage key for audit trail
- * @param {func}    onDelete    callback invoked after confirmation + log
- * @param {string}  [testid]    optional data-testid override
- * @param {string}  [title]     tooltip
+ * @param {string}  label        e.g. "Pay Bill PB/2026-02/001"
+ * @param {object}  meta         audit payload (keys show up in confirm popup + log)
+ * @param {string}  auditKey     localStorage key for audit trail
+ * @param {func}    onDelete     callback invoked after confirmation + log
+ * @param {string}  [testid]     optional data-testid override
+ * @param {string}  [title]      tooltip
+ * @param {string}  [blockReason] when truthy, button is disabled + click shows this reason as toast
  */
-const SuperAdminDelete = ({ label, meta = {}, auditKey, onDelete, testid, title }) => {
+const SuperAdminDelete = ({ label, meta = {}, auditKey, onDelete, testid, title, blockReason }) => {
   if (currentRole() !== "SuperAdmin") return null;
+  const blocked = !!blockReason;
   const handleClick = (e) => {
     e?.stopPropagation?.();
+    if (blocked) {
+      toast.error(blockReason);
+      return;
+    }
     const detail = Object.entries(meta)
       .filter(([, v]) => v !== undefined && v !== null && v !== "")
       .map(([k, v]) => `${k}: ${v}`)
@@ -34,10 +43,21 @@ const SuperAdminDelete = ({ label, meta = {}, auditKey, onDelete, testid, title 
       type="button"
       onClick={handleClick}
       data-testid={testid || "sa-del"}
-      title={title || "SuperAdmin override · Delete approved record"}
-      style={{ padding: "3px 8px", background: "#7f1d1d", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginLeft: 4 }}
+      title={blocked ? blockReason : (title || "SuperAdmin override · Delete approved record")}
+      style={{
+        padding: "3px 8px",
+        background: blocked ? "#cbd5e1" : "#7f1d1d",
+        color: blocked ? "#64748b" : "#fff",
+        border: "none",
+        borderRadius: 3,
+        cursor: blocked ? "not-allowed" : "pointer",
+        fontSize: 10,
+        fontWeight: 700,
+        marginLeft: 4,
+        opacity: blocked ? 0.75 : 1,
+      }}
     >
-      👑 Delete
+      {blocked ? "🔒 Locked" : "👑 Delete"}
     </button>
   );
 };

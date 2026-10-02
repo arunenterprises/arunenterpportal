@@ -7,13 +7,14 @@ import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
+import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTransfer";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON, amountToWords,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
-  canApprove, currentRole,
+  canApprove, canDelete, currentRole,
 } from "../lib/store";
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -482,27 +483,81 @@ export default function Reports() {
                                   style={{ padding: "4px 10px", background: canSettle ? "#16a34a" : "#94a3b8", color: "#fff", border: "none", borderRadius: 4, cursor: canSettle ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }}
                                 >💰 Approve & Generate PV</button>
                               )}
-                              {Number(pb.step) === 4 && (
-                                <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PV: {pb.linkedPvNo || "generated"}</span>
-                              )}
-                              {currentRole() === "SuperAdmin" && Number(pb.step) >= 3 && (
-                                <button
-                                  data-testid={`salary-sa-del-${pb.id}`}
-                                  onClick={() => {
-                                    if (!window.confirm(`⚠️ SuperAdmin Override\n\nDelete Pay Bill ${pb.refNo}?\n\nStatus: ${PAYBILL_STATUS[pb.step]}\nNet: ₹${Number(pb.totalNet || 0).toLocaleString("en-IN")}\n${pb.linkedPvNo ? `Linked PV: ${pb.linkedPvNo} (will remain in Payments)\n` : ""}\nThis action is logged in audit trail.`)) return;
-                                    try {
-                                      const log = JSON.parse(localStorage.getItem("ae_vm_pb_delete_log") || "[]");
-                                      log.push({ refNo: pb.refNo, step: pb.step, totalNet: pb.totalNet, linkedPvNo: pb.linkedPvNo || "", source: "Reports", deletedBy: currentUser() || "SuperAdmin", deletedAt: new Date().toISOString() });
-                                      localStorage.setItem("ae_vm_pb_delete_log", JSON.stringify(log));
-                                    } catch (err) {}
-                                    deletePayBill(pb.id);
-                                    setRefresh((v) => v + 1);
-                                    toast.success(`Pay Bill ${pb.refNo} deleted (SuperAdmin override)`);
-                                  }}
-                                  style={{ marginLeft: 6, padding: "3px 10px", background: "#7f1d1d", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
-                                  title="SuperAdmin override · Delete pay bill after approval"
-                                >👑 Delete</button>
-                              )}
+                              {Number(pb.step) === 4 && (() => {
+                                const pv = pb.linkedPvNo ? getPayments().find((p) => p.pvNo === pb.linkedPvNo) : null;
+                                const hasUtr = !!(pv && pv.utrNo);
+                                const saveUtr = (newUtr) => {
+                                  if (!pv) { toast.error("Linked PV not found"); return; }
+                                  const payments = getPayments().map((p) => p.pvNo === pv.pvNo ? { ...p, utrNo: (newUtr || "").toUpperCase().slice(0, 32), paidAt: newUtr ? new Date().toISOString() : p.paidAt } : p);
+                                  savePayments(payments);
+                                  setRefresh((v) => v + 1);
+                                  toast.success(newUtr ? `UTR saved · ${pb.refNo}` : `UTR cleared`);
+                                };
+                                return (
+                                  <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                                    <span style={{ padding: "3px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PV: {pb.linkedPvNo || "—"}</span>
+                                    <button
+                                      data-testid={`salary-xlsx-${pb.id}`}
+                                      onClick={() => exportBankTransferXLSX(pb)}
+                                      style={{ padding: "3px 7px", background: "#059669", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                                      title="Export Bank Transfer Excel"
+                                    >⬇ Excel</button>
+                                    <button
+                                      data-testid={`salary-advice-${pb.id}`}
+                                      onClick={() => printBankTransferAdvice(pb)}
+                                      style={{ padding: "3px 7px", background: "#be185d", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                                      title="Print A4 Landscape Bank Advice for Branch Manager"
+                                    >🖨 Bank Advice</button>
+                                    <input
+                                      type="text"
+                                      defaultValue={pv?.utrNo || ""}
+                                      placeholder="Enter UTR / Ref No"
+                                      onBlur={(e) => { const v = e.target.value.trim(); if (v !== (pv?.utrNo || "")) saveUtr(v); }}
+                                      onKeyDown={(e) => { if (e.key === "Enter") { e.target.blur(); } }}
+                                      disabled={!canApprove()}
+                                      data-testid={`salary-utr-${pb.id}`}
+                                      title={canApprove() ? "Enter UTR after bank transfer · auto-saves on blur / Enter" : "Only Admin / SuperAdmin / Accounts can set UTR"}
+                                      style={{
+                                        padding: "3px 7px",
+                                        fontSize: 10,
+                                        fontFamily: "monospace",
+                                        fontWeight: 700,
+                                        border: `1.5px solid ${hasUtr ? "#86efac" : "#fca5a5"}`,
+                                        background: hasUtr ? "#dcfce7" : "#fef2f2",
+                                        color: hasUtr ? "#166534" : "#991b1b",
+                                        borderRadius: 3,
+                                        width: 150,
+                                      }}
+                                    />
+                                    {!hasUtr && <span style={{ fontSize: 9, color: "#991b1b", fontWeight: 800 }}>⚠ UTR PENDING</span>}
+                                  </div>
+                                );
+                              })()}
+                              {currentRole() === "SuperAdmin" && Number(pb.step) >= 3 && (() => {
+                                const pv = pb.linkedPvNo ? getPayments().find((p) => p.pvNo === pb.linkedPvNo) : null;
+                                const hasUtr = !!(pv && pv.utrNo);
+                                const blocked = (Number(pb.step) === 4 && pb.linkedPvNo && !hasUtr);
+                                return (
+                                  <button
+                                    data-testid={`salary-sa-del-${pb.id}`}
+                                    onClick={() => {
+                                      if (blocked) { toast.error(`Delete locked · ${pb.linkedPvNo} ka UTR pehle enter karo`); return; }
+                                      if (!window.confirm(`⚠️ SuperAdmin Override\n\nDelete Pay Bill ${pb.refNo}?\n\nStatus: ${PAYBILL_STATUS[pb.step]}\nNet: ₹${Number(pb.totalNet || 0).toLocaleString("en-IN")}\n${pb.linkedPvNo ? `Linked PV: ${pb.linkedPvNo} · UTR: ${pv?.utrNo || "—"}\n` : ""}\nThis action is logged in audit trail.`)) return;
+                                      try {
+                                        const log = JSON.parse(localStorage.getItem("ae_vm_pb_delete_log") || "[]");
+                                        log.push({ refNo: pb.refNo, step: pb.step, totalNet: pb.totalNet, linkedPvNo: pb.linkedPvNo || "", utr: pv?.utrNo || "", source: "Reports", deletedBy: currentUser() || "SuperAdmin", deletedAt: new Date().toISOString() });
+                                        localStorage.setItem("ae_vm_pb_delete_log", JSON.stringify(log));
+                                      } catch (err) {}
+                                      deletePayBill(pb.id);
+                                      setRefresh((v) => v + 1);
+                                      toast.success(`Pay Bill ${pb.refNo} deleted (SuperAdmin override)`);
+                                    }}
+                                    disabled={blocked}
+                                    style={{ marginLeft: 6, padding: "3px 10px", background: blocked ? "#cbd5e1" : "#7f1d1d", color: blocked ? "#64748b" : "#fff", border: "none", borderRadius: 3, cursor: blocked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: blocked ? .75 : 1 }}
+                                    title={blocked ? `Delete locked · pehle UTR enter karo` : "SuperAdmin override · Delete pay bill after approval"}
+                                  >{blocked ? "🔒 Locked" : "👑 Delete"}</button>
+                                );
+                              })()}
                             </td>
                           </tr>
                         );
@@ -928,10 +983,11 @@ export default function Reports() {
                             </button>
                             {p.status !== "Approved" ? (
                               <button
-                                onClick={() => deletePayment(p.pvNo)}
+                                onClick={() => { if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; } deletePayment(p.pvNo); }}
+                                disabled={!canDelete()}
                                 data-testid={`pay-delete-${p.pvNo}`}
-                                style={{ padding: "3px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                                title="Delete voucher and free the bill"
+                                style={{ padding: "3px 8px", fontSize: 10.5, background: canDelete() ? "#fee2e2" : "#f1f5f9", color: canDelete() ? "#991b1b" : "#94a3b8", border: `1px solid ${canDelete() ? "#fca5a5" : "#cbd5e1"}`, borderRadius: 4, cursor: canDelete() ? "pointer" : "not-allowed", fontWeight: 600 }}
+                                title={canDelete() ? "Delete voucher and free the bill" : "Only Admin / SuperAdmin can delete"}
                               >
                                 Delete
                               </button>
@@ -941,6 +997,7 @@ export default function Reports() {
                                 meta={{ "Vendor": p.vendorName || p.vendorCode, "Amount": `₹${Number(p.amount || 0).toLocaleString("en-IN")}`, "Status": p.status, "Approved By": p.approvedByName || "—", "UTR": p.utrNo || "—" }}
                                 auditKey="ae_vm_pv_delete_log"
                                 testid={`pay-sa-del-${p.pvNo}`}
+                                blockReason={!p.utrNo ? `Delete locked · Pehle UTR number enter karo (Edit voucher → UTR / Reference No field), uske baad hi delete allow hoga.` : ""}
                                 onDelete={() => deletePayment(p.pvNo)}
                               />
                             )}
@@ -1194,9 +1251,11 @@ export default function Reports() {
                             </button>
                             {p.status !== "Approved" ? (
                               <button
-                                onClick={() => deletePayment(p.pvNo)}
+                                onClick={() => { if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; } deletePayment(p.pvNo); }}
+                                disabled={!canDelete()}
                                 data-testid={`voucher-del-${p.pvNo}`}
-                                style={{ padding: "3px 10px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                                style={{ padding: "3px 10px", fontSize: 10.5, background: canDelete() ? "#fee2e2" : "#f1f5f9", color: canDelete() ? "#991b1b" : "#94a3b8", border: `1px solid ${canDelete() ? "#fca5a5" : "#cbd5e1"}`, borderRadius: 4, cursor: canDelete() ? "pointer" : "not-allowed", fontWeight: 600 }}
+                                title={canDelete() ? "Delete voucher" : "Only Admin / SuperAdmin can delete"}
                               >
                                 Delete
                               </button>
@@ -1206,6 +1265,7 @@ export default function Reports() {
                                 meta={{ "Vendor": p.vendorName || p.vendorCode, "Amount": `₹${Number(p.amount || 0).toLocaleString("en-IN")}`, "Status": p.status, "Approved By": p.approvedByName || "—", "UTR": p.utrNo || "—" }}
                                 auditKey="ae_vm_pv_delete_log"
                                 testid={`voucher-sa-del-${p.pvNo}`}
+                                blockReason={!p.utrNo ? `Delete locked · Pehle UTR number enter karo (Edit voucher → UTR / Reference No field), uske baad hi delete allow hoga.` : ""}
                                 onDelete={() => deletePayment(p.pvNo)}
                               />
                             )}
@@ -1237,13 +1297,14 @@ export default function Reports() {
                 <button data-testid="rpt-btn-new-voucher" onClick={() => { setPv(null); setSelectedBillId(""); window.scrollTo({ top: 0, behavior: "smooth" }); toast.info("Scroll to form · Select a bill and Generate Voucher"); }} style={bbtn("#7c3aed")}>🆕 New Voucher</button>
                 <button data-testid="rpt-btn-print" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
                 <button data-testid="rpt-btn-export-json" onClick={handleExportJSON} style={bbtn("#0369a1")}>🧾 Export JSON</button>
-                {pv && pv.status !== "Approved" && <button data-testid="rpt-btn-delete-voucher" onClick={() => deletePayment(pv.pvNo)} style={bbtn("#dc2626")}>🗑 Delete Voucher</button>}
+                {pv && pv.status !== "Approved" && canDelete() && <button data-testid="rpt-btn-delete-voucher" onClick={() => deletePayment(pv.pvNo)} style={bbtn("#dc2626")}>🗑 Delete Voucher</button>}
                 {pv && pv.status === "Approved" && (
                   <SuperAdminDelete
                     label={`Payment Voucher ${pv.pvNo}`}
                     meta={{ "Vendor": pv.vendorName || pv.vendorCode, "Amount": `₹${Number(pv.amount || 0).toLocaleString("en-IN")}`, "Status": pv.status, "Approved By": pv.approvedByName || "—", "UTR": pv.utrNo || "—" }}
                     auditKey="ae_vm_pv_delete_log"
                     testid="rpt-btn-sa-del-voucher"
+                    blockReason={!pv.utrNo ? `Delete locked · Pehle UTR number enter karo (UTR / Reference No field above), uske baad hi delete allow hoga.` : ""}
                     onDelete={() => deletePayment(pv.pvNo)}
                   />
                 )}

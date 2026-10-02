@@ -904,6 +904,15 @@ export const canDeleteApproved = () => {
   const r = currentRole();
   return r === "SuperAdmin" || r === "Admin";
 };
+// Universal delete gate for ALL persistent record deletions (employee, bill,
+// vendor, recruit, exit, advance, loan, PV, BOQ, WO, etc.) across every
+// department/section. STRICTLY role-based: Admin / SuperAdmin only, bypasses
+// any per-user permission grant. Form-row (line-item) removals during data
+// entry are NOT gated by this.
+export const canDelete = () => {
+  const r = currentRole();
+  return r === "SuperAdmin" || r === "Admin";
+};
 // Backward-compat aliases used by older code paths
 export const canApproveAccounts = () => canApprove();
 export const canApproveGM = () => canApprove();
