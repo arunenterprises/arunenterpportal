@@ -364,7 +364,12 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                 <a href={boq.attachmentData} target="_blank" rel="noopener noreferrer" style={{ color: "#1d4ed8" }}>View</a>
                 <button
                   type="button"
-                  onClick={downloadAttachment}
+                  onClick={() => {
+                    if (!boq.attachmentData) { toast.error("No attachment"); return; }
+                    const a = document.createElement("a");
+                    a.href = boq.attachmentData; a.download = boq.attachmentName || "boq-attachment";
+                    document.body.appendChild(a); a.click(); a.remove();
+                  }}
                   data-testid="boq-attach-download"
                   style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 700 }}
                 >
