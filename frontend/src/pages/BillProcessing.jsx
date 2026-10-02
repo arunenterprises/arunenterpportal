@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { CheckCircle2, Search, Plus, X, FilePlus2, Save, Pencil, Send, Printer, Download, FileSearch } from "lucide-react";
+import { CheckCircle2, Search, Plus, X, FilePlus2, Save, Pencil, Send, Printer, Download, FileSearch, Wallet, Receipt, LogOut, IndianRupee, FileText } from "lucide-react";
 import Header from "../components/Header";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
@@ -15,6 +15,8 @@ import {
   getWOs, canCreate, canApprove,
   getPayBills, advancePayBillStep, PAYBILL_STATUS,
   getAdvanceRegister,
+  getAdvanceRequests, advanceAdvanceRequestStep, rejectAdvanceRequest, ADVANCE_REQ_STATUS,
+  getExits, advanceExitStep, EXIT_STATUS,
 } from "../lib/store";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
@@ -49,6 +51,9 @@ export default function BillProcessing() {
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [activeView, setActiveView] = useState("vendor"); // vendor | advance | paybill | exit
+  const [rev, setRev] = useState(0);
+  const bumpRev = () => setRev((r) => r + 1);
 
   const allBills = useMemo(() => getBills(), [refresh, bill.id]);
   const loadBill = (b) => {
@@ -431,6 +436,35 @@ export default function BillProcessing() {
         <div className="a4" data-testid="bill-page">
           <Header formTitle="ACCOUNTS DEPARTMENT" />
 
+          {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
+          <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">
+            {[
+              { id: "vendor", label: "Vendor Bills", tone: "#0369a1", icon: Receipt },
+              { id: "advance", label: "Advance Reg.", tone: "#f59e0b", icon: Wallet },
+              { id: "paybill", label: "Pay Bills Process", tone: "#be185d", icon: IndianRupee },
+              { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
+            ].map((t) => {
+              const Icon = t.icon; const active = activeView === t.id;
+              return (
+                <button
+                  key={t.id}
+                  data-testid={`accounts-tab-${t.id}`}
+                  onClick={() => { setActiveView(t.id); bumpRev(); }}
+                  style={{
+                    padding: "8px 16px", background: active ? t.tone : "transparent",
+                    color: active ? "#fff" : "#334155", border: "none",
+                    borderRadius: "6px 6px 0 0", cursor: "pointer",
+                    fontWeight: 700, fontSize: 12, letterSpacing: .3,
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  <Icon size={13} /> {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeView === "vendor" && (<>
           {/* View Switcher — Vendor Bills · HR Payroll · Employee Advance */}
           <StepTabs
             step={bill.step}
@@ -1094,8 +1128,267 @@ export default function BillProcessing() {
             <button data-testid="bill-btn-export-excel" onClick={handleExportExcel} style={{ padding: "7px 12px", height: 32, background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(5,150,105,.3)", lineHeight: 1 }}>⬇ Excel</button>
             <button data-testid="bill-btn-print" onClick={handlePrint} style={{ padding: "7px 12px", height: 32, background: "#ea580c", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(234,88,12,.3)", lineHeight: 1 }}><Printer size={13} /> Print</button>
           </div>
+          </>)}
+
+          {activeView === "advance" && <AccountsAdvanceView rev={rev} bumpRev={bumpRev} />}
+          {activeView === "paybill" && <AccountsPayBillView rev={rev} bumpRev={bumpRev} />}
+          {activeView === "exit" && <AccountsExitView rev={rev} bumpRev={bumpRev} />}
         </div>
       </div>
     </>
   );
 }
+
+// ===================== Accounts · Advance Register Approval Queue =====================
+const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
+const statusTone = { 1: "#64748b", 2: "#f59e0b", 3: "#0369a1", 4: "#16a34a", 5: "#dc2626" };
+
+const AccountsAdvanceView = ({ rev, bumpRev }) => {
+  const reqs = useMemo(() => getAdvanceRequests(), [rev]);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const pending = reqs.filter((r) => Number(r.status) === 2);
+  const approved = reqs.filter((r) => Number(r.status) === 3);
+  const paid = reqs.filter((r) => Number(r.status) === 4);
+  const totalPending = pending.reduce((a, r) => a + Number(r.amount || 0), 0);
+
+  const approveNow = (r) => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin can approve");
+    const n = advanceAdvanceRequestStep(r); bumpRev();
+    toast.success(`Accounts approved · ${n.refNo} · Ready to disburse`);
+  };
+  const payNow = (r) => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin can disburse");
+    const n = advanceAdvanceRequestStep(r); bumpRev();
+    toast.success(`Paid · Payment Voucher ${n.linkedPvNo} generated`);
+  };
+  const doReject = (r) => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin can reject");
+    if (!rejectReason.trim()) return toast.error("Enter rejection reason");
+    rejectAdvanceRequest(r, rejectReason);
+    setRejectingId(null); setRejectReason(""); bumpRev();
+    toast.success("Request rejected");
+  };
+
+  return (
+    <div data-testid="accounts-advance-view">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 12 }}>
+        <KpiBox label="Pending Approval" value={pending.length} tone="#f59e0b" sub={`₹ ${inrN(totalPending)}`} />
+        <KpiBox label="Approved · To Pay" value={approved.length} tone="#0369a1" />
+        <KpiBox label="Paid · PV Generated" value={paid.length} tone="#16a34a" />
+        <KpiBox label="Total Requests" value={reqs.length} tone="#334155" />
+      </div>
+
+      <AdvanceSection title={`Pending Accounts Approval (${pending.length})`} rows={pending} tone="#f59e0b"
+        testid="adv-pending" renderActions={(r, i) => (
+          <>
+            {canApprove() && <button data-testid={`adv-approve-${i}`} onClick={() => approveNow(r)} style={btnSm("#0369a1")}>Approve</button>}
+            {canApprove() && <button data-testid={`adv-reject-${i}`} onClick={() => setRejectingId(r.id)} style={btnSm("#dc2626")}>Reject</button>}
+            {rejectingId === r.id && (
+              <div style={{ display: "inline-flex", gap: 4, marginLeft: 6 }}>
+                <input autoFocus placeholder="Reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} style={{ padding: "3px 6px", fontSize: 10, border: "1px solid #cbd5e1", borderRadius: 3, width: 120 }} data-testid={`adv-reject-reason-${i}`} />
+                <button onClick={() => doReject(r)} style={btnSm("#dc2626")}>OK</button>
+                <button onClick={() => { setRejectingId(null); setRejectReason(""); }} style={btnSm("#64748b")}>X</button>
+              </div>
+            )}
+          </>
+        )}
+      />
+
+      <AdvanceSection title={`Approved · Ready to Pay (${approved.length})`} rows={approved} tone="#0369a1"
+        testid="adv-approved" renderActions={(r, i) => (
+          canApprove() ? <button data-testid={`adv-pay-${i}`} onClick={() => payNow(r)} style={btnSm("#16a34a")}>Generate PV & Pay</button> : null
+        )}
+      />
+
+      <AdvanceSection title={`Paid · Payment Vouchers Generated (${paid.length})`} rows={paid} tone="#16a34a"
+        testid="adv-paid" renderActions={(r) => <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{r.linkedPvNo}</span>}
+      />
+    </div>
+  );
+};
+
+const AdvanceSection = ({ title, rows, tone, testid, renderActions }) => (
+  <div className="section" data-testid={testid} style={{ marginTop: 12 }}>
+    <div className="sec-head" style={{ background: tone, color: "#fff" }}>{title}</div>
+    <div className="sec-body" style={{ padding: 0 }}>
+      {rows.length === 0 ? (
+        <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12 }}>No records</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              {["Ref No", "Date", "Employee", "Amount", "Repayment", "Reason", "Status", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id} data-testid={`${testid}-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{r.refNo}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.requestDate}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><b>{r.empCode}</b> · {r.empName}<div style={{ fontSize: 9, color: "#64748b" }}>{r.department || "—"}</div></td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#78350f" }}>₹ {inrN(r.amount)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.repaymentMode}{r.repaymentMode === "EMI" ? ` · ${r.emiMonths}m` : ""}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, color: "#475569" }}>{r.reason || "—"}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: statusTone[r.status] || "#64748b", color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{ADVANCE_REQ_STATUS[r.status]}</span></td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>{renderActions(r, i)}</div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </div>
+);
+
+// ===================== Accounts · Pay Bills Approval Queue =====================
+const AccountsPayBillView = ({ rev, bumpRev }) => {
+  const bills = useMemo(() => getPayBills(), [rev]);
+  const submitted = bills.filter((b) => Number(b.step) === 2);
+  const gmApproved = bills.filter((b) => Number(b.step) === 3);
+  const settled = bills.filter((b) => Number(b.step) === 4);
+
+  const gmApprove = (b) => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
+    const n = advancePayBillStep(b); bumpRev();
+    toast.success(`GM approved · ${n.refNo}`);
+  };
+  const settle = (b) => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
+    if (!window.confirm(`Settle Pay Bill ${b.refNo}? A Payment Voucher of ₹ ${inrN(b.totalNet)} will be auto-generated.`)) return;
+    const n = advancePayBillStep(b); bumpRev();
+    toast.success(`Pay Bill settled · PV ${n.linkedPvNo}`);
+  };
+
+  return (
+    <div data-testid="accounts-paybill-view">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 12 }}>
+        <KpiBox label="Submitted to GM" value={submitted.length} tone="#f59e0b" />
+        <KpiBox label="GM Approved · To Settle" value={gmApproved.length} tone="#0369a1" />
+        <KpiBox label="Settled · PV Done" value={settled.length} tone="#16a34a" />
+        <KpiBox label="Total Pay Bills" value={bills.length} tone="#334155" />
+      </div>
+
+      <PayBillSection title={`Submitted · Awaiting GM Approval (${submitted.length})`} rows={submitted} tone="#f59e0b" testid="pb-submitted"
+        renderActions={(b, i) => canApprove() ? <button data-testid={`pb-gm-${i}`} onClick={() => gmApprove(b)} style={btnSm("#0369a1")}>GM Approve</button> : null} />
+      <PayBillSection title={`GM Approved · Ready for Accounts Settlement (${gmApproved.length})`} rows={gmApproved} tone="#0369a1" testid="pb-approved"
+        renderActions={(b, i) => canApprove() ? <button data-testid={`pb-settle-${i}`} onClick={() => settle(b)} style={btnSm("#16a34a")}>Settle & Generate PV</button> : null} />
+      <PayBillSection title={`Settled · Payment Vouchers Generated (${settled.length})`} rows={settled} tone="#16a34a" testid="pb-settled"
+        renderActions={(b) => <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{b.linkedPvNo}</span>} />
+    </div>
+  );
+};
+
+const PayBillSection = ({ title, rows, tone, testid, renderActions }) => (
+  <div className="section" data-testid={testid} style={{ marginTop: 12 }}>
+    <div className="sec-head" style={{ background: tone, color: "#fff" }}>{title}</div>
+    <div className="sec-body" style={{ padding: 0 }}>
+      {rows.length === 0 ? (
+        <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12 }}>No records</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              {["Ref No", "Period", "Employees", "Gross", "Deductions", "Advance", "Net Payable", "Status", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((b, i) => (
+              <tr key={b.id} data-testid={`${testid}-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{b.refNo}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{new Date(b.year, (b.month || 1) - 1).toLocaleString("en", { month: "short" })} {b.year}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>{b.lines?.length || 0}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right" }}>₹ {inrN(b.totalGross)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", color: "#dc2626" }}>₹ {inrN(b.totalDeductions)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", color: "#78350f" }}>₹ {inrN(b.totalAdvance)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#065f46", background: "#ecfdf5" }}>₹ {inrN(b.totalNet)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: tone, color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{PAYBILL_STATUS[b.step]}</span></td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>{renderActions(b, i)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </div>
+);
+
+// ===================== Accounts · Exit & F&F Approval Queue =====================
+const AccountsExitView = ({ rev, bumpRev }) => {
+  const exits = useMemo(() => getExits(), [rev]);
+  const pending = exits.filter((x) => Number(x.status) === 3); // GM Approved · Pending Accounts
+  const settled = exits.filter((x) => Number(x.status) === 4);
+  const drafts = exits.filter((x) => Number(x.status) < 3);
+  const totalPending = pending.reduce((a, x) => a + Number(x.fnfNet || 0), 0);
+
+  const settle = (x) => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
+    if (!window.confirm(`Settle F&F for ${x.empName || x.empCode}? Payout ₹ ${inrN(x.fnfNet)} · A Payment Voucher will be auto-generated.`)) return;
+    const n = advanceExitStep(x); bumpRev();
+    toast.success(`F&F settled · PV ${n.linkedPvNo}`);
+  };
+
+  return (
+    <div data-testid="accounts-exit-view">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 12 }}>
+        <KpiBox label="Pending Accounts" value={pending.length} tone="#f59e0b" sub={`₹ ${inrN(totalPending)}`} />
+        <KpiBox label="Settled · PV Done" value={settled.length} tone="#16a34a" />
+        <KpiBox label="In HR (Draft/GM)" value={drafts.length} tone="#64748b" />
+        <KpiBox label="Total Exits" value={exits.length} tone="#334155" />
+      </div>
+
+      <ExitSection title={`GM Approved · Pending Accounts Settlement (${pending.length})`} rows={pending} tone="#f59e0b" testid="exit-pending"
+        renderActions={(x, i) => canApprove() ? <button data-testid={`exit-settle-${i}`} onClick={() => settle(x)} style={btnSm("#16a34a")}>Settle & Generate PV</button> : null} />
+      <ExitSection title={`Settled · F&F Paid (${settled.length})`} rows={settled} tone="#16a34a" testid="exit-settled"
+        renderActions={(x) => <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{x.linkedPvNo}</span>} />
+    </div>
+  );
+};
+
+const ExitSection = ({ title, rows, tone, testid, renderActions }) => (
+  <div className="section" data-testid={testid} style={{ marginTop: 12 }}>
+    <div className="sec-head" style={{ background: tone, color: "#fff" }}>{title}</div>
+    <div className="sec-body" style={{ padding: 0 }}>
+      {rows.length === 0 ? (
+        <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12 }}>No records</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead>
+            <tr style={{ background: "#f8fafc" }}>
+              {["Employee", "Resign Date", "LWD", "Dues", "Bonus", "Leave Enc.", "Gratuity", "Loan Ded.", "Notice Rec.", "F&F Net", "Status", "Action"].map((h) => <th key={h} style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((x, i) => (
+              <tr key={x.id} data-testid={`${testid}-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><b>{x.empCode}</b> · {x.empName}<div style={{ fontSize: 9, color: "#64748b" }}>{x.department || "—"}</div></td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{x.resignDate || "—"}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{x.lastWorkingDay || "—"}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontSize: 10 }}>₹ {inrN(x.pendingDues)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontSize: 10 }}>₹ {inrN(x.bonusDue)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontSize: 10 }}>₹ {inrN(x.leaveEncash)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontSize: 10 }}>₹ {inrN(x.gratuity)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontSize: 10, color: "#dc2626" }}>₹ {inrN(x.loanDeduction)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontSize: 10, color: "#dc2626" }}>₹ {inrN(x.noticeRecovery)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#065f46", background: "#ecfdf5" }}>₹ {inrN(x.fnfNet)}</td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: tone, color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{EXIT_STATUS[x.status]}</span></td>
+                <td style={{ padding: 6, border: "1px solid #e2e8f0" }}>{renderActions(x, i)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </div>
+);
+
+const KpiBox = ({ label, value, tone, sub }) => (
+  <div style={{ padding: 12, background: "#fff", border: `1.5px solid ${tone}30`, borderLeft: `4px solid ${tone}`, borderRadius: 6 }}>
+    <div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase" }}>{label}</div>
+    <div style={{ fontSize: 22, fontWeight: 800, color: tone, marginTop: 2 }}>{value}</div>
+    {sub && <div style={{ fontSize: 11, fontWeight: 700, color: "#78350f", marginTop: 2 }}>{sub}</div>}
+  </div>
+);
+
+const btnSm = (bg) => ({ padding: "3px 8px", background: bg, color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 });

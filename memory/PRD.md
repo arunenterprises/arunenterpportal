@@ -5,6 +5,10 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
+- **Accounts Department · Top Switcher (NEW)** — `BillProcessing.jsx` ab 4 top tabs serve karta hai: [Vendor Bills] · [Advance Reg.] · [Pay Bills Process] · [Exit & F&F]. Each HR-sourced tab shows pending/approved/paid queues with role-gated Approve/Settle/Reject actions. Auto PV generation on settle:
+  - Advance Reg: Status 2 (Submitted) → Accounts Approve → Status 3 → Generate PV & Pay → Status 4 (`PV/ADV/{FY}/N`)
+  - Pay Bills: Status 2 (Submitted to GM) → GM Approve → Status 3 → Settle → Status 4 (`PV/HR/{Y-M}/N`)
+  - Exit & F&F: Status 3 (GM Approved · Pending Accounts) → Settle → Status 4 (`PV/HR-FNF/{Y}/N`)
 - **Login/Logout full-page splash** — `AuthSplash.jsx` component renders a colorful gradient overlay with floating emoji particles, animated gradient title + progress bar. Login shows "Welcome to ARUN ENTERPRISES ERP, {name}" for ~2.2s then navigates to /home; Logout shows "BYE-BYE, {name}" for ~1.8s then clears auth + navigates to /login. Rendered via `createPortal(document.body)` so it covers any page. Wired into: `Login.jsx`, `HomeNavBar.jsx`, `TopNav.jsx`, `TopActionBar.jsx`, `UsersAdmin.jsx`.
 - **BillProcessing switcher tabs** — 3-way top switcher (`activeView` state): [Vendor Bills] | [HR Payroll] | [Employee Advance]. Only one view renders at a time (true React conditional, not display:none). Scrolls to top on tab click. Tested E2E — 100% pass (iteration_25.json).
 - **Header formTitle** on Bill Processing simplified to just "ACCOUNTS DEPARTMENT".
