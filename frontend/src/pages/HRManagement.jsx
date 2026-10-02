@@ -15,6 +15,7 @@ import {
   getMonthAttendance, upsertAttendance, sendPayrollToAccounts,
   getPayBills, createPayBillDraft, upsertPayBill, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
+  getAdvanceRequests, createAdvanceRequestDraft, upsertAdvanceRequest, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
   getLoans, createLoanDraft, upsertLoan, advanceLoanStep, deleteLoan, computeLoanEMI, LOAN_STATUS,
   getLeaves, createLeaveDraft, upsertLeave, deleteLeave, approveLeave, LEAVE_TYPES, LEAVE_STATUS,
   getRecruitments, createRecruitDraft, upsertRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
@@ -1320,18 +1321,174 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   );
 };
 
-// -------------- Advance Register --------------
-const AdvanceRegisterTab = () => {
+// -------------- Advance Register + On-Demand Advance Request Flow --------------
+const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
+  const emps = getEmployees().filter((e) => Number(e.step) === 5);
   const [reg, setReg] = useState([]);
-  useEffect(() => { setReg(getAdvanceRegister()); }, []);
+  const [reqs, setReqs] = useState([]);
+  const [cur, setCur] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const refresh = () => { setReg(getAdvanceRegister()); setReqs(getAdvanceRequests()); };
+  useEffect(() => { refresh(); }, []);
   const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
   const totalAdvance = reg.reduce((a, r) => a + r.totalAdvance, 0);
+
+  const startNew = () => setCur(createAdvanceRequestDraft(emps[0]?.id || ""));
+  const set = (k, v) => setCur((p) => ({ ...p, [k]: v }));
+
+  const save = () => {
+    if (!writeAllowed) return toast.error("Not permitted");
+    if (!cur.empId) return toast.error("Select an employee");
+    if (!Number(cur.amount) || Number(cur.amount) <= 0) return toast.error("Enter advance amount");
+    if (!cur.reason?.trim()) return toast.error("Enter reason for advance");
+    const emp = emps.find((e) => e.id === cur.empId);
+    const n = upsertAdvanceRequest({ ...cur, empCode: emp?.empCode, empName: emp?.fullName, department: emp?.department, designation: emp?.designation });
+    setCur(n); refresh();
+    toast.success(`Draft saved · ${n.refNo}`);
+  };
+  const submit = () => {
+    if (!writeAllowed) return toast.error("Not permitted");
+    if (!cur.id || !cur.empId) return toast.error("Save draft first");
+    save();
+    const n = advanceAdvanceRequestStep(cur);
+    setCur(n); refresh();
+    toast.success(`Submitted to Accounts for approval`);
+  };
+  const approveNow = (r) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin (Accounts) can approve");
+    const n = advanceAdvanceRequestStep(r); refresh();
+    if (cur?.id === n.id) setCur(n);
+    toast.success(`Accounts approved · Ready to disburse`);
+  };
+  const payNow = (r) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin (Accounts) can disburse");
+    const n = advanceAdvanceRequestStep(r); refresh();
+    if (cur?.id === n.id) setCur(n);
+    toast.success(`Paid · Payment Voucher ${n.linkedPvNo} generated`);
+  };
+  const doReject = (r) => {
+    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin can reject");
+    if (!rejectReason.trim()) return toast.error("Enter rejection reason");
+    const n = rejectAdvanceRequest(r, rejectReason);
+    setRejectingId(null); setRejectReason(""); refresh();
+    if (cur?.id === n.id) setCur(n);
+    toast.success("Request rejected");
+  };
+  const remove = (id) => { if (!window.confirm("Delete this advance request?")) return; deleteAdvanceRequest(id); if (cur?.id === id) setCur(null); refresh(); };
+
+  const locked = cur && Number(cur.status) >= 2;
+  const statusTone = { 1: "#64748b", 2: "#f59e0b", 3: "#0369a1", 4: "#16a34a", 5: "#dc2626" };
+
   return (
     <div style={{ padding: 14 }}>
+      {/* Advance Request Form Section */}
+      <div style={{ marginBottom: 16 }} data-testid="adv-req-section">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: "#64748b", textTransform: "uppercase" }}>On-Demand Advance Flow</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>Advance Request · HR → Accounts → Payment Voucher</div>
+          </div>
+          <button data-testid="adv-req-new" onClick={startNew} disabled={!writeAllowed} style={{ padding: "7px 14px", background: writeAllowed ? "#f59e0b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> New Advance Request</button>
+        </div>
+
+        {cur && (
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 14 }}>
+            <div style={{ padding: "10px 14px", background: "#78350f", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>{cur.refNo || "New Request"} · <span style={{ background: statusTone[cur.status] || "#fbbf24", color: "#fff", padding: "1px 8px", borderRadius: 3, marginLeft: 6, fontSize: 10 }}>{ADVANCE_REQ_STATUS[cur.status]}</span></div>
+              <div style={{ fontSize: 11 }}>Amount: <b style={{ color: "#fbbf24" }}>₹{inrN(cur.amount)}</b> {cur.linkedPvNo && <span style={{ marginLeft: 10 }}>· PV: <b>{cur.linkedPvNo}</b></span>}</div>
+            </div>
+            <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              <F label="Employee" req>
+                <select value={cur.empId} onChange={(e) => set("empId", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-emp">
+                  <option value="">— Select —</option>
+                  {emps.map((e) => <option key={e.id} value={e.id}>{e.empCode} · {e.fullName}</option>)}
+                </select>
+              </F>
+              <F label="Request Date" req>
+                <input type="date" value={cur.requestDate} onChange={(e) => set("requestDate", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-date" />
+              </F>
+              <F label="Advance Amount (₹)" req>
+                <input type="number" value={cur.amount || ""} onChange={(e) => set("amount", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-amount" />
+              </F>
+              <F label="Payment Mode">
+                <select value={cur.paymentMode} onChange={(e) => set("paymentMode", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-paymode">
+                  {["Bank Transfer", "Cash", "UPI", "Cheque"].map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </F>
+              <F label="Repayment Mode" req>
+                <select value={cur.repaymentMode} onChange={(e) => set("repaymentMode", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-repay">
+                  <option value="Lumpsum">Lumpsum (deduct next Pay Bill)</option>
+                  <option value="EMI">EMI (over N months)</option>
+                </select>
+              </F>
+              {cur.repaymentMode === "EMI" && (
+                <F label="EMI Months" req>
+                  <input type="number" min="1" value={cur.emiMonths || 1} onChange={(e) => set("emiMonths", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-emi-months" />
+                </F>
+              )}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <F label="Reason / Purpose" req>
+                  <textarea value={cur.reason} onChange={(e) => set("reason", e.target.value)} disabled={locked} style={{ ...inputStyle, minHeight: 50, resize: "vertical" }} data-testid="adv-reason" placeholder="Medical emergency / Festival / Family function..." />
+                </F>
+              </div>
+            </div>
+            <div style={{ padding: 12, display: "flex", gap: 8, flexWrap: "wrap", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
+              <button data-testid="adv-save" onClick={save} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Draft</button>
+              <button data-testid="adv-submit" onClick={submit} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to Accounts</button>
+              {Number(cur.status) === 2 && approveAllowed && <button data-testid="adv-approve" onClick={() => approveNow(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Accounts Approve</button>}
+              {Number(cur.status) === 3 && approveAllowed && <button data-testid="adv-pay" onClick={() => payNow(cur)} style={{ padding: "7px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><IndianRupee size={13} style={{ verticalAlign: -2 }} /> Generate PV & Pay</button>}
+              {[2, 3].includes(Number(cur.status)) && approveAllowed && <button data-testid="adv-reject" onClick={() => setRejectingId(cur.id)} style={{ padding: "7px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><X size={13} style={{ verticalAlign: -2 }} /> Reject</button>}
+              {cur.id && Number(cur.status) < 2 && writeAllowed && <button data-testid="adv-delete" onClick={() => remove(cur.id)} style={{ padding: "7px 14px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete Draft</button>}
+            </div>
+            {rejectingId === cur.id && (
+              <div style={{ padding: 12, background: "#fef2f2", borderTop: "1px solid #fecaca", display: "flex", gap: 8, alignItems: "center" }}>
+                <input autoFocus placeholder="Rejection reason..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} data-testid="adv-reject-reason" style={{ ...inputStyle, flex: 1 }} />
+                <button onClick={() => doReject(cur)} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Confirm Reject</button>
+                <button onClick={() => { setRejectingId(null); setRejectReason(""); }} style={{ padding: "6px 12px", background: "#64748b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Cancel</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Advance Requests List */}
+        {reqs.length > 0 && (
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
+            <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>Advance Requests ({reqs.length}) · Click row to open</div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  {["Ref No.", "Date", "Employee", "Amount", "Repayment", "Status", "PV No.", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {reqs.slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).map((r, i) => (
+                  <tr key={r.id} data-testid={`adv-req-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff", cursor: "pointer" }} onClick={() => setCur(r)}>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{r.refNo}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.requestDate}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><b>{r.empCode}</b> · {r.empName}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#78350f" }}>₹{inrN(r.amount)}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.repaymentMode}{r.repaymentMode === "EMI" ? ` · ${r.emiMonths}m` : ""}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: statusTone[r.status] || "#64748b", color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{ADVANCE_REQ_STATUS[r.status]}</span></td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700, color: "#16a34a" }}>{r.linkedPvNo || "—"}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0" }} onClick={(e) => e.stopPropagation()}>
+                      {Number(r.status) === 2 && approveAllowed && <button data-testid={`adv-row-approve-${i}`} onClick={() => approveNow(r)} style={{ padding: "3px 8px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Approve</button>}
+                      {Number(r.status) === 3 && approveAllowed && <button data-testid={`adv-row-pay-${i}`} onClick={() => payNow(r)} style={{ padding: "3px 8px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Pay</button>}
+                      {Number(r.status) < 2 && writeAllowed && <button data-testid={`adv-row-del-${i}`} onClick={() => remove(r.id)} style={{ padding: "3px 6px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Existing Advance Register */}
       <div style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)", border: "1.5px solid #f59e0b", borderRadius: 8, padding: 14, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 10.5, fontWeight: 800, color: "#78350f", letterSpacing: 1, textTransform: "uppercase" }}>Advance Register · Live from Pay Bills</div>
-          <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>Per-employee advance ledger aggregated across all monthly pay bills — tracks outstanding recoveries.</div>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: "#78350f", letterSpacing: 1, textTransform: "uppercase" }}>Advance Register · Pay Bills + On-Demand</div>
+          <div style={{ fontSize: 11, color: "#78350f", marginTop: 2 }}>Per-employee advance ledger — tracks outstanding recoveries across pay bills and approved on-demand advances.</div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: "#78350f", letterSpacing: .5, textTransform: "uppercase" }}>Total Advance Granted</div>
@@ -1339,7 +1496,7 @@ const AdvanceRegisterTab = () => {
         </div>
       </div>
       {reg.length === 0 ? (
-        <div style={{ padding: 30, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px dashed #cbd5e1", borderRadius: 8 }}>No advance entries yet. Add Advance column in a Pay Bill row to populate this register.</div>
+        <div style={{ padding: 30, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px dashed #cbd5e1", borderRadius: 8 }}>No advance entries yet. Create an on-demand request above or add Advance in a Pay Bill row.</div>
       ) : (
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
@@ -1353,8 +1510,8 @@ const AdvanceRegisterTab = () => {
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", color: "#64748b", fontSize: 10 }}>{r.department || "—"}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>
                     {r.lines.map((ln, j) => (
-                      <span key={j} style={{ display: "inline-block", padding: "2px 7px", margin: 2, background: "#fef3c7", color: "#78350f", borderRadius: 3, border: "1px solid #fcd34d", fontWeight: 700 }}>
-                        {new Date(ln.year, ln.month - 1).toLocaleString("en", { month: "short" })} {String(ln.year).slice(-2)}: ₹{inrN(ln.amount)}
+                      <span key={j} style={{ display: "inline-block", padding: "2px 7px", margin: 2, background: ln.source === "On-Demand" ? "#dbeafe" : "#fef3c7", color: ln.source === "On-Demand" ? "#1e3a8a" : "#78350f", borderRadius: 3, border: `1px solid ${ln.source === "On-Demand" ? "#93c5fd" : "#fcd34d"}`, fontWeight: 700 }}>
+                        {ln.source === "On-Demand" ? "⚡" : ""}{new Date(ln.year, ln.month - 1).toLocaleString("en", { month: "short" })} {String(ln.year).slice(-2)}: ₹{inrN(ln.amount)}
                       </span>
                     ))}
                   </td>
@@ -1897,7 +2054,7 @@ export default function HRManagement() {
             {tab === "leaves" && <LeavesTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "payroll" && <PayrollTab />}
             {tab === "paybill" && <PayBillTab writeAllowed={write} approveAllowed={approve} />}
-            {tab === "advance" && <AdvanceRegisterTab />}
+            {tab === "advance" && <AdvanceRegisterTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "loans" && <LoansTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "compliance" && <ComplianceTab />}
             {tab === "recruit" && <RecruitTab writeAllowed={write} />}

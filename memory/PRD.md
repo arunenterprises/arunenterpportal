@@ -36,8 +36,12 @@ Dashboard · Employees · Attendance · Leaves · Payroll Slip · Pay Bill · **
 - 4-step workflow: Draft → Submitted to GM → GM Approved → **Settled** (auto-creates Payment Voucher)
 - Print A4 Landscape with 4-signature block
 
-### Advance Register (NEW)
-- Live aggregation from all Pay Bills — per-employee advance ledger
+### Advance Register + On-Demand Advance Request (Feb 2026)
+- **Advance Request flow (NEW)**: HR creates request (employee / date / amount / reason / repayment mode: Lumpsum or EMI) → Submit to Accounts → Accounts Approve → Generate PV & Pay (auto-creates `PV/ADV/{FY}/N` in Payment Vouchers). Reject with reason supported at both approve stages.
+- Status: 1 Draft · 2 Submitted to Accounts · 3 Accounts Approved · 4 Paid (PV generated) · 5 Rejected
+- Store: `ae_vm_advance_requests` localStorage key. CRUD: `getAdvanceRequests`, `createAdvanceRequestDraft`, `upsertAdvanceRequest`, `advanceAdvanceRequestStep`, `rejectAdvanceRequest`, `deleteAdvanceRequest`.
+- Advance Register now unifies: PayBill advance deductions + Accounts-approved on-demand advances (marked with ⚡ icon, blue chip).
+- Backend MongoDB sync still pending (P0 - Issue 3 in handoff).
 - Shows monthly entries + Total Advance Granted summary at top
 - Yellow-amber themed table (matches advance highlight colour)
 

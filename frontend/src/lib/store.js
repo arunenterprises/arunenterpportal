@@ -17,6 +17,7 @@ const KEYS = {
   ATTENDANCE: "ae_vm_attendance",
   PAYBILLS: "ae_vm_paybills",
   LOANS: "ae_vm_loans",
+  ADVANCE_REQS: "ae_vm_advance_requests",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
@@ -1375,24 +1376,114 @@ export const advancePayBillStep = (pb) => {
 
 export const deletePayBill = (id) => savePayBills(getPayBills().filter((x) => x.id !== id));
 
-// --- Advance Register (per-employee aggregated across all pay bills) ---
+// --- Advance Register (per-employee aggregated across all pay bills + paid on-demand advance requests) ---
 export const getAdvanceRegister = () => {
   const bills = getPayBills();
   const emps = getEmployees();
+  const reqs = getAdvanceRequests();
   const map = {};
+  const ensure = (empId, empCode, name) => {
+    if (!map[empId]) {
+      const e = emps.find((x) => x.id === empId);
+      map[empId] = { empId, empCode: empCode || e?.empCode, name: name || e?.fullName, department: e?.department, lines: [], totalAdvance: 0 };
+    }
+    return map[empId];
+  };
   bills.forEach((pb) => {
     (pb.lines || []).forEach((l) => {
       if (!Number(l.advance)) return;
-      if (!map[l.empId]) {
-        const e = emps.find((x) => x.id === l.empId);
-        map[l.empId] = { empId: l.empId, empCode: l.empCode, name: l.name || e?.fullName, department: e?.department, lines: [], totalAdvance: 0 };
-      }
-      map[l.empId].lines.push({ year: pb.year, month: pb.month, refNo: pb.refNo, amount: Number(l.advance), step: pb.step });
-      map[l.empId].totalAdvance += Number(l.advance);
+      const row = ensure(l.empId, l.empCode, l.name);
+      row.lines.push({ source: "PayBill", year: pb.year, month: pb.month, refNo: pb.refNo, amount: Number(l.advance), step: pb.step });
+      row.totalAdvance += Number(l.advance);
     });
+  });
+  reqs.forEach((r) => {
+    if (Number(r.status) < 3) return; // only Accounts-approved or paid show in register
+    const d = new Date(r.requestDate || Date.now());
+    const row = ensure(r.empId, r.empCode, r.empName);
+    row.lines.push({ source: "On-Demand", year: d.getFullYear(), month: d.getMonth() + 1, refNo: r.refNo, amount: Number(r.amount), step: r.status });
+    row.totalAdvance += Number(r.amount);
   });
   return Object.values(map).sort((a, b) => b.totalAdvance - a.totalAdvance);
 };
+
+// --- Advance on Demand (HR → Accounts → Paid flow) ---
+export const ADVANCE_REQ_STATUS = { 1: "Draft", 2: "Submitted to Accounts", 3: "Accounts Approved", 4: "Paid (PV generated)", 5: "Rejected" };
+export const getAdvanceRequests = () => read(KEYS.ADVANCE_REQS, []);
+export const saveAdvanceRequests = (list) => write(KEYS.ADVANCE_REQS, list);
+export const createAdvanceRequestDraft = (empId = "") => {
+  const emp = getEmployees().find((e) => e.id === empId) || {};
+  const seq = getAdvanceRequests().length + 1;
+  return {
+    id: `ar_${Date.now()}`,
+    refNo: `ADV/${getFY()}/${String(seq).padStart(4, "0")}`,
+    empId: emp.id || "", empCode: emp.empCode || "", empName: emp.fullName || "",
+    department: emp.department || "", designation: emp.designation || "",
+    requestDate: new Date().toISOString().slice(0, 10),
+    amount: 0,
+    reason: "",
+    repaymentMode: "Lumpsum", // "Lumpsum" (deduct next Pay Bill) | "EMI"
+    emiMonths: 1,
+    paymentMode: "Bank Transfer", // Cash / Bank Transfer / UPI / Cheque
+    status: 1,
+    rejectReason: "",
+    requestedByName: _me() || "", createdAt: new Date().toISOString(),
+    history: [],
+  };
+};
+export const upsertAdvanceRequest = (r) => {
+  const list = getAdvanceRequests();
+  const updated = { ...r, updatedAt: new Date().toISOString() };
+  const idx = list.findIndex((x) => x.id === updated.id);
+  if (idx >= 0) list[idx] = updated; else list.push(updated);
+  saveAdvanceRequests(list);
+  return updated;
+};
+export const advanceAdvanceRequestStep = (r) => {
+  const now = new Date().toISOString();
+  const me = _me();
+  const next = { ...r, status: Math.min(4, (Number(r.status) || 1) + 1), updatedAt: now };
+  if (next.status === 2) { next.submittedByName = me; next.submittedAt = now; next.history = [...(r.history || []), { action: "Submitted to Accounts", at: now, by: me }]; }
+  if (next.status === 3) { next.approvedByName = me; next.approvedAt = now; next.history = [...(r.history || []), { action: "Accounts Approved", at: now, by: me }]; }
+  if (next.status === 4) {
+    next.paidByName = me; next.paidAt = now;
+    next.history = [...(r.history || []), { action: "Payment Voucher generated & paid", at: now, by: me }];
+    // Auto-generate Payment Voucher
+    try {
+      const payments = getPayments();
+      const pvNo = `PV/ADV/${getFY()}/${payments.length + 1}`;
+      const pv = {
+        id: `pv_adv_${next.id}`,
+        pvNo,
+        pvDate: now.slice(0, 10),
+        source: "HR Advance Request",
+        sourceRef: next.refNo,
+        vendorCode: "AE-HR-ADVANCE",
+        vendorSnapshot: { firmName: `Advance Payment · ${next.empName} (${next.empCode})` },
+        amount: Number(next.amount) || 0,
+        remarks: `On-demand advance for ${next.empName} · ${next.reason || "—"} · Repayment: ${next.repaymentMode}${next.repaymentMode === "EMI" ? ` ${next.emiMonths}m` : ""}`,
+        status: "Submitted",
+        createdByName: me,
+        createdAt: now,
+      };
+      payments.push(pv);
+      savePayments(payments);
+      next.linkedPvNo = pvNo;
+      next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
+    } catch (e) { /* ignore */ }
+  }
+  saveAdvanceRequests(getAdvanceRequests().map((x) => x.id === next.id ? next : x));
+  return next;
+};
+export const rejectAdvanceRequest = (r, reason = "") => {
+  const now = new Date().toISOString();
+  const me = _me();
+  const next = { ...r, status: 5, rejectReason: reason, rejectedByName: me, rejectedAt: now, updatedAt: now };
+  next.history = [...(r.history || []), { action: `Rejected: ${reason || "—"}`, at: now, by: me }];
+  saveAdvanceRequests(getAdvanceRequests().map((x) => x.id === next.id ? next : x));
+  return next;
+};
+export const deleteAdvanceRequest = (id) => saveAdvanceRequests(getAdvanceRequests().filter((x) => x.id !== id));
 
 // --- Loan Management ---
 export const LOAN_STATUS = { 1: "Draft", 2: "Submitted", 3: "GM Approved", 4: "Disbursed", 5: "Fully Repaid", 6: "Written Off" };
