@@ -126,6 +126,114 @@ const openPrint = (title, html) => {
   w.document.close();
 };
 
+// ============= ADVERTISEMENT / VACANCY NOTICE =============
+export const printAdvertisementNotice = (r) => {
+  const adNo = r.advertisementNo || "— (pending approval)";
+  const today = fmtDMY(new Date().toISOString().slice(0, 10));
+  const approvedOn = r.gmApprovedAt ? fmtDMY(r.gmApprovedAt) : "—";
+  const esc = (s) => String(s || "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Advertisement - ${esc(r.position)}</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Times New Roman", Georgia, serif; color: #0f172a; margin: 0; padding: 0; }
+  .sheet { padding: 0; }
+  .hdr { border: 3px double #0f172a; padding: 12px; margin-bottom: 10px; text-align: center; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); }
+  .hdr .co { font-family: "Arial Black", sans-serif; font-size: 24pt; color: #c81e2b; font-weight: 900; letter-spacing: 1.5px; }
+  .hdr .tag { font-size: 10pt; font-weight: 700; color: #0f172a; margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; }
+  .hdr .addr { font-size: 9.5pt; margin-top: 4px; color: #334155; }
+  .banner { background: #c81e2b; color: #fff; padding: 10px 14px; text-align: center; font-size: 20pt; font-weight: 900; letter-spacing: 3px; margin-bottom: 10px; text-transform: uppercase; }
+  .ref-row { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 8px; padding: 6px 10px; background: #f1f5f9; border-left: 4px solid #c81e2b; }
+  .ref-row b { color: #c81e2b; }
+  .intro { font-size: 11pt; line-height: 1.6; text-align: justify; margin-bottom: 10px; padding: 0 6px; }
+  .pos-box { background: #0f172a; color: #fff; padding: 10px 14px; margin: 10px 0 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .pos-box .lbl { font-size: 9pt; letter-spacing: 1.5px; color: #fbbf24; font-weight: 700; }
+  .pos-box .val { font-size: 18pt; font-weight: 900; letter-spacing: .5px; }
+  .pos-box .vac { background: #fbbf24; color: #78350f; padding: 3px 12px; border-radius: 20px; font-size: 11pt; font-weight: 900; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+  .cell { padding: 8px 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; }
+  .cell .lbl { font-size: 8.5pt; color: #64748b; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .cell .val { font-size: 11pt; font-weight: 700; color: #0f172a; margin-top: 2px; }
+  .reason { padding: 8px 12px; background: #ecfdf5; border: 1px dashed #10b981; border-radius: 4px; margin: 8px 0; }
+  .reason .lbl { font-size: 9pt; color: #065f46; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+  .reason .val { font-size: 10.5pt; margin-top: 2px; color: #0f172a; line-height: 1.5; }
+  .apply { border: 2px solid #0f172a; padding: 12px; margin: 12px 0; background: #fef3c7; border-radius: 4px; }
+  .apply h3 { margin: 0 0 6px; font-size: 13pt; color: #78350f; letter-spacing: 1px; text-align: center; }
+  .apply ul { margin: 6px 0 0 18px; padding: 0; font-size: 10pt; line-height: 1.5; }
+  .apply ul li { margin-bottom: 3px; }
+  .foot { margin-top: 12px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .foot .left { font-size: 9pt; color: #64748b; }
+  .foot .sig { text-align: right; }
+  .foot .sig .name { font-weight: 700; font-size: 11pt; }
+  .foot .sig .desig { font-size: 10pt; color: #64748b; }
+  .foot .sig .line { border-top: 1px solid #0f172a; width: 180px; margin-left: auto; padding-top: 2px; }
+  .stamp { position: absolute; right: 20mm; bottom: 50mm; opacity: .15; transform: rotate(-15deg); font-size: 48pt; font-weight: 900; color: #16a34a; letter-spacing: 4px; border: 4px solid #16a34a; padding: 8px 20px; border-radius: 8px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="hdr">
+    <div class="co">M/s ARUN ENTERPRISES</div>
+    <div class="tag">Our Quality Oriented Service's is First Priority</div>
+    <div class="addr">209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011 · Toll Free: 9429694552 · Email: info@arunenterprises.online</div>
+  </div>
+  <div class="banner">📢 Advertisement · Vacancy Notice</div>
+  <div class="ref-row">
+    <span><b>Advertisement No:</b> ${esc(adNo)}</span>
+    <span><b>Requisition Date:</b> ${esc(fmtDMY(r.requisitionDate))}</span>
+    <span><b>Published:</b> ${esc(today)}</span>
+  </div>
+  <div class="intro">
+    M/s Arun Enterprises, a reputed Govt. Civil Work Contractor &amp; General Order Supplier based in Prayagraj (U.P.), invites applications from eligible, dynamic and self-motivated candidates for the following position(s) to join our growing team.
+  </div>
+  <div class="pos-box">
+    <div><div class="lbl">POSITION</div><div class="val">${esc(r.position)}</div></div>
+    <div><div class="lbl">DEPARTMENT</div><div class="val">${esc(r.department)}</div></div>
+    <div class="vac">Vacancies: ${esc(r.vacancies || 1)}</div>
+  </div>
+  <div class="grid">
+    <div class="cell"><div class="lbl">Qualification Required</div><div class="val">${esc(r.qualificationRequired || "—")}</div></div>
+    <div class="cell"><div class="lbl">Experience Required</div><div class="val">${esc(r.experienceRequired || "—")}</div></div>
+    <div class="cell"><div class="lbl">Compensation (Budget CTC)</div><div class="val">${r.budgetCTC ? inr(r.budgetCTC) + " per annum" : "As per industry standards"}</div></div>
+    <div class="cell"><div class="lbl">Target Join Date</div><div class="val">${esc(fmtDMY(r.targetJoinDate) || "At the earliest")}</div></div>
+  </div>
+  ${r.reasonForHire ? `<div class="reason"><div class="lbl">Role Overview / Reason</div><div class="val">${esc(r.reasonForHire)}</div></div>` : ""}
+  <div class="apply">
+    <h3>How to Apply</h3>
+    <ul>
+      <li>Email your CV/resume with recent passport-size photograph to <b>info@arunenterprises.online</b></li>
+      <li>Mention <b>"Application for ${esc(r.position)}"</b> &amp; Advertisement No <b>${esc(adNo)}</b> in the subject line</li>
+      <li>Attach copies of educational, experience and KYC documents (Aadhaar, PAN)</li>
+      <li>Shortlisted candidates will be contacted directly for an interview</li>
+      <li>Walk-in interviews can be scheduled on prior appointment · Toll Free: <b>9429694552</b></li>
+    </ul>
+  </div>
+  <div class="foot">
+    <div class="left">
+      Issued under authority of the Director · M/s Arun Enterprises<br/>
+      ${r.gmApprovedByName ? `Approved by: <b>${esc(r.gmApprovedByName)}</b> on ${esc(approvedOn)}` : ""}
+    </div>
+    <div class="sig">
+      <div class="line"></div>
+      <div class="name">${esc(SIGNATORY.name)}</div>
+      <div class="desig">${esc(SIGNATORY.designation)} · For M/s Arun Enterprises</div>
+    </div>
+  </div>
+  ${Number(r.status) >= 3 ? '<div class="stamp">APPROVED</div>' : ''}
+</div>
+<script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>
+</body>
+</html>`;
+  const w = window.open("", "_blank", "width=900,height=1100");
+  if (!w) { alert("Please allow pop-ups to generate the Advertisement."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+};
+
 // ============= OFFER LETTER =============
 export const printOfferLetter = (recruit) => {
   const refNo = `AE/HR/OL/${new Date().getFullYear()}/${String(recruit.id || "").slice(-5).toUpperCase()}`;

@@ -2,6 +2,9 @@ import {
   apiUpsertVendor, apiUpsertBill, apiUpsertExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments,
   apiDeleteBOQ, apiDeleteWO,
   apiUpsertEmployee, apiDeleteEmployee, apiUpsertAttendance,
+  apiUpsertPayBill, apiDeletePayBill, apiUpsertLoan, apiDeleteLoan,
+  apiUpsertAdvanceRequest, apiDeleteAdvanceRequest,
+  apiUpsertRecruitment, apiDeleteRecruitment, apiUpsertExit, apiDeleteExit,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
@@ -1163,6 +1166,7 @@ export const upsertRecruit = (r) => {
   const next = { ...r, updatedAt: new Date().toISOString() };
   if (idx >= 0) list[idx] = next; else list.push(next);
   saveRecruitments(list);
+  if (getToken()) apiUpsertRecruitment(next).catch(() => {});
   return next;
 };
 // Advance workflow: Draft(1) → Submitted(2) → GM Approved(3) → Offered(4) → Joined(5)
@@ -1190,7 +1194,7 @@ export const rejectRecruit = (r, reason = "") => {
   saveRecruitments(getRecruitments().map((x) => x.id === next.id ? next : x));
   return next;
 };
-export const deleteRecruit = (id) => { saveRecruitments(getRecruitments().filter((x) => x.id !== id)); };
+export const deleteRecruit = (id) => { saveRecruitments(getRecruitments().filter((x) => x.id !== id)); if (getToken()) apiDeleteRecruitment(id).catch(() => {}); };
 // Convert accepted offer → auto-create employee draft
 export const convertRecruitToEmployee = (r) => {
   const emp = createEmployeeDraft();
@@ -1243,9 +1247,10 @@ export const upsertExit = (x) => {
   if (emp) { x.empCode = emp.empCode; x.empName = emp.fullName; x.department = emp.department; }
   if (idx >= 0) list[idx] = x; else list.push(x);
   saveExits(list);
+  if (getToken()) apiUpsertExit(x).catch(() => {});
   return x;
 };
-export const deleteExit = (id) => { saveExits(getExits().filter((y) => y.id !== id)); };
+export const deleteExit = (id) => { saveExits(getExits().filter((y) => y.id !== id)); if (getToken()) apiDeleteExit(id).catch(() => {}); };
 // Advance Exit through workflow steps; on step 4 auto-create Payment Voucher & mark employee Exited
 export const advanceExitStep = (x) => {
   const now = new Date().toISOString();
@@ -1363,19 +1368,23 @@ export const upsertPayBill = (pb) => {
     ...l,
     net: Math.max(0, (Number(l.gross) || 0) - (Number(l.pf) || 0) - (Number(l.esic) || 0) - (Number(l.proftax) || 0) - (Number(l.tds) || 0) - (Number(l.otherDeductions) || 0) - (Number(l.advance) || 0)),
   }));
-  const totGross = recalc.reduce((a, l) => a + (Number(l.gross) || 0), 0);
-  const totAdv = recalc.reduce((a, l) => a + (Number(l.advance) || 0), 0);
-  const totDed = recalc.reduce((a, l) => a + (Number(l.pf) || 0) + (Number(l.esic) || 0) + (Number(l.proftax) || 0) + (Number(l.tds) || 0) + (Number(l.otherDeductions) || 0), 0);
+  // EXCLUDED lines are not counted in totals (selective mode support)
+  const active = recalc.filter((l) => !l.excluded);
+  const totGross = active.reduce((a, l) => a + (Number(l.gross) || 0), 0);
+  const totAdv = active.reduce((a, l) => a + (Number(l.advance) || 0), 0);
+  const totDed = active.reduce((a, l) => a + (Number(l.pf) || 0) + (Number(l.esic) || 0) + (Number(l.proftax) || 0) + (Number(l.tds) || 0) + (Number(l.otherDeductions) || 0), 0);
   const updated = {
     ...pb, lines: recalc,
     totalGross: totGross, totalDeductions: totDed, totalAdvance: totAdv,
     totalNet: totGross - totDed - totAdv,
+    includedCount: active.length,
     updatedAt: new Date().toISOString(),
   };
   const list = getPayBills();
   const idx = list.findIndex((x) => x.id === updated.id);
   if (idx >= 0) list[idx] = updated; else list.push(updated);
   savePayBills(list);
+  if (getToken()) apiUpsertPayBill(updated).catch(() => {});
   return updated;
 };
 
@@ -1418,7 +1427,7 @@ export const advancePayBillStep = (pb) => {
   return next;
 };
 
-export const deletePayBill = (id) => savePayBills(getPayBills().filter((x) => x.id !== id));
+export const deletePayBill = (id) => { savePayBills(getPayBills().filter((x) => x.id !== id)); if (getToken()) apiDeletePayBill(id).catch(() => {}); };
 
 // --- Advance Register (per-employee aggregated across all pay bills + paid on-demand advance requests) ---
 export const getAdvanceRegister = () => {
@@ -1481,6 +1490,7 @@ export const upsertAdvanceRequest = (r) => {
   const idx = list.findIndex((x) => x.id === updated.id);
   if (idx >= 0) list[idx] = updated; else list.push(updated);
   saveAdvanceRequests(list);
+  if (getToken()) apiUpsertAdvanceRequest(updated).catch(() => {});
   return updated;
 };
 export const advanceAdvanceRequestStep = (r) => {
@@ -1527,7 +1537,7 @@ export const rejectAdvanceRequest = (r, reason = "") => {
   saveAdvanceRequests(getAdvanceRequests().map((x) => x.id === next.id ? next : x));
   return next;
 };
-export const deleteAdvanceRequest = (id) => saveAdvanceRequests(getAdvanceRequests().filter((x) => x.id !== id));
+export const deleteAdvanceRequest = (id) => { saveAdvanceRequests(getAdvanceRequests().filter((x) => x.id !== id)); if (getToken()) apiDeleteAdvanceRequest(id).catch(() => {}); };
 
 // --- Loan Management ---
 export const LOAN_STATUS = { 1: "Draft", 2: "Submitted", 3: "GM Approved", 4: "Disbursed", 5: "Fully Repaid", 6: "Written Off" };
@@ -1562,6 +1572,7 @@ export const upsertLoan = (l) => {
   const idx = list.findIndex((x) => x.id === updated.id);
   if (idx >= 0) list[idx] = updated; else list.push(updated);
   saveLoans(list);
+  if (getToken()) apiUpsertLoan(updated).catch(() => {});
   return updated;
 };
 export const advanceLoanStep = (l) => {
@@ -1571,7 +1582,7 @@ export const advanceLoanStep = (l) => {
   saveLoans(getLoans().map((x) => x.id === next.id ? next : x));
   return next;
 };
-export const deleteLoan = (id) => saveLoans(getLoans().filter((x) => x.id !== id));
+export const deleteLoan = (id) => { saveLoans(getLoans().filter((x) => x.id !== id)); if (getToken()) apiDeleteLoan(id).catch(() => {}); };
 // Get active loans for an employee (status 4 = Disbursed = EMI deductions ongoing)
 export const getActiveLoanEMI = (empId) => {
   const l = getLoans().find((x) => x.empId === empId && Number(x.status) === 4 && x.outstanding > 0);
@@ -1636,8 +1647,13 @@ export const syncFromCloud = async () => {
   if (Array.isArray(snap.boqs)) write(KEYS.BOQS, snap.boqs);
   if (Array.isArray(snap.work_orders)) write(KEYS.WOS, snap.work_orders);
   if (Array.isArray(snap.employees)) write(KEYS.EMPLOYEES, snap.employees);
-  if (Array.isArray(snap.payBills)) write(KEYS.PAYBILLS, snap.payBills);
   if (Array.isArray(snap.attendance)) write(KEYS.ATTENDANCE, snap.attendance);
+  if (Array.isArray(snap.paybills)) write(KEYS.PAYBILLS, snap.paybills);
+  if (Array.isArray(snap.payBills)) write(KEYS.PAYBILLS, snap.payBills); // legacy key fallback
+  if (Array.isArray(snap.loans)) write(KEYS.LOANS, snap.loans);
+  if (Array.isArray(snap.advance_requests)) write(KEYS.ADVANCE_REQS, snap.advance_requests);
+  if (Array.isArray(snap.recruitments)) write(RECRUITS_KEY, snap.recruitments);
+  if (Array.isArray(snap.exits)) write(EXITS_KEY, snap.exits);
   if (snap.counters) write(KEYS.COUNTERS, {
     vendorSerial: snap.counters.vendorSerial || 0,
     billSerial: snap.counters.billSerial || 0,
@@ -1646,6 +1662,7 @@ export const syncFromCloud = async () => {
     boqSerial: snap.counters.boqSerial || 0,
     woSerial: snap.counters.woSerial || 0,
     empSerial: snap.counters.empSerial || 0,
+    adsSerial: snap.counters.adsSerial || 0,
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
   return snap;
@@ -1658,7 +1675,12 @@ export const syncToCloud = async () => {
     payments: read(KEYS.PAYMENTS, []),
     expenses: read(KEYS.EXPENSES, []),
     boqs: read(KEYS.BOQS, []),
-    counters: read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0, expenseSerial: 0, boqSerial: 0 }),
+    paybills: read(KEYS.PAYBILLS, []),
+    loans: read(KEYS.LOANS, []),
+    advance_requests: read(KEYS.ADVANCE_REQS, []),
+    recruitments: read(RECRUITS_KEY, []),
+    exits: read(EXITS_KEY, []),
+    counters: read(KEYS.COUNTERS, { vendorSerial: 0, billSerial: 0, pvSerial: 0, expenseSerial: 0, boqSerial: 0, adsSerial: 0 }),
     logo: localStorage.getItem(KEYS.LOGO) || "",
   };
   return await apiPushSnapshot(payload);

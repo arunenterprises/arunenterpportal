@@ -23,7 +23,7 @@ import {
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, sendPayslipWhatsApp } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, sendPayslipWhatsApp } from "../lib/hrLetters";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Sr. Operation Manager", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
@@ -729,8 +729,9 @@ const PayrollTab = () => {
             <b>Amount in Words:</b> <i>{amountToWords(salary.net)}</i>
           </div>
 
-          <div style={{ marginTop: 20, fontSize: 10, color: "#64748b", textAlign: "center" }}>
-            System-generated slip. Payroll pushed to Accounts as monthly aggregate for GM final approval.
+          <div style={{ marginTop: 20, padding: "10px 14px", background: "#fef3c7", border: "1.5px dashed #f59e0b", borderRadius: 6, fontSize: 11, color: "#78350f", textAlign: "center", fontStyle: "italic", fontWeight: 700, letterSpacing: .4 }}>
+            ⚙️ This is a System-Generated Payslip · Signature Not Required<br/>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "#92400e" }}>Payroll pushed to Accounts as monthly aggregate for GM final approval.</span>
           </div>
         </div>
       )}
@@ -1052,6 +1053,8 @@ const RecruitTab = ({ writeAllowed, approveAllowed }) => {
           <button data-testid="rec-edit" onClick={() => toast.info(locked ? "Cannot edit after submission" : "Editing enabled below")} disabled={!canEdit || isNew} style={{ padding: "7px 14px", background: canEdit && !isNew ? "#eab308" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: canEdit && !isNew ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Edit3 size={13} style={{ verticalAlign: -2 }} /> Edit</button>
           <button data-testid="rec-submit" onClick={submit} disabled={!writeAllowed || isNew || Number(cur.status) !== 1} style={{ padding: "7px 14px", background: writeAllowed && !isNew && Number(cur.status) === 1 ? "#7c3aed" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed && !isNew && Number(cur.status) === 1 ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to GM</button>
           {Number(cur.status) === 2 && <button data-testid="rec-approve" onClick={() => gmApprove(cur)} disabled={!approveAllowed} style={{ padding: "7px 14px", background: approveAllowed ? "#dc2626" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> GM Approve & Publish Ad</button>}
+          {Number(cur.status) >= 3 && <button data-testid="rec-print-ad" onClick={() => printAdvertisementNotice(cur)} style={{ padding: "7px 14px", background: "#78350f", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print Advertisement</button>}
+          {Number(cur.status) >= 3 && <button data-testid="rec-copy-portal" onClick={() => { const url = `${window.location.origin}/careers`; navigator.clipboard?.writeText(url); toast.success(`Portal link copied: ${url}`); }} style={{ padding: "7px 14px", background: "#0ea5e9", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>🔗 Copy Careers Portal Link</button>}
           {Number(cur.status) === 3 && cur.candidateName && <button data-testid="rec-offer" onClick={() => markOffered(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><FileText size={13} style={{ verticalAlign: -2 }} /> Issue Offer</button>}
           {Number(cur.status) === 4 && !cur.joinedEmpId && <button data-testid="rec-convert" onClick={() => convertToEmp(cur)} style={{ padding: "7px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>→ Create Emp Draft</button>}
           {!isNew && Number(cur.status) < 3 && <button data-testid="rec-delete" onClick={() => remove(cur.id)} disabled={!writeAllowed} style={{ padding: "7px 14px", background: writeAllowed ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete</button>}
@@ -1085,6 +1088,7 @@ const RecruitTab = ({ writeAllowed, approveAllowed }) => {
                 <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, color: "#166534", fontWeight: 700 }}>{r.gmApprovedAt ? fmtDMY(r.gmApprovedAt) : "—"}</td>
                 <td style={{ padding: 4, whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
                   {Number(r.status) === 2 && approveAllowed && <button data-testid={`rec-row-approve-${r.id}`} onClick={() => gmApprove(r)} style={{ padding: "3px 8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>GM Approve</button>}
+                  {Number(r.status) >= 3 && <button data-testid={`rec-print-ad-${r.id}`} onClick={() => printAdvertisementNotice(r)} style={{ padding: "3px 8px", background: "#78350f", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>📢 Ad</button>}
                   {Number(r.status) >= 3 && <button data-testid={`rec-offer-${r.id}`} onClick={() => printOfferLetter(r)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>📄 Letter</button>}
                   {Number(r.status) === 4 && !r.joinedEmpId && <button data-testid={`rec-row-convert-${r.id}`} onClick={() => convertToEmp(r)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>→ Emp</button>}
                   {r.joinedEmpId && <span style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginRight: 3 }}>✓ Joined</span>}
@@ -1280,6 +1284,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [list, setList] = useState([]);
   const [cur, setCur] = useState(null);
+  const [selectionMode, setSelectionMode] = useState("all"); // "all" | "selective"
 
   useEffect(() => { setList(getPayBills()); }, []);
   const refresh = () => setList(getPayBills());
@@ -1287,9 +1292,28 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   const createDraft = () => {
     const d = createPayBillDraft(Number(year), Number(month));
     if (!d.lines.length) { toast.error("No active finalized employees found. Create & approve employees first."); return; }
-    const saved = upsertPayBill(d);
+    // In selective mode, mark all excluded by default — user picks who to include
+    const lines = selectionMode === "selective"
+      ? d.lines.map((l) => ({ ...l, excluded: true }))
+      : d.lines.map((l) => ({ ...l, excluded: false }));
+    const saved = upsertPayBill({ ...d, lines, selectionMode });
     setCur(saved); refresh();
-    toast.success(`Draft Pay Bill created · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
+    toast.success(selectionMode === "selective"
+      ? `Draft created with ${saved.lines.length} employees · All deselected. Tick to include.`
+      : `Draft Pay Bill created · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
+  };
+
+  const toggleRow = (idx) => {
+    if (cur && Number(cur.step) >= 2) return;
+    const next = { ...cur, lines: cur.lines.map((l, i) => i === idx ? { ...l, excluded: !l.excluded } : l) };
+    const saved = upsertPayBill(next);
+    setCur(saved);
+  };
+  const toggleAll = (checked) => {
+    if (cur && Number(cur.step) >= 2) return;
+    const next = { ...cur, lines: cur.lines.map((l) => ({ ...l, excluded: !checked })) };
+    const saved = upsertPayBill(next);
+    setCur(saved);
   };
 
   const setLine = (idx, key, val) => {
@@ -1330,11 +1354,22 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   return (
     <div style={{ padding: 14 }}>
       {/* Create section */}
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <div><label style={{ fontSize: 10.5, fontWeight: 700, color: "#334155" }}>Month</label><select value={month} onChange={(e) => setMonth(+e.target.value)} style={{ padding: 6, fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, minWidth: 120, display: "block", marginTop: 4 }} data-testid="pb-month">{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString("en", { month: "long" })}</option>)}</select></div>
         <div><label style={{ fontSize: 10.5, fontWeight: 700, color: "#334155" }}>Year</label><input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 6, fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 4, width: 100, display: "block", marginTop: 4 }} data-testid="pb-year" /></div>
+        <div>
+          <label style={{ fontSize: 10.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 4 }}>Employee Selection</label>
+          <div style={{ display: "inline-flex", border: "1px solid #cbd5e1", borderRadius: 4, overflow: "hidden" }}>
+            <button type="button" data-testid="pb-mode-all" onClick={() => setSelectionMode("all")} style={{ padding: "6px 12px", background: selectionMode === "all" ? "#0369a1" : "#fff", color: selectionMode === "all" ? "#fff" : "#334155", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>All Employees</button>
+            <button type="button" data-testid="pb-mode-selective" onClick={() => setSelectionMode("selective")} style={{ padding: "6px 12px", background: selectionMode === "selective" ? "#be185d" : "#fff", color: selectionMode === "selective" ? "#fff" : "#334155", border: "none", borderLeft: "1px solid #cbd5e1", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Selective</button>
+          </div>
+        </div>
         <button onClick={createDraft} disabled={!writeAllowed} data-testid="pb-create" style={{ padding: "7px 14px", background: writeAllowed ? "#0369a1" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> Create / Refresh Draft</button>
-        <div style={{ marginLeft: "auto", fontSize: 11, color: "#64748b" }}>Pay Bill compute from Attendance · All finalized active employees</div>
+        <div style={{ marginLeft: "auto", fontSize: 11, color: "#64748b" }}>
+          {selectionMode === "all"
+            ? "All finalized active employees will be included"
+            : "Only ticked employees will be included (uncheck to exclude)"}
+        </div>
       </div>
 
       {/* Editor */}
@@ -1348,12 +1383,18 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
                 <tr style={{ background: "#f1f5f9" }}>
+                  <th style={{ padding: "6px 4px", border: "1px solid #e2e8f0", fontSize: 10, textAlign: "center", width: 30 }}>
+                    <input type="checkbox" data-testid="pb-select-all" checked={cur.lines.every((l) => !l.excluded)} onChange={(e) => toggleAll(e.target.checked)} disabled={locked} style={{ cursor: locked ? "not-allowed" : "pointer" }} title="Select / Deselect all" />
+                  </th>
                   {["#", "EMP Code", "Name", "Designation", "Days P/T", "Gross", "PF", "ESIC", "P.Tax", "TDS", "Advance", "Other Ded.", "NET"].map((h) => <th key={h} style={{ padding: "6px 8px", border: "1px solid #e2e8f0", fontSize: 10, textAlign: "center" }}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {cur.lines.map((l, i) => (
-                  <tr key={l._id} data-testid={`pb-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
+                  <tr key={l._id} data-testid={`pb-row-${i}`} style={{ background: l.excluded ? "#f1f5f9" : (i % 2 ? "#fafbfc" : "#fff"), opacity: l.excluded ? 0.5 : 1 }}>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "center", background: l.excluded ? "#e2e8f0" : "#dbeafe" }}>
+                      <input type="checkbox" data-testid={`pb-select-${i}`} checked={!l.excluded} onChange={() => toggleRow(i)} disabled={locked} style={{ cursor: locked ? "not-allowed" : "pointer" }} />
+                    </td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "center" }}>{i + 1}</td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{l.empCode}</td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", fontWeight: 700 }}>{l.name}</td>

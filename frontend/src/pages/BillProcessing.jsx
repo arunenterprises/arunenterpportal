@@ -1245,9 +1245,19 @@ const AdvanceSection = ({ title, rows, tone, testid, renderActions }) => (
 // ===================== Accounts · Pay Bills Approval Queue =====================
 const AccountsPayBillView = ({ rev, bumpRev }) => {
   const bills = useMemo(() => getPayBills(), [rev]);
+  const [selected, setSelected] = useState(new Set());
   const submitted = bills.filter((b) => Number(b.step) === 2);
   const gmApproved = bills.filter((b) => Number(b.step) === 3);
   const settled = bills.filter((b) => Number(b.step) === 4);
+
+  const toggle = (id) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = (rows) => setSelected((p) => {
+    const ids = rows.map((r) => r.id);
+    const allSel = ids.every((id) => p.has(id));
+    const n = new Set(p);
+    if (allSel) ids.forEach((id) => n.delete(id)); else ids.forEach((id) => n.add(id));
+    return n;
+  });
 
   const gmApprove = (b) => {
     if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
@@ -1260,6 +1270,28 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
     const n = advancePayBillStep(b); bumpRev();
     toast.success(`Pay Bill settled · PV ${n.linkedPvNo}`);
   };
+  const bulkGMApprove = () => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
+    const targets = submitted.filter((b) => selected.has(b.id));
+    if (targets.length === 0) return toast.error("Select at least one submitted pay bill");
+    if (!window.confirm(`GM Approve ${targets.length} selected pay bills?`)) return;
+    targets.forEach((b) => advancePayBillStep(b));
+    setSelected(new Set()); bumpRev();
+    toast.success(`${targets.length} pay bills GM-approved`);
+  };
+  const bulkSettle = () => {
+    if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
+    const targets = gmApproved.filter((b) => selected.has(b.id));
+    if (targets.length === 0) return toast.error("Select at least one approved pay bill");
+    const totalNet = targets.reduce((a, b) => a + Number(b.totalNet || 0), 0);
+    if (!window.confirm(`Settle ${targets.length} pay bills · ₹ ${inrN(totalNet)} total · ${targets.length} Payment Vouchers will be auto-generated?`)) return;
+    targets.forEach((b) => advancePayBillStep(b));
+    setSelected(new Set()); bumpRev();
+    toast.success(`${targets.length} pay bills settled · ${targets.length} PVs generated`);
+  };
+
+  const selectedSubmittedCount = submitted.filter((b) => selected.has(b.id)).length;
+  const selectedApprovedCount = gmApproved.filter((b) => selected.has(b.id)).length;
 
   return (
     <div data-testid="accounts-paybill-view">
@@ -1270,9 +1302,25 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
         <KpiBox label="Total Pay Bills" value={bills.length} tone="#334155" />
       </div>
 
+      {/* Bulk action bar */}
+      {canApprove() && selected.size > 0 && (
+        <div data-testid="pb-bulk-bar" style={{ marginTop: 12, padding: "10px 14px", background: "linear-gradient(135deg, #0f172a, #1e293b)", color: "#fff", borderRadius: 6, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700 }}>
+            <b style={{ color: "#fbbf24" }}>{selected.size}</b> selected · {selectedSubmittedCount} ready for GM Approve · {selectedApprovedCount} ready to Settle
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {selectedSubmittedCount > 0 && <button data-testid="pb-bulk-gm" onClick={bulkGMApprove} style={{ padding: "6px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>GM Approve Selected ({selectedSubmittedCount})</button>}
+            {selectedApprovedCount > 0 && <button data-testid="pb-bulk-settle" onClick={bulkSettle} style={{ padding: "6px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Settle Selected ({selectedApprovedCount})</button>}
+            <button onClick={() => setSelected(new Set())} style={{ padding: "6px 10px", background: "#64748b", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Clear</button>
+          </div>
+        </div>
+      )}
+
       <PayBillSection title={`Submitted · Awaiting GM Approval (${submitted.length})`} rows={submitted} tone="#f59e0b" testid="pb-submitted"
+        selectable selected={selected} onToggle={toggle} onToggleAll={() => toggleAll(submitted)}
         renderActions={(b, i) => canApprove() ? <button data-testid={`pb-gm-${i}`} onClick={() => gmApprove(b)} style={btnSm("#0369a1")}>GM Approve</button> : null} />
       <PayBillSection title={`GM Approved · Ready for Accounts Settlement (${gmApproved.length})`} rows={gmApproved} tone="#0369a1" testid="pb-approved"
+        selectable selected={selected} onToggle={toggle} onToggleAll={() => toggleAll(gmApproved)}
         renderActions={(b, i) => canApprove() ? <button data-testid={`pb-settle-${i}`} onClick={() => settle(b)} style={btnSm("#16a34a")}>Settle & Generate PV</button> : null} />
       <PayBillSection title={`Settled · Payment Vouchers Generated (${settled.length})`} rows={settled} tone="#16a34a" testid="pb-settled"
         renderActions={(b) => <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{b.linkedPvNo}</span>} />
@@ -1280,7 +1328,7 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
   );
 };
 
-const PayBillSection = ({ title, rows, tone, testid, renderActions }) => (
+const PayBillSection = ({ title, rows, tone, testid, renderActions, selectable, selected, onToggle, onToggleAll }) => (
   <div className="section" data-testid={testid} style={{ marginTop: 12 }}>
     <div className="sec-head" style={{ background: tone, color: "#fff" }}>{title}</div>
     <div className="sec-body" style={{ padding: 0 }}>
@@ -1290,12 +1338,18 @@ const PayBillSection = ({ title, rows, tone, testid, renderActions }) => (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
+              {selectable && <th style={{ padding: 7, border: "1px solid #e2e8f0", width: 30 }}>
+                <input type="checkbox" data-testid={`${testid}-select-all`} checked={rows.length > 0 && rows.every((r) => selected.has(r.id))} onChange={onToggleAll} style={{ cursor: "pointer" }} />
+              </th>}
               {["Ref No", "Period", "Employees", "Gross", "Deductions", "Advance", "Net Payable", "Status", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {rows.map((b, i) => (
-              <tr key={b.id} data-testid={`${testid}-row-${i}`} style={{ background: i % 2 ? "#fafbfc" : "#fff" }}>
+              <tr key={b.id} data-testid={`${testid}-row-${i}`} style={{ background: selected?.has(b.id) ? "#fef9c3" : (i % 2 ? "#fafbfc" : "#fff") }}>
+                {selectable && <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "center" }}>
+                  <input type="checkbox" data-testid={`${testid}-select-${i}`} checked={selected.has(b.id)} onChange={() => onToggle(b.id)} style={{ cursor: "pointer" }} />
+                </td>}
                 <td style={{ padding: 6, border: "1px solid #e2e8f0", fontWeight: 700, fontSize: 10 }}>{b.refNo}</td>
                 <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{new Date(b.year, (b.month || 1) - 1).toLocaleString("en", { month: "short" })} {b.year}</td>
                 <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>{b.lines?.length || 0}</td>

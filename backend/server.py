@@ -271,7 +271,7 @@ async def upsert_vendor(body: Dict = Body(...), user: Dict = Depends(get_current
 
 
 @api_router.delete("/vendors/{vid}")
-async def delete_vendor(vid: str, user: Dict = Depends(get_current_user)):
+async def delete_vendor(vid: str, admin: Dict = Depends(require_admin)):
     r = await db.vendors.delete_one({"id": vid})
     return {"deleted": r.deleted_count}
 
@@ -293,7 +293,7 @@ async def upsert_bill(body: Dict = Body(...), user: Dict = Depends(get_current_u
 
 
 @api_router.delete("/bills/{bid}")
-async def delete_bill(bid: str, user: Dict = Depends(get_current_user)):
+async def delete_bill(bid: str, admin: Dict = Depends(require_admin)):
     r = await db.bills.delete_one({"id": bid})
     return {"deleted": r.deleted_count}
 
@@ -355,7 +355,7 @@ async def upsert_employee(body: Dict = Body(...), user: Dict = Depends(get_curre
 
 
 @api_router.delete("/employees/{eid}")
-async def delete_employee(eid: str, user: Dict = Depends(get_current_user)):
+async def delete_employee(eid: str, admin: Dict = Depends(require_admin)):
     r = await db.employees.delete_one({"id": eid})
     return {"deleted": r.deleted_count}
 
@@ -388,7 +388,12 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "work_orders": await _list_collection("work_orders"),
         "employees": await _list_collection("employees"),
         "attendance": await _list_collection("attendance"),
-        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0, "empSerial": 0},
+        "paybills": await _list_collection("paybills"),
+        "loans": await _list_collection("loans"),
+        "advance_requests": await _list_collection("advance_requests"),
+        "recruitments": await _list_collection("recruitments"),
+        "exits": await _list_collection("exits"),
+        "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0, "empSerial": 0, "adsSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
     }
 
@@ -400,6 +405,11 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
     bills = body.get("bills", [])
     payments = body.get("payments", [])
     expenses = body.get("expenses", [])
+    paybills = body.get("paybills", [])
+    loans = body.get("loans", [])
+    advance_requests = body.get("advance_requests", [])
+    recruitments = body.get("recruitments", [])
+    exits_ = body.get("exits", [])
     counters = body.get("counters", {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0})
     logo = body.get("logo", "")
     # Merge (upsert by id) instead of replace, to avoid data loss across devices
@@ -412,6 +422,21 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
     for x in expenses:
         if x.get("id"):
             await db.expenses.update_one({"id": x["id"]}, {"$set": x}, upsert=True)
+    for pb in paybills:
+        if pb.get("id"):
+            await db.paybills.update_one({"id": pb["id"]}, {"$set": pb}, upsert=True)
+    for ln in loans:
+        if ln.get("id"):
+            await db.loans.update_one({"id": ln["id"]}, {"$set": ln}, upsert=True)
+    for ar in advance_requests:
+        if ar.get("id"):
+            await db.advance_requests.update_one({"id": ar["id"]}, {"$set": ar}, upsert=True)
+    for rc in recruitments:
+        if rc.get("id"):
+            await db.recruitments.update_one({"id": rc["id"]}, {"$set": rc}, upsert=True)
+    for ex in exits_:
+        if ex.get("id"):
+            await db.exits.update_one({"id": ex["id"]}, {"$set": ex}, upsert=True)
     if payments:
         await _replace_collection("payments", payments)
     counters["key"] = "global"
@@ -420,7 +445,37 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
         await db.settings.update_one({"key": "logo"}, {"$set": {"value": logo}}, upsert=True)
     return {
         "vendors": len(vendors), "bills": len(bills), "payments": len(payments), "expenses": len(expenses),
+        "paybills": len(paybills), "loans": len(loans), "advance_requests": len(advance_requests),
+        "recruitments": len(recruitments), "exits": len(exits_),
     }
+
+
+# ==================== HR: PAY BILLS / LOANS / ADVANCES / RECRUIT / EXITS ====================
+def _make_hr_crud(coll_name: str, path: str):
+    """Create generic get/upsert/delete endpoints for an HR collection.
+    DELETE routes are gated to Admin role (RBAC)."""
+    @api_router.get(f"/{path}")
+    async def _list(user: Dict = Depends(get_current_user)):
+        return await _list_collection(coll_name)
+    @api_router.post(f"/{path}")
+    async def _upsert(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+        rid = body.get("id")
+        if not rid:
+            raise HTTPException(status_code=400, detail="id required")
+        await db[coll_name].update_one({"id": rid}, {"$set": body}, upsert=True)
+        return {"ok": True, "id": rid}
+    @api_router.delete(f"/{path}/{{rid}}")
+    async def _delete(rid: str, admin: Dict = Depends(require_admin)):
+        r = await db[coll_name].delete_one({"id": rid})
+        return {"ok": True, "deleted": r.deleted_count}
+    return _list, _upsert, _delete
+
+# Register endpoints for all 5 HR collections
+_make_hr_crud("paybills", "paybills")
+_make_hr_crud("loans", "loans")
+_make_hr_crud("advance_requests", "advance_requests")
+_make_hr_crud("recruitments", "recruitments")
+_make_hr_crud("exits", "exits")
 
 
 # ==================== EXPENSES (single-record upsert) ====================
@@ -434,7 +489,7 @@ async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(get_curren
 
 
 @api_router.delete("/expenses/{xid}")
-async def delete_expense(xid: str, user: Dict = Depends(get_current_user)):
+async def delete_expense(xid: str, admin: Dict = Depends(require_admin)):
     r = await db.expenses.delete_one({"id": xid})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -456,7 +511,7 @@ async def upsert_boq(body: Dict = Body(...), user: Dict = Depends(get_current_us
 
 
 @api_router.delete("/boqs/{bid}")
-async def delete_boq(bid: str, user: Dict = Depends(get_current_user)):
+async def delete_boq(bid: str, admin: Dict = Depends(require_admin)):
     r = await db.boqs.delete_one({"id": bid})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -478,9 +533,36 @@ async def upsert_wo(body: Dict = Body(...), user: Dict = Depends(get_current_use
 
 
 @api_router.delete("/work_orders/{wid}")
-async def delete_wo(wid: str, user: Dict = Depends(get_current_user)):
+async def delete_wo(wid: str, admin: Dict = Depends(require_admin)):
     r = await db.work_orders.delete_one({"id": wid})
     return {"ok": True, "deleted": r.deleted_count}
+
+
+# ==================== PUBLIC CAREERS / ADVERTISEMENT PORTAL ====================
+# Public read-only list of GM-approved recruitment requisitions (status >= 3, < 5).
+# Candidates view & apply via email — no auth required.
+@api_router.get("/public/recruitments")
+async def public_list_recruitments():
+    cursor = db.recruitments.find({"status": {"$gte": 3}}, {"_id": 0})
+    out = []
+    async for d in cursor:
+        if int(d.get("status", 1)) >= 5:
+            continue  # skip joined/closed
+        out.append({
+            "id": d.get("id"),
+            "advertisementNo": d.get("advertisementNo", ""),
+            "position": d.get("position", ""),
+            "department": d.get("department", ""),
+            "vacancies": d.get("vacancies", 1),
+            "qualificationRequired": d.get("qualificationRequired", ""),
+            "experienceRequired": d.get("experienceRequired", ""),
+            "budgetCTC": d.get("budgetCTC", 0),
+            "targetJoinDate": d.get("targetJoinDate", ""),
+            "reasonForHire": d.get("reasonForHire", ""),
+            "gmApprovedAt": d.get("gmApprovedAt", ""),
+            "requisitionDate": d.get("requisitionDate", ""),
+        })
+    return out
 
 
 # ==================== PUBLIC VENDOR PORTAL ====================

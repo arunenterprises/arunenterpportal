@@ -18,9 +18,7 @@ export const Header = ({ formTitle }) => {
       <div className="doc-header" data-testid="doc-header">
         <div className="dh-banner">
           <div className="dh-top-row">
-            <span className="dh-gstin"><b>GSTIN:</b> 09ABWFM0611J1ZY</span>
-            <span className="dh-pan"><b>PAN:</b> ABWFM0611J</span>
-            <span className="dh-mob"><b>Mob.:</b> 9429694552</span>
+            <span className="dh-mob"><b>Toll Free:</b> 9429694552</span>
           </div>
           <div className="dh-main">
             <div className="dh-logo" data-testid="doc-logo">

@@ -85,6 +85,32 @@ export const apiListAttendance = () => req("/attendance");
 export const apiUpsertAttendance = (a) =>
   req("/attendance", { method: "POST", body: JSON.stringify(a) });
 
+// ---- HR: PayBills · Loans · Advance Requests · Recruitments · Exits ----
+export const apiUpsertPayBill = (pb) =>
+  req("/paybills", { method: "POST", body: JSON.stringify(pb) });
+export const apiDeletePayBill = (id) =>
+  req(`/paybills/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const apiUpsertLoan = (ln) =>
+  req("/loans", { method: "POST", body: JSON.stringify(ln) });
+export const apiDeleteLoan = (id) =>
+  req(`/loans/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const apiUpsertAdvanceRequest = (ar) =>
+  req("/advance_requests", { method: "POST", body: JSON.stringify(ar) });
+export const apiDeleteAdvanceRequest = (id) =>
+  req(`/advance_requests/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const apiUpsertRecruitment = (r) =>
+  req("/recruitments", { method: "POST", body: JSON.stringify(r) });
+export const apiDeleteRecruitment = (id) =>
+  req(`/recruitments/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const apiUpsertExit = (x) =>
+  req("/exits", { method: "POST", body: JSON.stringify(x) });
+export const apiDeleteExit = (id) =>
+  req(`/exits/${encodeURIComponent(id)}`, { method: "DELETE" });
+
 // ---- Users management (admin only) ----
 export const apiListUsers = () => req("/users");
 export const apiRegisterUser = (body) =>
