@@ -18,6 +18,9 @@ import {
 
 const inr = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Reports contextual action bar button style
+const bbtn = (bg) => ({ padding: "6px 12px", background: bg, color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: .3, boxShadow: "0 1px 3px rgba(15,23,42,.15)" });
+
 const F = ({ label, children }) => (
   <div className="field-b"><label>{label}</label>{children}</div>
 );
@@ -410,6 +413,34 @@ export default function Reports() {
                 {t.label}
               </button>
             ))}
+          </div>
+
+          {/* Per-tab Action Bar — context-aware working buttons */}
+          <div data-testid="reports-action-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)", border: "1px solid #e2e8f0", borderTop: "none", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ fontSize: 11, color: "#334155", fontWeight: 600, lineHeight: 1.4 }}>
+              {reportsTab === "vouchers" && <>💳 <b>Payment Vouchers</b> · Browse, edit, re-approve or export approved vouchers. Form below mein voucher generate & submit kar sakte ho.</>}
+              {reportsTab === "due" && <>📋 <b>Due List</b> · Pending (unpaid) approved bills — click row to generate voucher. Export Due Excel for review.</>}
+              {reportsTab === "salary" && <>👥 <b>Salary Bills (HR Payroll)</b> · GM-approved pay bills ko Accounts yaha settle karega → auto PV generation.</>}
+              {reportsTab === "advance" && <>💰 <b>Employee Advances</b> · Per-employee advance ledger from pay bills + on-demand advances.</>}
+              {reportsTab === "aging" && <>⏱️ <b>Aging Report</b> · Payables ageing bucket-wise (0-30 / 31-60 / 61-90 / 90+).</>}
+              {reportsTab === "gsttds" && <>🧾 <b>GST-TDS Register</b> · Compliance-ready register of approved bills with GST & TDS splits.</>}
+            </div>
+            <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+              {reportsTab === "vouchers" && <>
+                <button data-testid="rpt-btn-export-approved" onClick={exportApprovedVouchers} style={bbtn("#16a34a")}>⬇ Export Approved</button>
+                <button data-testid="rpt-btn-new-voucher" onClick={() => { setPv(null); setSelectedBillId(""); window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); toast.info("Scroll to form below · Select a bill and Generate Voucher"); }} style={bbtn("#7c3aed")}>🆕 New Voucher</button>
+                <button data-testid="rpt-btn-print" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
+                <button data-testid="rpt-btn-export-json" onClick={handleExportJSON} style={bbtn("#0369a1")}>🧾 Export JSON</button>
+              </>}
+              {reportsTab === "due" && <>
+                <button data-testid="rpt-btn-export-dues" onClick={exportDuesExcel} style={bbtn("#16a34a")}>⬇ Export Due List</button>
+                <button data-testid="rpt-btn-print-due" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
+              </>}
+              {reportsTab === "salary" && (<button data-testid="rpt-btn-print-salary" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+              {reportsTab === "advance" && (<button data-testid="rpt-btn-print-advance" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+              {reportsTab === "aging" && (<button data-testid="rpt-btn-print-aging" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+              {reportsTab === "gsttds" && (<button data-testid="rpt-btn-print-gsttds" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
+            </div>
           </div>
 
           {/* Aging & GST-TDS Register (conditional simple tables) */}
