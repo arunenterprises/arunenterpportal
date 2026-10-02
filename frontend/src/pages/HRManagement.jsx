@@ -23,7 +23,7 @@ import {
   getComplianceSnapshot,
   currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, sendPayslipWhatsApp } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice } from "../lib/hrLetters";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
@@ -713,9 +713,8 @@ const PayrollTab = () => {
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{new Date(2000, m - 1).toLocaleString("en-IN", { month: "long" })}</option>)}
         </select>
         <input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 5, width: 80 }} />
-        <button data-testid="hr-payroll-print" onClick={() => printPayrollSlipLetter(emp, salary, year, month, daysInMonth, daysPresent)} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Slip</button>
-        <button data-testid="hr-payroll-whatsapp" onClick={() => sendPayslipWhatsApp(emp, salary, year, month)} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>💬 Send on WhatsApp</button>
-        <button data-testid="hr-payroll-pick-pb" onClick={pickFromApprovedPB} style={{ padding: "6px 12px", background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }} title="Pick up fresh salary data from the monthly Approved Pay Bill database and regenerate Payslip">📥 Pick from Approved Pay Bill</button>
+        <button data-testid="hr-payroll-print" onClick={() => printPayrollSlipLetter(emp, salary, year, month, daysInMonth, daysPresent)} style={{ minWidth: 220, padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1 }}><Printer size={13} /> Print A4 Slip</button>
+        <button data-testid="hr-payroll-pick-pb" onClick={pickFromApprovedPB} style={{ minWidth: 220, padding: "8px 14px", background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, lineHeight: 1 }} title="Pick up fresh salary data from the monthly Approved Pay Bill database and regenerate Payslip">📥 Pick from Approved Pay Bill</button>
       </div>
 
       {emp && !salary && (

@@ -1270,9 +1270,15 @@ const AdvanceSection = ({ title, rows, tone, testid, renderActions }) => (
 const AccountsPayBillView = ({ rev, bumpRev }) => {
   const bills = useMemo(() => getPayBills(), [rev]);
   const [selected, setSelected] = useState(new Set());
+  const [showAll, setShowAll] = useState(false);
   const submitted = bills.filter((b) => Number(b.step) === 2);
   const gmApproved = bills.filter((b) => Number(b.step) === 3);
   const settled = bills.filter((b) => Number(b.step) === 4);
+  const allSorted = useMemo(() => [...bills].sort((a, b) => {
+    const sb = Number(b.step || 0) - Number(a.step || 0);
+    if (sb !== 0) return sb;
+    return String(b.createdAt || b.refNo || "").localeCompare(String(a.createdAt || a.refNo || ""));
+  }), [bills]);
 
   const toggle = (id) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleAll = (rows) => setSelected((p) => {
@@ -1323,8 +1329,22 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
         <KpiBox label="Submitted to GM" value={submitted.length} tone="#f59e0b" />
         <KpiBox label="GM Approved · To Settle" value={gmApproved.length} tone="#0369a1" />
         <KpiBox label="Settled · PV Done" value={settled.length} tone="#16a34a" />
-        <KpiBox label="Total Pay Bills" value={bills.length} tone="#334155" />
+        <KpiBox label="Total Pay Bills" value={bills.length} tone="#334155" onClick={() => setShowAll((v) => !v)} active={showAll} />
       </div>
+
+      {showAll && (
+        <PayBillSection
+          title={`All Pay Bills · Complete List (${allSorted.length})`}
+          rows={allSorted}
+          tone="#334155"
+          testid="pb-all"
+          renderActions={(b) => (
+            <span style={{ fontSize: 10, color: "#334155", fontWeight: 700, padding: "3px 7px", background: "#f1f5f9", borderRadius: 3, border: "1px solid #cbd5e1" }}>
+              {PAYBILL_STATUS[b.step]}{b.linkedPvNo ? ` · ${b.linkedPvNo}` : ""}
+            </span>
+          )}
+        />
+      )}
 
       {/* Bulk action bar */}
       {canApprove() && selected.size > 0 && (
@@ -1473,9 +1493,25 @@ const ExitSection = ({ title, rows, tone, testid, renderActions }) => (
   </div>
 );
 
-const KpiBox = ({ label, value, tone, sub }) => (
-  <div style={{ padding: 12, background: "#fff", border: `1.5px solid ${tone}30`, borderLeft: `4px solid ${tone}`, borderRadius: 6 }}>
-    <div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase" }}>{label}</div>
+const KpiBox = ({ label, value, tone, sub, onClick, active }) => (
+  <div
+    onClick={onClick}
+    style={{
+      padding: 12,
+      background: active ? `${tone}10` : "#fff",
+      border: `1.5px solid ${tone}${active ? "" : "30"}`,
+      borderLeft: `4px solid ${tone}`,
+      borderRadius: 6,
+      cursor: onClick ? "pointer" : "default",
+      transition: "all 0.15s",
+      boxShadow: active ? `0 2px 6px ${tone}30` : "none",
+    }}
+    title={onClick ? "Click to view data" : undefined}
+  >
+    <div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span>{label}</span>
+      {onClick && <span style={{ fontSize: 9, color: tone, fontWeight: 700 }}>{active ? "▲ hide" : "▼ view"}</span>}
+    </div>
     <div style={{ fontSize: 22, fontWeight: 800, color: tone, marginTop: 2 }}>{value}</div>
     {sub && <div style={{ fontSize: 11, fontWeight: 700, color: "#78350f", marginTop: 2 }}>{sub}</div>}
   </div>

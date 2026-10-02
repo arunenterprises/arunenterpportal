@@ -5,6 +5,9 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
+- **Agentic Edits (Oct 2026 — Current Session)**:
+  - *HRManagement.jsx Payroll Slip tab*: Removed `💬 Send on WhatsApp` button + its `sendPayslipWhatsApp` import (unused). Remaining buttons `Print A4 Slip` + `📥 Pick from Approved Pay Bill` now aligned to **uniform size** (`minWidth: 220px`, same padding `8px 14px`, same font 12px, inline-flex center with 6px gap).
+  - *BillProcessing.jsx — Accounts · Pay Bills Process view*: Fixed "Total Pay Bills" KPI card which previously only showed a count but no underlying data. KPI is now **clickable** (toggle `▼ VIEW` / `▲ HIDE`) and expands an **"All Pay Bills · Complete List"** section displaying every pay bill across all statuses (Draft/Submitted/GM-Approved/Settled) sorted by step desc with Ref No, Period, Employees, Gross, Deductions, Advance, Net Payable, Status + Linked PV. `KpiBox` component extended with optional `onClick` + `active` props and hover styling.
 - **SuperAdmin-Only Delete Buttons across all approval records (NEW)** — Naya reusable `SuperAdminDelete.jsx` component (`/app/frontend/src/components/`) jo currentRole()==="SuperAdmin" check karta hai + detailed confirmation popup + localStorage audit log + onDelete callback. Wired in across:
   - **HRManagement.jsx**: Recruitment list (status ≥3) → `ae_vm_rec_delete_log`, Exit F&F list (status ≥3) → `ae_vm_exit_delete_log`, Advance Request list (status ≥3) → `ae_vm_adv_req_delete_log`, Pay Bill history (status ≥2, already present) → `ae_vm_pb_delete_log`
   - **BillProcessing.jsx (Accounts tabs)**: Advance "Paid" queue, Pay Bill "Settled" queue, Exit "Settled" queue — all with inline SA delete button
