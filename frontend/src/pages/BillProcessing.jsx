@@ -49,7 +49,6 @@ export default function BillProcessing() {
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [activeView, setActiveView] = useState("vendor"); // "vendor" | "hr-payroll" | "advance"
 
   const allBills = useMemo(() => getBills(), [refresh, bill.id]);
   const loadBill = (b) => {
@@ -433,177 +432,6 @@ export default function BillProcessing() {
           <Header formTitle="ACCOUNTS DEPARTMENT" />
 
           {/* View Switcher — Vendor Bills · HR Payroll · Employee Advance */}
-          <div style={{ display: "flex", gap: 0, marginTop: 10, marginBottom: 12, borderBottom: "2px solid #cbd5e1", background: "#fff", borderRadius: 6, overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,.05)" }} data-testid="bill-view-tabs">
-            {[
-              { key: "vendor", label: "Vendor Bills", color: "#1e40af", icon: "📄", desc: "Vendor PO · Bill Processing" },
-              { key: "hr-payroll", label: "HR Payroll", color: "#be185d", icon: "💰", desc: "Pay Bills · Accounts Queue" },
-              { key: "advance", label: "Employee Advance", color: "#b45309", icon: "👤", desc: "Live Advance Register" },
-            ].map((t) => {
-              const active = activeView === t.key;
-              return (
-                <button
-                  key={t.key}
-                  data-testid={`bill-view-tab-${t.key}`}
-                  onClick={() => { setActiveView(t.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                  style={{
-                    flex: 1,
-                    padding: "7px 10px",
-                    background: active ? `linear-gradient(135deg, ${t.color} 0%, ${t.color}dd 100%)` : "#f8fafc",
-                    color: active ? "#fff" : "#475569",
-                    border: "none",
-                    borderBottom: active ? `2px solid ${t.color}` : "2px solid transparent",
-                    borderRight: "1px solid #e2e8f0",
-                    cursor: "pointer",
-                    fontWeight: 800,
-                    fontSize: 11,
-                    letterSpacing: .6,
-                    textTransform: "uppercase",
-                    transition: "all .2s",
-                    textAlign: "left",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: 1,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  <span style={{ fontSize: 11 }}>{t.icon} {t.label}</span>
-                  <span style={{ fontSize: 8, letterSpacing: .3, opacity: .85, textTransform: "none", fontWeight: 600 }}>{t.desc}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* HR Pay Bills Queue — Accounts approval section */}
-          {activeView === "hr-payroll" && (() => {
-            const paybills = getPayBills().slice().sort((a, b) => (b.monthKey || "").localeCompare(a.monthKey || ""));
-            const pending = paybills.filter((p) => Number(p.step) === 3);
-            const settled = paybills.filter((p) => Number(p.step) === 4);
-            return (
-              <div style={{ marginTop: 10, marginBottom: 14, border: "2px solid #be185d", borderRadius: 8, overflow: "hidden" }} data-testid="hr-paybills-section">
-                <div style={{ background: "linear-gradient(135deg, #be185d 0%, #7c3aed 100%)", color: "#fff", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", opacity: .9 }}>HR Payroll · Accounts Approval Queue</div>
-                    <div style={{ fontSize: 15, fontWeight: 800 }}>{pending.length} Pay Bill{pending.length !== 1 ? "s" : ""} Pending · {settled.length} Settled</div>
-                  </div>
-                  <div style={{ fontSize: 11, opacity: .9 }}>Flow: HR → GM Approval → <b>Accounts (You)</b> → Auto PV</div>
-                </div>
-                <div style={{ background: "#fff", padding: 0 }}>
-                  {paybills.length === 0 ? (
-                    <div style={{ padding: 24, textAlign: "center", color: "#64748b", fontSize: 12 }}>
-                      No HR Pay Bills in queue yet · HR must create &amp; submit monthly salary bills first, then GM approves them before they appear here.
-                    </div>
-                  ) : (
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }} data-testid="hr-paybills-table">
-                    <thead><tr style={{ background: "#f8fafc" }}>
-                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Ref No</th>
-                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Period</th>
-                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Employees</th>
-                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Gross</th>
-                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Advance</th>
-                      <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Net Payable</th>
-                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Status</th>
-                      <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11, width: 220 }}>Accounts Action</th>
-                    </tr></thead>
-                    <tbody>
-                      {paybills.map((pb) => {
-                        const monthName = new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en-IN", { month: "short" });
-                        const tone = Number(pb.step) === 4 ? "#166534" : Number(pb.step) === 3 ? "#be185d" : Number(pb.step) === 2 ? "#b45309" : "#64748b";
-                        return (
-                          <tr key={pb.id} data-testid={`hr-paybill-row-${pb.id}`} style={{ background: Number(pb.step) === 3 ? "#fef3c7" : "#fff" }}>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0", fontFamily: "monospace", fontSize: 11 }}>{pb.refNo}</td>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0", fontWeight: 700 }}>{monthName} {pb.year}</td>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right" }}>{pb.lines?.length || 0}</td>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right" }}>₹ {Number(pb.totalGross || 0).toLocaleString("en-IN")}</td>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right", color: "#78350f" }}>₹ {Number(pb.totalAdvance || 0).toLocaleString("en-IN")}</td>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800 }}>₹ {Number(pb.totalNet || 0).toLocaleString("en-IN")}</td>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0", color: tone, fontWeight: 700, fontSize: 11 }}>{PAYBILL_STATUS[pb.step]}</td>
-                            <td style={{ padding: 7, border: "1px solid #e2e8f0" }}>
-                              {Number(pb.step) < 3 && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Awaiting HR/GM</span>}
-                              {Number(pb.step) === 3 && (
-                                <button
-                                  data-testid={`hr-paybill-approve-${pb.id}`}
-                                  onClick={() => {
-                                    if (!canApprove()) { toast.error("Only Admin / SuperAdmin / Accounts"); return; }
-                                    if (!window.confirm(`Approve & Settle Pay Bill ${pb.refNo}?\n\nA Payment Voucher of ₹ ${Number(pb.totalNet || 0).toLocaleString("en-IN")} will be auto-generated.`)) return;
-                                    const n = advancePayBillStep(pb);
-                                    toast.success(`Pay Bill settled · PV ${n.linkedPvNo || ""} auto-generated`);
-                                    setRefresh((v) => v + 1);
-                                  }}
-                                  style={{ padding: "4px 10px", background: canApprove() ? "#16a34a" : "#94a3b8", color: "#fff", border: "none", borderRadius: 4, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }}
-                                >💰 Approve & Generate PV</button>
-                              )}
-                              {Number(pb.step) === 4 && (
-                                <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PV: {pb.linkedPvNo || "generated"}</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Employee Advances — Live Register (aggregated from Pay Bills) */}
-          {activeView === "advance" && (() => {
-            const reg = getAdvanceRegister();
-            const totalAdv = reg.reduce((a, r) => a + r.totalAdvance, 0);
-            return (
-              <div style={{ marginBottom: 14, border: "2px solid #b45309", borderRadius: 8, overflow: "hidden" }} data-testid="hr-advances-section">
-                <div style={{ background: "linear-gradient(135deg, #b45309 0%, #ea580c 100%)", color: "#fff", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", opacity: .9 }}>Employee Advances · Live Register</div>
-                    <div style={{ fontSize: 15, fontWeight: 800 }}>{reg.length} Employee{reg.length !== 1 ? "s" : ""} · Total ₹ {Number(totalAdv).toLocaleString("en-IN")}</div>
-                  </div>
-                  <div style={{ fontSize: 11, opacity: .9 }}>Aggregated from Pay Bill advance column · Flows with Pay Bill approval</div>
-                </div>
-                <div style={{ background: "#fff" }}>
-                  {reg.length === 0 ? (
-                    <div style={{ padding: 24, textAlign: "center", color: "#64748b", fontSize: 12 }}>
-                      No advance entries yet · Advance column in Pay Bill rows populates this register.
-                    </div>
-                  ) : (
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }} data-testid="hr-advances-table">
-                      <thead><tr style={{ background: "#f8fafc" }}>
-                        <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>EMP Code</th>
-                        <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Employee</th>
-                        <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Department</th>
-                        <th style={{ padding: 8, textAlign: "center", border: "1px solid #e2e8f0", fontSize: 11 }}>Entries</th>
-                        <th style={{ padding: 8, textAlign: "right", border: "1px solid #e2e8f0", fontSize: 11 }}>Total Advance</th>
-                        <th style={{ padding: 8, textAlign: "left", border: "1px solid #e2e8f0", fontSize: 11 }}>Pay Bill Status</th>
-                      </tr></thead>
-                      <tbody>
-                        {reg.map((r) => {
-                          const lines = r.lines || [];
-                          const allSettled = lines.every((l) => Number(l.step) === 4);
-                          const anyPending = lines.some((l) => Number(l.step) < 4);
-                          return (
-                            <tr key={r.empId} data-testid={`hr-advance-row-${r.empId}`} style={{ background: anyPending ? "#fff7ed" : "#fff" }}>
-                              <td style={{ padding: 7, border: "1px solid #e2e8f0", fontFamily: "monospace", fontSize: 11 }}>{r.empCode}</td>
-                              <td style={{ padding: 7, border: "1px solid #e2e8f0", fontWeight: 700 }}>{r.name || "—"}</td>
-                              <td style={{ padding: 7, border: "1px solid #e2e8f0" }}>{r.department || "—"}</td>
-                              <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "center" }}>{lines.length}</td>
-                              <td style={{ padding: 7, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#78350f" }}>₹ {Number(r.totalAdvance).toLocaleString("en-IN")}</td>
-                              <td style={{ padding: 7, border: "1px solid #e2e8f0" }}>
-                                {allSettled && <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ All Settled</span>}
-                                {anyPending && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Pending in Pay Bill</span>}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {activeView === "vendor" && <>
           <StepTabs
             step={bill.step}
             labels={[BILL_STEP_LABEL[1], BILL_STEP_LABEL[2], BILL_STEP_LABEL[3], BILL_STEP_LABEL[4], BILL_STEP_LABEL[5]]}
@@ -1266,7 +1094,6 @@ export default function BillProcessing() {
             <button data-testid="bill-btn-export-excel" onClick={handleExportExcel} style={{ padding: "7px 12px", height: 32, background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(5,150,105,.3)", lineHeight: 1 }}>⬇ Excel</button>
             <button data-testid="bill-btn-print" onClick={handlePrint} style={{ padding: "7px 12px", height: 32, background: "#ea580c", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(234,88,12,.3)", lineHeight: 1 }}><Printer size={13} /> Print</button>
           </div>
-          </>}
         </div>
       </div>
     </>

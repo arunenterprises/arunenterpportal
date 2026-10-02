@@ -1256,17 +1256,25 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", fontSize: 10, color: "#64748b" }}>{l.designation}</td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "center", fontSize: 10 }}>{l.daysPresent}/{l.daysInMonth}</td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 700, background: "#ecfdf5" }}>₹{inrN(l.gross)}</td>
-                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.pf)}</td>
-                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.esic)}</td>
-                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.proftax)}</td>
-                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", background: "#fef2f2" }}>₹{inrN(l.tds)}</td>
+                    <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef2f2" }}>
+                      <input type="number" value={l.pf || 0} onChange={(e) => setLine(i, "pf", e.target.value)} disabled={locked} data-testid={`pb-pf-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fca5a5", borderRadius: 3, textAlign: "right", background: locked ? "#fee2e2" : "#fff" }} />
+                    </td>
+                    <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef2f2" }}>
+                      <input type="number" value={l.esic || 0} onChange={(e) => setLine(i, "esic", e.target.value)} disabled={locked} data-testid={`pb-esic-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fca5a5", borderRadius: 3, textAlign: "right", background: locked ? "#fee2e2" : "#fff" }} />
+                    </td>
+                    <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef2f2" }}>
+                      <input type="number" value={l.proftax || 0} onChange={(e) => setLine(i, "proftax", e.target.value)} disabled={locked} data-testid={`pb-ptax-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fca5a5", borderRadius: 3, textAlign: "right", background: locked ? "#fee2e2" : "#fff" }} />
+                    </td>
+                    <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef2f2" }}>
+                      <input type="number" value={l.tds || 0} onChange={(e) => setLine(i, "tds", e.target.value)} disabled={locked} data-testid={`pb-tds-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fca5a5", borderRadius: 3, textAlign: "right", background: locked ? "#fee2e2" : "#fff" }} />
+                    </td>
                     <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef3c7" }}>
                       <input type="number" value={l.advance || 0} onChange={(e) => setLine(i, "advance", e.target.value)} disabled={locked} data-testid={`pb-advance-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fbbf24", borderRadius: 3, textAlign: "right", background: locked ? "#fef9c3" : "#fffbeb" }} />
                     </td>
                     <td style={{ padding: 2, border: "1px solid #e2e8f0" }}>
                       <input type="number" value={l.otherDeductions || 0} onChange={(e) => setLine(i, "otherDeductions", e.target.value)} disabled={locked} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #cbd5e1", borderRadius: 3, textAlign: "right" }} />
                     </td>
-                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, background: "#0f172a", color: "#fff" }}>₹{inrN(Math.max(0, l.gross - l.pf - l.esic - l.proftax - l.tds - (Number(l.advance) || 0) - (Number(l.otherDeductions) || 0)))}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, background: "#0f172a", color: "#fff" }}>₹{inrN(Math.max(0, (Number(l.gross)||0) - (Number(l.pf)||0) - (Number(l.esic)||0) - (Number(l.proftax)||0) - (Number(l.tds)||0) - (Number(l.advance) || 0) - (Number(l.otherDeductions) || 0)))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1824,17 +1832,17 @@ export default function HRManagement() {
           <div style={{ marginTop: 18, background: "#fff", borderRadius: 10, padding: 5, display: "inline-flex", gap: 3, border: "1px solid #e2e8f0", flexWrap: "wrap" }} data-testid="hr-tabs">
             {[
               { id: "dashboard", label: "Dashboard", tone: "#0f172a", icon: Sparkles },
+              { id: "recruit", label: "Recruitment", tone: "#16a34a", icon: Briefcase },
               { id: "employees", label: "Employees", tone: "#0369a1", icon: Users2 },
+              { id: "idcard", label: "ID Card", tone: "#0ea5e9", icon: UserCheck },
               { id: "attendance", label: "Attendance", tone: "#f59e0b", icon: Calendar },
               { id: "leaves", label: "Leaves", tone: "#0ea5e9", icon: FileText },
-              { id: "payroll", label: "Payroll Slip", tone: "#dc2626", icon: IndianRupee },
-              { id: "paybill", label: "Pay Bill", tone: "#be185d", icon: Receipt },
               { id: "advance", label: "Advance Reg.", tone: "#f59e0b", icon: Wallet },
               { id: "loans", label: "Loan Mgmt.", tone: "#0891b2", icon: Landmark },
+              { id: "paybill", label: "Pay Bill", tone: "#be185d", icon: Receipt },
               { id: "compliance", label: "Compliance", tone: "#7c3aed", icon: ShieldCheck },
-              { id: "recruit", label: "Recruitment", tone: "#16a34a", icon: Briefcase },
+              { id: "payroll", label: "Payroll Slip", tone: "#dc2626", icon: IndianRupee },
               { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
-              { id: "idcard", label: "ID Card", tone: "#0ea5e9", icon: UserCheck },
             ].map((t) => {
               const Icon = t.icon; const active = tab === t.id;
               return <button key={t.id} data-testid={`hr-tab-${t.id}`} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: active ? t.tone : "transparent", color: active ? "#fff" : "#334155", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Icon size={13} /> {t.label}</button>;
