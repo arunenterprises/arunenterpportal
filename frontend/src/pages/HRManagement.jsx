@@ -679,18 +679,7 @@ const PayrollTab = () => {
         net: pbLine.net, daysInMonth, daysPresent }
     : null;
 
-  const pushToAccounts = () => {
-    // IDEMPOTENT push: if PayBill for this month already approved/settled, don't overwrite.
-    const draft = createPayBillDraft(Number(year), Number(month));
-    if (!draft.lines.length) { toast.error("No active finalized employees to push"); return; }
-    if (Number(draft.step) >= 2) {
-      toast.info(`Pay Bill ${draft.refNo} already ${PAYBILL_STATUS[draft.step]} · Accounts Pay Bills Process tab mein jaake process karo`);
-      return;
-    }
-    const saved = upsertPayBill(draft);
-    toast.success(`Monthly payroll pushed to Accounts as Pay Bill ${saved.refNo} · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
-    setRefresh((r) => r + 1);
-  };
+  const pushToAccounts = null; // removed per user request — use "Pay Bills Process" tab in Accounts module to approve/settle Pay Bills.
 
   // Pick up fresh data from the approved monthly Pay Bill DB (local refresh — cloud sync happens at login)
   const pickFromApprovedPB = () => {
@@ -727,7 +716,6 @@ const PayrollTab = () => {
         <button data-testid="hr-payroll-print" onClick={() => printPayrollSlipLetter(emp, salary, year, month, daysInMonth, daysPresent)} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Slip</button>
         <button data-testid="hr-payroll-whatsapp" onClick={() => sendPayslipWhatsApp(emp, salary, year, month)} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>💬 Send on WhatsApp</button>
         <button data-testid="hr-payroll-pick-pb" onClick={pickFromApprovedPB} style={{ padding: "6px 12px", background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }} title="Pick up fresh salary data from the monthly Approved Pay Bill database and regenerate Payslip">📥 Pick from Approved Pay Bill</button>
-        <button data-testid="hr-payroll-push" onClick={pushToAccounts} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Push Monthly Payroll → Accounts</button>
       </div>
 
       {emp && !salary && (
@@ -736,7 +724,7 @@ const PayrollTab = () => {
           <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4 }}>No GM-Approved Pay Bill for {new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })}</div>
           <div style={{ fontSize: 11, color: "#92400e", lineHeight: 1.6, marginBottom: 10 }}>
             Payslip sirf GM-Approved ya Settled Pay Bill ke baad hi show hoga (data consistency ensure karne ke liye).<br/>
-            {draftPB ? <>Pay Bill <b>{draftPB.refNo}</b> is currently in <b>{PAYBILL_STATUS[draftPB.step]}</b> stage. HR → Submit karo → GM Approve karein.</> : <>Pehle "Push Monthly Payroll → Accounts" button se Pay Bill create karo, phir HR Submit → GM Approve.</>}
+            {draftPB ? <>Pay Bill <b>{draftPB.refNo}</b> is currently in <b>{PAYBILL_STATUS[draftPB.step]}</b> stage. HR → Pay Bill tab se Submit karo → GM Approve karein.</> : <>HR → Pay Bill tab se naya Pay Bill create karo, phir Submit → GM Approve → yaha "📥 Pick from Approved Pay Bill" se Payslip aayega.</>}
           </div>
         </div>
       )}
