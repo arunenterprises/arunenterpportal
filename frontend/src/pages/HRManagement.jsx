@@ -24,6 +24,7 @@ import {
   currentRole, canCreate, canApprove, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, sendPayslipWhatsApp } from "../lib/hrLetters";
+import SuperAdminDelete from "../components/SuperAdminDelete";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Sr. Operation Manager", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
@@ -1090,6 +1091,7 @@ const RecruitTab = ({ writeAllowed, approveAllowed }) => {
                 <td style={{ padding: 4, whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
                   {Number(r.status) === 2 && approveAllowed && <button data-testid={`rec-row-approve-${r.id}`} onClick={() => gmApprove(r)} style={{ padding: "3px 8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>GM Approve</button>}
                   {Number(r.status) >= 3 && <button data-testid={`rec-print-ad-${r.id}`} onClick={() => printAdvertisementNotice(r)} style={{ padding: "3px 8px", background: "#78350f", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>📢 Ad</button>}
+                  {Number(r.status) >= 3 && <SuperAdminDelete label={`Recruitment ${r.advertisementNo || r.position}`} meta={{ "Ref": r.advertisementNo || r.position, "Status": RECRUIT_STATUS[r.status], "Dept": r.department }} auditKey="ae_vm_rec_delete_log" testid={`rec-sa-del-${r.id}`} onDelete={() => { deleteRecruit(r.id); if (cur.id === r.id) setCur(createRecruitDraft()); refresh(); toast.success(`Recruitment deleted (SuperAdmin override)`); }} />}
                   {Number(r.status) >= 3 && <button data-testid={`rec-offer-${r.id}`} onClick={() => printOfferLetter(r)} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>📄 Letter</button>}
                   {Number(r.status) === 4 && !r.joinedEmpId && <button data-testid={`rec-row-convert-${r.id}`} onClick={() => convertToEmp(r)} style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 3 }}>→ Emp</button>}
                   {r.joinedEmpId && <span style={{ fontSize: 10, color: "#166534", fontWeight: 700, marginRight: 3 }}>✓ Joined</span>}
@@ -1207,7 +1209,8 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
                   <button data-testid={`exit-rel-${x.id}`} onClick={() => printRelievingLetter(emp, x)} style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Relieving</button>
                   {x.linkedPvNo && <span style={{ padding: "3px 8px", background: "#e0e7ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, fontSize: 10, fontWeight: 700, marginRight: 4 }}>PV: {x.linkedPvNo}</span>}
                 </>}
-                <button onClick={() => remove(x.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>
+                {Number(x.status) < 3 && writeAllowed && <button onClick={() => remove(x.id)} style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
+                {Number(x.status) >= 3 && <SuperAdminDelete label={`Exit F&F · ${x.empName || x.empCode}`} meta={{ "Status": EXIT_STATUS[x.status], "F&F Net": `₹${Number(x.fnfNet || 0).toLocaleString("en-IN")}`, "Linked PV": x.linkedPvNo || "—" }} auditKey="ae_vm_exit_delete_log" testid={`exit-sa-del-${x.id}`} onDelete={() => { deleteExit(x.id); refresh(); toast.success(`Exit F&F deleted (SuperAdmin override)`); }} />}
               </td>
             </tr>
           );
@@ -1621,6 +1624,7 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
                       {Number(r.status) === 2 && approveAllowed && <button data-testid={`adv-row-approve-${i}`} onClick={() => approveNow(r)} style={{ padding: "3px 8px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Approve</button>}
                       {Number(r.status) === 3 && approveAllowed && <button data-testid={`adv-row-pay-${i}`} onClick={() => payNow(r)} style={{ padding: "3px 8px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Pay</button>}
                       {Number(r.status) < 2 && writeAllowed && <button data-testid={`adv-row-del-${i}`} onClick={() => remove(r.id)} style={{ padding: "3px 6px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
+                      {Number(r.status) >= 3 && <SuperAdminDelete label={`Advance Request ${r.refNo}`} meta={{ "Employee": `${r.empCode} · ${r.empName}`, "Amount": `₹${inrN(r.amount)}`, "Status": ADVANCE_REQ_STATUS[r.status], "Linked PV": r.linkedPvNo || "—" }} auditKey="ae_vm_adv_req_delete_log" testid={`adv-sa-del-${i}`} onDelete={() => { deleteAdvanceRequest(r.id); if (cur?.id === r.id) setCur(null); refresh(); toast.success(`Advance request deleted (SuperAdmin override)`); }} />}
                     </td>
                   </tr>
                 ))}

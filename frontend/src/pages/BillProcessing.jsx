@@ -13,12 +13,13 @@ import {
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getWOs, canCreate, canApprove,
-  getPayBills, advancePayBillStep, PAYBILL_STATUS,
+  getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
-  getAdvanceRequests, advanceAdvanceRequestStep, rejectAdvanceRequest, ADVANCE_REQ_STATUS,
-  getExits, advanceExitStep, EXIT_STATUS,
+  getAdvanceRequests, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
+  getExits, advanceExitStep, deleteExit, EXIT_STATUS,
   getEmployees,
 } from "../lib/store";
+import SuperAdminDelete from "../components/SuperAdminDelete";
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
 const CATEGORY_SCOPES = [
@@ -1204,7 +1205,12 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
       />
 
       <AdvanceSection title={`Paid · Payment Vouchers Generated (${paid.length})`} rows={paid} tone="#16a34a"
-        testid="adv-paid" renderActions={(r) => <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{r.linkedPvNo}</span>}
+        testid="adv-paid" renderActions={(r, i) => (
+          <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+            <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{r.linkedPvNo}</span>
+            <SuperAdminDelete label={`Advance Request ${r.refNo}`} meta={{ "Employee": `${r.empCode} · ${r.empName}`, "Amount": `₹${inrN(r.amount)}`, "Status": ADVANCE_REQ_STATUS[r.status], "Linked PV": r.linkedPvNo || "—" }} auditKey="ae_vm_adv_req_delete_log" testid={`adv-paid-sa-del-${i}`} onDelete={() => { deleteAdvanceRequest(r.id); bumpRev(); toast.success(`Advance Request deleted (SuperAdmin override)`); }} />
+          </div>
+        )}
       />
     </div>
   );
@@ -1325,10 +1331,11 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
         renderActions={(b, i) => canApprove() ? <button data-testid={`pb-settle-${i}`} onClick={() => settle(b)} style={btnSm("#16a34a")}>Settle & Generate PV</button> : null} />
       <PayBillSection title={`Settled · Payment Vouchers Generated (${settled.length})`} rows={settled} tone="#16a34a" testid="pb-settled"
         renderActions={(b, i) => (
-          <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700, padding: "3px 6px", background: "#dcfce7", borderRadius: 3 }}>{b.linkedPvNo}</span>
             <button data-testid={`pb-export-xlsx-${i}`} onClick={() => exportBankTransferXLSX(b)} style={btnSm("#059669")}>⬇ Excel</button>
             <button data-testid={`pb-print-advice-${i}`} onClick={() => printBankTransferAdvice(b)} style={btnSm("#be185d")}>🖨 Bank Advice</button>
+            <SuperAdminDelete label={`Pay Bill ${b.refNo}`} meta={{ "Period": `${new Date(b.year, (b.month || 1) - 1).toLocaleString("en", { month: "short" })} ${b.year}`, "Employees": b.lines?.length || 0, "Net": `₹${inrN(b.totalNet)}`, "Linked PV": b.linkedPvNo || "—" }} auditKey="ae_vm_pb_delete_log" testid={`pb-settled-sa-del-${i}`} onDelete={() => { deletePayBill(b.id); bumpRev(); toast.success(`Pay Bill ${b.refNo} deleted (SuperAdmin override)`); }} />
           </div>
         )} />
     </div>
@@ -1402,7 +1409,12 @@ const AccountsExitView = ({ rev, bumpRev }) => {
       <ExitSection title={`GM Approved · Pending Accounts Settlement (${pending.length})`} rows={pending} tone="#f59e0b" testid="exit-pending"
         renderActions={(x, i) => canApprove() ? <button data-testid={`exit-settle-${i}`} onClick={() => settle(x)} style={btnSm("#16a34a")}>Settle & Generate PV</button> : null} />
       <ExitSection title={`Settled · F&F Paid (${settled.length})`} rows={settled} tone="#16a34a" testid="exit-settled"
-        renderActions={(x) => <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{x.linkedPvNo}</span>} />
+        renderActions={(x, i) => (
+          <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+            <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700 }}>{x.linkedPvNo}</span>
+            <SuperAdminDelete label={`Exit F&F · ${x.empName || x.empCode}`} meta={{ "F&F Net": `₹${inrN(x.fnfNet)}`, "Resign": x.resignDate, "Linked PV": x.linkedPvNo || "—" }} auditKey="ae_vm_exit_delete_log" testid={`exit-settled-sa-del-${i}`} onDelete={() => { deleteExit(x.id); bumpRev(); toast.success(`Exit F&F deleted (SuperAdmin override)`); }} />
+          </div>
+        )} />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
+import SuperAdminDelete from "../components/SuperAdminDelete";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON, amountToWords,
@@ -905,14 +906,24 @@ export default function Reports() {
                             >
                               Edit
                             </button>
-                            <button
-                              onClick={() => deletePayment(p.pvNo)}
-                              data-testid={`pay-delete-${p.pvNo}`}
-                              style={{ padding: "3px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
-                              title="Delete voucher and free the bill"
-                            >
-                              Delete
-                            </button>
+                            {p.status !== "Approved" ? (
+                              <button
+                                onClick={() => deletePayment(p.pvNo)}
+                                data-testid={`pay-delete-${p.pvNo}`}
+                                style={{ padding: "3px 8px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                                title="Delete voucher and free the bill"
+                              >
+                                Delete
+                              </button>
+                            ) : (
+                              <SuperAdminDelete
+                                label={`Payment Voucher ${p.pvNo}`}
+                                meta={{ "Vendor": p.vendorName || p.vendorCode, "Amount": `₹${Number(p.amount || 0).toLocaleString("en-IN")}`, "Status": p.status, "Approved By": p.approvedByName || "—", "UTR": p.utrNo || "—" }}
+                                auditKey="ae_vm_pv_delete_log"
+                                testid={`pay-sa-del-${p.pvNo}`}
+                                onDelete={() => deletePayment(p.pvNo)}
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>

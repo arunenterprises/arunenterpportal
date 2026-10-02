@@ -5,7 +5,12 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
-- **Pay Bill · Bank Transfer Export (NEW)** — In Accounts Dept → Pay Bills Process → Settled queue, har row par 2 export buttons:
+- **SuperAdmin-Only Delete Buttons across all approval records (NEW)** — Naya reusable `SuperAdminDelete.jsx` component (`/app/frontend/src/components/`) jo currentRole()==="SuperAdmin" check karta hai + detailed confirmation popup + localStorage audit log + onDelete callback. Wired in across:
+  - **HRManagement.jsx**: Recruitment list (status ≥3) → `ae_vm_rec_delete_log`, Exit F&F list (status ≥3) → `ae_vm_exit_delete_log`, Advance Request list (status ≥3) → `ae_vm_adv_req_delete_log`, Pay Bill history (status ≥2, already present) → `ae_vm_pb_delete_log`
+  - **BillProcessing.jsx (Accounts tabs)**: Advance "Paid" queue, Pay Bill "Settled" queue, Exit "Settled" queue — all with inline SA delete button
+  - **Reports.jsx**: Salary Bills tab (step ≥3 SA delete already) + Payment Vouchers list (Approved PVs replace plain Delete with `SuperAdminDelete`; Draft/Submitted PVs still deletable by anyone with permission)
+- All deletions log `{label, meta, deletedBy, deletedAt}` for audit. Linked Payment Vouchers remain in Payments after record delete (financial record safety).
+- **Pay Bill · Bank Transfer Export** — In Accounts Dept → Pay Bills Process → Settled queue, har row par 2 export buttons:
   - **⬇ Excel**: Downloads `BankTransfer_{refNo}_{Month}{Year}.xlsx` with columns [Sr., EMP Code, Name, Designation, Dept, Bank Name, Branch, A/C No, IFSC, A/C Type, Net Amount] + total row. Header merged with company+pay-bill meta.
   - **🖨 Bank Advice**: A4 landscape printable advice addressed "To: The Branch Manager" with full transfer table, grand total, amount-in-words, instructions, and 3 signature boxes (HR / Accounts / Authorized Signatory). Opens in new window with auto-print.
   - Excluded (unticked) rows automatically skipped. Only employees with Net > 0 included.
