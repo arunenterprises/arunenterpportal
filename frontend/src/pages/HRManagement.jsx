@@ -653,24 +653,23 @@ const PayrollTab = () => {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedId, setSelectedId] = useState(emps[0]?.id || "");
+  const [refresh, setRefresh] = useState(0);
   const daysInMonth = new Date(year, month, 0).getDate();
   const emp = emps.find((e) => e.id === selectedId);
   const att = emp ? getMonthAttendance(emp.id, year, month) : null;
   const daysPresent = att ? Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length : 0;
 
-  // Payslip STRICTLY aligns with GM-approved / Settled Pay Bill (step >= 3) of the same month.
-  // If no approved PayBill exists → disable the slip and prompt user to Push → Approve first.
+  // Payslip STRICTLY aligns with GM-Approved (step 3) / Settled (step 4) Pay Bill of the same month.
   const existingPB = useMemo(() => {
     const monthKey = `${year}${String(month).padStart(2, "0")}`;
     const bills = getPayBills().filter((p) => p.monthKey === monthKey);
-    // Prefer Settled (step 4) → else GM Approved (step 3). Draft/Submitted ignored.
     return bills.find((p) => Number(p.step) === 4) || bills.find((p) => Number(p.step) === 3) || null;
-  }, [year, month]);
+  }, [year, month, refresh]);
   const draftPB = useMemo(() => {
     if (existingPB) return null;
     const monthKey = `${year}${String(month).padStart(2, "0")}`;
     return getPayBills().find((p) => p.monthKey === monthKey) || null;
-  }, [year, month, existingPB]);
+  }, [year, month, existingPB, refresh]);
   const pbLine = existingPB?.lines?.find((l) => l.empId === selectedId);
   const salary = emp && pbLine
     ? { basic: pbLine.basic, hra: pbLine.hra, da: pbLine.da, special: pbLine.special, bonus: pbLine.bonus,
@@ -690,6 +689,26 @@ const PayrollTab = () => {
     }
     const saved = upsertPayBill(draft);
     toast.success(`Monthly payroll pushed to Accounts as Pay Bill ${saved.refNo} · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
+    setRefresh((r) => r + 1);
+  };
+
+  // Pick up fresh data from the approved monthly Pay Bill DB (local refresh — cloud sync happens at login)
+  const pickFromApprovedPB = () => {
+    const monthLabel = new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
+    const monthKey = `${year}${String(month).padStart(2, "0")}`;
+    const bills = getPayBills().filter((p) => p.monthKey === monthKey);
+    const approved = bills.find((p) => Number(p.step) === 4) || bills.find((p) => Number(p.step) === 3);
+    setRefresh((r) => r + 1);
+    if (!approved) {
+      toast.error(`No GM-Approved Pay Bill found for ${monthLabel}. HR Submit → GM Approve pehle zaruri hai.`);
+      return;
+    }
+    const line = approved.lines?.find((l) => l.empId === selectedId);
+    if (!line) {
+      toast.warning(`Pay Bill ${approved.refNo} (${PAYBILL_STATUS[approved.step]}) found but ${emp?.fullName} ki line usmein nahi hai. Shayad excluded ho.`);
+      return;
+    }
+    toast.success(`✓ Fresh Payslip pulled from Approved Pay Bill ${approved.refNo} · ${PAYBILL_STATUS[approved.step]} · Net ₹ ${Number(line.net || 0).toLocaleString("en-IN")}`);
   };
 
   if (emps.length === 0) return <div style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Payroll dikhane ke liye pehle Employees tab me kam se kam ek employee finalize karo.</div>;
@@ -707,6 +726,7 @@ const PayrollTab = () => {
         <input type="number" value={year} onChange={(e) => setYear(+e.target.value)} style={{ padding: 5, width: 80 }} />
         <button data-testid="hr-payroll-print" onClick={() => printPayrollSlipLetter(emp, salary, year, month, daysInMonth, daysPresent)} style={{ padding: "6px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Printer size={13} style={{ verticalAlign: -2 }} /> Print A4 Slip</button>
         <button data-testid="hr-payroll-whatsapp" onClick={() => sendPayslipWhatsApp(emp, salary, year, month)} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>💬 Send on WhatsApp</button>
+        <button data-testid="hr-payroll-pick-pb" onClick={pickFromApprovedPB} style={{ padding: "6px 12px", background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }} title="Pick up fresh salary data from the monthly Approved Pay Bill database and regenerate Payslip">📥 Pick from Approved Pay Bill</button>
         <button data-testid="hr-payroll-push" onClick={pushToAccounts} style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Push Monthly Payroll → Accounts</button>
       </div>
 
