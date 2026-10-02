@@ -1171,10 +1171,27 @@ export default function Reports() {
                             <button
                               onClick={() => loadVoucher(p.pvNo)}
                               data-testid={`voucher-load-${p.pvNo}`}
-                              style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                              style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600, marginRight: 4 }}
                             >
                               Load
                             </button>
+                            {p.status !== "Approved" ? (
+                              <button
+                                onClick={() => deletePayment(p.pvNo)}
+                                data-testid={`voucher-del-${p.pvNo}`}
+                                style={{ padding: "3px 10px", fontSize: 10.5, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}
+                              >
+                                Delete
+                              </button>
+                            ) : (
+                              <SuperAdminDelete
+                                label={`Payment Voucher ${p.pvNo}`}
+                                meta={{ "Vendor": p.vendorName || p.vendorCode, "Amount": `₹${Number(p.amount || 0).toLocaleString("en-IN")}`, "Status": p.status, "Approved By": p.approvedByName || "—", "UTR": p.utrNo || "—" }}
+                                auditKey="ae_vm_pv_delete_log"
+                                testid={`voucher-sa-del-${p.pvNo}`}
+                                onDelete={() => deletePayment(p.pvNo)}
+                              />
+                            )}
                           </td>
                         </tr>
                       );
