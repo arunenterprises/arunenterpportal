@@ -1491,17 +1491,20 @@ export const getAdvanceRegister = () => {
   };
   bills.forEach((pb) => {
     (pb.lines || []).forEach((l) => {
-      if (!Number(l.advance)) return;
+      // Only the MANUAL portion of pay-bill advance (minus the auto-adjusted amount
+      // which is already counted via the On-Demand advance request below).
+      // Prevents double-counting when an approved advance request auto-fills Pay Bill.
+      const manualAdv = Number(l.advance || 0) - Number(l.autoAdvance || 0);
+      if (manualAdv <= 0) return;
       const row = ensure(l.empId, l.empCode, l.name);
-      row.lines.push({ source: "PayBill", year: pb.year, month: pb.month, refNo: pb.refNo, amount: Number(l.advance), step: pb.step });
-      row.totalAdvance += Number(l.advance);
+      row.lines.push({ source: "PayBill", year: pb.year, month: pb.month, refNo: pb.refNo, amount: manualAdv, step: pb.step });
+      row.totalAdvance += manualAdv;
     });
   });
   reqs.forEach((r) => {
     if (Number(r.status) < 3) return; // only Accounts-approved or paid show in register
-    const d = new Date(r.requestDate || Date.now());
     const row = ensure(r.empId, r.empCode, r.empName);
-    row.lines.push({ source: "On-Demand", year: d.getFullYear(), month: d.getMonth() + 1, refNo: r.refNo, amount: Number(r.amount), step: r.status });
+    row.lines.push({ source: "On-Demand", year: Number(r.targetYear) || new Date(r.requestDate || Date.now()).getFullYear(), month: Number(r.targetMonth) || new Date(r.requestDate || Date.now()).getMonth() + 1, refNo: r.refNo, amount: Number(r.amount), step: r.status });
     row.totalAdvance += Number(r.amount);
   });
   return Object.values(map).sort((a, b) => b.totalAdvance - a.totalAdvance);
