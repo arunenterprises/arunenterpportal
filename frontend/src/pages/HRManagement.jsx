@@ -24,7 +24,7 @@ import {
   getPayments, savePayments,
   currentRole, canCreate, canApprove, canDelete, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, exportPayBillPDF } from "../lib/hrLetters";
 import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 
@@ -1567,6 +1567,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center", minWidth: 180 }}>
                     <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 4, justifyContent: "center", alignItems: "center" }}>
                       <button onClick={(e) => { e.stopPropagation(); printPayBillSheet(p); }} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>📄 Print</button>
+                      <button data-testid={`pb-hr-pdf-${p.id}`} onClick={async (e) => { e.stopPropagation(); try { await exportPayBillPDF(p); toast.success(`PDF downloaded · ${p.refNo}`); } catch (err) { toast.error(`PDF export failed: ${err.message || err}`); } }} title="Download Pay Bill as PDF (A4 landscape)" style={{ padding: "3px 8px", background: "#fff7ed", color: "#9a3412", border: "1px solid #fdba74", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>⬇ PDF</button>
                       {Number(p.step) >= 3 && <button data-testid={`pb-hr-xlsx-${p.id}`} onClick={(e) => { e.stopPropagation(); exportBankTransferXLSX(p); }} style={{ padding: "3px 8px", background: "#ecfdf5", color: "#065f46", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }} title="Export Bank Transfer Excel">⬇ Excel</button>}
                       {Number(p.step) >= 3 && <button data-testid={`pb-hr-advice-${p.id}`} onClick={(e) => { e.stopPropagation(); printBankTransferAdvice(p); }} style={{ padding: "3px 8px", background: "#fdf2f8", color: "#9d174d", border: "1px solid #f9a8d4", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }} title="Print A4 Landscape Bank Advice for Branch Manager">🖨 Advice</button>}
                       {canDelete() && Number(p.step) === 1 && <button data-testid={`pb-del-${p.id}`} onClick={(e) => { e.stopPropagation(); remove(p.id); }} title="Delete draft pay bill" style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}

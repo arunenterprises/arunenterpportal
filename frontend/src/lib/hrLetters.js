@@ -953,6 +953,85 @@ export const printPayBillSheet = (pb) => {
   openPrint(`Pay Bill ${monthName} ${pb.year}`, body);
 };
 
+// Export Pay Bill as downloadable PDF (A4 landscape) via html2pdf.js
+export const exportPayBillPDF = async (pb) => {
+  if (!pb) return;
+  const html2pdf = (await import("html2pdf.js")).default;
+  const monthName = new Date(pb.year, pb.month - 1).toLocaleString("en-IN", { month: "long" });
+  const statusMap = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved", 4: "Settled & Paid" };
+  const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
+  const rows = (pb.lines || []).map((l, i) => `
+    <tr${i % 2 ? ' style="background:#fafbfc;"' : ""}>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:center;">${i + 1}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:left;font-weight:700;">${l.empCode || "—"}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:left;font-weight:700;">${l.name || "—"}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:center;">${l.designation || "—"}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:center;">${l.daysPresent}/${l.daysInMonth}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;">${inrN(l.basic)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;">${inrN(l.hra)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;">${inrN(l.da)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;">${inrN(l.special)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;">${inrN(l.bonus)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#ecfdf5;font-weight:700;">${inrN(l.gross)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#fef2f2;">${inrN(l.pf)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#fef2f2;">${inrN(l.esic)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#fef2f2;">${inrN(l.proftax)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#fef2f2;">${inrN(l.tds)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#fef3c7;">${inrN(l.advance)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#fef2f2;">${inrN(l.otherDeductions)}</td>
+      <td style="padding:3px 4px;border:1px solid #cbd5e1;text-align:right;background:#0f172a;color:#fff;font-weight:800;">${inrN(l.net)}</td>
+    </tr>`).join("");
+  const container = document.createElement("div");
+  container.style.cssText = "padding:12mm;font-family:Arial,sans-serif;color:#0f172a;background:#fff;";
+  container.innerHTML = `
+    <div style="text-align:center;font-size:15pt;font-weight:800;text-decoration:underline;margin:6px 0 8px;letter-spacing:1.5px;">MONTHLY PAY BILL</div>
+    <div style="display:flex;justify-content:space-between;font-size:10.5pt;margin-bottom:8px;">
+      <div><b>Ref No.:</b> ${pb.refNo || "—"} · <b>Period:</b> ${monthName} ${pb.year}</div>
+      <div><b>Employees:</b> ${pb.lines?.length || 0}</div>
+      <div><b>Status:</b> <span style="padding:2px 10px;border-radius:4px;font-weight:800;background:#dcfce7;color:#166534;">${statusMap[pb.step || 1]}</span></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:7.8pt;">
+      <thead>
+        <tr style="background:#0f172a;color:#fff;">
+          ${["#","EMP Code","Name","Designation","Days","Basic","HRA","DA","Special","Bonus","GROSS","PF","ESIC","P.Tax","TDS","Advance","Other","NET"].map(h => `<th style="padding:4px 3px;border:1px solid #334155;text-align:center;font-size:7pt;">${h}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows || `<tr><td colspan="18" style="padding:14px;color:#94a3b8;text-align:center;">No employees in this pay bill</td></tr>`}
+        <tr style="background:#0f172a;color:#fff;font-weight:800;font-size:9pt;">
+          <td colspan="10" style="padding:6px;text-align:right;">TOTALS →</td>
+          <td style="padding:6px;text-align:right;">₹ ${inrN(pb.totalGross)}</td>
+          <td colspan="4" style="padding:6px;text-align:right;">₹ ${inrN(pb.totalDeductions)} (total ded.)</td>
+          <td style="padding:6px;text-align:right;">₹ ${inrN(pb.totalAdvance)}</td>
+          <td></td>
+          <td style="padding:6px;text-align:right;">₹ ${inrN(pb.totalNet)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:20px;display:grid;grid-template-columns:repeat(4,1fr);gap:20px;font-size:9pt;">
+      <div style="text-align:center;"><div style="border-top:1.5px solid #0f172a;margin-top:40px;padding-top:4px;font-weight:700;">Prepared By (HR)<br/><span style="color:#475569;font-size:7.5pt;font-weight:400;">${pb.createdByName || "—"} · ${fmtDMY((pb.createdAt || "").slice(0, 10))}</span></div></div>
+      <div style="text-align:center;"><div style="border-top:1.5px solid #0f172a;margin-top:40px;padding-top:4px;font-weight:700;">Verified By (Accounts)<br/><span style="color:#475569;font-size:7.5pt;font-weight:400;">${pb.submittedByName || "—"} · ${fmtDMY((pb.submittedAt || "").slice(0, 10))}</span></div></div>
+      <div style="text-align:center;"><div style="border-top:1.5px solid #0f172a;margin-top:40px;padding-top:4px;font-weight:700;">Approved By (GM)<br/><span style="color:#475569;font-size:7.5pt;font-weight:400;">${pb.approvedByName || "—"} · ${fmtDMY((pb.approvedAt || "").slice(0, 10))}</span></div></div>
+      <div style="text-align:center;"><div style="border-top:1.5px solid #0f172a;margin-top:40px;padding-top:4px;font-weight:700;">${SIGNATORY.name}<br/><span style="color:#475569;font-size:7.5pt;font-weight:400;">${SIGNATORY.designation} · ${fmtDMY((pb.settledAt || "").slice(0, 10))}</span></div></div>
+    </div>
+  `;
+  document.body.appendChild(container);
+  try {
+    await html2pdf()
+      .set({
+        margin: 0,
+        filename: `PayBill_${monthName}_${pb.year}_${pb.refNo?.replace(/[/\\]/g, "-") || "sheet"}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
+      })
+      .from(container)
+      .save();
+  } finally {
+    document.body.removeChild(container);
+  }
+};
+
 // ============= WHATSAPP PAYSLIP DELIVERY (wa.me deep link) =============
 export const sendPayslipWhatsApp = (emp, salary, year, month) => {
   if (!emp?.contactMobile) { alert("Employee mobile number missing. Please update Contact Details first."); return; }
