@@ -667,7 +667,11 @@ export default function Reports() {
                                 <td className="mono" style={{ fontSize: 10 }}>{pb.linkedPvNo || <span style={{ color: "#94a3b8" }}>—</span>}</td>
                                 <td className="mono" style={{ fontSize: 10, color: hasUtr ? "#166534" : "#991b1b", fontWeight: 700 }}>{pv?.utrNo || <span style={{ color: "#94a3b8" }}>—</span>}</td>
                                 <td>
-                                  {isSettled && hasUtr ? (
+                                  {pb.holdFlag ? (
+                                    <span title={pb.holdReason || "On Hold via Decision XLSX"} style={{ padding: "2px 7px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏸ On Hold</span>
+                                  ) : pb.rejectFlag ? (
+                                    <span title={pb.rejectReason || "Rejected via Decision XLSX"} style={{ padding: "2px 7px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✗ Rejected</span>
+                                  ) : isSettled && hasUtr ? (
                                     <span style={{ padding: "2px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 800 }}>✓ PAID</span>
                                   ) : isSettled ? (
                                     <span style={{ padding: "2px 7px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⚠ UTR Pending</span>
