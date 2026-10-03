@@ -5,7 +5,7 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
-- **Summary Dashboard sheet simplified (Oct 2026)** — Approved Bills Data Sheet se bulk action buttons (Mark PAY/HOLD/REJECT/Clear) hata diye (user: "ye function already hai aap sirf bill dikhaiye"). Ab yahan sirf selectable list + live counter (unpaid · selected · ₹ sum) + inline hint ki decisions niche "Due List · Monthly Decision Sheet" me lagein.
+- **Summary Dashboard sheet · single auto-changing Status column (Oct 2026)** — User feedback: "sirf status dijiye jo ki paid ke bad change ho jaye". Separate Decision column removed. Single Status pill ab bill ki state ke hisaab se automatically change hoti hai — balance=0 pe **✓ PAID** (green), warna **✓ Marked Pay** / **⏸ On Hold** / **✗ Rejected** / **Due** / **Overdue**. Row background bhi state-coded (paid=green, hold=amber, reject=red, selected=blue).
 - **Due List table cleaned (Oct 2026)** — "Source" column hataya; ab table sirf Vendor Bills dikhati hai (Pay Bills ka apna Salary Bills / HR module alag hai). Column count 11, decision toggles enabled unconditionally.
 - **Summary Dashboard · Approved Bills Data Sheet with multi-select (Oct 2026)** — Reports → Due List → Summary Dashboard me saari unpaid approved bills scrollable table + per-row checkboxes + header "Select All" visible. Decision colour-coded.
 - **Monthly Decision Sheet workflow (Oct 2026)** — Month selector drives Due List → Download/Upload XLSX → Process Single PVs or Bulk Bank Advice.

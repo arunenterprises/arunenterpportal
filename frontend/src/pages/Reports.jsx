@@ -1020,19 +1020,20 @@ export default function Reports() {
                             <th style={{ textAlign: "right" }}>Net</th>
                             <th style={{ textAlign: "right" }}>Paid</th>
                             <th style={{ textAlign: "right" }}>Balance</th>
-                            <th>Decision</th>
                             <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
                           {unpaidApproved.length === 0 && (
-                            <tr><td colSpan={11} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No unpaid approved bills</td></tr>
+                            <tr><td colSpan={10} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No unpaid approved bills</td></tr>
                           )}
                           {unpaidApproved.map((r) => {
                             const b = bills.find((x) => x.id === r.id);
                             const decision = b?.paymentStatus || "";
+                            // Status derivation: Paid overrides decision; otherwise show decision pill if any, else bill status
+                            const isPaid = r.balance <= 0;
                             return (
-                              <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: selectedDueBills.has(r.id) ? "#eff6ff" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
+                              <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: selectedDueBills.has(r.id) ? "#eff6ff" : isPaid ? "#f0fdf4" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
                                 <td style={{ textAlign: "center" }}>
                                   <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />
                                 </td>
@@ -1044,8 +1045,19 @@ export default function Reports() {
                                 <td className="num">{r.net.toFixed(2)}</td>
                                 <td className="num">{r.paid.toFixed(2)}</td>
                                 <td className="num"><b>{r.balance.toFixed(2)}</b></td>
-                                <td>{decision === "MarkedPay" ? <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PAY</span> : decision === "Hold" ? <span style={{ padding: "2px 6px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏸ HOLD</span> : decision === "Reject" ? <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✗ REJECT</span> : <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>}</td>
-                                <td><span className={`pill-tag ${r.status === "Overdue" ? "overdue" : r.status === "Paid" ? "paid" : "due"}`}>{r.status}</span></td>
+                                <td>
+                                  {isPaid ? (
+                                    <span style={{ padding: "2px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 800 }}>✓ PAID</span>
+                                  ) : decision === "MarkedPay" ? (
+                                    <span style={{ padding: "2px 7px", background: "#bbf7d0", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ Marked Pay</span>
+                                  ) : decision === "Hold" ? (
+                                    <span style={{ padding: "2px 7px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏸ On Hold</span>
+                                  ) : decision === "Reject" ? (
+                                    <span style={{ padding: "2px 7px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✗ Rejected</span>
+                                  ) : (
+                                    <span className={`pill-tag ${r.status === "Overdue" ? "overdue" : "due"}`}>{r.status}</span>
+                                  )}
+                                </td>
                               </tr>
                             );
                           })}
