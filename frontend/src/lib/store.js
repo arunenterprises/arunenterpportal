@@ -1528,6 +1528,8 @@ export const createAdvanceRequestDraft = (empId = "") => {
     targetYear: now.getFullYear(),
     amount: 0,
     reason: "",
+    repaymentMode: "Salary Deduction",
+    emiMonths: 1,
     status: 1,
     rejectReason: "",
     requestedByName: _me() || "", createdAt: new Date().toISOString(),

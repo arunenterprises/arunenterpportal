@@ -1691,7 +1691,6 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
             <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: "#64748b", textTransform: "uppercase" }}>On-Demand Advance Flow</div>
             <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>Advance Request · HR → Accounts → Payment Voucher</div>
           </div>
-          <button data-testid="adv-req-new" onClick={startNew} disabled={!writeAllowed} style={{ padding: "7px 14px", background: writeAllowed ? "#f59e0b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> New Advance Request</button>
         </div>
 
         {cur && (
@@ -1721,6 +1720,34 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
               <F label="Target Year" req>
                 <input type="number" value={cur.targetYear || new Date().getFullYear()} onChange={(e) => set("targetYear", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-target-year" />
               </F>
+              <F label="Repayment Mode" req>
+                <select
+                  value={cur.repaymentMode || "Salary Deduction"}
+                  onChange={(e) => set("repaymentMode", e.target.value)}
+                  disabled={locked}
+                  style={inputStyle}
+                  data-testid="adv-repay-mode"
+                >
+                  <option value="Salary Deduction">Salary Deduction (One Month)</option>
+                  <option value="EMI">EMI (Multiple Months)</option>
+                  <option value="Cash">Cash Repayment</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                </select>
+              </F>
+              {cur.repaymentMode === "EMI" && (
+                <F label="EMI Months" req>
+                  <input
+                    type="number"
+                    min="2"
+                    max="24"
+                    value={cur.emiMonths || 2}
+                    onChange={(e) => set("emiMonths", Math.max(2, Math.min(24, +e.target.value || 2)))}
+                    disabled={locked}
+                    style={inputStyle}
+                    data-testid="adv-emi-months"
+                  />
+                </F>
+              )}
               <div style={{ gridColumn: "1 / -1" }}>
                 <F label="Reason / Purpose" req>
                   <textarea value={cur.reason} onChange={(e) => set("reason", e.target.value)} disabled={locked} style={{ ...inputStyle, minHeight: 50, resize: "vertical" }} data-testid="adv-reason" placeholder="Medical emergency / Festival / Family function..." />
@@ -1729,6 +1756,7 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
             </div>
             <div style={{ padding: 12, display: "flex", gap: 8, flexWrap: "wrap", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
               <button data-testid="adv-save" onClick={save} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Draft</button>
+              <button data-testid="adv-req-new" onClick={startNew} disabled={!writeAllowed} style={{ padding: "7px 14px", background: writeAllowed ? "#f59e0b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> New Advance Request</button>
               <button data-testid="adv-submit" onClick={submit} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to Accounts</button>
               {Number(cur.status) === 2 && approveAllowed && <button data-testid="adv-approve" onClick={() => approveNow(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Accounts Approve &amp; Auto-Adjust</button>}
               {Number(cur.status) === 3 && <span style={{ padding: "7px 14px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 5, fontWeight: 800, fontSize: 11 }}>✓ Approved · Auto-adjusted in {new Date(cur.targetYear || new Date().getFullYear(), (cur.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "long", year: "numeric" })} Pay Bill</span>}
@@ -1767,7 +1795,15 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.requestDate}</td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><b>{r.empCode}</b> · {r.empName}</td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#78350f" }}>₹{inrN(r.amount)}</td>
-                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.repaymentMode}{r.repaymentMode === "EMI" ? ` · ${r.emiMonths}m` : ""}</td>
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>
+                      {r.repaymentMode ? (
+                        <span style={{ padding: "2px 7px", background: r.repaymentMode === "EMI" ? "#fef3c7" : r.repaymentMode === "Cash" ? "#dbeafe" : r.repaymentMode === "Bank Transfer" ? "#e0e7ff" : "#dcfce7", color: r.repaymentMode === "EMI" ? "#78350f" : r.repaymentMode === "Cash" ? "#1e3a8a" : r.repaymentMode === "Bank Transfer" ? "#3730a3" : "#166534", border: `1px solid ${r.repaymentMode === "EMI" ? "#fcd34d" : r.repaymentMode === "Cash" ? "#93c5fd" : r.repaymentMode === "Bank Transfer" ? "#a5b4fc" : "#86efac"}`, borderRadius: 3, fontWeight: 700, fontSize: 9.5 }}>
+                          {r.repaymentMode}{r.repaymentMode === "EMI" ? ` · ${r.emiMonths || 2}m` : ""}
+                        </span>
+                      ) : (
+                        <span style={{ color: "#94a3b8" }}>—</span>
+                      )}
+                    </td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: statusTone[r.status] || "#64748b", color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{ADVANCE_REQ_STATUS[r.status]}</span></td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700, color: "#16a34a" }}>{r.linkedPvNo || "—"}</td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }} data-testid={`adv-utr-cell-${i}`} onClick={(e) => e.stopPropagation()}>
