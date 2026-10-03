@@ -5,7 +5,11 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
-- **Due List table hataya · Decision Summary + clear workflow banner (Oct 2026)** — User: "ya hata dijiye aur layout set kijiye". Monthly Decision Sheet section ki detailed inline table remove kar di; ab sirf 4-metric decision summary (✓ Marked Pay · ⏸ On Hold · ✗ Rejected · ⏳ Undecided) + ek clear workflow instruction banner. Saari row-level decisions upar Summary Dashboard Sheet se hoti hain, phir XLSX round-trip aur Process buttons se execute hoti hain.
+- **Reports tab merger · "Payment Vouchers & Due List Preparation" (Oct 2026)** — Separate "Due List" tab removed; Payment Vouchers tab renamed and now hosts the full workflow (Summary Dashboard Sheet + Monthly Decision Sheet actions). Footer legend + stale handlers cleaned up.
+- **Bill Preview modal (Oct 2026)** — Click any Ref No or Vendor name in Summary Dashboard sheet opens a styled modal with full bill details (Basic/GST/TDS/Net/Paid/Balance + Vendor + GSTIN/PAN + Bank details + attached WO link). Close via ✕ button or backdrop click.
+- **Single Payment Bank Advice button (Oct 2026)** — Added alongside Bulk Bank Advice: prints one A4 landscape advice per vendor (one page per party), staggered 400 ms apart to avoid pop-up collisions.
+- **Decision Summary 4-cards removed** per user feedback; only compact workflow instruction banner retained.
+- **Syntax fix (Oct 2026)** — Stray `</>` fragment close before `viewBill` block removed (deployer agent RCA).
 - **Summary Dashboard · single auto Status column (Oct 2026)** — Separate Decision column removed. Status pill ab paid/marked-pay/hold/reject/due/overdue state ko auto show karti hai.
 - **Due List table cleaned (Oct 2026)** — "Source" column hataya; ab table sirf Vendor Bills dikhati hai (Pay Bills ka apna Salary Bills / HR module alag hai). Column count 11, decision toggles enabled unconditionally.
 - **Summary Dashboard · Approved Bills Data Sheet with multi-select (Oct 2026)** — Reports → Due List → Summary Dashboard me saari unpaid approved bills scrollable table + per-row checkboxes + header "Select All" visible. Decision colour-coded.

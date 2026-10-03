@@ -38,6 +38,7 @@ export default function Reports() {
   const [queryCode, setQueryCode] = useState("");
   const [selectedPvs, setSelectedPvs] = useState(() => new Set());
   const [selectedDueBills, setSelectedDueBills] = useState(() => new Set());
+  const [viewBill, setViewBill] = useState(null);
   const [reportsTab, setReportsTab] = useState("vouchers");
   const _now = new Date();
   const [dueMonth, setDueMonth] = useState(_now.getMonth() + 1);
@@ -569,8 +570,7 @@ export default function Reports() {
           {/* Reports Tabs */}
           <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="reports-tabs">
             {[
-              { id: "vouchers", label: "💳 Payment Vouchers", tone: "#7c3aed" },
-              { id: "due", label: "📋 Due List", tone: "#0ea5e9" },
+              { id: "vouchers", label: "💳 Payment Vouchers & Due List Preparation", tone: "#7c3aed" },
               { id: "salary", label: "👥 Salary Bills (HR Payroll)", tone: "#be185d" },
               { id: "advance", label: "💰 Employee Advances", tone: "#b45309" },
               { id: "aging", label: "⏱️ Aging", tone: "#ea580c" },
@@ -953,7 +953,7 @@ export default function Reports() {
             </div>
           )}
 
-          {(reportsTab === "vouchers" || reportsTab === "due") && (
+          {reportsTab === "vouchers" && (
           <>
           <div className="section">
             <div className="sec-head">A. Summary Dashboard · Approved Bills Data Sheet</div>
@@ -1037,8 +1037,8 @@ export default function Reports() {
                                 <td style={{ textAlign: "center" }}>
                                   <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />
                                 </td>
-                                <td className="mono">{r.refNo}</td>
-                                <td>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
+                                <td className="mono" style={{ cursor: "pointer", color: "#0369a1", textDecoration: "underline dotted" }} onClick={() => setViewBill(b)} title="Click to view full bill">{r.refNo}</td>
+                                <td style={{ cursor: "pointer" }} onClick={() => setViewBill(b)} title="Click to view full bill">{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
                                 <td>{r.billNo}</td>
                                 <td>{r.billDate}</td>
                                 <td>{r.dueDate}</td>
@@ -1088,44 +1088,35 @@ export default function Reports() {
                 <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDecisionExcel(f); e.target.value = ""; }} />
                 <button data-testid="due-upload-xlsx" onClick={() => fileInputRef.current?.click()} disabled={!canApprove()} style={{ padding: "5px 10px", background: canApprove() ? "#7c3aed" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Upload edited decision XLSX to apply decisions in bulk">⬆ Upload Decision XLSX</button>
                 <button data-testid="due-bulk-single-pv" onClick={processSinglePVs} disabled={!canApprove() || monthSummary.markedPayCount === 0} style={{ padding: "5px 10px", background: canApprove() && monthSummary.markedPayCount > 0 ? "#0369a1" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: canApprove() && monthSummary.markedPayCount > 0 ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Generate individual Payment Voucher drafts per vendor from marked-Pay rows">💼 Process → Single PVs ({monthSummary.markedPayCount})</button>
+                <button data-testid="due-single-bank-advice" onClick={() => {
+                  const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay");
+                  if (!toPay.length) { toast.error("No vendor bills marked 'Pay' for this month"); return; }
+                  if (!window.confirm(`Print ${toPay.length} individual party-wise Bank Advice(s) for ${monthLabel}?\n\nEach vendor gets its own A4 landscape bank transfer advice.`)) return;
+                  let printed = 0;
+                  toPay.forEach((r, idx) => {
+                    const b = bills.find((x) => x.id === r.id); if (!b) return;
+                    const vend = b.vendorSnapshot || {};
+                    const amt = r.scheduledPay > 0 ? Math.min(r.scheduledPay, r.balance) : r.balance;
+                    setTimeout(() => {
+                      printBulkBankAdvice([{ refNo: r.refNo, billNo: r.billNo, party: r.party, partyCode: r.partyCode, bank: vend.bankName || "—", branch: vend.bankBranch || "", account: vend.bankAccount || "—", ifsc: vend.ifsc || "—", amount: amt }], { monthLabel: `${r.party} · ${monthLabel}`, period: monthKey });
+                    }, idx * 400);
+                    printed += 1;
+                  });
+                  toast.success(`Opening ${printed} individual bank advice prints · check pop-ups`);
+                }} disabled={monthSummary.markedPayCount === 0} style={{ padding: "5px 10px", background: monthSummary.markedPayCount > 0 ? "#ea580c" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: monthSummary.markedPayCount > 0 ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Print individual A4 landscape bank advice per vendor (one page per party)">🖨 Single Payment Bank Advice ({monthSummary.markedPayCount})</button>
                 <button data-testid="due-bulk-advice" onClick={processBulkBankAdvice} disabled={monthSummary.markedPayCount === 0} style={{ padding: "5px 10px", background: monthSummary.markedPayCount > 0 ? "#be185d" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: monthSummary.markedPayCount > 0 ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Print A4 landscape consolidated bank advice listing all marked-Pay vendor transfers">🖨 Print → Bulk Bank Advice</button>
               </div>
 
-              {/* Marked Pay bills preview + decision summary — table removed; use Summary Dashboard above for selecting bills */}
-              {monthSummary.total === 0 ? (
+              {/* Decision summary cards removed per user request — only workflow instruction remains below the action bar when there are no dues */}
+              {monthSummary.total === 0 && (
                 <div style={{ padding: 20, textAlign: "center", color: "#64748b", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 6, fontSize: 12 }}>
                   <b style={{ color: "#334155" }}>No vendor dues for {monthLabel}</b><br />
                   Jab is month ke bills Vendor Bills section se Approved honge, yahan dikhne lagenge.
                 </div>
-              ) : (
-                <div style={{ padding: 12, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 6 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#334155", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }}>
-                    {monthLabel} · Decision Summary
-                  </div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 5 }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: 0.5 }}>✓ Marked Pay</div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: "#166534" }}>{monthSummary.markedPayCount}</div>
-                      <div style={{ fontSize: 10, color: "#064e3b", fontWeight: 700 }}>₹ {monthSummary.markedPaySum.toLocaleString("en-IN")}</div>
-                    </div>
-                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 5 }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#78350f", textTransform: "uppercase", letterSpacing: 0.5 }}>⏸ On Hold</div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: "#78350f" }}>{monthSummary.holdCount}</div>
-                    </div>
-                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 5 }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#991b1b", textTransform: "uppercase", letterSpacing: 0.5 }}>✗ Rejected</div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: "#991b1b" }}>{monthSummary.rejectCount}</div>
-                    </div>
-                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 5 }}>
-                      <div style={{ fontSize: 9, fontWeight: 800, color: "#334155", textTransform: "uppercase", letterSpacing: 0.5 }}>⏳ Undecided</div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: "#334155" }}>{monthSummary.undecided}</div>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 10, padding: "8px 12px", background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 5, fontSize: 11, color: "#1e3a8a", lineHeight: 1.6 }}>
-                    <b>Workflow:</b> Upar <b>Summary Dashboard</b> me bills select karein → ⬇ Download XLSX → offline me Decision + Pay Amount fill karein → ⬆ Upload XLSX → 💼 Process → Single PVs <i>ya</i> 🖨 Print → Bulk Bank Advice.
-                  </div>
-                </div>
               )}
+              <div style={{ marginTop: 10, padding: "8px 12px", background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 5, fontSize: 11, color: "#1e3a8a", lineHeight: 1.6 }}>
+                <b>Workflow:</b> Upar <b>Summary Dashboard</b> me bills select karein → ⬇ Download XLSX → offline me Decision + Pay Amount fill karein → ⬆ Upload XLSX → 💼 Process → Single PVs <i>ya</i> 🖨 Single Payment Bank Advice <i>ya</i> 🖨 Bulk Bank Advice.
+              </div>
             </div>
           </div>
           <div className="section">
@@ -1543,12 +1534,11 @@ export default function Reports() {
           {/* Per-tab Action Bar — context-aware working buttons (page bottom) */}
           <div data-testid="reports-action-bar" style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", color: "#fff", borderRadius: 8, flexWrap: "wrap", gap: 10, boxShadow: "0 4px 12px rgba(15,23,42,.25)" }}>
             <div style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, lineHeight: 1.5 }}>
-              {reportsTab === "vouchers" && <>💳 <b style={{ color: "#fbbf24" }}>Payment Vouchers</b> · Browse, edit, re-approve or export approved vouchers. Form above mein voucher generate & submit kar sakte ho.</>}
-              {reportsTab === "due" && <>📋 <b style={{ color: "#fbbf24" }}>Due List</b> · Pending (unpaid) approved bills — click row to generate voucher. Export Due Excel for review.</>}
+              {reportsTab === "vouchers" && <>💳 <b style={{ color: "#fbbf24" }}>Payment Vouchers &amp; Due List Preparation</b> · Summary dashboard me bills select karein, Monthly Decision Sheet se XLSX round-trip ya Process → Single PVs / Bulk Bank Advice run karein.</>}
               {reportsTab === "salary" && <>👥 <b style={{ color: "#fbbf24" }}>Salary Bills (HR Payroll)</b> · GM-approved pay bills ko Accounts yaha settle karega → auto PV generation.</>}
               {reportsTab === "advance" && <>💰 <b style={{ color: "#fbbf24" }}>Employee Advances</b> · Per-employee advance ledger from pay bills + on-demand advances.</>}
               {reportsTab === "aging" && <>⏱️ <b style={{ color: "#fbbf24" }}>Aging Report</b> · Payables ageing bucket-wise (0-30 / 31-60 / 61-90 / 90+).</>}
-              {reportsTab === "gsttds" && <>🧾 <b style={{ color: "#fbbf24" }}>GST-TDS Register</b> · Compliance-ready register of approved bills with GST & TDS splits.</>}
+              {reportsTab === "gsttds" && <>🧾 <b style={{ color: "#fbbf24" }}>GST-TDS Register</b> · Compliance-ready register of approved bills with GST &amp; TDS splits.</>}
             </div>
             <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
               {reportsTab === "vouchers" && <>
@@ -1568,10 +1558,6 @@ export default function Reports() {
                   />
                 )}
               </>}
-              {reportsTab === "due" && <>
-                <button data-testid="rpt-btn-export-dues" onClick={exportDuesExcel} style={bbtn("#16a34a")}>⬇ Export Due List</button>
-                <button data-testid="rpt-btn-print-due" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
-              </>}
               {reportsTab === "salary" && (<button data-testid="rpt-btn-print-salary" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
               {reportsTab === "advance" && (<button data-testid="rpt-btn-print-advance" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
               {reportsTab === "aging" && (<button data-testid="rpt-btn-print-aging" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
@@ -1580,6 +1566,49 @@ export default function Reports() {
           </div>
         </div>
       </div>
+    {viewBill && (() => {
+      const b = viewBill;
+      const c = computeBill(b);
+      const paid = payments.filter((p) => p.billId === b.id && p.status === "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
+      const balance = +(c.netPayable - paid).toFixed(2);
+      const v = b.vendorSnapshot || vendors.find((x) => x.vendorCode === b.vendorCode) || {};
+      return (
+        <div onClick={() => setViewBill(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,23,42,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 10, width: "min(820px, 100%)", maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ padding: "12px 18px", background: "linear-gradient(135deg,#0369a1,#1e3a8a)", color: "#fff", borderRadius: "10px 10px 0 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", opacity: 0.9 }}>Bill Preview</div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>{b.permanentBillNo || b.refNo} · {v.firmName || b.vendorCode}</div>
+              </div>
+              <button data-testid="view-bill-close" onClick={() => setViewBill(null)} style={{ background: "rgba(255,255,255,.15)", color: "#fff", border: "none", borderRadius: 5, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✕ Close</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 14 }}>
+                <div style={{ padding: 8, background: "#f1f5f9", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase" }}>Bill No</div><div style={{ fontWeight: 700 }}>{b.billNo || "—"}</div></div>
+                <div style={{ padding: 8, background: "#f1f5f9", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase" }}>Bill Date</div><div style={{ fontWeight: 700 }}>{b.billDate || "—"}</div></div>
+                <div style={{ padding: 8, background: "#f1f5f9", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase" }}>Due Date</div><div style={{ fontWeight: 700 }}>{b.dueDate || "—"}</div></div>
+                <div style={{ padding: 8, background: "#eef2ff", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#3730a3", letterSpacing: 1, textTransform: "uppercase" }}>Basic</div><div style={{ fontWeight: 800, color: "#3730a3" }}>₹ {inr(c.basic)}</div></div>
+                <div style={{ padding: 8, background: "#fef3c7", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#78350f", letterSpacing: 1, textTransform: "uppercase" }}>GST</div><div style={{ fontWeight: 800, color: "#78350f" }}>₹ {inr(c.gst)}</div></div>
+                <div style={{ padding: 8, background: "#fee2e2", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#991b1b", letterSpacing: 1, textTransform: "uppercase" }}>TDS</div><div style={{ fontWeight: 800, color: "#991b1b" }}>− ₹ {inr(c.tds)}</div></div>
+                <div style={{ padding: 8, background: "#dcfce7", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#166534", letterSpacing: 1, textTransform: "uppercase" }}>Net Payable</div><div style={{ fontWeight: 900, color: "#166534", fontSize: 15 }}>₹ {inr(c.netPayable)}</div></div>
+                <div style={{ padding: 8, background: "#f0fdf4", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: "#166534", letterSpacing: 1, textTransform: "uppercase" }}>Paid</div><div style={{ fontWeight: 800, color: "#166534" }}>₹ {inr(paid)}</div></div>
+                <div style={{ padding: 8, background: balance > 0 ? "#fef2f2" : "#f0fdf4", borderRadius: 4 }}><div style={{ fontSize: 9, fontWeight: 800, color: balance > 0 ? "#991b1b" : "#166534", letterSpacing: 1, textTransform: "uppercase" }}>Balance</div><div style={{ fontWeight: 900, color: balance > 0 ? "#991b1b" : "#166534", fontSize: 15 }}>₹ {inr(balance)}</div></div>
+              </div>
+              <div style={{ padding: 10, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 5, fontSize: 11, lineHeight: 1.6 }}>
+                <b style={{ color: "#334155" }}>Vendor:</b> {v.firmName || "—"} · <b>{b.vendorCode}</b><br />
+                <b style={{ color: "#334155" }}>GSTIN:</b> {v.gstin || "—"} · <b style={{ color: "#334155" }}>PAN:</b> {v.pan || "—"}<br />
+                <b style={{ color: "#334155" }}>Bank:</b> {v.bankName || "—"} · A/C <span style={{ fontFamily: "monospace" }}>{v.bankAccount || "—"}</span> · IFSC <span style={{ fontFamily: "monospace" }}>{v.ifsc || "—"}</span>
+              </div>
+              {b.workOrderFile && (
+                <div style={{ marginTop: 10 }}>
+                  <a href={b.workOrderFile.dataUrl} target="_blank" rel="noreferrer" data-testid="view-bill-wo" style={{ padding: "6px 14px", background: "#1e40af", color: "#fff", borderRadius: 5, fontSize: 11, fontWeight: 700, textDecoration: "none", display: "inline-block" }}>📎 Open Work Order Copy</a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     </>
   );
 }
