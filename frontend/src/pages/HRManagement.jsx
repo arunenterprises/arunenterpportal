@@ -1564,21 +1564,35 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                       )
                     )}
                   </td>
-                  <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>
-                    <button onClick={(e) => { e.stopPropagation(); printPayBillSheet(p); }} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>📄 Print</button>
-                    {Number(p.step) >= 3 && <button data-testid={`pb-hr-xlsx-${p.id}`} onClick={(e) => { e.stopPropagation(); exportBankTransferXLSX(p); }} style={{ padding: "3px 8px", background: "#ecfdf5", color: "#065f46", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }} title="Export Bank Transfer Excel">⬇ Excel</button>}
-                    {Number(p.step) >= 3 && <button data-testid={`pb-hr-advice-${p.id}`} onClick={(e) => { e.stopPropagation(); printBankTransferAdvice(p); }} style={{ padding: "3px 8px", background: "#fdf2f8", color: "#9d174d", border: "1px solid #f9a8d4", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }} title="Print A4 Landscape Bank Advice for Branch Manager">🖨 Bank Advice</button>}
-                    {canDelete() && Number(p.step) === 1 && <button data-testid={`pb-del-${p.id}`} onClick={(e) => { e.stopPropagation(); remove(p.id); }} title="Delete draft pay bill" style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
-                    {Number(p.step) >= 2 && (() => {
-                      const blockReason = (Number(p.step) === 4 && p.linkedPvNo && !hasUtr)
-                        ? `Delete locked · ${p.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
-                        : "";
-                      return (
-                        <span onClick={(e) => e.stopPropagation()}>
-                          <SuperAdminDelete label={`Pay Bill ${p.refNo}`} meta={{ "Status": PAYBILL_STATUS[p.step], "Net": `₹${inrN(p.totalNet)}`, "Linked PV": p.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_pb_delete_log" testid={`pb-sa-del-${p.id}`} blockReason={blockReason} onDelete={() => { deletePayBill(p.id); if (cur?.id === p.id) setCur(null); refresh(); toast.success(`Pay Bill ${p.refNo} deleted (SuperAdmin override)`); }} />
-                        </span>
-                      );
-                    })()}
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center", minWidth: 180 }}>
+                    <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 4, justifyContent: "center", alignItems: "center" }}>
+                      <button onClick={(e) => { e.stopPropagation(); printPayBillSheet(p); }} style={{ padding: "3px 8px", background: "#eef2ff", color: "#3730a3", border: "1px solid #a5b4fc", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>📄 Print</button>
+                      {Number(p.step) >= 3 && <button data-testid={`pb-hr-xlsx-${p.id}`} onClick={(e) => { e.stopPropagation(); exportBankTransferXLSX(p); }} style={{ padding: "3px 8px", background: "#ecfdf5", color: "#065f46", border: "1px solid #86efac", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }} title="Export Bank Transfer Excel">⬇ Excel</button>}
+                      {Number(p.step) >= 3 && <button data-testid={`pb-hr-advice-${p.id}`} onClick={(e) => { e.stopPropagation(); printBankTransferAdvice(p); }} style={{ padding: "3px 8px", background: "#fdf2f8", color: "#9d174d", border: "1px solid #f9a8d4", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }} title="Print A4 Landscape Bank Advice for Branch Manager">🖨 Advice</button>}
+                      {canDelete() && Number(p.step) === 1 && <button data-testid={`pb-del-${p.id}`} onClick={(e) => { e.stopPropagation(); remove(p.id); }} title="Delete draft pay bill" style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>🗑</button>}
+                      {Number(p.step) >= 2 && canDelete() && (
+                        <button
+                          data-testid={`pb-del-full-${p.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const pvInfo = p.linkedPvNo ? ` + linked voucher ${p.linkedPvNo}` : "";
+                            if (!window.confirm(`Delete Pay Bill ${p.refNo}${pvInfo}?\n\nStatus: ${PAYBILL_STATUS[p.step]}\nNet: ₹${inrN(p.totalNet)}\n\nYeh action undo nahi hoga.`)) return;
+                            if (p.linkedPvNo) {
+                              const next = getPayments().filter((pp) => pp.pvNo !== p.linkedPvNo);
+                              savePayments(next);
+                            }
+                            deletePayBill(p.id);
+                            if (cur?.id === p.id) setCur(null);
+                            refresh();
+                            toast.success(`Pay Bill ${p.refNo}${pvInfo} deleted`);
+                          }}
+                          title={p.linkedPvNo ? `Delete pay bill + voucher ${p.linkedPvNo}` : "Delete pay bill"}
+                          style={{ padding: "3px 8px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }}
+                        >
+                          <Trash2 size={10} /> Delete Pay Bills
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
                 );
