@@ -1435,6 +1435,43 @@ export const upsertPayBill = (pb) => {
   return updated;
 };
 
+// ---- Background sync helper — logs failures to a retry queue so data loss is visible ----
+const PENDING_SYNC_KEY = "ae_vm_pending_sync";
+const _loadPendingSync = () => { try { return JSON.parse(localStorage.getItem(PENDING_SYNC_KEY) || "[]"); } catch { return []; } };
+const _savePendingSync = (q) => { try { localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(q.slice(-50))); } catch {} };
+export const getPendingSyncCount = () => _loadPendingSync().length;
+const _bg = (fnName, args, promise) => {
+  if (!promise || typeof promise.catch !== "function") return promise;
+  return promise.catch((err) => {
+    const q = _loadPendingSync();
+    q.push({ fnName, args, at: new Date().toISOString(), err: String(err?.message || err) });
+    _savePendingSync(q);
+    try { console.error(`[sync-failed] ${fnName}`, err); } catch {}
+    try { window.dispatchEvent(new CustomEvent("ae-sync-failed", { detail: { fnName, err: String(err?.message || err) } })); } catch {}
+  });
+};
+
+// Retry all pending failed syncs (called on login, visibility change, manual refresh)
+export const retryPendingSyncs = async () => {
+  const q = _loadPendingSync();
+  if (!q.length) return { retried: 0, remaining: 0 };
+  const stillPending = [];
+  let retried = 0;
+  for (const item of q) {
+    try {
+      // Only safe idempotent retries: upsert operations (not deletes)
+      if (item.fnName === "apiUpsertPayBill") { await apiUpsertPayBill(item.args[0]); retried += 1; }
+      else if (item.fnName === "apiUpsertAdvanceRequest") { await apiUpsertAdvanceRequest(item.args[0]); retried += 1; }
+      else if (item.fnName === "apiUpsertLoan") { await apiUpsertLoan(item.args[0]); retried += 1; }
+      else stillPending.push(item);
+    } catch (e) {
+      stillPending.push(item);
+    }
+  }
+  _savePendingSync(stillPending);
+  return { retried, remaining: stillPending.length };
+};
+
 export const advancePayBillStep = (pb) => {
   const now = new Date().toISOString();
   const me = _me();
@@ -1471,6 +1508,8 @@ export const advancePayBillStep = (pb) => {
   }
   const list = getPayBills().map((x) => x.id === next.id ? next : x);
   savePayBills(list);
+  // ** CRITICAL FIX **: persist status transitions to backend so re-login shows correct state
+  if (getToken()) _bg("apiUpsertPayBill", [next], apiUpsertPayBill(next));
   return next;
 };
 
@@ -1565,6 +1604,8 @@ export const rejectAdvanceRequest = (r, reason = "") => {
   const next = { ...r, status: 5, rejectReason: reason, rejectedByName: me, rejectedAt: now, updatedAt: now };
   next.history = [...(r.history || []), { action: `Rejected: ${reason || "—"}`, at: now, by: me }];
   saveAdvanceRequests(getAdvanceRequests().map((x) => x.id === next.id ? next : x));
+  // ** CRITICAL FIX **: persist rejection to backend
+  if (getToken()) _bg("apiUpsertAdvanceRequest", [next], apiUpsertAdvanceRequest(next));
   return next;
 };
 export const deleteAdvanceRequest = (id) => { saveAdvanceRequests(getAdvanceRequests().filter((x) => x.id !== id)); if (getToken()) apiDeleteAdvanceRequest(id).catch(() => {}); };
@@ -1610,6 +1651,8 @@ export const advanceLoanStep = (l) => {
   const next = { ...l, status: Math.min(6, (Number(l.status) || 1) + 1), updatedAt: now };
   if (next.status === 4) { next.disbursedAt = now; next.outstanding = next.principal; }
   saveLoans(getLoans().map((x) => x.id === next.id ? next : x));
+  // ** CRITICAL FIX **: persist loan status transitions to backend
+  if (getToken()) _bg("apiUpsertLoan", [next], apiUpsertLoan(next));
   return next;
 };
 export const deleteLoan = (id) => { saveLoans(getLoans().filter((x) => x.id !== id)); if (getToken()) apiDeleteLoan(id).catch(() => {}); };
@@ -1695,7 +1738,25 @@ export const syncFromCloud = async () => {
     adsSerial: snap.counters.adsSerial || 0,
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
+  // Fire window event so React components can refresh their useMemo state
+  try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch {}
   return snap;
+};
+
+// Throttled auto-refresh — safe to call on page load / window focus / visibility change
+let _lastSync = 0;
+export const autoSyncFromCloud = async (minIntervalMs = 10000) => {
+  if (!getToken()) return null;
+  const now = Date.now();
+  if (now - _lastSync < minIntervalMs) return null;
+  _lastSync = now;
+  try {
+    await retryPendingSyncs();
+    return await syncFromCloud();
+  } catch (e) {
+    try { console.error("[auto-sync]", e); } catch {}
+    return null;
+  }
 };
 
 // ---- Admin: Reset HR Pay Bills + Advances (preserves Employees, Vendors, Bills) ----

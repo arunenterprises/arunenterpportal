@@ -23,6 +23,7 @@ import {
   getComplianceSnapshot,
   getPayments, savePayments,
   currentRole, canCreate, canApprove, canDelete, currentUser, fmtDMY, amountToWords,
+  autoSyncFromCloud,
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, exportPayBillPDF, printAdvanceReceipt } from "../lib/hrLetters";
 import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTransfer";
@@ -2463,9 +2464,27 @@ const KpiTile = ({ label, value, tone, icon: Icon }) => (
 // ================================================================
 export default function HRManagement() {
   const [tab, setTab] = useState("dashboard");
+  const [syncTick, setSyncTick] = useState(0);
   const write = canCreate();
   const approve = canApprove();
   const del = canDelete();
+
+  // Auto-refresh from backend on mount + window focus + visibility change so
+  // changes made from another device/login show up without re-login.
+  useEffect(() => {
+    autoSyncFromCloud(0).then((snap) => { if (snap) setSyncTick((v) => v + 1); });
+    const onFocus = () => autoSyncFromCloud().then((snap) => { if (snap) setSyncTick((v) => v + 1); });
+    const onVisible = () => { if (document.visibilityState === "visible") onFocus(); };
+    const onSyncDone = () => setSyncTick((v) => v + 1);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("ae-sync-done", onSyncDone);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("ae-sync-done", onSyncDone);
+    };
+  }, []);
 
   const emps = getEmployees();
   const finalized = emps.filter((e) => Number(e.step) === 5).length;
