@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle } from "lucide-react";
-import { currentUserProfile, logout, resetLocalCache } from "../lib/store";
+import { currentUserProfile, logout, resetLocalCache, resetHrFinancials } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 import AuthSplash from "../components/AuthSplash";
@@ -472,6 +472,35 @@ export default function UsersAdmin() {
             </div>
           </form>
         </div>
+        )}
+
+        {/* HR-only Reset — safer scoped reset for pay bills + advance requests + HR PVs */}
+        {isSuperAdmin(me?.email) && (
+          <div style={{ marginTop: 16, padding: 16, background: "#fef3c7", border: "1.5px solid #f59e0b", borderRadius: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#78350f", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+              <AlertTriangle size={14} /> SuperAdmin · Reset HR Pay Bills + Advances (SCOPED)
+            </div>
+            <div style={{ fontSize: 11, color: "#78350f", marginBottom: 10, lineHeight: 1.6 }}>
+              Sirf <b>Pay Bills</b>, <b>Advance Requests</b> aur HR-sourced <b>Payment Vouchers</b> (PV/HR/*, PV/ADV/*, PV/HR-FNF/*) ko clear karega.
+              <br/><b>Preserved:</b> Employees · Attendance · Leaves · Loans · Recruitments · Exits · Vendors · Vendor Bills · Vendor PVs — sab safe rahenge.
+            </div>
+            <button
+              data-testid="reset-hr-financials"
+              onClick={async () => {
+                if (!window.confirm("⚠ Reset HR Pay Bills + Advances?\n\nSaare pay bills, advance requests aur HR PVs delete ho jayenge.\nEmployees aur Vendors data safe rahega.\n\nContinue?")) return;
+                try {
+                  const res = await resetHrFinancials();
+                  toast.success(`HR financials reset · ${res.paybills_removed ?? 0} pay bills · ${res.advance_requests_removed ?? 0} advances · ${res.hr_payment_vouchers_removed ?? 0} PVs removed`);
+                  setTimeout(() => window.location.reload(), 1500);
+                } catch (e) {
+                  toast.error(`Reset failed: ${e.message || e}`);
+                }
+              }}
+              style={{ padding: "8px 16px", background: "#b45309", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              <Trash2 size={13} /> Reset HR Pay Bills + Advances
+            </button>
+          </div>
         )}
       </div>
     </div>

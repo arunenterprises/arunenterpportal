@@ -624,6 +624,27 @@ async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(re
     }
 
 
+@api_router.post("/admin/reset-hr-financials")
+async def reset_hr_financials(admin: Dict = Depends(require_super_admin)):
+    """Admin-only: wipe HR financial docs ONLY — pay bills, advance requests, and
+    HR-generated payment vouchers (PV/HR/* and PV/ADV/*). Employees, leaves, loans,
+    recruitments, exits, vendors, vendor bills — all PRESERVED.
+    """
+    pb = await db.paybills.delete_many({})
+    ar = await db.advance_requests.delete_many({})
+    pv = await db.payments.delete_many({"$or": [
+        {"pvNo": {"$regex": "^PV/HR/"}},
+        {"pvNo": {"$regex": "^PV/ADV/"}},
+        {"pvNo": {"$regex": "^PV/HR-FNF/"}},
+    ]})
+    return {
+        "ok": True,
+        "paybills_removed": pb.deleted_count,
+        "advance_requests_removed": ar.deleted_count,
+        "hr_payment_vouchers_removed": pv.deleted_count,
+    }
+
+
 # ==================== ROOT ====================
 @api_router.get("/")
 async def root():

@@ -1171,19 +1171,15 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
   // and can nudge HR to Submit if needed. Approve action is still gated to status===2.
   const pending = reqs.filter((r) => Number(r.status) <= 2);
   const approved = reqs.filter((r) => Number(r.status) === 3);
-  const paid = reqs.filter((r) => Number(r.status) === 4);
+  const paid = []; // DEPRECATED: no PV auto-generation; Approved is terminal
   const totalPending = pending.reduce((a, r) => a + Number(r.amount || 0), 0);
 
   const approveNow = (r) => {
     if (!canApprove()) return toast.error("Only Admin / SuperAdmin can approve");
     const n = advanceAdvanceRequestStep(r); bumpRev();
-    toast.success(`Accounts approved · ${n.refNo} · Ready to disburse`);
+    toast.success(`Accounts approved · ${n.refNo} · Will auto-adjust in ${new Date(r.targetYear || new Date().getFullYear(), (r.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "long", year: "numeric" })} Pay Bill`);
   };
-  const payNow = (r) => {
-    if (!canApprove()) return toast.error("Only Admin / SuperAdmin can disburse");
-    const n = advanceAdvanceRequestStep(r); bumpRev();
-    toast.success(`Paid · Payment Voucher ${n.linkedPvNo} generated`);
-  };
+  const payNow = () => toast.info("Advance ab status=3 (Accounts Approved) par terminal hai — target month ke Pay Bill ke advance column me auto-adjust ho jaata hai. Alag PV generate nahi hoti.");
   const doReject = (r) => {
     if (!canApprove()) return toast.error("Only Admin / SuperAdmin can reject");
     if (!rejectReason.trim()) return toast.error("Enter rejection reason");
@@ -1217,11 +1213,15 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
         )}
       />
 
-      <AdvanceSection title={`Approved · Ready to Pay (${approved.length})`} rows={approved} tone="#0369a1"
+      <AdvanceSection title={`Approved · Auto-Adjusted in Pay Bill (${approved.length})`} rows={approved} tone="#16a34a"
         testid="adv-approved" renderActions={(r, i) => (
-          canApprove() ? <button data-testid={`adv-pay-${i}`} onClick={() => payNow(r)} style={btnSm("#16a34a")}>Generate PV & Pay</button> : null
+          <span style={{ fontSize: 10, color: "#166534", fontWeight: 800, padding: "3px 7px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: 3 }} data-testid={`adv-approved-tag-${i}`}>
+            ✓ Auto-adjusted in {new Date(r.targetYear || new Date().getFullYear(), (r.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "short" })} {r.targetYear || new Date().getFullYear()}
+          </span>
         )}
       />
+
+      {/* Deprecated "Paid · PV Generated" section — kept as collapsed placeholder for backward compatibility only */}
 
       <AdvanceSection title={`Paid · Payment Vouchers Generated (${paid.length})`} rows={paid} tone="#16a34a"
         testid="adv-paid" renderActions={(r, i) => {

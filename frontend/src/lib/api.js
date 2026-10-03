@@ -44,6 +44,10 @@ export const apiFetchSnapshot = () => req("/snapshot");
 export const apiPushSnapshot = (data) =>
   req("/snapshot", { method: "POST", body: JSON.stringify(data) });
 
+// ---- Admin: Selective HR Financials reset (pay bills + advances + HR PVs) ----
+export const apiResetHrFinancials = () =>
+  req("/admin/reset-hr-financials", { method: "POST", body: "{}" });
+
 // ---- Individual upserts ----
 export const apiUpsertVendor = (v) =>
   req("/vendors", { method: "POST", body: JSON.stringify(v) });

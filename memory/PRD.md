@@ -5,7 +5,15 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
-- **Delete Function Lockdown · Admin / SuperAdmin Only (Oct 2026)** — Added `canDelete()` role-gate in `store.js` (returns true only for role `SuperAdmin` or `Admin`, bypasses per-user permission grants). Every persistent delete button across the app now routes through `canDelete()`:
+- **Advance Request Workflow Simplified · 3-Step Terminal Flow (Oct 2026)** — Per user requirement: HR creates + submits → Accounts approves → DONE. Removed GM step, bank details field (paymentMode), repayment mode, EMI months, and the auto-PV generation on status 4. New workflow:
+  - Status 1 Draft → Status 2 Submitted to Accounts → **Status 3 Accounts Approved · Auto-adjusted in Pay Bill** (TERMINAL)
+  - Added `targetMonth` + `targetYear` fields on the request so Accounts-approved advances auto-populate in the correct month's Pay Bill `advance` column.
+  - `advanceAdvanceRequestStep` capped at status 3; the deprecated status-4 PV generation is gone. BillProcessing AccountsAdvanceView shows "✓ Auto-adjusted in {Month}" tag instead of "Generate PV & Pay" button.
+- **Pay Bill Advance Auto-Fill from Approved Advance Requests (Oct 2026)** — `createPayBillDraft(year, month)` now sums all Accounts-approved advance requests (status=3) matching `empId + targetYear + targetMonth` and pre-populates each line's `advance` column. Admin can still manually override; the auto-calculated amount is stored in `line.autoAdvance` for reference.
+- **Backend · Scoped HR Reset Endpoint (Oct 2026)** — New `POST /api/admin/reset-hr-financials` (SuperAdmin only). Wipes ONLY `paybills` + `advance_requests` collections + HR-sourced payment vouchers (`PV/HR/*`, `PV/ADV/*`, `PV/HR-FNF/*`). Preserves employees, leaves, loans, recruitments, exits, vendors, vendor bills, vendor PVs.
+- **UsersAdmin → "Reset HR Pay Bills + Advances" button (Oct 2026)** — New amber scoped reset panel visible only to SuperAdmin. Calls `resetHrFinancials()` which clears both local storage (paybills, advance_requests, HR PVs) AND the backend. Separate from the existing full "Reset All Data" danger-zone form.
+- **Delete Function Lockdown · Admin / SuperAdmin Only (Oct 2026)** — Added `canDelete()` role-gate; all persistent record deletes across HR, Purchase, and Reports now Admin/SuperAdmin only. SuperAdmin 👑 Delete override is additionally UTR-aware — blocked with `🔒 Locked` label until linked PV has UTR entered.
+- **Payment Process in Reports → Salary Bills (Oct 2026)** — Settled pay bill rows expose inline Bank Advice print, Excel export, and live-editable UTR field (auto-saves on blur).
   - HRManagement.jsx: Employee, Leave, Recruitment (header + row), Exit row, Pay Bill draft, Advance draft/row, Loan — all gated.
   - PurchaseManagement.jsx: BOQ (header + list) and WO (header + list) delete buttons — unified via `canDelete()`, approved-step DANGER confirm retained.
   - Reports.jsx: Non-approved Payment Voucher Delete buttons (3 locations) now gated to `canDelete()`.

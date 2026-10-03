@@ -3,7 +3,7 @@ import {
   apiDeleteBOQ, apiDeleteWO,
   apiUpsertEmployee, apiDeleteEmployee, apiUpsertAttendance,
   apiUpsertPayBill, apiDeletePayBill, apiUpsertLoan, apiDeleteLoan,
-  apiUpsertAdvanceRequest, apiDeleteAdvanceRequest,
+  apiUpsertAdvanceRequest, apiDeleteAdvanceRequest, apiResetHrFinancials,
   apiUpsertRecruitment, apiDeleteRecruitment, apiUpsertExit, apiDeleteExit,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
@@ -1361,12 +1361,18 @@ export const createPayBillDraft = (year, month) => {
   // - If still Draft (step === 1): keep same id + refNo + createdAt, just refresh lines from latest attendance/salary.
   const existing = getPayBills().find((p) => p.monthKey === monthKey);
   if (existing && Number(existing.step) >= 2) return existing;
+  // Sum Accounts-approved advance requests for this month per employee (auto-adjust in Pay Bill)
+  const advReqs = getAdvanceRequests();
+  const approvedAdvFor = (empId) => advReqs
+    .filter((r) => Number(r.status) === 3 && r.empId === empId && Number(r.targetYear) === Number(year) && Number(r.targetMonth) === Number(month))
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const lines = emps.map((e) => {
     const att = getMonthAttendance(e.id, year, month);
     const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
     const s = computeSalary(e, { daysInMonth, daysPresent });
     // Preserve manually-edited values from existing draft line (if present) so admin edits persist across refresh.
     const prev = existing?.lines?.find((l) => l.empId === e.id);
+    const autoAdv = approvedAdvFor(e.id);
     return {
       _id: `l_${e.id}`,
       empId: e.id, empCode: e.empCode, name: e.fullName,
@@ -1378,7 +1384,10 @@ export const createPayBillDraft = (year, month) => {
       esic: prev?.esic ?? (s.esic || 0),
       proftax: prev?.proftax ?? (s.proftax || 0),
       tds: prev?.tds ?? (s.tds || 0),
-      advance: prev?.advance ?? 0,
+      // Auto-fill advance from Accounts-approved advance requests for THIS month,
+      // unless admin has already manually overridden on existing draft.
+      advance: prev?.advance ?? autoAdv,
+      autoAdvance: autoAdv,
       otherDeductions: prev?.otherDeductions ?? 0,
       net: s.net || 0,
       excluded: prev?.excluded ?? false,
@@ -1499,23 +1508,23 @@ export const getAdvanceRegister = () => {
 };
 
 // --- Advance on Demand (HR → Accounts → Paid flow) ---
-export const ADVANCE_REQ_STATUS = { 1: "Draft", 2: "Submitted to Accounts", 3: "Accounts Approved", 4: "Paid (PV generated)", 5: "Rejected" };
+export const ADVANCE_REQ_STATUS = { 1: "Draft", 2: "Submitted to Accounts", 3: "Accounts Approved · Auto-adjusted in Pay Bill", 5: "Rejected" };
 export const getAdvanceRequests = () => read(KEYS.ADVANCE_REQS, []);
 export const saveAdvanceRequests = (list) => write(KEYS.ADVANCE_REQS, list);
 export const createAdvanceRequestDraft = (empId = "") => {
   const emp = getEmployees().find((e) => e.id === empId) || {};
   const seq = getAdvanceRequests().length + 1;
+  const now = new Date();
   return {
     id: `ar_${Date.now()}`,
     refNo: `ADV/${getFY()}/${String(seq).padStart(4, "0")}`,
     empId: emp.id || "", empCode: emp.empCode || "", empName: emp.fullName || "",
     department: emp.department || "", designation: emp.designation || "",
-    requestDate: new Date().toISOString().slice(0, 10),
+    requestDate: now.toISOString().slice(0, 10),
+    targetMonth: now.getMonth() + 1,
+    targetYear: now.getFullYear(),
     amount: 0,
     reason: "",
-    repaymentMode: "Lumpsum", // "Lumpsum" (deduct next Pay Bill) | "EMI"
-    emiMonths: 1,
-    paymentMode: "Bank Transfer", // Cash / Bank Transfer / UPI / Cheque
     status: 1,
     rejectReason: "",
     requestedByName: _me() || "", createdAt: new Date().toISOString(),
@@ -1531,40 +1540,18 @@ export const upsertAdvanceRequest = (r) => {
   if (getToken()) apiUpsertAdvanceRequest(updated).catch(() => {});
   return updated;
 };
+// Simplified flow (per user requirement — Oct 2026):
+//   1 Draft → 2 Submitted to Accounts → 3 Accounts Approved (TERMINAL)
+// No PV / bank-details / GM step. The approved amount auto-populates in the
+// target month's Pay Bill `advance` column via createPayBillDraft().
 export const advanceAdvanceRequestStep = (r) => {
   const now = new Date().toISOString();
   const me = _me();
-  const next = { ...r, status: Math.min(4, (Number(r.status) || 1) + 1), updatedAt: now };
+  const next = { ...r, status: Math.min(3, (Number(r.status) || 1) + 1), updatedAt: now };
   if (next.status === 2) { next.submittedByName = me; next.submittedAt = now; next.history = [...(r.history || []), { action: "Submitted to Accounts", at: now, by: me }]; }
-  if (next.status === 3) { next.approvedByName = me; next.approvedAt = now; next.history = [...(r.history || []), { action: "Accounts Approved", at: now, by: me }]; }
-  if (next.status === 4) {
-    next.paidByName = me; next.paidAt = now;
-    next.history = [...(r.history || []), { action: "Payment Voucher generated & paid", at: now, by: me }];
-    // Auto-generate Payment Voucher
-    try {
-      const payments = getPayments();
-      const pvNo = `PV/ADV/${getFY()}/${payments.length + 1}`;
-      const pv = {
-        id: `pv_adv_${next.id}`,
-        pvNo,
-        pvDate: now.slice(0, 10),
-        source: "HR Advance Request",
-        sourceRef: next.refNo,
-        vendorCode: "AE-HR-ADVANCE",
-        vendorSnapshot: { firmName: `Advance Payment · ${next.empName} (${next.empCode})` },
-        amount: Number(next.amount) || 0,
-        remarks: `On-demand advance for ${next.empName} · ${next.reason || "—"} · Repayment: ${next.repaymentMode}${next.repaymentMode === "EMI" ? ` ${next.emiMonths}m` : ""}`,
-        status: "Submitted",
-        createdByName: me,
-        createdAt: now,
-      };
-      payments.push(pv);
-      savePayments(payments);
-      next.linkedPvNo = pvNo;
-      next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
-    } catch (e) { /* ignore */ }
-  }
+  if (next.status === 3) { next.approvedByName = me; next.approvedAt = now; next.history = [...(r.history || []), { action: `Accounts Approved · Will auto-adjust in Pay Bill ${new Date(r.targetYear || new Date().getFullYear(), (r.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "long", year: "numeric" })}`, at: now, by: me }]; }
   saveAdvanceRequests(getAdvanceRequests().map((x) => x.id === next.id ? next : x));
+  if (getToken()) apiUpsertAdvanceRequest(next).catch(() => {});
   return next;
 };
 export const rejectAdvanceRequest = (r, reason = "") => {
@@ -1704,6 +1691,24 @@ export const syncFromCloud = async () => {
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
   return snap;
+};
+
+// ---- Admin: Reset HR Pay Bills + Advances (preserves Employees, Vendors, Bills) ----
+export const resetHrFinancials = async () => {
+  // Local wipe first — pay bills, advance requests, HR-sourced PVs
+  savePayBills([]);
+  saveAdvanceRequests([]);
+  const payments = getPayments();
+  const kept = payments.filter((p) => {
+    const pv = String(p.pvNo || "");
+    return !(pv.startsWith("PV/HR/") || pv.startsWith("PV/ADV/") || pv.startsWith("PV/HR-FNF/"));
+  });
+  savePayments(kept);
+  // Backend wipe
+  if (getToken()) {
+    try { return await apiResetHrFinancials(); } catch (e) { return { ok: false, error: String(e) }; }
+  }
+  return { ok: true, local_only: true };
 };
 
 export const syncToCloud = async () => {

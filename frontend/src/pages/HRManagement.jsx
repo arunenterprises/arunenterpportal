@@ -1613,10 +1613,10 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
     toast.success(`Accounts approved · Ready to disburse`);
   };
   const payNow = (r) => {
-    if (!approveAllowed) return toast.error("Only Admin / SuperAdmin (Accounts) can disburse");
-    const n = advanceAdvanceRequestStep(r); refresh();
-    if (cur?.id === n.id) setCur(n);
-    toast.success(`Paid · Payment Voucher ${n.linkedPvNo} generated`);
+    // DEPRECATED (Oct 2026): Advance flow is now 3-step terminal. Status 3 (Accounts
+    // Approved) auto-adjusts in the target month's Pay Bill advance column.
+    // Keep stub so stale callers do not break.
+    toast.info(`Advance ${r.refNo} is already Accounts Approved · auto-adjusted in ${new Date(r.targetYear || new Date().getFullYear(), (r.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "long", year: "numeric" })} Pay Bill`);
   };
   const doReject = (r) => {
     if (!approveAllowed) return toast.error("Only Admin / SuperAdmin can reject");
@@ -1662,22 +1662,14 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
               <F label="Advance Amount (₹)" req>
                 <input type="number" value={cur.amount || ""} onChange={(e) => set("amount", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-amount" />
               </F>
-              <F label="Payment Mode">
-                <select value={cur.paymentMode} onChange={(e) => set("paymentMode", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-paymode">
-                  {["Bank Transfer", "Cash", "UPI", "Cheque"].map((m) => <option key={m} value={m}>{m}</option>)}
+              <F label="Target Month (adjust in Pay Bill)" req>
+                <select value={cur.targetMonth || (new Date().getMonth() + 1)} onChange={(e) => set("targetMonth", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-target-month">
+                  {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString("en", { month: "long" })}</option>)}
                 </select>
               </F>
-              <F label="Repayment Mode" req>
-                <select value={cur.repaymentMode} onChange={(e) => set("repaymentMode", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-repay">
-                  <option value="Lumpsum">Lumpsum (deduct next Pay Bill)</option>
-                  <option value="EMI">EMI (over N months)</option>
-                </select>
+              <F label="Target Year" req>
+                <input type="number" value={cur.targetYear || new Date().getFullYear()} onChange={(e) => set("targetYear", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-target-year" />
               </F>
-              {cur.repaymentMode === "EMI" && (
-                <F label="EMI Months" req>
-                  <input type="number" min="1" value={cur.emiMonths || 1} onChange={(e) => set("emiMonths", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-emi-months" />
-                </F>
-              )}
               <div style={{ gridColumn: "1 / -1" }}>
                 <F label="Reason / Purpose" req>
                   <textarea value={cur.reason} onChange={(e) => set("reason", e.target.value)} disabled={locked} style={{ ...inputStyle, minHeight: 50, resize: "vertical" }} data-testid="adv-reason" placeholder="Medical emergency / Festival / Family function..." />
@@ -1687,8 +1679,8 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
             <div style={{ padding: 12, display: "flex", gap: 8, flexWrap: "wrap", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
               <button data-testid="adv-save" onClick={save} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Draft</button>
               <button data-testid="adv-submit" onClick={submit} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to Accounts</button>
-              {Number(cur.status) === 2 && approveAllowed && <button data-testid="adv-approve" onClick={() => approveNow(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Accounts Approve</button>}
-              {Number(cur.status) === 3 && approveAllowed && <button data-testid="adv-pay" onClick={() => payNow(cur)} style={{ padding: "7px 14px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><IndianRupee size={13} style={{ verticalAlign: -2 }} /> Generate PV & Pay</button>}
+              {Number(cur.status) === 2 && approveAllowed && <button data-testid="adv-approve" onClick={() => approveNow(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Accounts Approve &amp; Auto-Adjust</button>}
+              {Number(cur.status) === 3 && <span style={{ padding: "7px 14px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 5, fontWeight: 800, fontSize: 11 }}>✓ Approved · Auto-adjusted in {new Date(cur.targetYear || new Date().getFullYear(), (cur.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "long", year: "numeric" })} Pay Bill</span>}
               {[2, 3].includes(Number(cur.status)) && approveAllowed && <button data-testid="adv-reject" onClick={() => setRejectingId(cur.id)} style={{ padding: "7px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><X size={13} style={{ verticalAlign: -2 }} /> Reject</button>}
               {cur.id && Number(cur.status) < 2 && canDelete() && <button data-testid="adv-delete" onClick={() => remove(cur.id)} title="Delete draft advance" style={{ padding: "7px 14px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete Draft</button>}
             </div>
