@@ -37,6 +37,7 @@ export default function Reports() {
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
   const [selectedPvs, setSelectedPvs] = useState(() => new Set());
+  const [selectedDueBills, setSelectedDueBills] = useState(() => new Set());
   const [reportsTab, setReportsTab] = useState("vouchers");
   const _now = new Date();
   const [dueMonth, setDueMonth] = useState(_now.getMonth() + 1);
@@ -981,7 +982,7 @@ export default function Reports() {
           {(reportsTab === "vouchers" || reportsTab === "due") && (
           <>
           <div className="section">
-            <div className="sec-head">A. Summary Dashboard</div>
+            <div className="sec-head">A. Summary Dashboard · Approved Bills Data Sheet</div>
             <div className="sec-body">
               <div className="row cols-4">
                 <F label="Approved Bills"><input className="pill" value={summary.approvedBillsCount} readOnly data-testid="sum-count" /></F>
@@ -1006,6 +1007,93 @@ export default function Reports() {
                   />
                 </F>
               </div>
+
+              {/* ---- Approved Bills Data Sheet with per-row selection checkbox ---- */}
+              {(() => {
+                const unpaidApproved = dueRows.filter((r) => r.balance > 0);
+                const allSelected = unpaidApproved.length > 0 && unpaidApproved.every((r) => selectedDueBills.has(r.id));
+                const toggleAll = () => {
+                  if (allSelected) setSelectedDueBills(new Set());
+                  else setSelectedDueBills(new Set(unpaidApproved.map((r) => r.id)));
+                };
+                const toggleOne = (id) => {
+                  const n = new Set(selectedDueBills);
+                  n.has(id) ? n.delete(id) : n.add(id);
+                  setSelectedDueBills(n);
+                };
+                const selectedRows = unpaidApproved.filter((r) => selectedDueBills.has(r.id));
+                const selSum = selectedRows.reduce((s, r) => s + r.balance, 0);
+                const bulkMark = (status) => {
+                  if (!selectedRows.length) { toast.error("No rows selected"); return; }
+                  if (!canApprove()) { toast.error("Only Admin / Accounts can mark"); return; }
+                  const extras = status === "Hold" ? { holdReason: "" } : status === "MarkedPay" ? { scheduledPayAmount: 0 } : {};
+                  selectedRows.forEach((r) => setBillPaymentStatus(r.id, status, { ...extras, silent: true }));
+                  toast.success(`${selectedRows.length} bills marked ${status === "MarkedPay" ? "PAY" : status === "Hold" ? "HOLD" : status === "Reject" ? "REJECT" : "cleared"}`);
+                  setSelectedDueBills(new Set());
+                };
+                return (
+                  <div style={{ marginTop: 14, border: "1px solid #cbd5e1", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 12px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1", flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#334155", letterSpacing: 0.5, textTransform: "uppercase" }}>
+                        All Approved Bills · {unpaidApproved.length} unpaid · <span style={{ color: "#be185d" }}>Selected: {selectedRows.length}</span> · <span style={{ color: "#166534" }}>₹ {selSum.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        <button data-testid="sum-bulk-pay" onClick={() => bulkMark("MarkedPay")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#16a34a" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>✓ Mark Selected PAY</button>
+                        <button data-testid="sum-bulk-hold" onClick={() => bulkMark("Hold")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#b45309" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>⏸ Mark HOLD</button>
+                        <button data-testid="sum-bulk-reject" onClick={() => bulkMark("Reject")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>✗ Mark REJECT</button>
+                        <button data-testid="sum-bulk-clear" onClick={() => bulkMark("")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#64748b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>↺ Clear</button>
+                      </div>
+                    </div>
+                    <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                      <table className="data-table" data-testid="approved-bills-sheet" style={{ margin: 0 }}>
+                        <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
+                          <tr>
+                            <th style={{ width: 34, textAlign: "center" }}>
+                              <input type="checkbox" data-testid="sum-select-all" checked={allSelected} onChange={toggleAll} title="Select all unpaid approved bills" />
+                            </th>
+                            <th>Ref No</th>
+                            <th>Vendor</th>
+                            <th>Bill No</th>
+                            <th>Bill Dt</th>
+                            <th>Due Dt</th>
+                            <th style={{ textAlign: "right" }}>Net</th>
+                            <th style={{ textAlign: "right" }}>Paid</th>
+                            <th style={{ textAlign: "right" }}>Balance</th>
+                            <th>Decision</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {unpaidApproved.length === 0 && (
+                            <tr><td colSpan={11} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No unpaid approved bills</td></tr>
+                          )}
+                          {unpaidApproved.map((r) => {
+                            const b = bills.find((x) => x.id === r.id);
+                            const decision = b?.paymentStatus || "";
+                            return (
+                              <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: selectedDueBills.has(r.id) ? "#eff6ff" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
+                                <td style={{ textAlign: "center" }}>
+                                  <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />
+                                </td>
+                                <td className="mono">{r.refNo}</td>
+                                <td>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
+                                <td>{r.billNo}</td>
+                                <td>{r.billDate}</td>
+                                <td>{r.dueDate}</td>
+                                <td className="num">{r.net.toFixed(2)}</td>
+                                <td className="num">{r.paid.toFixed(2)}</td>
+                                <td className="num"><b>{r.balance.toFixed(2)}</b></td>
+                                <td>{decision === "MarkedPay" ? <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PAY</span> : decision === "Hold" ? <span style={{ padding: "2px 6px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏸ HOLD</span> : decision === "Reject" ? <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✗ REJECT</span> : <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>}</td>
+                                <td><span className={`pill-tag ${r.status === "Overdue" ? "overdue" : r.status === "Paid" ? "paid" : "due"}`}>{r.status}</span></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

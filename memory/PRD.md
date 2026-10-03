@@ -5,7 +5,10 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
-- **Monthly Decision Sheet workflow in Due List (Oct 2026)** — User explicit redesign: month selector drives the Due List → shows consolidated dues (Vendor Bills + Pay Bills) for that month → **⬇ Download Decision XLSX** (editable Decision + Pay Amount + Hold Reason columns) → fill offline → **⬆ Upload Decision XLSX** to apply all decisions in bulk → **💼 Process → Single PVs** generates per-party PV drafts for the Payment Vouchers tab, OR **🖨 Print → Bulk Bank Advice** emits a single A4 landscape consolidated bank advice. Per-row inline ✓Pay / ⏸Hold / ✗Reject toggles retained; Pay Amount editable inline for partial payments. Decision persists on each bill (`paymentStatus`, `scheduledPayAmount`, `holdReason`, `decisionMonth`).
+- **Summary Dashboard · Approved Bills Data Sheet with multi-select (Oct 2026)** — Reports → Due List ke Summary Dashboard section me ab saari unpaid approved bills ki scrollable table + per-row checkboxes aur header "Select All" checkbox. Live counter: `SELECTED: n · ₹ amount`. Bulk action bar: **✓ Mark Selected PAY**, **⏸ Mark HOLD**, **✗ Mark REJECT**, **↺ Clear** — Admin/Accounts only. Rows highlight by decision colour (green/amber/red) + selection blue. Decision pill + Status pill per row.
+- **Monthly Decision Sheet workflow (Oct 2026)** — Month selector drives Due List (Vendor Bills + Pay Bills consolidated) → **⬇ Download Decision XLSX** → fill offline → **⬆ Upload Decision XLSX** → **💼 Process → Single PVs** or **🖨 Print → Bulk Bank Advice**. Supports partial Pay Amount + Hold Reason per bill.
+- **Monthly Payroll Summary** moved Home → HRManagement.
+- **Advance Request 3-step terminal flow with targetMonth/targetYear → auto-adjust in Pay Bill advance column.**
 - **`printBulkBankAdvice` (bankTransfer.js)** — New helper emitting A4-landscape consolidated vendor bank advice (Sr · Ref · Bill · Party · Code · Bank/Branch · A/C · IFSC · Amount) with totals + amount in words.
 - **Monthly Payroll Summary** moved from Home to HRManagement (jahan ka data hai wahi).
 - **Advance Request Workflow Simplified · 3-step terminal flow with targetMonth/targetYear + auto-adjust in Pay Bill advance column.**
