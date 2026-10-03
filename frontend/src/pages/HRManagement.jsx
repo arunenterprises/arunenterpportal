@@ -1654,7 +1654,30 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
     if (cur?.id === n.id) setCur(n);
     toast.success("Request rejected");
   };
-  const remove = (id) => { if (!window.confirm("Delete this advance request?")) return; deleteAdvanceRequest(id); if (cur?.id === id) setCur(null); refresh(); };
+  const remove = (id) => {
+    if (!window.confirm("Delete this advance request?")) return;
+    deleteAdvanceRequest(id);
+    if (cur?.id === id) setCur(null);
+    refresh();
+  };
+  // Full delete — removes the advance request AND its linked PV/ADV voucher
+  // (so the duplicate amount showing in both Advance Register + PV list is cleared).
+  // No UTR requirement — Admin / SuperAdmin can delete directly.
+  const removeFull = (r) => {
+    if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; }
+    const pvInfo = r.linkedPvNo ? ` + linked voucher ${r.linkedPvNo}` : "";
+    if (!window.confirm(`Delete advance request ${r.refNo}${pvInfo}?\n\nEmployee: ${r.empCode} · ${r.empName}\nAmount: ₹${inrN(r.amount)}\n\nYeh action undo nahi hoga.`)) return;
+    // 1) Remove linked PV voucher (if any)
+    if (r.linkedPvNo) {
+      const next = getPayments().filter((p) => p.pvNo !== r.linkedPvNo);
+      savePayments(next);
+    }
+    // 2) Delete the advance request itself
+    deleteAdvanceRequest(r.id);
+    if (cur?.id === r.id) setCur(null);
+    refresh();
+    toast.success(`Advance request ${r.refNo}${pvInfo} deleted`);
+  };
 
   const locked = cur && Number(cur.status) >= 2;
   const statusTone = { 1: "#64748b", 2: "#f59e0b", 3: "#0369a1", 4: "#16a34a", 5: "#dc2626" };
@@ -1760,12 +1783,16 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
                       {Number(r.status) === 2 && approveAllowed && <button data-testid={`adv-row-approve-${i}`} onClick={() => approveNow(r)} style={{ padding: "3px 8px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Approve</button>}
                       {Number(r.status) === 3 && approveAllowed && <button data-testid={`adv-row-pay-${i}`} onClick={() => payNow(r)} style={{ padding: "3px 8px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, marginRight: 4 }}>Pay</button>}
                       {Number(r.status) < 2 && canDelete() && <button data-testid={`adv-row-del-${i}`} onClick={() => remove(r.id)} title="Delete draft advance" style={{ padding: "3px 6px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10 }}><Trash2 size={10} /></button>}
-                      {Number(r.status) >= 3 && (() => {
-                        const blockReason = (Number(r.status) === 4 && r.linkedPvNo && !hasUtr)
-                          ? `Delete locked · ${r.linkedPvNo} ka UTR Payment Voucher me enter karo (Reports → Payment Vouchers), uske baad hi delete allow hoga.`
-                          : "";
-                        return <SuperAdminDelete label={`Advance Request ${r.refNo}`} meta={{ "Employee": `${r.empCode} · ${r.empName}`, "Amount": `₹${inrN(r.amount)}`, "Status": ADVANCE_REQ_STATUS[r.status], "Linked PV": r.linkedPvNo || "—", "UTR": pv?.utrNo || "— (pending)" }} auditKey="ae_vm_adv_req_delete_log" testid={`adv-sa-del-${i}`} blockReason={blockReason} onDelete={() => { deleteAdvanceRequest(r.id); if (cur?.id === r.id) setCur(null); refresh(); toast.success(`Advance request deleted (SuperAdmin override)`); }} />;
-                      })()}
+                      {Number(r.status) >= 2 && canDelete() && (
+                        <button
+                          data-testid={`adv-row-del-full-${i}`}
+                          onClick={() => removeFull(r)}
+                          title={r.linkedPvNo ? `Delete advance request + voucher ${r.linkedPvNo}` : "Delete advance request"}
+                          style={{ padding: "3px 8px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }}
+                        >
+                          <Trash2 size={10} /> {r.linkedPvNo ? "Del + Voucher" : "Delete"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                   );
