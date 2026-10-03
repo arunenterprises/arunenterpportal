@@ -1770,13 +1770,38 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }}>{r.repaymentMode}{r.repaymentMode === "EMI" ? ` · ${r.emiMonths}m` : ""}</td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }}><span style={{ background: statusTone[r.status] || "#64748b", color: "#fff", padding: "2px 7px", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>{ADVANCE_REQ_STATUS[r.status]}</span></td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700, color: "#16a34a" }}>{r.linkedPvNo || "—"}</td>
-                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }} data-testid={`adv-utr-cell-${i}`}>
-                      {!isPaid ? (
+                    <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }} data-testid={`adv-utr-cell-${i}`} onClick={(e) => e.stopPropagation()}>
+                      {Number(r.status) < 3 ? (
                         <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
-                      ) : hasUtr ? (
-                        <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontFamily: "monospace" }}>✓ {pv.utrNo}</span>
                       ) : (
-                        <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800 }}>⚠ AWAITING UTR</span>
+                        <input
+                          type="text"
+                          defaultValue={r.utrNo || ""}
+                          placeholder="Enter UTR / Ref No"
+                          data-testid={`adv-utr-input-${i}`}
+                          disabled={!approveAllowed}
+                          onBlur={(e) => {
+                            const v = (e.target.value || "").toUpperCase().trim().slice(0, 32);
+                            if (v === (r.utrNo || "")) return;
+                            upsertAdvanceRequest({ ...r, utrNo: v, paidAt: v ? new Date().toISOString() : r.paidAt });
+                            refresh();
+                            if (v) toast.success(`UTR saved for ${r.refNo}`);
+                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                          style={{
+                            width: "100%",
+                            padding: "3px 6px",
+                            fontSize: 10,
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            border: `1px solid ${r.utrNo ? "#86efac" : "#fca5a5"}`,
+                            borderRadius: 3,
+                            background: r.utrNo ? "#dcfce7" : "#fff7f7",
+                            color: r.utrNo ? "#166534" : "#991b1b",
+                            outline: "none",
+                          }}
+                        />
                       )}
                     </td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }} onClick={(e) => e.stopPropagation()}>
