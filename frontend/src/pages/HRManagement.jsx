@@ -1615,6 +1615,7 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
   const [cur, setCur] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const refresh = () => { setReg(getAdvanceRegister()); setReqs(getAdvanceRequests()); setPayments(getPayments()); };
   useEffect(() => {
     refresh();
@@ -1705,6 +1706,57 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
           <div>
             <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: "#64748b", textTransform: "uppercase" }}>On-Demand Advance Flow</div>
             <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>Advance Request · HR → Accounts → Payment Voucher</div>
+          </div>
+          <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }} data-testid="adv-toolbar">
+            <button
+              data-testid="adv-tb-new"
+              onClick={startNew}
+              disabled={!writeAllowed}
+              title="Start a new advance request"
+              style={{ padding: "7px 12px", background: writeAllowed ? "#f59e0b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
+            ><Plus size={12} /> New</button>
+            <button
+              data-testid="adv-tb-save"
+              onClick={save}
+              disabled={!cur || locked || !writeAllowed}
+              title={!cur ? "Open or create a request first" : locked ? "Submitted drafts cannot be edited" : "Save draft"}
+              style={{ padding: "7px 12px", background: (cur && !locked && writeAllowed) ? "#16a34a" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: (cur && !locked && writeAllowed) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
+            ><Save size={12} /> Save</button>
+            <button
+              data-testid="adv-tb-edit"
+              onClick={() => {
+                if (!cur) { toast.info("Niche list se koi row click karein ya New se naya banayein"); return; }
+                if (locked) { toast.error("Submitted / Approved request edit nahi hoti"); return; }
+                toast.info(`Editing ${cur.refNo} · Form fields unlocked`);
+              }}
+              disabled={!cur}
+              title="Edit the currently loaded draft"
+              style={{ padding: "7px 12px", background: cur ? "#0369a1" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: cur ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
+            ><Edit3 size={12} /> Edit</button>
+            <button
+              data-testid="adv-tb-submit"
+              onClick={submit}
+              disabled={!cur || Number(cur?.status) !== 1 || !writeAllowed}
+              title="Submit draft to Accounts for approval"
+              style={{ padding: "7px 12px", background: (cur && Number(cur.status) === 1 && writeAllowed) ? "#7c3aed" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: (cur && Number(cur.status) === 1 && writeAllowed) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
+            ><Send size={12} /> Submit to Accounts</button>
+            <button
+              data-testid="adv-tb-adjust"
+              onClick={() => setAdjustOpen(true)}
+              title="Employee-wise total advance to be adjusted in each target month's Pay Bill"
+              style={{ padding: "7px 12px", background: "#be185d", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
+            >📊 Adjust in Pay Bill</button>
+            <button
+              data-testid="adv-tb-delete"
+              onClick={() => {
+                if (!cur || !cur.id) { toast.error("Pehle koi row load karein"); return; }
+                if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; }
+                removeFull(cur);
+              }}
+              disabled={!cur || !cur.id || !canDelete()}
+              title={!canDelete() ? "Only Admin / SuperAdmin can delete" : cur?.id ? `Delete ${cur.refNo}${cur.linkedPvNo ? " + voucher " + cur.linkedPvNo : ""}` : "Load a row first"}
+              style={{ padding: "7px 12px", background: (cur?.id && canDelete()) ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: (cur?.id && canDelete()) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
+            ><Trash2 size={12} /> Delete</button>
           </div>
         </div>
 
@@ -1929,6 +1981,71 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
           </table>
         </div>
       )}
+      {/* Adjust in Pay Bill — employee-wise total advance pending adjustment, grouped by target month */}
+      {adjustOpen && (() => {
+        const pending = reqs.filter((rr) => Number(rr.status) === 3);
+        // Group by targetYear-targetMonth → employee → total
+        const groups = {};
+        pending.forEach((r) => {
+          const my = Number(r.targetYear) || new Date().getFullYear();
+          const mm = Number(r.targetMonth) || (new Date().getMonth() + 1);
+          const key = `${my}-${String(mm).padStart(2, "0")}`;
+          if (!groups[key]) groups[key] = { year: my, month: mm, rows: {}, total: 0 };
+          const g = groups[key];
+          if (!g.rows[r.empId]) g.rows[r.empId] = { empCode: r.empCode, empName: r.empName, total: 0, refs: [] };
+          g.rows[r.empId].total += Number(r.amount || 0);
+          g.rows[r.empId].refs.push(r.refNo);
+          g.total += Number(r.amount || 0);
+        });
+        const ordered = Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+        const grand = ordered.reduce((s, [, g]) => s + g.total, 0);
+        return (
+          <div onClick={() => setAdjustOpen(false)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,23,42,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 10, width: "min(820px, 100%)", maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }}>
+              <div style={{ padding: "12px 18px", background: "linear-gradient(135deg,#be185d,#9f1239)", color: "#fff", borderRadius: "10px 10px 0 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", opacity: 0.9 }}>Pay Bill Adjustment · Employee-wise</div>
+                  <div style={{ fontSize: 15, fontWeight: 800 }}>Total Pending: ₹ {inrN(grand)} · {ordered.length} month{ordered.length !== 1 ? "s" : ""}</div>
+                </div>
+                <button data-testid="adv-adjust-close" onClick={() => setAdjustOpen(false)} style={{ background: "rgba(255,255,255,.15)", color: "#fff", border: "none", borderRadius: 5, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✕ Close</button>
+              </div>
+              <div style={{ padding: 18 }}>
+                {ordered.length === 0 ? (
+                  <div style={{ padding: 30, textAlign: "center", color: "#94a3b8" }}>Koi Accounts-approved advance request Pay Bill adjustment ke liye pending nahi hai.</div>
+                ) : ordered.map(([key, g]) => (
+                  <div key={key} style={{ marginBottom: 16, border: "1px solid #e2e8f0", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ padding: "8px 14px", background: "#fef3c7", color: "#78350f", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontWeight: 800, fontSize: 13 }}>{new Date(g.year, g.month - 1).toLocaleString("en", { month: "long" })} {g.year} · {Object.keys(g.rows).length} employee{Object.keys(g.rows).length !== 1 ? "s" : ""}</div>
+                      <div style={{ fontWeight: 800, fontSize: 15 }}>₹ {inrN(g.total)}</div>
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                      <thead><tr style={{ background: "#f8fafc" }}>
+                        <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>EMP Code</th>
+                        <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Employee</th>
+                        <th style={{ padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>Request Refs</th>
+                        <th style={{ padding: 6, textAlign: "right", borderBottom: "1px solid #e2e8f0" }}>Adjust Amount (₹)</th>
+                      </tr></thead>
+                      <tbody>
+                        {Object.entries(g.rows).map(([empId, row]) => (
+                          <tr key={empId}>
+                            <td style={{ padding: 6, fontFamily: "monospace", fontSize: 10, fontWeight: 700, borderBottom: "1px solid #e2e8f0" }}>{row.empCode}</td>
+                            <td style={{ padding: 6, borderBottom: "1px solid #e2e8f0" }}><b>{row.empName}</b></td>
+                            <td style={{ padding: 6, fontSize: 10, borderBottom: "1px solid #e2e8f0" }}>{row.refs.join(", ")}</td>
+                            <td style={{ padding: 6, textAlign: "right", fontWeight: 800, color: "#78350f", borderBottom: "1px solid #e2e8f0" }}>{inrN(row.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+                <div style={{ padding: "10px 14px", background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 5, fontSize: 11, color: "#1e3a8a", lineHeight: 1.6 }}>
+                  <b>Note:</b> Yeh amounts automatically HR → Pay Bill ke target month ke "Advance" column me pre-fill ho jaate hain jab Pay Bill draft create ki jaati hai.
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
