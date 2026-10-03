@@ -39,6 +39,7 @@ export default function Reports() {
   const [selectedPvs, setSelectedPvs] = useState(() => new Set());
   const [selectedDueBills, setSelectedDueBills] = useState(() => new Set());
   const [viewBill, setViewBill] = useState(null);
+  const [advDetail, setAdvDetail] = useState(null); // {r, filter: "settled"|"autoAdj"|"inPB"|"all"}
   const [reportsTab, setReportsTab] = useState("vouchers");
   const _now = new Date();
   const [dueMonth, setDueMonth] = useState(_now.getMonth() + 1);
@@ -663,7 +664,7 @@ export default function Reports() {
                                   toast.success(newUtr ? `UTR saved · ${pb.refNo}` : `UTR cleared`);
                                 };
                                 return (
-                                  <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                                  <div key={`sb-act-${pb.id}-${refresh}-${pv?.utrNo || ""}`} style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
                                     <span style={{ padding: "3px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ PV: {pb.linkedPvNo || "—"}</span>
                                     <button
                                       data-testid={`salary-xlsx-${pb.id}`}
@@ -678,6 +679,7 @@ export default function Reports() {
                                       title="Print A4 Landscape Bank Advice for Branch Manager"
                                     >🖨 Bank Advice</button>
                                     <input
+                                      key={`utr-${pb.id}-${pv?.utrNo || "empty"}`}
                                       type="text"
                                       defaultValue={pv?.utrNo || ""}
                                       placeholder="Enter UTR / Ref No"
@@ -702,31 +704,30 @@ export default function Reports() {
                                   </div>
                                 );
                               })()}
-                              {currentRole() === "SuperAdmin" && Number(pb.step) >= 3 && (() => {
-                                const pv = pb.linkedPvNo ? getPayments().find((p) => p.pvNo === pb.linkedPvNo) : null;
-                                const hasUtr = !!(pv && pv.utrNo);
-                                const blocked = (Number(pb.step) === 4 && pb.linkedPvNo && !hasUtr);
-                                return (
-                                  <button
-                                    data-testid={`salary-sa-del-${pb.id}`}
-                                    onClick={() => {
-                                      if (blocked) { toast.error(`Delete locked · ${pb.linkedPvNo} ka UTR pehle enter karo`); return; }
-                                      if (!window.confirm(`⚠️ SuperAdmin Override\n\nDelete Pay Bill ${pb.refNo}?\n\nStatus: ${PAYBILL_STATUS[pb.step]}\nNet: ₹${Number(pb.totalNet || 0).toLocaleString("en-IN")}\n${pb.linkedPvNo ? `Linked PV: ${pb.linkedPvNo} · UTR: ${pv?.utrNo || "—"}\n` : ""}\nThis action is logged in audit trail.`)) return;
-                                      try {
-                                        const log = JSON.parse(localStorage.getItem("ae_vm_pb_delete_log") || "[]");
-                                        log.push({ refNo: pb.refNo, step: pb.step, totalNet: pb.totalNet, linkedPvNo: pb.linkedPvNo || "", utr: pv?.utrNo || "", source: "Reports", deletedBy: currentUser() || "SuperAdmin", deletedAt: new Date().toISOString() });
-                                        localStorage.setItem("ae_vm_pb_delete_log", JSON.stringify(log));
-                                      } catch (err) {}
-                                      deletePayBill(pb.id);
-                                      setRefresh((v) => v + 1);
-                                      toast.success(`Pay Bill ${pb.refNo} deleted (SuperAdmin override)`);
-                                    }}
-                                    disabled={blocked}
-                                    style={{ marginLeft: 6, padding: "3px 10px", background: blocked ? "#cbd5e1" : "#7f1d1d", color: blocked ? "#64748b" : "#fff", border: "none", borderRadius: 3, cursor: blocked ? "not-allowed" : "pointer", fontSize: 10, fontWeight: 700, opacity: blocked ? .75 : 1 }}
-                                    title={blocked ? `Delete locked · pehle UTR enter karo` : "SuperAdmin override · Delete pay bill after approval"}
-                                  >{blocked ? "🔒 Locked" : "👑 Delete"}</button>
-                                );
-                              })()}
+                              {canDelete() && Number(pb.step) >= 3 && (
+                                <button
+                                  data-testid={`salary-del-${pb.id}`}
+                                  onClick={() => {
+                                    const pv = pb.linkedPvNo ? getPayments().find((p) => p.pvNo === pb.linkedPvNo) : null;
+                                    const pvInfo = pb.linkedPvNo ? ` + linked voucher ${pb.linkedPvNo}` : "";
+                                    if (!window.confirm(`Delete Pay Bill ${pb.refNo}${pvInfo}?\n\nStatus: ${PAYBILL_STATUS[pb.step]}\nNet: ₹${Number(pb.totalNet || 0).toLocaleString("en-IN")}\nUTR: ${pv?.utrNo || "—"}\n\nYeh action undo nahi hoga.`)) return;
+                                    try {
+                                      const log = JSON.parse(localStorage.getItem("ae_vm_pb_delete_log") || "[]");
+                                      log.push({ refNo: pb.refNo, step: pb.step, totalNet: pb.totalNet, linkedPvNo: pb.linkedPvNo || "", utr: pv?.utrNo || "", source: "Reports", deletedBy: currentUser() || "User", deletedAt: new Date().toISOString() });
+                                      localStorage.setItem("ae_vm_pb_delete_log", JSON.stringify(log));
+                                    } catch (err) {}
+                                    if (pb.linkedPvNo) {
+                                      const next = getPayments().filter((p) => p.pvNo !== pb.linkedPvNo);
+                                      savePayments(next);
+                                    }
+                                    deletePayBill(pb.id);
+                                    setRefresh((v) => v + 1);
+                                    toast.success(`Pay Bill ${pb.refNo}${pvInfo} deleted`);
+                                  }}
+                                  style={{ marginLeft: 6, padding: "3px 10px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                                  title={pb.linkedPvNo ? `Delete pay bill + voucher ${pb.linkedPvNo}` : "Delete pay bill"}
+                                >🗑 Delete Pay Bills</button>
+                              )}
                             </td>
                           </tr>
                         );
@@ -744,7 +745,7 @@ export default function Reports() {
             <div className="section" data-testid="reports-advance">
               <div className="sec-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>Employee Advances — Live Register (aggregated from Pay Bills)</span>
-                <span style={{ fontSize: 10.5, color: "#64748b", fontWeight: 600 }}>Flow: Advance in Pay Bill → Submitted → GM Approved → Settled by Accounts</span>
+                <span style={{ fontSize: 10.5, color: "#64748b", fontWeight: 600 }}>Flow: On-Demand Request → Accounts Approved → Auto-adjusted in Target Month Pay Bill → Pay Bill Settled</span>
               </div>
               <div className="sec-body" style={{ padding: 0 }}>
                 {(() => {
@@ -767,13 +768,15 @@ export default function Reports() {
                             <th style={{ textAlign: "center" }}>Advance Entries</th>
                             <th style={{ textAlign: "right" }}>Total Advance (₹)</th>
                             <th>Linked PVs</th>
-                            <th>Pay Bill Status</th>
+                            <th>Status Breakdown</th>
                           </tr></thead>
                           <tbody>
                             {reg.map((r) => {
                               const activeLines = r.lines || [];
-                              const allSettled = activeLines.every((l) => Number(l.step) === 4);
-                              const anyPending = activeLines.some((l) => Number(l.step) < 4);
+                              // Breakdown by actual flow stage (source-aware)
+                              const settledCnt = activeLines.filter((l) => l.source === "PayBill" && Number(l.step) === 4).length;
+                              const inPayBillCnt = activeLines.filter((l) => l.source === "PayBill" && Number(l.step) < 4).length;
+                              const autoAdjCnt = activeLines.filter((l) => l.source === "On-Demand" && Number(l.step) >= 3).length;
                               // Collect linked advance PVs for this employee from Payments store
                               const empAdvPvs = payments.filter((p) => String(p.pvNo || "").startsWith("PV/ADV") && (p.remarks || "").includes(r.empCode || "zzzz"));
                               return (
@@ -786,9 +789,11 @@ export default function Reports() {
                                   <td style={{ fontSize: 10 }}>
                                     {empAdvPvs.length === 0 ? <span style={{ color: "#94a3b8" }}>—</span> : empAdvPvs.map((p) => <span key={p.pvNo} style={{ display: "inline-block", padding: "2px 6px", margin: 1, background: "#dbeafe", color: "#1e3a8a", borderRadius: 3, border: "1px solid #93c5fd", fontWeight: 700 }}>{p.pvNo}</span>)}
                                   </td>
-                                  <td>
-                                    {allSettled && <span style={{ padding: "3px 8px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ All Settled</span>}
-                                    {anyPending && <span style={{ padding: "3px 8px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Pending in Pay Bill</span>}
+                                  <td style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                                    {settledCnt > 0 && <span data-testid={`adv-badge-settled-${r.empId}`} onClick={() => setAdvDetail({ r, filter: "settled" })} title="Click to see settled advance details" style={{ padding: "2px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>✓ Settled · {settledCnt}</span>}
+                                    {autoAdjCnt > 0 && <span data-testid={`adv-badge-auto-${r.empId}`} onClick={() => setAdvDetail({ r, filter: "autoAdj" })} title="Click to see which advance requests were auto-adjusted in which Pay Bill month" style={{ padding: "2px 7px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 3, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>⚡ Auto-Adjusted · {autoAdjCnt}</span>}
+                                    {inPayBillCnt > 0 && <span data-testid={`adv-badge-inpb-${r.empId}`} onClick={() => setAdvDetail({ r, filter: "inPB" })} title="Click to see pay bills where advance is still pending settlement" style={{ padding: "2px 7px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>⏳ In Pay Bill · {inPayBillCnt}</span>}
+                                    {activeLines.length === 0 && <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>}
                                   </td>
                                 </tr>
                               );
@@ -1047,24 +1052,52 @@ export default function Reports() {
               {/* ---- Approved Bills Data Sheet with per-row selection checkbox ---- */}
               {(() => {
                 const unpaidApproved = dueRows.filter((r) => r.balance > 0);
-                const allSelected = unpaidApproved.length > 0 && unpaidApproved.every((r) => selectedDueBills.has(r.id));
+                // Also include HR Pay Bills (GM Approved · awaiting Accounts settlement,
+                // or Settled with UTR still pending) so Accounts sees them together with
+                // vendor bills in the single Due List dashboard.
+                const hrPayBillRows = (payBillsAll || [])
+                  .filter((pb) => Number(pb.step) === 3 || (Number(pb.step) === 4 && pb.linkedPvNo && !((getPayments().find((p) => p.pvNo === pb.linkedPvNo) || {}).utrNo)))
+                  .map((pb) => {
+                    const period = `${new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en-IN", { month: "short" })} ${pb.year}`;
+                    const isSettled = Number(pb.step) === 4;
+                    return {
+                      kind: "paybill",
+                      id: `hr:${pb.id}`,
+                      refNo: pb.refNo,
+                      vendorName: `HR Payroll · ${period}`,
+                      vendorCode: "AE-HR-PAYROLL",
+                      billNo: pb.linkedPvNo || "—",
+                      billDate: (pb.approvedAt || pb.createdAt || "").slice(0, 10),
+                      dueDate: (pb.approvedAt || pb.createdAt || "").slice(0, 10),
+                      net: Number(pb.totalNet || 0),
+                      paid: 0,
+                      balance: Number(pb.totalNet || 0),
+                      status: isSettled ? "AwaitingUTR" : "HRApproved",
+                      _pb: pb,
+                    };
+                  });
+                const allRows = [...unpaidApproved, ...hrPayBillRows];
+                // Selection only applies to vendor bills (HR flow is handled in Salary Bills tab)
+                const selectableRows = unpaidApproved;
+                const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedDueBills.has(r.id));
                 const toggleAll = () => {
                   if (allSelected) setSelectedDueBills(new Set());
-                  else setSelectedDueBills(new Set(unpaidApproved.map((r) => r.id)));
+                  else setSelectedDueBills(new Set(selectableRows.map((r) => r.id)));
                 };
                 const toggleOne = (id) => {
                   const n = new Set(selectedDueBills);
                   n.has(id) ? n.delete(id) : n.add(id);
                   setSelectedDueBills(n);
                 };
-                const selectedRows = unpaidApproved.filter((r) => selectedDueBills.has(r.id));
+                const selectedRows = selectableRows.filter((r) => selectedDueBills.has(r.id));
                 const selSum = selectedRows.reduce((s, r) => s + r.balance, 0);
+                const hrSum = hrPayBillRows.reduce((s, r) => s + r.balance, 0);
                 return (
                   <div style={{ marginTop: 14, border: "1px solid #cbd5e1", borderRadius: 6, overflow: "hidden" }}>
                     <div style={{ padding: "7px 12px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1" }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: "#334155", letterSpacing: 0.5, textTransform: "uppercase" }}>
-                        All Approved Bills · {unpaidApproved.length} unpaid · <span style={{ color: "#be185d" }}>Selected: {selectedRows.length}</span> · <span style={{ color: "#166534" }}>₹ {selSum.toLocaleString("en-IN")}</span>
-                        <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 600, color: "#64748b", textTransform: "none", letterSpacing: 0 }}>↓ Decisions niche "Due List · Monthly Decision Sheet" section me lagein.</span>
+                        All Approved Bills · {unpaidApproved.length} Vendor · <span style={{ color: "#9a3412" }}>{hrPayBillRows.length} HR Pay Bills (₹ {hrSum.toLocaleString("en-IN")})</span> · <span style={{ color: "#be185d" }}>Selected: {selectedRows.length}</span> · <span style={{ color: "#166534" }}>₹ {selSum.toLocaleString("en-IN")}</span>
+                        <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 600, color: "#64748b", textTransform: "none", letterSpacing: 0 }}>↓ Vendor decisions niche "Due List · Monthly Decision Sheet" me lagein · HR Pay Bills Salary Bills tab me settle hoti hain.</span>
                       </div>
                     </div>
                     <div style={{ maxHeight: 320, overflowY: "auto" }}>
@@ -1075,8 +1108,8 @@ export default function Reports() {
                               <input type="checkbox" data-testid="sum-select-all" checked={allSelected} onChange={toggleAll} title="Select all unpaid approved bills" />
                             </th>
                             <th>Ref No</th>
-                            <th>Vendor</th>
-                            <th>Bill No</th>
+                            <th>Vendor / Source</th>
+                            <th>Bill / PV</th>
                             <th>Bill Dt</th>
                             <th>Due Dt</th>
                             <th style={{ textAlign: "right" }}>Net</th>
@@ -1086,21 +1119,22 @@ export default function Reports() {
                           </tr>
                         </thead>
                         <tbody>
-                          {unpaidApproved.length === 0 && (
+                          {allRows.length === 0 && (
                             <tr><td colSpan={10} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No unpaid approved bills</td></tr>
                           )}
-                          {unpaidApproved.map((r) => {
-                            const b = bills.find((x) => x.id === r.id);
+                          {allRows.map((r) => {
+                            const isHr = r.kind === "paybill";
+                            const b = isHr ? null : bills.find((x) => x.id === r.id);
                             const decision = b?.paymentStatus || "";
-                            // Status derivation: Paid overrides decision; otherwise show decision pill if any, else bill status
                             const isPaid = r.balance <= 0;
+                            const openView = () => { if (!isHr && b) setViewBill(b); else if (isHr) toast.info(`${r.refNo} · HR Pay Bill — Salary Bills tab me settle karen`); };
                             return (
-                              <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: selectedDueBills.has(r.id) ? "#eff6ff" : isPaid ? "#f0fdf4" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
+                              <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: isHr ? "#fff7ed" : selectedDueBills.has(r.id) ? "#eff6ff" : isPaid ? "#f0fdf4" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff", borderLeft: isHr ? "3px solid #ea580c" : undefined }}>
                                 <td style={{ textAlign: "center" }}>
-                                  <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />
+                                  {isHr ? <span title="HR Pay Bills select nahi hoti · Salary Bills tab me settle karen" style={{ fontSize: 10, color: "#ea580c", fontWeight: 800 }}>HR</span> : <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />}
                                 </td>
-                                <td className="mono" style={{ cursor: "pointer", color: "#0369a1", textDecoration: "underline dotted" }} onClick={() => setViewBill(b)} title="Click to view full bill">{r.refNo}</td>
-                                <td style={{ cursor: "pointer" }} onClick={() => setViewBill(b)} title="Click to view full bill">{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
+                                <td className="mono" style={{ cursor: "pointer", color: isHr ? "#9a3412" : "#0369a1", textDecoration: "underline dotted", fontWeight: isHr ? 700 : 400 }} onClick={openView} title={isHr ? "HR Pay Bill" : "Click to view full bill"}>{r.refNo}</td>
+                                <td style={{ cursor: "pointer" }} onClick={openView} title={isHr ? "HR Pay Bill" : "Click to view full bill"}>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
                                 <td>{r.billNo}</td>
                                 <td>{r.billDate}</td>
                                 <td>{r.dueDate}</td>
@@ -1108,7 +1142,11 @@ export default function Reports() {
                                 <td className="num">{r.paid.toFixed(2)}</td>
                                 <td className="num"><b>{r.balance.toFixed(2)}</b></td>
                                 <td>
-                                  {isPaid ? (
+                                  {isHr && r.status === "HRApproved" ? (
+                                    <span style={{ padding: "2px 7px", background: "#fed7aa", color: "#9a3412", border: "1px solid #fdba74", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>👥 HR · Awaiting Settlement</span>
+                                  ) : isHr && r.status === "AwaitingUTR" ? (
+                                    <span style={{ padding: "2px 7px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⚠ UTR Pending</span>
+                                  ) : isPaid ? (
                                     <span style={{ padding: "2px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 800 }}>✓ PAID</span>
                                   ) : decision === "MarkedPay" ? (
                                     <span style={{ padding: "2px 7px", background: "#bbf7d0", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ Marked Pay</span>
@@ -1628,6 +1666,67 @@ export default function Reports() {
           </div>
         </div>
       </div>
+    {advDetail && (() => {
+      const { r, filter } = advDetail;
+      const lines = (r.lines || []).filter((l) => {
+        if (filter === "settled") return l.source === "PayBill" && Number(l.step) === 4;
+        if (filter === "autoAdj") return l.source === "On-Demand" && Number(l.step) >= 3;
+        if (filter === "inPB") return l.source === "PayBill" && Number(l.step) < 4;
+        return true;
+      });
+      const total = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
+      const title = filter === "settled" ? "✓ Settled Advances" : filter === "autoAdj" ? "⚡ Auto-Adjusted Advance Requests" : filter === "inPB" ? "⏳ In Pay Bill (Pending Settlement)" : "All Advance Entries";
+      const tone = filter === "settled" ? ["#dcfce7", "#166534", "#86efac"] : filter === "autoAdj" ? ["#dbeafe", "#1e3a8a", "#93c5fd"] : ["#fef3c7", "#78350f", "#fcd34d"];
+      return (
+        <div onClick={() => setAdvDetail(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,23,42,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 10, width: "min(720px, 100%)", maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }}>
+            <div style={{ padding: "12px 18px", background: tone[0], color: tone[1], borderRadius: "10px 10px 0 0", borderBottom: `2px solid ${tone[2]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", opacity: 0.9 }}>Advance Detail · {r.empCode} · {r.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 800 }}>{title} · {lines.length} entry{lines.length !== 1 ? "ies" : ""} · ₹ {total.toLocaleString("en-IN")}</div>
+              </div>
+              <button data-testid="adv-detail-close" onClick={() => setAdvDetail(null)} style={{ background: "rgba(0,0,0,.08)", color: tone[1], border: "none", borderRadius: 5, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✕ Close</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              {lines.length === 0 ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#94a3b8" }}>No entries matching this filter.</div>
+              ) : (
+                <table className="data-table" style={{ fontSize: 11 }}>
+                  <thead><tr>
+                    <th>Source</th>
+                    <th>Ref No</th>
+                    <th>Month</th>
+                    <th style={{ textAlign: "right" }}>Amount (₹)</th>
+                    <th>Stage</th>
+                  </tr></thead>
+                  <tbody>
+                    {lines.map((l, i) => (
+                      <tr key={i}>
+                        <td>{l.source === "On-Demand" ? <span style={{ padding: "2px 6px", background: "#dbeafe", color: "#1e3a8a", borderRadius: 3, fontWeight: 700, fontSize: 10 }}>⚡ On-Demand</span> : <span style={{ padding: "2px 6px", background: "#fef3c7", color: "#78350f", borderRadius: 3, fontWeight: 700, fontSize: 10 }}>📋 Pay Bill</span>}</td>
+                        <td className="mono"><b>{l.refNo}</b></td>
+                        <td>{new Date(l.year, (l.month || 1) - 1).toLocaleString("en-IN", { month: "long" })} {l.year}</td>
+                        <td className="num" style={{ fontWeight: 800, color: "#78350f" }}>{Number(l.amount || 0).toLocaleString("en-IN")}</td>
+                        <td>
+                          {l.source === "On-Demand"
+                            ? <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ Accounts Approved · Auto-adjusted</span>
+                            : Number(l.step) === 4
+                              ? <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ Pay Bill Settled</span>
+                              : Number(l.step) === 3
+                                ? <span style={{ padding: "2px 6px", background: "#fde68a", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ GM Approved · Awaiting Settlement</span>
+                                : Number(l.step) === 2
+                                  ? <span style={{ padding: "2px 6px", background: "#fed7aa", color: "#9a3412", border: "1px solid #fdba74", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ Submitted to GM</span>
+                                  : <span style={{ padding: "2px 6px", background: "#e2e8f0", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>📝 Draft</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     {viewBill && (() => {
       const b = viewBill;
       const c = computeBill(b);
