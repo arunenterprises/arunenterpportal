@@ -799,6 +799,68 @@ export default function Reports() {
                     </>
                   );
                 })()}
+
+                {/* Advance Payment Vouchers (PV/ADV/*) — moved here from PV Vouchers tab, with simple delete */}
+                {(() => {
+                  const advPvs = payments.filter((p) => /^PV\/ADV/i.test(String(p.pvNo || "")));
+                  if (advPvs.length === 0) return null;
+                  const totalAdvPv = advPvs.reduce((s, p) => s + Number(p.amount || 0), 0);
+                  return (
+                    <div data-testid="advance-pv-section" style={{ borderTop: "2px solid #fcd34d" }}>
+                      <div style={{ padding: "10px 14px", background: "#fff7ed", borderBottom: "1px solid #fed7aa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#9a3412", letterSpacing: .5, textTransform: "uppercase" }}>Advance Payment Vouchers · {advPvs.length} record{advPvs.length !== 1 ? "s" : ""}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#9a3412" }}>₹ {Number(totalAdvPv).toLocaleString("en-IN")}</div>
+                      </div>
+                      <table className="data-table" data-testid="advance-pv-table">
+                        <thead><tr>
+                          <th>PV No</th>
+                          <th>Employee</th>
+                          <th>Date</th>
+                          <th style={{ textAlign: "right" }}>Amount (₹)</th>
+                          <th style={{ textAlign: "center" }}>Mode</th>
+                          <th>UTR / Ref</th>
+                          <th style={{ textAlign: "center" }}>Status</th>
+                          <th style={{ textAlign: "center" }}>Action</th>
+                        </tr></thead>
+                        <tbody>
+                          {advPvs.map((p) => {
+                            const isApp = p.status === "Approved";
+                            return (
+                              <tr key={p.pvNo} data-testid={`advance-pv-row-${p.pvNo}`}>
+                                <td className="mono" style={{ fontWeight: 700, color: isApp ? "#166534" : "#92400e" }}>{isApp ? `✓ ${p.pvNo}` : `⏳ ${p.pvNo}`}</td>
+                                <td>{p.vendorName || p.remarks || "—"}</td>
+                                <td>{p.date || "—"}</td>
+                                <td className="num">{Number(p.amount || 0).toFixed(2)}</td>
+                                <td style={{ textAlign: "center" }}>{p.mode || "—"}</td>
+                                <td className="mono" style={{ fontSize: 10 }}>{p.utrNo || <span style={{ color: "#94a3b8" }}>—</span>}</td>
+                                <td style={{ textAlign: "center" }}>
+                                  <span style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: isApp ? "#dcfce7" : "#fef3c7", color: isApp ? "#166534" : "#92400e", border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}` }}>
+                                    {p.status || "Draft"}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  <button
+                                    onClick={() => {
+                                      if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; }
+                                      if (!window.confirm(`Delete advance voucher ${p.pvNo}?\n\nAmount: ₹${Number(p.amount || 0).toLocaleString("en-IN")}\nEmployee: ${p.vendorName || p.remarks || "—"}\n\nYeh action undo nahi hoga.`)) return;
+                                      deletePayment(p.pvNo);
+                                    }}
+                                    disabled={!canDelete()}
+                                    data-testid={`advance-pv-del-${p.pvNo}`}
+                                    style={{ padding: "3px 10px", fontSize: 10.5, background: canDelete() ? "#fee2e2" : "#f1f5f9", color: canDelete() ? "#991b1b" : "#94a3b8", border: `1px solid ${canDelete() ? "#fca5a5" : "#cbd5e1"}`, borderRadius: 4, cursor: canDelete() ? "pointer" : "not-allowed", fontWeight: 600 }}
+                                    title={canDelete() ? "Delete this advance voucher (no UTR required)" : "Only Admin / SuperAdmin can delete"}
+                                  >
+                                    🗑 Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1453,10 +1515,10 @@ export default function Reports() {
             </>
           )}
 
-          {/* Vouchers Data Sheet — bottom of page, all payment vouchers */}
-          {payments.length > 0 && (
+          {/* Vouchers Data Sheet — bottom of page, VENDOR payment vouchers only (HR/ADV excluded) */}
+          {vendorPayments.length > 0 && (
             <div className="section" data-testid="vouchers-data-sheet" style={{ marginTop: 14 }}>
-              <div className="sec-head">Payment Vouchers Data Sheet · Click to Load</div>
+              <div className="sec-head">Payment Vouchers Data Sheet · Click to Load <span style={{ fontSize: 10, fontWeight: 500, color: "#64748b", marginLeft: 8 }}>(Vendor PVs only — HR Advance PVs are shown in Employee Advances tab)</span></div>
               <div className="sec-body">
                 <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
@@ -1472,7 +1534,7 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.map((p) => {
+                    {vendorPayments.map((p) => {
                       const isApp = p.status === "Approved";
                       return (
                         <tr key={p.pvNo} data-testid={`voucher-row-${p.pvNo}`}
