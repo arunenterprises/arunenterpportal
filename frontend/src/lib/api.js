@@ -139,3 +139,11 @@ export const apiSetLogo = (logo) =>
 // ---- Danger zone (admin only) ----
 export const apiResetData = (wipe_users = false) =>
   req("/admin/reset-data", { method: "POST", body: JSON.stringify({ wipe_users }) });
+
+// ---- Backup & Restore (Super Admin only) ----
+export const apiDownloadBackup = () => req("/admin/backup");
+export const apiRestoreBackup = (collections, wipe_existing = false) =>
+  req("/admin/restore", {
+    method: "POST",
+    body: JSON.stringify({ collections, wipe_existing }),
+  });

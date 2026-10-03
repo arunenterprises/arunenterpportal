@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
-import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle } from "lucide-react";
+import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiDownloadBackup, apiRestoreBackup } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 import AuthSplash from "../components/AuthSplash";
 
@@ -68,6 +68,10 @@ export default function UsersAdmin() {
   const [resetBusy, setResetBusy] = useState(false);
   const [resetPhrase, setResetPhrase] = useState("");
   const [wipeUsers, setWipeUsers] = useState(false);
+  // Backup / Restore
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreWipe, setRestoreWipe] = useState(false);
 
   const load = async () => {
     try {
@@ -153,6 +157,52 @@ export default function UsersAdmin() {
       toast.error(ex.message);
     } finally {
       setPwBusy(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    setBackupBusy(true);
+    try {
+      const data = await apiDownloadBackup();
+      const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ae-erp-backup-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      const totalDocs = Object.values(data.collections || {}).reduce((n, arr) => n + (arr?.length || 0), 0);
+      toast.success(`Backup downloaded · ${totalDocs} records across ${Object.keys(data.collections || {}).length} collections`);
+    } catch (ex) {
+      toast.error(`Backup failed: ${ex.message}`);
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleRestoreBackup = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!window.confirm(`Restore from "${file.name}"?\n\n${restoreWipe ? "⚠ WIPE existing data first, then restore." : "Upsert into existing data (merge by id)."}\n\nSuperAdmin account preserved either way.`)) return;
+    setRestoreBusy(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const collections = parsed.collections || parsed;
+      if (!collections || typeof collections !== "object") throw new Error("Invalid backup file — no collections found");
+      const r = await apiRestoreBackup(collections, restoreWipe);
+      const restored = Object.entries(r.restored || {}).map(([k, v]) => `${k}:${v}`).join(" · ");
+      toast.success(`Restore done · ${restored || "no changes"}`);
+      resetLocalCache();
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (ex) {
+      toast.error(`Restore failed: ${ex.message}`);
+    } finally {
+      setRestoreBusy(false);
     }
   };
 
@@ -428,6 +478,62 @@ export default function UsersAdmin() {
             </tbody>
           </table>
         </div>
+
+        {/* Backup & Restore (SUPER ADMIN ONLY) */}
+        {isSuperAdmin(me?.user) && (
+          <div style={{ marginTop: 16, border: "1.5px solid #93c5fd", borderRadius: 6, background: "#eff6ff" }}>
+            <div style={{ background: "#dbeafe", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#1e40af", display: "flex", alignItems: "center", gap: 6 }}>
+              <Database size={12} /> BACKUP & RESTORE · SUPER ADMIN ONLY
+            </div>
+            <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr", gap: 14, alignItems: "start" }}>
+              <div style={{ fontSize: 11.5, color: "#1e3a8a", lineHeight: 1.6 }}>
+                <b>Download Backup</b>: Poora database (vendors · bills · pay bills · employees · payments · counters) ek JSON file me milega. Weekly download karke Google Drive ya USB me safe rakho.
+                <br/><b>Restore</b>: Backup JSON upload karo — purane naye MongoDB cluster par shift karne ke liye bhi yahi use hoga.
+                <br/><a href="/MIGRATION_GUIDE.md" target="_blank" rel="noreferrer" style={{ color: "#1d4ed8", textDecoration: "underline", fontWeight: 600 }}>📖 Complete Migration Guide dekho</a>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button
+                  data-testid="btn-download-backup"
+                  onClick={handleDownloadBackup}
+                  disabled={backupBusy}
+                  style={{ padding: "10px 14px", background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 5, cursor: backupBusy ? "wait" : "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "center" }}
+                >
+                  <Download size={14} /> {backupBusy ? "Preparing…" : "Download Backup (JSON)"}
+                </button>
+                <div style={{ fontSize: 10, color: "#475569", textAlign: "center" }}>
+                  Includes: users, vendors, bills, payments, pay bills, employees, counters, logo
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ fontSize: 11, color: "#1e3a8a", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    data-testid="restore-wipe-first"
+                    type="checkbox"
+                    checked={restoreWipe}
+                    onChange={(e) => setRestoreWipe(e.target.checked)}
+                  />
+                  Wipe existing data first (clean restore)
+                </label>
+                <label
+                  data-testid="btn-restore-backup"
+                  style={{ padding: "10px 14px", background: restoreBusy ? "#9ca3af" : "#0f766e", color: "#fff", border: "none", borderRadius: 5, cursor: restoreBusy ? "wait" : "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "center" }}
+                >
+                  <Upload size={14} /> {restoreBusy ? "Restoring…" : "Restore Backup (Upload JSON)"}
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={handleRestoreBackup}
+                    disabled={restoreBusy}
+                    style={{ display: "none" }}
+                  />
+                </label>
+                <div style={{ fontSize: 10, color: "#475569", textAlign: "center" }}>
+                  SuperAdmin account is always preserved
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Danger Zone - Reset all data (SUPER ADMIN ONLY) */}
         {isSuperAdmin(me?.user) && (

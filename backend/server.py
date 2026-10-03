@@ -645,6 +645,70 @@ async def reset_hr_financials(admin: Dict = Depends(require_super_admin)):
     }
 
 
+# ==================== BACKUP & RESTORE ====================
+# Full database backup (JSON) — SuperAdmin only. Includes every business
+# collection so an identical copy can be restored on any MongoDB (Atlas / local).
+
+BACKUP_COLLECTIONS = [
+    "users", "vendors", "bills", "payments", "expenses", "boqs", "work_orders",
+    "employees", "attendance", "paybills", "loans", "advance_requests",
+    "recruitments", "exits", "counters", "settings",
+]
+
+
+@api_router.get("/admin/backup")
+async def download_backup(admin: Dict = Depends(require_super_admin)):
+    """Return a full JSON snapshot of every business collection.
+    Password hashes are preserved so restored users can keep logging in."""
+    payload: Dict[str, Any] = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "db_name": os.environ.get("DB_NAME", ""),
+        "version": 1,
+        "collections": {},
+    }
+    for coll in BACKUP_COLLECTIONS:
+        docs = await db[coll].find({}, {"_id": 0}).to_list(100000)
+        payload["collections"][coll] = docs
+    return payload
+
+
+@api_router.post("/admin/restore")
+async def restore_backup(body: Dict = Body(...), admin: Dict = Depends(require_super_admin)):
+    """Restore a JSON backup. If `wipe_existing` is true, each collection is
+    emptied before inserting the backup documents. Otherwise it upserts by `id`
+    (or by `email` for users / `key` for counters & settings)."""
+    collections = body.get("collections") or {}
+    wipe_existing = bool(body.get("wipe_existing", False))
+    report: Dict[str, int] = {}
+    for coll, docs in collections.items():
+        if coll not in BACKUP_COLLECTIONS or not isinstance(docs, list):
+            continue
+        if wipe_existing:
+            # Preserve the current super-admin so the operator can keep logging in
+            if coll == "users":
+                keep = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+                await db.users.delete_many({"email": {"$ne": keep}})
+            else:
+                await db[coll].delete_many({})
+        count = 0
+        for d in docs:
+            if not isinstance(d, dict):
+                continue
+            key = None
+            if "id" in d:
+                key = {"id": d["id"]}
+            elif coll == "users" and "email" in d:
+                key = {"email": (d.get("email") or "").lower().strip()}
+            elif coll in ("counters", "settings") and "key" in d:
+                key = {"key": d["key"]}
+            if not key:
+                continue
+            await db[coll].update_one(key, {"$set": d}, upsert=True)
+            count += 1
+        report[coll] = count
+    return {"ok": True, "restored": report, "wiped": wipe_existing}
+
+
 # ==================== ROOT ====================
 @api_router.get("/")
 async def root():

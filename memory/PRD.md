@@ -5,6 +5,7 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
+- **Backup & Restore System (Feb 2026)** — Added SuperAdmin-only `GET /api/admin/backup` (full JSON snapshot of 16 collections — users, vendors, bills, payments, expenses, boqs, work_orders, employees, attendance, paybills, loans, advance_requests, recruitments, exits, counters, settings — with password hashes preserved) and `POST /api/admin/restore` (upsert-by-id, or wipe-and-replace mode, SuperAdmin account always preserved). UsersAdmin.jsx new blue "Backup & Restore" panel with `Download Backup (JSON)`, `Wipe-first` checkbox, and `Restore Backup (Upload JSON)` buttons. `/app/MIGRATION_GUIDE.md` documents full MongoDB Atlas migration process + GitHub source backup.
 - **Reports tab merger · "Payment Vouchers & Due List Preparation" (Oct 2026)** — Separate "Due List" tab removed; Payment Vouchers tab renamed and now hosts the full workflow (Summary Dashboard Sheet + Monthly Decision Sheet actions). Footer legend + stale handlers cleaned up.
 - **Bill Preview modal (Oct 2026)** — Click any Ref No or Vendor name in Summary Dashboard sheet opens a styled modal with full bill details (Basic/GST/TDS/Net/Paid/Balance + Vendor + GSTIN/PAN + Bank details + attached WO link). Close via ✕ button or backdrop click.
 - **Single Payment Bank Advice button (Oct 2026)** — Added alongside Bulk Bank Advice: prints one A4 landscape advice per vendor (one page per party), staggered 400 ms apart to avoid pop-up collisions.
