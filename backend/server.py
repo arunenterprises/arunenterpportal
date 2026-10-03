@@ -13,13 +13,21 @@ import os
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Body
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Body, BackgroundTasks, Header
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import logging
+import hmac
+import secrets as _secrets
+import re
+import ipaddress
+import httpx
+from html import escape
+from html.parser import HTMLParser
+from urllib.parse import urlparse
 
 from auth_utils import (
     hash_password, verify_password, create_access_token,
@@ -707,6 +715,226 @@ async def restore_backup(body: Dict = Body(...), admin: Dict = Depends(require_s
             count += 1
         report[coll] = count
     return {"ok": True, "restored": report, "wiped": wipe_existing}
+
+
+# ==================== EMAIL (Emergent Resend proxy) ====================
+# Platform-managed Resend integration — see Resend playbook for guardrails.
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Arun Enterprises")
+EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
+
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = (
+    "reply with your password", "reply with the code", "send your password", "cvv",
+    "send us your password", "enter your password below", "confirm your card number",
+    "your full card number", "seed phrase", "recovery phrase", "verify your card",
+    "social security number", "confirm your bank details",
+)
+_HOSTISH = re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", re.I)
+
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan()
+    scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks the recipient for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links/assets must be absolute https: {url!r} (G3)")
+        host = urlparse(low).hostname or ""
+        if not _host_ok(host) or urlparse(low).username is not None:
+            raise ValueError(f"Shortened, numeric-host or credential-bearing URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
+
+
+async def _send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+    if not EMAIL_KEY:
+        logger.warning("EMERGENT_EMAIL_KEY not set — email skipped")
+        return None
+    _assert_safe_email(subject, html)
+    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    if EMAIL_REPLY_TO:
+        payload["contact_email"] = EMAIL_REPLY_TO
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(
+                f"{EMAIL_BASE_URL}/api/v1/email/send",
+                headers={"X-Email-Key": EMAIL_KEY},
+                json=payload,
+            )
+        r.raise_for_status()
+        return r.json().get("id")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Email send failed: {e.response.status_code} {e.response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"Email send error: {e}")
+        return None
+
+
+# ==================== NIGHTLY BACKUP (Scheduled) ====================
+WEBHOOK_CRON_SECRET = os.environ.get("WEBHOOK_CRON_SECRET", "")
+NIGHTLY_BACKUPS_KEEP = 7  # retain last 7 nightly backups
+
+
+async def _run_nightly_backup(run_id: str) -> Dict[str, Any]:
+    """Generate full backup JSON, store it, email SuperAdmin a summary."""
+    # Idempotency: if already processed, skip
+    existing = await db.backup_runs.find_one({"run_id": run_id}, {"_id": 0})
+    if existing:
+        return {"status": "duplicate", "run_id": run_id}
+
+    collections_data: Dict[str, Any] = {}
+    total = 0
+    for coll in BACKUP_COLLECTIONS:
+        docs = await db[coll].find({}, {"_id": 0}).to_list(100000)
+        collections_data[coll] = docs
+        total += len(docs)
+
+    now = datetime.now(timezone.utc)
+    backup_id = f"nb_{now.strftime('%Y%m%d_%H%M%S')}_{_secrets.token_hex(4)}"
+    doc = {
+        "id": backup_id,
+        "run_id": run_id,
+        "generated_at": now.isoformat(),
+        "db_name": os.environ.get("DB_NAME", ""),
+        "total_records": total,
+        "collection_counts": {k: len(v) for k, v in collections_data.items()},
+        "collections": collections_data,
+    }
+    await db.backups.insert_one(doc)
+    await db.backup_runs.insert_one({"run_id": run_id, "backup_id": backup_id, "at": now.isoformat()})
+
+    # Keep only the last N backups
+    old = await db.backups.find({}, {"id": 1, "generated_at": 1}).sort("generated_at", -1).to_list(1000)
+    if len(old) > NIGHTLY_BACKUPS_KEEP:
+        to_drop = [o["id"] for o in old[NIGHTLY_BACKUPS_KEEP:]]
+        await db.backups.delete_many({"id": {"$in": to_drop}})
+
+    # Email SuperAdmin a summary (recipient from server-side env, NOT caller input)
+    to_email = (os.environ.get("ADMIN_EMAIL", "") or "").strip()
+    size_kb = round(len(str(collections_data)) / 1024, 1)
+    if to_email:
+        html = (
+            f'<table role="presentation" width="100%" style="font-family:Arial,sans-serif;background:#f8fafc;padding:24px"><tr><td>'
+            f'<table role="presentation" width="620" style="margin:0 auto;background:#fff;border:1px solid #cbd5e1;border-radius:8px"><tr><td style="padding:20px 24px">'
+            f'<h2 style="margin:0 0 8px;color:#0f172a;font-size:18px">Nightly Backup Completed</h2>'
+            f'<p style="margin:0 0 12px;color:#334155;font-size:14px">Hi SuperAdmin,</p>'
+            f'<p style="margin:0 0 12px;color:#334155;font-size:14px">Aapke {escape(EMAIL_FROM_NAME)} ERP ka nightly backup <b>{escape(now.strftime("%d %b %Y · %H:%M UTC"))}</b> par successfully complete ho gaya hai.</p>'
+            f'<table role="presentation" width="100%" style="border-collapse:collapse;margin:14px 0;font-size:13px">'
+            f'<tr><td style="padding:8px 12px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-weight:700">Total Records</td><td style="padding:8px 12px;border:1px solid #cbd5e1;font-weight:700">{total}</td></tr>'
+            f'<tr><td style="padding:8px 12px;background:#dbeafe;color:#1e3a8a;border:1px solid #93c5fd;font-weight:700">Collections</td><td style="padding:8px 12px;border:1px solid #cbd5e1">{len(BACKUP_COLLECTIONS)}</td></tr>'
+            f'<tr><td style="padding:8px 12px;background:#fef3c7;color:#78350f;border:1px solid #fcd34d;font-weight:700">Backup Size</td><td style="padding:8px 12px;border:1px solid #cbd5e1">~{size_kb} KB</td></tr>'
+            f'<tr><td style="padding:8px 12px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;font-weight:700">Backup ID</td><td style="padding:8px 12px;border:1px solid #cbd5e1;font-family:monospace;font-size:11px">{escape(backup_id)}</td></tr>'
+            f'</table>'
+            f'<p style="margin:14px 0 8px;color:#334155;font-size:13px">Backup ko download karne ke liye SuperAdmin login kijiye · <b>Users Management → Nightly Backups</b> section se download button par click karein.</p>'
+            f'<p style="margin:12px 0 0;color:#64748b;font-size:11px;border-top:1px dashed #cbd5e1;padding-top:10px">Last {NIGHTLY_BACKUPS_KEEP} nightly backups retained · older ones auto-removed · {escape(EMAIL_FROM_NAME)} ERP never asks for your password or OTP by email.</p>'
+            f'</td></tr></table></td></tr></table>'
+        )
+        await _send_email(to=to_email, subject=f"✓ Nightly Backup · {total} records · {now.strftime('%d %b %Y')}", html=html)
+
+    return {"status": "ok", "backup_id": backup_id, "total_records": total}
+
+
+@api_router.post("/cron/nightly-backup")
+# Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+async def cron_nightly_backup(
+    body: Dict = Body(default={}),
+    background: BackgroundTasks = None,
+    authorization: Optional[str] = Header(default=None),
+    x_webhook_id: Optional[str] = Header(default=None),
+):
+    if not WEBHOOK_CRON_SECRET:
+        raise HTTPException(status_code=500, detail="WEBHOOK_CRON_SECRET not configured")
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token or not hmac.compare_digest(token, WEBHOOK_CRON_SECRET):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    run_id = x_webhook_id or (body.get("run_id") if isinstance(body, dict) else None) or f"manual_{datetime.now(timezone.utc).isoformat()}"
+    if background is not None:
+        background.add_task(_run_nightly_backup, run_id)
+    return {"ok": True, "accepted": True, "run_id": run_id}
+
+
+@api_router.get("/admin/nightly-backups")
+async def list_nightly_backups(admin: Dict = Depends(require_super_admin)):
+    rows = await db.backups.find({}, {"_id": 0, "collections": 0}).sort("generated_at", -1).to_list(100)
+    return {"items": rows}
+
+
+@api_router.get("/admin/nightly-backups/{backup_id}/download")
+async def download_nightly_backup(backup_id: str, admin: Dict = Depends(require_super_admin)):
+    doc = await db.backups.find_one({"id": backup_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Backup not found")
+    return doc
+
+
+@api_router.delete("/admin/nightly-backups/{backup_id}")
+async def delete_nightly_backup(backup_id: str, admin: Dict = Depends(require_super_admin)):
+    r = await db.backups.delete_one({"id": backup_id})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Backup not found")
+    return {"ok": True}
+
+
+@api_router.post("/admin/nightly-backups/trigger")
+async def trigger_nightly_backup_now(background: BackgroundTasks, admin: Dict = Depends(require_super_admin)):
+    """Allow SuperAdmin to manually trigger the same nightly backup flow (test / on-demand)."""
+    run_id = f"manual_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    background.add_task(_run_nightly_backup, run_id)
+    return {"ok": True, "run_id": run_id}
 
 
 # ==================== ROOT ====================

@@ -1043,3 +1043,72 @@ export const sendPayslipWhatsApp = (emp, salary, year, month) => {
   const url = `https://wa.me/91${mobile}?text=${encodeURIComponent(text)}`;
   window.open(url, "_blank");
 };
+// Advance Receipt (A4 Portrait) — printable receipt for an approved advance request
+// with UTR / reference number + employee signature block.
+export const printAdvanceReceipt = (req, emp = {}) => {
+  if (!req) return;
+  const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
+  const amtWords = (n) => {
+    // Minimal in-words — rupees only, no paise
+    const num = Math.floor(Number(n) || 0);
+    if (!num) return "Zero Rupees Only";
+    const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+      "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    const inWords = (n) => {
+      if (n < 20) return a[n];
+      if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? " " + a[n % 10] : "");
+      if (n < 1000) return a[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + inWords(n % 100) : "");
+      if (n < 100000) return inWords(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + inWords(n % 1000) : "");
+      if (n < 10000000) return inWords(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + inWords(n % 100000) : "");
+      return inWords(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + inWords(n % 10000000) : "");
+    };
+    return inWords(num) + " Rupees Only";
+  };
+  const periodLabel = new Date(req.targetYear || new Date().getFullYear(), (req.targetMonth || 1) - 1)
+    .toLocaleString("en", { month: "long", year: "numeric" });
+  const body = `
+    <h1 class="title">Advance Payment Receipt</h1>
+    <div class="meta">
+      <div class="ref">Receipt No: <b>${req.refNo || "—"}</b></div>
+      <div>Date: <b>${fmtDMY(req.requestDate)}</b></div>
+    </div>
+    <div class="addressee">
+      Received with thanks from <b>${COMPANY.name}</b> the following sum towards advance payment, to be adjusted in the <b>${periodLabel}</b> pay bill as per the Repayment Mode noted below.
+    </div>
+    <table class="ctc" style="margin-top:14px;">
+      <tr><th style="width:40%">Employee Name</th><td><b>${emp.fullName || req.empName || "—"}</b></td></tr>
+      <tr><th>Employee Code</th><td class="num" style="text-align:left;font-family:monospace">${emp.empCode || req.empCode || "—"}</td></tr>
+      <tr><th>Department / Designation</th><td>${(emp.department || req.department || "—")} · ${(emp.designation || req.designation || "—")}</td></tr>
+      <tr class="sub"><th>Advance Amount</th><td class="num" style="font-weight:800;font-size:14pt;color:#0f172a">₹ ${inrN(req.amount)}</td></tr>
+      <tr><th>Amount in Words</th><td style="font-style:italic">${amtWords(req.amount)}</td></tr>
+      <tr><th>Target Month for Adjustment</th><td><b>${periodLabel}</b></td></tr>
+      <tr><th>Repayment Mode</th><td>${req.repaymentMode || "Salary Deduction"}${req.repaymentMode === "EMI" ? ` · ${req.emiMonths || 2} months` : ""}</td></tr>
+      <tr><th>Reason / Purpose</th><td>${req.reason || "—"}</td></tr>
+      <tr class="total"><th>UTR / Reference No</th><td style="font-family:monospace;font-weight:800;color:#166534">${req.utrNo || "— (pending)"}</td></tr>
+    </table>
+    <p style="margin-top:16px;font-size:11pt">
+      <b>Declaration:</b> I acknowledge receipt of the above advance amount and agree that it will be
+      recovered as per the Repayment Mode mentioned above. Any dispute shall be subject to the
+      jurisdiction of the courts at the registered office location.
+    </p>
+    <div class="accept-grid" style="margin-top:60px">
+      <div class="cell">
+        <div class="line"></div>
+        <div style="font-weight:700">Received By (Employee)</div>
+        <div style="font-size:10pt;color:#475569">${emp.fullName || req.empName || "—"}</div>
+      </div>
+      <div class="cell">
+        <div class="line"></div>
+        <div style="font-weight:700">Approved By (Accounts)</div>
+        <div style="font-size:10pt;color:#475569">${req.approvedByName || "—"}${req.approvedAt ? " · " + fmtDMY(String(req.approvedAt).slice(0, 10)) : ""}</div>
+      </div>
+      <div class="cell">
+        <div class="line"></div>
+        <div style="font-weight:700">For ${COMPANY.name}</div>
+        <div style="font-size:10pt;color:#475569">${SIGNATORY.name} · ${SIGNATORY.designation}</div>
+      </div>
+    </div>
+  `;
+  openPrint(`Advance Receipt ${req.refNo || ""}`, body);
+};

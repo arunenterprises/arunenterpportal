@@ -1131,7 +1131,7 @@ export default function Reports() {
                             return (
                               <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: isHr ? "#fff7ed" : selectedDueBills.has(r.id) ? "#eff6ff" : isPaid ? "#f0fdf4" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff", borderLeft: isHr ? "3px solid #ea580c" : undefined }}>
                                 <td style={{ textAlign: "center" }}>
-                                  {isHr ? <span title="HR Pay Bills select nahi hoti · Salary Bills tab me settle karen" style={{ fontSize: 10, color: "#ea580c", fontWeight: 800 }}>HR</span> : <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />}
+                                {isHr ? <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} title="Select this HR Pay Bill (same decision flow applies)" /> : <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />}
                                 </td>
                                 <td className="mono" style={{ cursor: "pointer", color: isHr ? "#9a3412" : "#0369a1", textDecoration: "underline dotted", fontWeight: isHr ? 700 : 400 }} onClick={openView} title={isHr ? "HR Pay Bill" : "Click to view full bill"}>{r.refNo}</td>
                                 <td style={{ cursor: "pointer" }} onClick={openView} title={isHr ? "HR Pay Bill" : "Click to view full bill"}>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>

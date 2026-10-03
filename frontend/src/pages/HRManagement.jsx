@@ -24,7 +24,7 @@ import {
   getPayments, savePayments,
   currentRole, canCreate, canApprove, canDelete, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
-import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, exportPayBillPDF } from "../lib/hrLetters";
+import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, exportPayBillPDF, printAdvanceReceipt } from "../lib/hrLetters";
 import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 
@@ -1825,34 +1825,46 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
                       {Number(r.status) < 3 ? (
                         <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
                       ) : (
-                        <input
-                          type="text"
-                          defaultValue={r.utrNo || ""}
-                          placeholder="Enter UTR / Ref No"
-                          data-testid={`adv-utr-input-${i}`}
-                          disabled={!approveAllowed}
-                          onBlur={(e) => {
-                            const v = (e.target.value || "").toUpperCase().trim().slice(0, 32);
-                            if (v === (r.utrNo || "")) return;
-                            upsertAdvanceRequest({ ...r, utrNo: v, paidAt: v ? new Date().toISOString() : r.paidAt });
-                            refresh();
-                            if (v) toast.success(`UTR saved for ${r.refNo}`);
-                          }}
-                          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                          style={{
-                            width: "100%",
-                            padding: "3px 6px",
-                            fontSize: 10,
-                            fontFamily: "monospace",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            border: `1px solid ${r.utrNo ? "#86efac" : "#fca5a5"}`,
-                            borderRadius: 3,
-                            background: r.utrNo ? "#dcfce7" : "#fff7f7",
-                            color: r.utrNo ? "#166534" : "#991b1b",
-                            outline: "none",
-                          }}
-                        />
+                        <>
+                          <input
+                            key={`utr-${r.id}-${r.utrNo || "empty"}`}
+                            type="text"
+                            defaultValue={r.utrNo || ""}
+                            placeholder="Enter UTR / Ref No"
+                            data-testid={`adv-utr-input-${i}`}
+                            disabled={!approveAllowed}
+                            onBlur={(e) => {
+                              const v = (e.target.value || "").toUpperCase().trim().slice(0, 32);
+                              if (v === (r.utrNo || "")) return;
+                              upsertAdvanceRequest({ ...r, utrNo: v, paidAt: v ? new Date().toISOString() : r.paidAt });
+                              refresh();
+                              if (v) toast.success(`UTR saved for ${r.refNo}`);
+                            }}
+                            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                            style={{
+                              width: "70%",
+                              padding: "3px 6px",
+                              fontSize: 10,
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              border: `1px solid ${r.utrNo ? "#86efac" : "#fca5a5"}`,
+                              borderRadius: 3,
+                              background: r.utrNo ? "#dcfce7" : "#fff7f7",
+                              color: r.utrNo ? "#166534" : "#991b1b",
+                              outline: "none",
+                              marginRight: 4,
+                            }}
+                          />
+                          {r.utrNo && (
+                            <button
+                              data-testid={`adv-receipt-${i}`}
+                              onClick={(e) => { e.stopPropagation(); const emp = emps.find((x) => x.id === r.empId) || {}; printAdvanceReceipt(r, emp); }}
+                              title="Print A4 Advance Receipt with employee signature"
+                              style={{ padding: "2px 7px", fontSize: 10, fontWeight: 700, background: "#1e40af", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer" }}
+                            >🧾 Receipt</button>
+                          )}
+                        </>
                       )}
                     </td>
                     <td style={{ padding: 6, border: "1px solid #e2e8f0" }} onClick={(e) => e.stopPropagation()}>

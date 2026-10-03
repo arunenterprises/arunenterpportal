@@ -1,0 +1,9 @@
+crons:
+  - name: nightly-backup
+    description: "Daily 2 AM IST — generates a full DB backup, stores it, emails SuperAdmin a notice"
+    cron: "0 2 * * *"
+    timezone: "Asia/Kolkata"
+    endpoint: "{{BASE_URL}}/api/cron/nightly-backup"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

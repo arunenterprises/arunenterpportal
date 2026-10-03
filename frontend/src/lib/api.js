@@ -147,3 +147,12 @@ export const apiRestoreBackup = (collections, wipe_existing = false) =>
     method: "POST",
     body: JSON.stringify({ collections, wipe_existing }),
   });
+
+// ---- Nightly Backups (Super Admin only) ----
+export const apiListNightlyBackups = () => req("/admin/nightly-backups");
+export const apiDownloadNightlyBackup = (id) =>
+  req(`/admin/nightly-backups/${encodeURIComponent(id)}/download`);
+export const apiDeleteNightlyBackup = (id) =>
+  req(`/admin/nightly-backups/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const apiTriggerNightlyBackup = () =>
+  req("/admin/nightly-backups/trigger", { method: "POST", body: "{}" });

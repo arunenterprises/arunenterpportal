@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
-import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database } from "lucide-react";
+import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiDownloadBackup, apiRestoreBackup } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 import AuthSplash from "../components/AuthSplash";
 
@@ -72,6 +72,17 @@ export default function UsersAdmin() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [restoreWipe, setRestoreWipe] = useState(false);
+  // Nightly backups
+  const [nightlyList, setNightlyList] = useState([]);
+  const [nightlyBusy, setNightlyBusy] = useState(false);
+  const [triggerBusy, setTriggerBusy] = useState(false);
+
+  const loadNightly = async () => {
+    try {
+      const r = await apiListNightlyBackups();
+      setNightlyList(r.items || []);
+    } catch (e) { /* non-superadmins get 403 — ignore silently */ }
+  };
 
   const load = async () => {
     try {
@@ -90,6 +101,7 @@ export default function UsersAdmin() {
       return;
     }
     load();
+    if (isSuperAdmin(me?.user)) loadNightly();
   }, []);
 
   const setField = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -530,6 +542,96 @@ export default function UsersAdmin() {
                 <div style={{ fontSize: 10, color: "#475569", textAlign: "center" }}>
                   SuperAdmin account is always preserved
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Nightly Backups (SUPER ADMIN ONLY) — scheduled daily 2 AM IST via .emergent/crons.yml */}
+        {isSuperAdmin(me?.user) && (
+          <div style={{ marginTop: 16, border: "1.5px solid #a5b4fc", borderRadius: 6, background: "#eef2ff" }}>
+            <div style={{ background: "#e0e7ff", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#3730a3", display: "flex", alignItems: "center", gap: 6 }}>
+              <Moon size={12} /> NIGHTLY BACKUPS · DAILY 2 AM IST · AUTO EMAIL TO SUPERADMIN · LAST 7 RETAINED
+            </div>
+            <div style={{ padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ fontSize: 11.5, color: "#1e3a8a", lineHeight: 1.6 }}>
+                  <b>Automatic flow</b>: Har raat 2 AM IST par full backup generate hota hai, server par store hota hai, aur <b>{SUPER_ADMIN_EMAIL}</b> par summary email send ho jati hai. Last {7} backups retained — purane auto-delete.
+                </div>
+                <div style={{ display: "inline-flex", gap: 6 }}>
+                  <button
+                    data-testid="btn-refresh-nightly"
+                    onClick={async () => { setNightlyBusy(true); await loadNightly(); setNightlyBusy(false); }}
+                    disabled={nightlyBusy}
+                    style={{ padding: "6px 12px", background: "#1e40af", color: "#fff", border: "none", borderRadius: 4, cursor: nightlyBusy ? "wait" : "pointer", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}
+                  ><RefreshCw size={12} /> {nightlyBusy ? "Loading…" : "Refresh"}</button>
+                  <button
+                    data-testid="btn-trigger-nightly"
+                    onClick={async () => {
+                      if (!window.confirm("Trigger a nightly backup NOW (manual run)?\n\nSame flow as the 2 AM cron: generates backup, stores it, emails SuperAdmin.")) return;
+                      setTriggerBusy(true);
+                      try {
+                        await apiTriggerNightlyBackup();
+                        toast.success("Backup triggered — refreshing list in 3 seconds…");
+                        setTimeout(() => { loadNightly(); setTriggerBusy(false); }, 3000);
+                      } catch (e) { toast.error(`Trigger failed: ${e.message}`); setTriggerBusy(false); }
+                    }}
+                    disabled={triggerBusy}
+                    style={{ padding: "6px 12px", background: triggerBusy ? "#9ca3af" : "#7c3aed", color: "#fff", border: "none", borderRadius: 4, cursor: triggerBusy ? "wait" : "pointer", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}
+                  ><Moon size={12} /> {triggerBusy ? "Running…" : "Run Backup Now"}</button>
+                </div>
+              </div>
+              <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #c7d2fe", borderRadius: 5, background: "#fff" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: "#eef2ff", position: "sticky", top: 0 }}>
+                      <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #c7d2fe" }}>Backup ID</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #c7d2fe" }}>Generated At (UTC)</th>
+                      <th style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid #c7d2fe" }}>Records</th>
+                      <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #c7d2fe" }}>Collections</th>
+                      <th style={{ padding: "6px 10px", textAlign: "center", borderBottom: "1px solid #c7d2fe" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nightlyList.length === 0 ? (
+                      <tr><td colSpan={5} style={{ padding: 16, textAlign: "center", color: "#64748b" }}>No nightly backups yet · First one auto-runs tonight at 2 AM IST (or click "Run Backup Now" to test).</td></tr>
+                    ) : nightlyList.map((nb) => (
+                      <tr key={nb.id} data-testid={`nightly-row-${nb.id}`}>
+                        <td style={{ padding: "5px 10px", fontFamily: "monospace", fontSize: 10, fontWeight: 700, borderBottom: "1px solid #e2e8f0" }}>{nb.id}</td>
+                        <td style={{ padding: "5px 10px", borderBottom: "1px solid #e2e8f0" }}>{(nb.generated_at || "").replace("T", " ").slice(0, 19)}</td>
+                        <td style={{ padding: "5px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #e2e8f0" }}>{nb.total_records}</td>
+                        <td style={{ padding: "5px 10px", textAlign: "center", borderBottom: "1px solid #e2e8f0" }}>{Object.keys(nb.collection_counts || {}).length}</td>
+                        <td style={{ padding: "5px 10px", textAlign: "center", borderBottom: "1px solid #e2e8f0" }}>
+                          <button
+                            data-testid={`nightly-dl-${nb.id}`}
+                            onClick={async () => {
+                              try {
+                                const full = await apiDownloadNightlyBackup(nb.id);
+                                const blob = new Blob([JSON.stringify(full, null, 2)], { type: "application/json" });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url; a.download = `${nb.id}.json`;
+                                document.body.appendChild(a); a.click(); a.remove();
+                                URL.revokeObjectURL(url);
+                                toast.success(`Downloaded ${nb.id}`);
+                              } catch (e) { toast.error(`Download failed: ${e.message}`); }
+                            }}
+                            style={{ padding: "3px 10px", fontSize: 10, background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, marginRight: 4 }}
+                          >⬇ Download</button>
+                          <button
+                            data-testid={`nightly-del-${nb.id}`}
+                            onClick={async () => {
+                              if (!window.confirm(`Delete nightly backup ${nb.id}?`)) return;
+                              try { await apiDeleteNightlyBackup(nb.id); toast.success("Deleted"); loadNightly(); }
+                              catch (e) { toast.error(`Delete failed: ${e.message}`); }
+                            }}
+                            style={{ padding: "3px 10px", fontSize: 10, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 700 }}
+                          >🗑</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
