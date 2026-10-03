@@ -108,7 +108,7 @@ export default function Reports() {
 
   const consolidatedDues = useMemo(() => {
     const rows = [];
-    // Vendor bills in the chosen month (by billDate OR dueDate falling in month)
+    // Vendor bills only — Pay Bills ki apni dedicated Salary Bills tab + HR module hai
     approvedBills.forEach((b) => {
       const c = computeBill(b);
       const paid = payments.filter((p) => p.billId === b.id && p.status === "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
@@ -134,34 +134,8 @@ export default function Reports() {
         holdReason: b.holdReason || "",
       });
     });
-    // Pay Bills matching this month that are GM-approved (step 3) or settled with UTR missing (step 4 && no utr)
-    payBillsAll.forEach((p) => {
-      if (p.monthKey !== monthKey) return;
-      if (Number(p.step) < 2) return;
-      const linkedPv = p.linkedPvNo ? payments.find((pp) => pp.pvNo === p.linkedPvNo) : null;
-      const hasUtr = !!(linkedPv && linkedPv.utrNo);
-      if (Number(p.step) === 4 && hasUtr) return; // Fully done
-      rows.push({
-        key: `P:${p.id}`,
-        source: "Pay Bill",
-        srcTone: "#be185d",
-        id: p.id,
-        refNo: p.refNo,
-        party: `Payroll · ${(p.lines || []).filter((l) => !l.excluded).length} employees`,
-        partyCode: "AE-HR-PAYROLL",
-        billNo: p.refNo,
-        billDate: `${p.year}-${String(p.month).padStart(2, "0")}-01`,
-        dueDate: "",
-        net: Number(p.totalNet || 0),
-        paid: Number(p.step) === 4 ? Number(p.totalNet || 0) : 0,
-        balance: Number(p.step) === 4 ? 0 : Number(p.totalNet || 0),
-        decision: Number(p.step) >= 3 ? "MarkedPay" : "",
-        scheduledPay: Number(p.totalNet || 0),
-        holdReason: "",
-      });
-    });
     return rows;
-  }, [approvedBills, payBillsAll, payments, dueMonth, dueYear, monthKey]);
+  }, [approvedBills, payments, dueMonth, dueYear]);
 
   const monthSummary = useMemo(() => ({
     total: consolidatedDues.length,
@@ -233,7 +207,7 @@ export default function Reports() {
 
   // ---- Bulk process: generate PVs or print bulk advice for "Marked Pay" rows ----
   const processSinglePVs = () => {
-    const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay" && r.source === "Vendor Bill");
+    const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay");
     if (!toPay.length) { toast.error("No vendor bills marked 'Pay' for this month"); return; }
     if (!window.confirm(`Generate ${toPay.length} party-wise Payment Voucher(s) for ${monthLabel}?\n\nEach vendor gets a separate PV draft. Review & approve in Payment Vouchers tab.`)) return;
     let created = 0;
@@ -263,7 +237,7 @@ export default function Reports() {
   };
 
   const processBulkBankAdvice = () => {
-    const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay" && r.source === "Vendor Bill");
+    const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay");
     if (!toPay.length) { toast.error("No vendor bills marked 'Pay' for this month"); return; }
     const items = toPay.map((r) => {
       const b = bills.find((x) => x.id === r.id) || {};
@@ -1023,25 +997,12 @@ export default function Reports() {
                 };
                 const selectedRows = unpaidApproved.filter((r) => selectedDueBills.has(r.id));
                 const selSum = selectedRows.reduce((s, r) => s + r.balance, 0);
-                const bulkMark = (status) => {
-                  if (!selectedRows.length) { toast.error("No rows selected"); return; }
-                  if (!canApprove()) { toast.error("Only Admin / Accounts can mark"); return; }
-                  const extras = status === "Hold" ? { holdReason: "" } : status === "MarkedPay" ? { scheduledPayAmount: 0 } : {};
-                  selectedRows.forEach((r) => setBillPaymentStatus(r.id, status, { ...extras, silent: true }));
-                  toast.success(`${selectedRows.length} bills marked ${status === "MarkedPay" ? "PAY" : status === "Hold" ? "HOLD" : status === "Reject" ? "REJECT" : "cleared"}`);
-                  setSelectedDueBills(new Set());
-                };
                 return (
                   <div style={{ marginTop: 14, border: "1px solid #cbd5e1", borderRadius: 6, overflow: "hidden" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 12px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ padding: "7px 12px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1" }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: "#334155", letterSpacing: 0.5, textTransform: "uppercase" }}>
                         All Approved Bills · {unpaidApproved.length} unpaid · <span style={{ color: "#be185d" }}>Selected: {selectedRows.length}</span> · <span style={{ color: "#166534" }}>₹ {selSum.toLocaleString("en-IN")}</span>
-                      </div>
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                        <button data-testid="sum-bulk-pay" onClick={() => bulkMark("MarkedPay")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#16a34a" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>✓ Mark Selected PAY</button>
-                        <button data-testid="sum-bulk-hold" onClick={() => bulkMark("Hold")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#b45309" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>⏸ Mark HOLD</button>
-                        <button data-testid="sum-bulk-reject" onClick={() => bulkMark("Reject")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>✗ Mark REJECT</button>
-                        <button data-testid="sum-bulk-clear" onClick={() => bulkMark("")} disabled={!canApprove() || selectedRows.length === 0} style={{ padding: "4px 9px", background: canApprove() && selectedRows.length > 0 ? "#64748b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() && selectedRows.length > 0 ? "pointer" : "not-allowed", fontSize: 10.5, fontWeight: 700 }}>↺ Clear</button>
+                        <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 600, color: "#64748b", textTransform: "none", letterSpacing: 0 }}>↓ Decisions niche "Due List · Monthly Decision Sheet" section me lagein.</span>
                       </div>
                     </div>
                     <div style={{ maxHeight: 320, overflowY: "auto" }}>
@@ -1120,7 +1081,6 @@ export default function Reports() {
 
               <table className="data-table" data-testid="due-table">
                 <thead><tr>
-                  <th>Source</th>
                   <th>Ref No</th><th>Party</th><th>Bill No</th><th>Bill Dt</th><th>Due Dt</th>
                   <th style={{ textAlign: "right" }}>Net</th>
                   <th style={{ textAlign: "right" }}>Paid</th>
@@ -1131,15 +1091,13 @@ export default function Reports() {
                 </tr></thead>
                 <tbody>
                   {consolidatedDues.length === 0 && (
-                    <tr><td colSpan={12} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No dues for {monthLabel}</td></tr>
+                    <tr><td colSpan={11} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No vendor dues for {monthLabel}</td></tr>
                   )}
                   {consolidatedDues.map((r) => {
-                    const billObj = r.source === "Vendor Bill" ? bills.find((b) => b.id === r.id) : null;
-                    const pvForBill = r.source === "Vendor Bill" ? payments.find((p) => p.billId === r.id) : null;
+                    const pvForBill = payments.find((p) => p.billId === r.id);
                     const decision = r.decision;
                     return (
                     <tr key={r.key} data-testid={`due-row-${r.refNo}`} style={{ background: decision === "MarkedPay" ? "#ecfdf5" : decision === "Hold" ? "#fef3c7" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
-                      <td><span style={{ padding: "2px 7px", background: `${r.srcTone}18`, color: r.srcTone, border: `1px solid ${r.srcTone}50`, borderRadius: 3, fontSize: 9, fontWeight: 800, letterSpacing: 0.3 }}>{r.source}</span></td>
                       <td className="mono">{r.refNo}</td>
                       <td>{r.party}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.partyCode}</span></td>
                       <td>{r.billNo}</td>
@@ -1149,7 +1107,7 @@ export default function Reports() {
                       <td className="num">{r.paid.toFixed(2)}</td>
                       <td className="num"><b>{r.balance.toFixed(2)}</b></td>
                       <td className="num">
-                        {r.source === "Vendor Bill" && decision === "MarkedPay" ? (
+                        {decision === "MarkedPay" ? (
                           <input type="number" defaultValue={r.scheduledPay > 0 ? r.scheduledPay : r.balance} data-testid={`due-pay-amt-${r.refNo}`}
                             onBlur={(e) => setBillPaymentStatus(r.id, "MarkedPay", { scheduledPayAmount: Number(e.target.value || 0), silent: true })}
                             style={{ width: 90, padding: "3px 6px", fontSize: 10, fontFamily: "monospace", border: "1.5px solid #86efac", background: "#f0fdf4", borderRadius: 3, textAlign: "right", fontWeight: 700 }} />
@@ -1164,8 +1122,8 @@ export default function Reports() {
                         <div style={{ display: "inline-flex", gap: 3, flexWrap: "wrap" }}>
                           <button data-testid={`due-mark-pay-${r.refNo}`}
                             onClick={() => setBillPaymentStatus(r.id, decision === "MarkedPay" ? "" : "MarkedPay")}
-                            disabled={!canApprove() || r.source !== "Vendor Bill"}
-                            style={{ padding: "3px 7px", background: decision === "MarkedPay" ? "#16a34a" : "#dcfce7", color: decision === "MarkedPay" ? "#fff" : "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: canApprove() && r.source === "Vendor Bill" ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700, opacity: r.source !== "Vendor Bill" ? 0.6 : 1 }}>{decision === "MarkedPay" ? "✓ PAY" : "✓ Pay"}</button>
+                            disabled={!canApprove()}
+                            style={{ padding: "3px 7px", background: decision === "MarkedPay" ? "#16a34a" : "#dcfce7", color: decision === "MarkedPay" ? "#fff" : "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}>{decision === "MarkedPay" ? "✓ PAY" : "✓ Pay"}</button>
                           <button data-testid={`due-mark-hold-${r.refNo}`}
                             onClick={() => {
                               if (decision !== "Hold") {
@@ -1176,12 +1134,12 @@ export default function Reports() {
                                 setBillPaymentStatus(r.id, "");
                               }
                             }}
-                            disabled={!canApprove() || r.source !== "Vendor Bill"}
-                            style={{ padding: "3px 7px", background: decision === "Hold" ? "#b45309" : "#fef3c7", color: decision === "Hold" ? "#fff" : "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: canApprove() && r.source === "Vendor Bill" ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700, opacity: r.source !== "Vendor Bill" ? 0.6 : 1 }} title={r.holdReason || "Click to put on hold"}>{decision === "Hold" ? "⏸ HOLD" : "⏸ Hold"}</button>
+                            disabled={!canApprove()}
+                            style={{ padding: "3px 7px", background: decision === "Hold" ? "#b45309" : "#fef3c7", color: decision === "Hold" ? "#fff" : "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }} title={r.holdReason || "Click to put on hold"}>{decision === "Hold" ? "⏸ HOLD" : "⏸ Hold"}</button>
                           <button data-testid={`due-mark-reject-${r.refNo}`}
                             onClick={() => setBillPaymentStatus(r.id, decision === "Reject" ? "" : "Reject")}
-                            disabled={!canApprove() || r.source !== "Vendor Bill"}
-                            style={{ padding: "3px 7px", background: decision === "Reject" ? "#991b1b" : "#fee2e2", color: decision === "Reject" ? "#fff" : "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: canApprove() && r.source === "Vendor Bill" ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700, opacity: r.source !== "Vendor Bill" ? 0.6 : 1 }}>{decision === "Reject" ? "✗ REJECT" : "✗ Reject"}</button>
+                            disabled={!canApprove()}
+                            style={{ padding: "3px 7px", background: decision === "Reject" ? "#991b1b" : "#fee2e2", color: decision === "Reject" ? "#fff" : "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}>{decision === "Reject" ? "✗ REJECT" : "✗ Reject"}</button>
                         </div>
                         {decision === "Hold" && r.holdReason && <div style={{ fontSize: 9, color: "#78350f", marginTop: 2, fontStyle: "italic" }}>⏸ {r.holdReason}</div>}
                       </td>
