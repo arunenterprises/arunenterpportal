@@ -21,7 +21,7 @@ import {
   getRecruitments, createRecruitDraft, upsertRecruit, advanceRecruitStep, rejectRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, advanceExitStep, EXIT_STATUS,
   getComplianceSnapshot,
-  getPayments,
+  getPayments, savePayments,
   currentRole, canCreate, canApprove, canDelete, currentUser, fmtDMY, amountToWords,
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice } from "../lib/hrLetters";
@@ -1527,13 +1527,41 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", color: "#78350f" }}>₹{inrN(p.totalAdvance)}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, color: "#166534" }}>₹{inrN(p.totalNet)}</td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10, fontWeight: 700 }}>{PAYBILL_STATUS[p.step] || "Draft"}</td>
-                  <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }} data-testid={`pb-utr-cell-${p.id}`}>
+                  <td style={{ padding: 6, border: "1px solid #e2e8f0", fontSize: 10 }} data-testid={`pb-utr-cell-${p.id}`} onClick={(e) => e.stopPropagation()}>
                     {!isSettled ? (
                       <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>
                     ) : hasUtr ? (
-                      <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontFamily: "monospace" }}>✓ {pv.utrNo}</span>
+                      <div style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                        <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontFamily: "monospace" }}>✓ {pv.utrNo}</span>
+                        {canApprove() && <button data-testid={`pb-hr-utr-edit-${p.id}`} onClick={() => {
+                          const next = window.prompt(`Edit UTR for ${p.linkedPvNo}`, pv.utrNo || "");
+                          if (next === null) return;
+                          const payments = getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? { ...pp, utrNo: next.toUpperCase().slice(0, 32), paidAt: next ? new Date().toISOString() : pp.paidAt } : pp);
+                          savePayments(payments); refresh();
+                          toast.success(next ? `UTR updated` : `UTR cleared`);
+                        }} style={{ padding: "2px 6px", background: "#fff", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: 3, cursor: "pointer", fontSize: 9, fontWeight: 700 }} title="Edit UTR">✎</button>}
+                      </div>
                     ) : (
-                      <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800, animation: "pulse 2s infinite" }}>⚠ AWAITING UTR {p.linkedPvNo ? `· ${p.linkedPvNo}` : ""}</span>
+                      canApprove() ? (
+                        <input
+                          type="text"
+                          defaultValue=""
+                          placeholder="Enter UTR / Ref No"
+                          data-testid={`pb-hr-utr-input-${p.id}`}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (!v || !p.linkedPvNo) return;
+                            const payments = getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? { ...pp, utrNo: v.toUpperCase().slice(0, 32), paidAt: new Date().toISOString() } : pp);
+                            savePayments(payments); refresh();
+                            toast.success(`UTR saved · ${p.refNo}`);
+                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
+                          title={`Enter UTR for ${p.linkedPvNo || "linked PV"} · auto-saves on blur / Enter`}
+                          style={{ padding: "3px 7px", fontSize: 10, fontFamily: "monospace", fontWeight: 700, border: "1.5px solid #fca5a5", background: "#fff7ed", color: "#991b1b", borderRadius: 3, width: 160 }}
+                        />
+                      ) : (
+                        <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800 }}>⚠ AWAITING UTR {p.linkedPvNo ? `· ${p.linkedPvNo}` : ""}</span>
+                      )
                     )}
                   </td>
                   <td style={{ padding: 6, border: "1px solid #e2e8f0", textAlign: "center" }}>
@@ -2221,6 +2249,29 @@ export default function HRManagement() {
   const joinersThisMonth = emps.filter((e) => (e.doj || "") >= startOfMonth).length;
   const exitPending = emps.filter((e) => (e.status || "") === "Exit Pending").length;
 
+  // ---- Monthly Payroll Summary (current month) ----
+  const curY = now.getFullYear();
+  const curM = now.getMonth() + 1;
+  const curMonthKey = `${curY}${String(curM).padStart(2, "0")}`;
+  const monthLabel = now.toLocaleString("en", { month: "long", year: "numeric" });
+  const payBillsAll = getPayBills();
+  const advReqsAll = getAdvanceRequests();
+  const paymentsAll = getPayments();
+  const curPB = payBillsAll.find((p) => p.monthKey === curMonthKey);
+  const payrollNet = curPB ? Number(curPB.totalNet || 0) : 0;
+  const payrollEmps = curPB ? (curPB.lines?.filter((l) => !l.excluded).length || 0) : 0;
+  const payrollStep = curPB ? Number(curPB.step || 1) : 0;
+  const payrollStepLabel = { 0: "Not Created", 1: "Draft", 2: "Submitted to GM", 3: "GM Approved", 4: "Settled" }[payrollStep] || "—";
+  const advAdjusted = advReqsAll
+    .filter((r) => Number(r.status) === 3 && Number(r.targetYear) === curY && Number(r.targetMonth) === curM)
+    .reduce((s, r) => s + Number(r.amount || 0), 0);
+  const advAdjCount = advReqsAll.filter((r) => Number(r.status) === 3 && Number(r.targetYear) === curY && Number(r.targetMonth) === curM).length;
+  const utrPendingCount = payBillsAll.filter((p) => {
+    if (Number(p.step) !== 4 || !p.linkedPvNo) return false;
+    const pv = paymentsAll.find((pp) => pp.pvNo === p.linkedPvNo);
+    return !(pv && pv.utrNo);
+  }).length;
+
   return (
     <>
       <Toaster position="top-center" richColors />
@@ -2254,6 +2305,35 @@ export default function HRManagement() {
           </div>
 
           {/* Tabs */}
+          {/* ---------- Monthly Payroll Summary Card — Pay Bill status + Advance Adjusted + UTR Pending ---------- */}
+          <div data-testid="hr-payroll-summary" style={{ marginTop: 14, background: "#fff", border: "1.5px solid #e2e8f0", borderLeft: "4px solid #be185d", borderRadius: 8, padding: "10px 16px", boxShadow: "0 1px 4px rgba(15,23,42,.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <div onClick={() => setTab("paybill")} style={{ cursor: "pointer" }} title="Open Pay Bill tab">
+                <div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1.5, textTransform: "uppercase" }}>Monthly Payroll · {monthLabel}</div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "#be185d", marginTop: 2 }}>
+                  {curPB ? `Pay Bill ${curPB.refNo} · ${payrollStepLabel}` : "No Pay Bill created for this month yet"}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ padding: "6px 12px", background: "#eef2ff", border: "1px solid #a5b4fc", borderRadius: 6, minWidth: 130 }} data-testid="hr-payroll-net">
+                  <div style={{ fontSize: 8.5, fontWeight: 800, color: "#3730a3", letterSpacing: 1, textTransform: "uppercase" }}>Net Payable</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#3730a3" }}>₹ {payrollNet.toLocaleString("en-IN")}</div>
+                  <div style={{ fontSize: 9, color: "#64748b", fontWeight: 600 }}>{payrollEmps} employees</div>
+                </div>
+                <div onClick={() => setTab("advance")} style={{ padding: "6px 12px", background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 6, minWidth: 130, cursor: "pointer" }} data-testid="hr-payroll-advance" title="Open Advance Register">
+                  <div style={{ fontSize: 8.5, fontWeight: 800, color: "#78350f", letterSpacing: 1, textTransform: "uppercase" }}>Advance Adjusted</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#78350f" }}>₹ {advAdjusted.toLocaleString("en-IN")}</div>
+                  <div style={{ fontSize: 9, color: "#64748b", fontWeight: 600 }}>{advAdjCount} approved advances</div>
+                </div>
+                <div style={{ padding: "6px 12px", background: utrPendingCount > 0 ? "#fee2e2" : "#dcfce7", border: `1px solid ${utrPendingCount > 0 ? "#fca5a5" : "#86efac"}`, borderRadius: 6, minWidth: 130, cursor: utrPendingCount > 0 ? "pointer" : "default" }} onClick={() => utrPendingCount > 0 && setTab("paybill")} data-testid="hr-payroll-utr-pending" title={utrPendingCount > 0 ? "Open Pay Bill tab to enter UTR" : "All pay bills have UTR entered"}>
+                  <div style={{ fontSize: 8.5, fontWeight: 800, color: utrPendingCount > 0 ? "#991b1b" : "#166534", letterSpacing: 1, textTransform: "uppercase" }}>UTR Pending</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: utrPendingCount > 0 ? "#991b1b" : "#166534" }}>{utrPendingCount}</div>
+                  <div style={{ fontSize: 9, color: "#64748b", fontWeight: 600 }}>{utrPendingCount > 0 ? "Awaiting bank UTR" : "All settled"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div style={{ marginTop: 18, background: "#fff", borderRadius: 10, padding: 5, display: "inline-flex", gap: 3, border: "1px solid #e2e8f0", flexWrap: "wrap" }} data-testid="hr-tabs">
             {[
               { id: "dashboard", label: "Dashboard", tone: "#0f172a", icon: Sparkles },

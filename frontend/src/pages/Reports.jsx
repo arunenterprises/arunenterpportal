@@ -14,6 +14,7 @@ import {
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
+  upsertBill,
   canApprove, canDelete, currentRole,
 } from "../lib/store";
 
@@ -83,6 +84,16 @@ export default function Reports() {
   const filtered = filter
     ? dueRows.filter((r) => `${r.refNo} ${r.vendorCode} ${r.vendorName} ${r.billNo}`.toLowerCase().includes(filter.toLowerCase()))
     : dueRows;
+
+  // ---- Due List Hold/Pay toggle (gates which approved bills flow into PV tab) ----
+  const setBillPaymentStatus = (billId, newStatus) => {
+    const b = bills.find((x) => x.id === billId);
+    if (!b) return;
+    const updated = { ...b, paymentStatus: newStatus };
+    upsertBill(updated);
+    setRefresh((v) => v + 1);
+    toast.success(newStatus === "Hold" ? `Bill marked HOLD · will not appear in Payment Vouchers` : newStatus === "MarkedPay" ? `Bill marked PAY · now ready to process in Payment Vouchers tab` : `Bill decision cleared`);
+  };
 
   const summary = {
     approvedBillsCount: approvedBills.length,
@@ -826,17 +837,20 @@ export default function Reports() {
                   <th style={{ textAlign: "right" }}>Balance</th>
                   <th>UTR / Ref</th>
                   <th>WO Copy</th>
+                  <th>Decision</th>
                   <th>Status</th>
                 </tr></thead>
                 <tbody>
                   {filtered.length === 0 && (
-                    <tr><td colSpan={11} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No approved bills</td></tr>
+                    <tr><td colSpan={12} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No approved bills</td></tr>
                   )}
                   {filtered.map((r) => {
                     const billObj = bills.find((b) => b.id === r.id);
                     const pvForBill = payments.find((p) => p.billId === r.id);
+                    const decision = r.paymentStatus || "";
+                    const isPaid = r.balance <= 0;
                     return (
-                    <tr key={r.id} data-testid={`due-row-${r.refNo}`}>
+                    <tr key={r.id} data-testid={`due-row-${r.refNo}`} style={{ background: decision === "MarkedPay" ? "#ecfdf5" : decision === "Hold" ? "#fef3c7" : "#fff" }}>
                       <td className="mono">{r.refNo}</td>
                       <td>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
                       <td>{r.billNo}</td>
@@ -859,6 +873,28 @@ export default function Reports() {
                             📎 View
                           </a>
                         ) : <span style={{ color: "#94a3b8" }}>—</span>}
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {isPaid ? (
+                          <span style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>✓ Done</span>
+                        ) : (
+                          <div style={{ display: "inline-flex", gap: 3, flexWrap: "wrap" }}>
+                            <button
+                              data-testid={`due-mark-pay-${r.refNo}`}
+                              onClick={() => setBillPaymentStatus(r.id, decision === "MarkedPay" ? "" : "MarkedPay")}
+                              disabled={!canApprove()}
+                              title={canApprove() ? "Mark this bill to flow into Payment Vouchers tab" : "Only Admin / Accounts can mark"}
+                              style={{ padding: "3px 7px", background: decision === "MarkedPay" ? "#16a34a" : "#dcfce7", color: decision === "MarkedPay" ? "#fff" : "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}
+                            >{decision === "MarkedPay" ? "✓ MARKED PAY" : "✓ Pay"}</button>
+                            <button
+                              data-testid={`due-mark-hold-${r.refNo}`}
+                              onClick={() => setBillPaymentStatus(r.id, decision === "Hold" ? "" : "Hold")}
+                              disabled={!canApprove()}
+                              title={canApprove() ? "Put this bill on HOLD — will not appear in Payment Vouchers tab" : "Only Admin / Accounts can hold"}
+                              style={{ padding: "3px 7px", background: decision === "Hold" ? "#b45309" : "#fef3c7", color: decision === "Hold" ? "#fff" : "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}
+                            >{decision === "Hold" ? "⏸ ON HOLD" : "⏸ Hold"}</button>
+                          </div>
+                        )}
                       </td>
                       <td>
                         <span className={`pill-tag ${r.status === "Overdue" ? "overdue" : r.status === "Paid" ? "paid" : "due"}`}>{r.status}</span>

@@ -5,7 +5,11 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
-- **Advance Request Workflow Simplified · 3-Step Terminal Flow (Oct 2026)** — Per user requirement: HR creates + submits → Accounts approves → DONE. Removed GM step, bank details field (paymentMode), repayment mode, EMI months, and the auto-PV generation on status 4. New workflow:
+- **Monthly Payroll Summary moved · Home → HR Management (Oct 2026)** — Per user feedback ("home par ye sab nahi chahiye ya jaha ka hai wahi kijiye"), the Monthly Payroll card is now rendered inside `HRManagement.jsx` right under the KPI tiles and above the tab bar (not on `/home`). Home page restored to its lean Organisation Structure layout. HR card tiles are now clickable — Net Payable → paybill tab, Advance Adjusted → advance tab, UTR Pending → paybill tab.
+- **Due List Decision Flow · Hold / Pay Toggle (Oct 2026)** — Per-row **"✓ Pay" + "⏸ Hold"** toggle buttons on Due List. Decision stored on `bill.paymentStatus`. **Payment Vouchers tab's bill selector now filters to "Marked Pay" bills only.**
+- **HR Pay Bill History · Inline UTR Entry (Oct 2026)** — HR → Pay Bill tab ki history me ab UTR directly enter kar sakte hain (Admin/Accounts only). Input field pe focus loose hone pe ya Enter dabane pe auto-saves to linked PV. Already-entered UTR edit kar sakte hain via ✎ button.
+- **Advance Request Workflow Simplified (Oct 2026)** — 3-step terminal flow with targetMonth/targetYear. Pay Bill `createPayBillDraft` auto-fills `advance` column from Accounts-approved advance requests matching empId + target month.
+- **Backend · Scoped HR Reset + Delete Lockdown + UTR-aware SuperAdmin override** (Oct 2026 — detailed in earlier entries).
   - Status 1 Draft → Status 2 Submitted to Accounts → **Status 3 Accounts Approved · Auto-adjusted in Pay Bill** (TERMINAL)
   - Added `targetMonth` + `targetYear` fields on the request so Accounts-approved advances auto-populate in the correct month's Pay Bill `advance` column.
   - `advanceAdvanceRequestStep` capped at status 3; the deprecated status-4 PV generation is gone. BillProcessing AccountsAdvanceView shows "✓ Auto-adjusted in {Month}" tag instead of "Generate PV & Pay" button.
