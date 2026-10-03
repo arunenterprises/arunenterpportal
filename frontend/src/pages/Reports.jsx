@@ -12,7 +12,7 @@ import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON, amountToWords,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
-  getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
+  getPayBills, advancePayBillStep, deletePayBill, upsertPayBill, PAYBILL_STATUS,
   getAdvanceRegister,
   upsertBill,
   canApprove, canDelete, currentRole,
@@ -30,6 +30,7 @@ const F = ({ label, children }) => (
 export default function Reports() {
   const nav = useNavigate();
   const fileInputRef = React.useRef(null);
+  const pbFileInputRef = React.useRef(null);
   const [selectedBillId, setSelectedBillId] = useState("");
   const [pv, setPv] = useState(null);
   const [refresh, setRefresh] = useState(0);
@@ -683,10 +684,116 @@ export default function Reports() {
                     {selectedRows.length > 0 && (
                       <div style={{ padding: "6px 10px", background: "#fdf2f8", borderTop: "1px solid #f9a8d4", display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <button
+                          data-testid="pb-decision-xlsx"
+                          onClick={() => {
+                            const rows = selectedRows.map((pb) => {
+                              const period = `${new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en-IN", { month: "long" })} ${pb.year}`;
+                              const pv = pb.linkedPvNo ? payments.find((p) => p.pvNo === pb.linkedPvNo) : null;
+                              return {
+                                "Ref No": pb.refNo,
+                                "Period": period,
+                                "Employees": pb.lines?.length || 0,
+                                "Gross (₹)": Number(pb.totalGross || 0),
+                                "Deductions (₹)": Number(pb.totalDeductions || 0),
+                                "Advance (₹)": Number(pb.totalAdvance || 0),
+                                "Net Payable (₹)": Number(pb.totalNet || 0),
+                                "Status": PAYBILL_STATUS[pb.step] || "—",
+                                "Linked PV": pb.linkedPvNo || "",
+                                "UTR / Ref": pv?.utrNo || "",
+                                "Decision (Pay / Hold / Reject)": "",
+                                "Remarks": "",
+                              };
+                            });
+                            const wb = XLSX.utils.book_new();
+                            const ws = XLSX.utils.json_to_sheet(rows);
+                            ws["!cols"] = [{ wch: 22 }, { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 26 }, { wch: 24 }];
+                            XLSX.utils.book_append_sheet(wb, ws, "HR Pay Bills Decision");
+                            const stamp = new Date().toISOString().slice(0, 10);
+                            XLSX.writeFile(wb, `HR_PayBill_Decision_${stamp}.xlsx`);
+                            toast.success(`Decision XLSX downloaded · ${rows.length} rows`);
+                          }}
+                          style={{ padding: "4px 10px", background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                          title="Download XLSX with Decision + Remarks columns (fill offline, re-upload to apply)"
+                        >⬇ Download Decision XLSX ({selectedRows.length})</button>
+                        <input
+                          ref={pbFileInputRef}
+                          type="file"
+                          accept=".xlsx,.xls"
+                          style={{ display: "none" }}
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = "";
+                            if (!f) return;
+                            if (!canApprove()) { toast.error("Only Admin / SuperAdmin / Accounts can apply decisions"); return; }
+                            try {
+                              const buf = await f.arrayBuffer();
+                              const wb = XLSX.read(buf, { type: "array" });
+                              const ws = wb.Sheets[wb.SheetNames[0]];
+                              const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+                              let settled = 0, held = 0, rejected = 0, skipped = 0, missing = 0;
+                              const pbs = getPayBills();
+                              const updates = [];
+                              rows.forEach((row) => {
+                                const ref = String(row["Ref No"] || "").trim();
+                                const decision = String(row["Decision (Pay / Hold / Reject)"] || "").trim().toLowerCase();
+                                const remarks = String(row["Remarks"] || "").trim();
+                                if (!ref || !decision) { skipped += 1; return; }
+                                const pb = pbs.find((x) => x.refNo === ref);
+                                if (!pb) { missing += 1; return; }
+                                if (decision === "pay") {
+                                  if (Number(pb.step) !== 3) { skipped += 1; return; }
+                                  const n = advancePayBillStep(pb);
+                                  updates.push(n);
+                                  settled += 1;
+                                } else if (decision === "hold") {
+                                  const next = { ...pb, holdFlag: true, holdReason: remarks || "Marked Hold via Decision XLSX", holdAt: new Date().toISOString() };
+                                  upsertPayBill(next);
+                                  held += 1;
+                                } else if (decision === "reject") {
+                                  const next = { ...pb, rejectFlag: true, rejectReason: remarks || "Marked Reject via Decision XLSX", rejectedAt: new Date().toISOString() };
+                                  upsertPayBill(next);
+                                  rejected += 1;
+                                } else { skipped += 1; }
+                              });
+                              setRefresh((v) => v + 1);
+                              toast.success(`Decisions applied · ${settled} settled (PV auto-gen) · ${held} held · ${rejected} rejected${missing ? ` · ${missing} ref-not-found` : ""}${skipped ? ` · ${skipped} skipped` : ""}`, { duration: 8000 });
+                            } catch (err) {
+                              toast.error(`Upload failed: ${err.message || err}`);
+                            }
+                          }}
+                        />
+                        <button
+                          data-testid="pb-decision-xlsx-upload"
+                          onClick={() => pbFileInputRef.current?.click()}
+                          disabled={!canApprove()}
+                          title={canApprove() ? "Upload edited Decision XLSX — 'Pay' rows settle (auto-PV), 'Hold' / 'Reject' flag the pay bill" : "Only Admin / SuperAdmin / Accounts can apply decisions"}
+                          style={{ padding: "4px 10px", background: canApprove() ? "#7c3aed" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}
+                        >⬆ Upload Decision XLSX</button>
+                        <button
+                          data-testid="pb-bulk-settle"
+                          onClick={() => {
+                            if (!canApprove()) { toast.error("Only Admin / SuperAdmin / Accounts can settle"); return; }
+                            const eligible = selectedRows.filter((pb) => Number(pb.step) === 3);
+                            if (eligible.length === 0) { toast.error("No GM-Approved pay bills selected · select step 3 rows to settle"); return; }
+                            if (!window.confirm(`1-Click Process · Settle ${eligible.length} Pay Bill(s)?\n\nEach will be moved to Settled (step 4) and a Payment Voucher auto-generated for the net salary payout.\n\nTotal payout: ₹ ${eligible.reduce((s, pb) => s + Number(pb.totalNet || 0), 0).toLocaleString("en-IN")}`)) return;
+                            let okCount = 0, pvs = [];
+                            eligible.forEach((pb) => {
+                              const n = advancePayBillStep(pb);
+                              if (Number(n.step) === 4) { okCount += 1; if (n.linkedPvNo) pvs.push(n.linkedPvNo); }
+                            });
+                            setSelectedPayBills(new Set());
+                            setRefresh((v) => v + 1);
+                            toast.success(`✓ Settled ${okCount}/${eligible.length} Pay Bills · ${pvs.length} PV auto-generated`, { duration: 7000, description: pvs.slice(0, 3).join(", ") + (pvs.length > 3 ? ` + ${pvs.length - 3} more` : "") });
+                          }}
+                          disabled={!canApprove()}
+                          title={canApprove() ? "Settle all selected GM-approved pay bills in one click (step 3 → 4) with auto-PV generation" : "Only Admin / SuperAdmin / Accounts can settle"}
+                          style={{ padding: "4px 10px", background: canApprove() ? "#16a34a" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}
+                        >⚡ 1-Click Process ({selectedRows.filter((pb) => Number(pb.step) === 3).length})</button>
+                        <button
                           data-testid="pb-bulk-excel"
                           onClick={() => selectedRows.forEach((pb) => exportBankTransferXLSX(pb))}
                           style={{ padding: "4px 10px", background: "#059669", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
-                        >⬇ Export Bulk Excel ({selectedRows.length})</button>
+                        >⬇ Export Bulk Bank Excel ({selectedRows.length})</button>
                         <button
                           data-testid="pb-bulk-advice"
                           onClick={() => selectedRows.forEach((pb) => printBankTransferAdvice(pb))}
