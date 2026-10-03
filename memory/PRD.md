@@ -5,7 +5,8 @@
 - Print: `@page size: A4` with per-doc overrides via `window.open` in `hrLetters.js`.
 
 ## Recent Updates (Feb 2026 session)
-- **Summary Dashboard sheet · single auto-changing Status column (Oct 2026)** — User feedback: "sirf status dijiye jo ki paid ke bad change ho jaye". Separate Decision column removed. Single Status pill ab bill ki state ke hisaab se automatically change hoti hai — balance=0 pe **✓ PAID** (green), warna **✓ Marked Pay** / **⏸ On Hold** / **✗ Rejected** / **Due** / **Overdue**. Row background bhi state-coded (paid=green, hold=amber, reject=red, selected=blue).
+- **Due List table hataya · Decision Summary + clear workflow banner (Oct 2026)** — User: "ya hata dijiye aur layout set kijiye". Monthly Decision Sheet section ki detailed inline table remove kar di; ab sirf 4-metric decision summary (✓ Marked Pay · ⏸ On Hold · ✗ Rejected · ⏳ Undecided) + ek clear workflow instruction banner. Saari row-level decisions upar Summary Dashboard Sheet se hoti hain, phir XLSX round-trip aur Process buttons se execute hoti hain.
+- **Summary Dashboard · single auto Status column (Oct 2026)** — Separate Decision column removed. Status pill ab paid/marked-pay/hold/reject/due/overdue state ko auto show karti hai.
 - **Due List table cleaned (Oct 2026)** — "Source" column hataya; ab table sirf Vendor Bills dikhati hai (Pay Bills ka apna Salary Bills / HR module alag hai). Column count 11, decision toggles enabled unconditionally.
 - **Summary Dashboard · Approved Bills Data Sheet with multi-select (Oct 2026)** — Reports → Due List → Summary Dashboard me saari unpaid approved bills scrollable table + per-row checkboxes + header "Select All" visible. Decision colour-coded.
 - **Monthly Decision Sheet workflow (Oct 2026)** — Month selector drives Due List → Download/Upload XLSX → Process Single PVs or Bulk Bank Advice.

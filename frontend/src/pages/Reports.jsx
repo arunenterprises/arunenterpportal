@@ -1091,74 +1091,41 @@ export default function Reports() {
                 <button data-testid="due-bulk-advice" onClick={processBulkBankAdvice} disabled={monthSummary.markedPayCount === 0} style={{ padding: "5px 10px", background: monthSummary.markedPayCount > 0 ? "#be185d" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: monthSummary.markedPayCount > 0 ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Print A4 landscape consolidated bank advice listing all marked-Pay vendor transfers">🖨 Print → Bulk Bank Advice</button>
               </div>
 
-              <table className="data-table" data-testid="due-table">
-                <thead><tr>
-                  <th>Ref No</th><th>Party</th><th>Bill No</th><th>Bill Dt</th><th>Due Dt</th>
-                  <th style={{ textAlign: "right" }}>Net</th>
-                  <th style={{ textAlign: "right" }}>Paid</th>
-                  <th style={{ textAlign: "right" }}>Balance</th>
-                  <th style={{ textAlign: "right", minWidth: 110 }}>Pay Amount</th>
-                  <th>UTR / Ref</th>
-                  <th style={{ minWidth: 220 }}>Decision</th>
-                </tr></thead>
-                <tbody>
-                  {consolidatedDues.length === 0 && (
-                    <tr><td colSpan={11} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No vendor dues for {monthLabel}</td></tr>
-                  )}
-                  {consolidatedDues.map((r) => {
-                    const pvForBill = payments.find((p) => p.billId === r.id);
-                    const decision = r.decision;
-                    return (
-                    <tr key={r.key} data-testid={`due-row-${r.refNo}`} style={{ background: decision === "MarkedPay" ? "#ecfdf5" : decision === "Hold" ? "#fef3c7" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
-                      <td className="mono">{r.refNo}</td>
-                      <td>{r.party}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.partyCode}</span></td>
-                      <td>{r.billNo}</td>
-                      <td>{r.billDate}</td>
-                      <td>{r.dueDate}</td>
-                      <td className="num">{r.net.toFixed(2)}</td>
-                      <td className="num">{r.paid.toFixed(2)}</td>
-                      <td className="num"><b>{r.balance.toFixed(2)}</b></td>
-                      <td className="num">
-                        {decision === "MarkedPay" ? (
-                          <input type="number" defaultValue={r.scheduledPay > 0 ? r.scheduledPay : r.balance} data-testid={`due-pay-amt-${r.refNo}`}
-                            onBlur={(e) => setBillPaymentStatus(r.id, "MarkedPay", { scheduledPayAmount: Number(e.target.value || 0), silent: true })}
-                            style={{ width: 90, padding: "3px 6px", fontSize: 10, fontFamily: "monospace", border: "1.5px solid #86efac", background: "#f0fdf4", borderRadius: 3, textAlign: "right", fontWeight: 700 }} />
-                        ) : <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>}
-                      </td>
-                      <td style={{ fontFamily: "monospace", fontSize: 10.5 }} data-testid={`due-utr-${r.refNo}`}>
-                        {pvForBill?.utrNo ? (
-                          <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 700 }}>{pvForBill.utrNo}</span>
-                        ) : "—"}
-                      </td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        <div style={{ display: "inline-flex", gap: 3, flexWrap: "wrap" }}>
-                          <button data-testid={`due-mark-pay-${r.refNo}`}
-                            onClick={() => setBillPaymentStatus(r.id, decision === "MarkedPay" ? "" : "MarkedPay")}
-                            disabled={!canApprove()}
-                            style={{ padding: "3px 7px", background: decision === "MarkedPay" ? "#16a34a" : "#dcfce7", color: decision === "MarkedPay" ? "#fff" : "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}>{decision === "MarkedPay" ? "✓ PAY" : "✓ Pay"}</button>
-                          <button data-testid={`due-mark-hold-${r.refNo}`}
-                            onClick={() => {
-                              if (decision !== "Hold") {
-                                const reason = window.prompt("Hold reason (optional):", r.holdReason || "");
-                                if (reason === null) return;
-                                setBillPaymentStatus(r.id, "Hold", { holdReason: reason });
-                              } else {
-                                setBillPaymentStatus(r.id, "");
-                              }
-                            }}
-                            disabled={!canApprove()}
-                            style={{ padding: "3px 7px", background: decision === "Hold" ? "#b45309" : "#fef3c7", color: decision === "Hold" ? "#fff" : "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }} title={r.holdReason || "Click to put on hold"}>{decision === "Hold" ? "⏸ HOLD" : "⏸ Hold"}</button>
-                          <button data-testid={`due-mark-reject-${r.refNo}`}
-                            onClick={() => setBillPaymentStatus(r.id, decision === "Reject" ? "" : "Reject")}
-                            disabled={!canApprove()}
-                            style={{ padding: "3px 7px", background: decision === "Reject" ? "#991b1b" : "#fee2e2", color: decision === "Reject" ? "#fff" : "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}>{decision === "Reject" ? "✗ REJECT" : "✗ Reject"}</button>
-                        </div>
-                        {decision === "Hold" && r.holdReason && <div style={{ fontSize: 9, color: "#78350f", marginTop: 2, fontStyle: "italic" }}>⏸ {r.holdReason}</div>}
-                      </td>
-                    </tr>
-                  );})}
-                </tbody>
-              </table>
+              {/* Marked Pay bills preview + decision summary — table removed; use Summary Dashboard above for selecting bills */}
+              {monthSummary.total === 0 ? (
+                <div style={{ padding: 20, textAlign: "center", color: "#64748b", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 6, fontSize: 12 }}>
+                  <b style={{ color: "#334155" }}>No vendor dues for {monthLabel}</b><br />
+                  Jab is month ke bills Vendor Bills section se Approved honge, yahan dikhne lagenge.
+                </div>
+              ) : (
+                <div style={{ padding: 12, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#334155", letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }}>
+                    {monthLabel} · Decision Summary
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 5 }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: 0.5 }}>✓ Marked Pay</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: "#166534" }}>{monthSummary.markedPayCount}</div>
+                      <div style={{ fontSize: 10, color: "#064e3b", fontWeight: 700 }}>₹ {monthSummary.markedPaySum.toLocaleString("en-IN")}</div>
+                    </div>
+                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 5 }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#78350f", textTransform: "uppercase", letterSpacing: 0.5 }}>⏸ On Hold</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: "#78350f" }}>{monthSummary.holdCount}</div>
+                    </div>
+                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 5 }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#991b1b", textTransform: "uppercase", letterSpacing: 0.5 }}>✗ Rejected</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: "#991b1b" }}>{monthSummary.rejectCount}</div>
+                    </div>
+                    <div style={{ flex: "1 1 180px", padding: "8px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 5 }}>
+                      <div style={{ fontSize: 9, fontWeight: 800, color: "#334155", textTransform: "uppercase", letterSpacing: 0.5 }}>⏳ Undecided</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: "#334155" }}>{monthSummary.undecided}</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 10, padding: "8px 12px", background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 5, fontSize: 11, color: "#1e3a8a", lineHeight: 1.6 }}>
+                    <b>Workflow:</b> Upar <b>Summary Dashboard</b> me bills select karein → ⬇ Download XLSX → offline me Decision + Pay Amount fill karein → ⬆ Upload XLSX → 💼 Process → Single PVs <i>ya</i> 🖨 Print → Bulk Bank Advice.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="section">
