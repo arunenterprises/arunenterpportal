@@ -38,6 +38,7 @@ export default function Reports() {
   const [queryCode, setQueryCode] = useState("");
   const [selectedPvs, setSelectedPvs] = useState(() => new Set());
   const [selectedDueBills, setSelectedDueBills] = useState(() => new Set());
+  const [selectedPayBills, setSelectedPayBills] = useState(() => new Set());
   const [viewBill, setViewBill] = useState(null);
   const [advDetail, setAdvDetail] = useState(null); // {r, filter: "settled"|"autoAdj"|"inPB"|"all"}
   const [reportsTab, setReportsTab] = useState("vouchers");
@@ -604,6 +605,98 @@ export default function Reports() {
                 <span>Salary Bills — HR Payroll · Accounts Processing Queue</span>
                 <span style={{ fontSize: 10.5, color: "#64748b", fontWeight: 600 }}>Flow: HR Draft → GM Approval → Accounts Settlement → Auto Payment Voucher</span>
               </div>
+              {/* ---- Approved HR Pay Bills Data Sheet with per-row selection checkbox ---- */}
+              {(() => {
+                const approvedPB = payBillsAll.filter((pb) => Number(pb.step) >= 3);
+                const allSelected = approvedPB.length > 0 && approvedPB.every((pb) => selectedPayBills.has(pb.id));
+                const toggleAll = () => {
+                  if (allSelected) setSelectedPayBills(new Set());
+                  else setSelectedPayBills(new Set(approvedPB.map((pb) => pb.id)));
+                };
+                const toggleOne = (id) => {
+                  const n = new Set(selectedPayBills);
+                  n.has(id) ? n.delete(id) : n.add(id);
+                  setSelectedPayBills(n);
+                };
+                const selectedRows = approvedPB.filter((pb) => selectedPayBills.has(pb.id));
+                const selSum = selectedRows.reduce((s, pb) => s + Number(pb.totalNet || 0), 0);
+                const totalSum = approvedPB.reduce((s, pb) => s + Number(pb.totalNet || 0), 0);
+                return (
+                  <div style={{ margin: "10px 0 6px", border: "1.5px solid #be185d", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ padding: "7px 12px", background: "#fdf2f8", borderBottom: "1px solid #f9a8d4" }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#9d174d", letterSpacing: 0.5, textTransform: "uppercase" }}>
+                        All Approved HR Pay Bills · {approvedPB.length} record{approvedPB.length !== 1 ? "s" : ""} · <span style={{ color: "#be185d" }}>Selected: {selectedRows.length}</span> · <span style={{ color: "#166534" }}>₹ {selSum.toLocaleString("en-IN")}</span> · <span style={{ color: "#334155" }}>Grand Total ₹ {totalSum.toLocaleString("en-IN")}</span>
+                        <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 600, color: "#64748b", textTransform: "none", letterSpacing: 0 }}>↓ Niche same Accounts Settlement workflow apply hogi.</span>
+                      </div>
+                    </div>
+                    <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                      <table className="data-table" data-testid="approved-paybills-sheet" style={{ margin: 0 }}>
+                        <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
+                          <tr>
+                            <th style={{ width: 34, textAlign: "center" }}>
+                              <input type="checkbox" data-testid="pb-select-all" checked={allSelected} onChange={toggleAll} title="Select all approved pay bills" />
+                            </th>
+                            <th>Ref No</th>
+                            <th>Period</th>
+                            <th style={{ textAlign: "right" }}>Employees</th>
+                            <th style={{ textAlign: "right" }}>Net Payable</th>
+                            <th>Linked PV</th>
+                            <th>UTR</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {approvedPB.length === 0 && (
+                            <tr><td colSpan={8} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No approved HR Pay Bills · GM approval wait kijiye</td></tr>
+                          )}
+                          {approvedPB.map((pb) => {
+                            const monthName = new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en-IN", { month: "short" });
+                            const pv = pb.linkedPvNo ? payments.find((p) => p.pvNo === pb.linkedPvNo) : null;
+                            const hasUtr = !!(pv && pv.utrNo);
+                            const isSettled = Number(pb.step) === 4;
+                            return (
+                              <tr key={pb.id} data-testid={`pb-sum-${pb.id}`} style={{ background: selectedPayBills.has(pb.id) ? "#fdf2f8" : isSettled && hasUtr ? "#f0fdf4" : isSettled ? "#fef2f2" : "#fff" }}>
+                                <td style={{ textAlign: "center" }}>
+                                  <input type="checkbox" data-testid={`pb-chk-${pb.id}`} checked={selectedPayBills.has(pb.id)} onChange={() => toggleOne(pb.id)} />
+                                </td>
+                                <td className="mono"><b>{pb.refNo}</b></td>
+                                <td><b>{monthName} {pb.year}</b></td>
+                                <td className="num">{pb.lines?.length || 0}</td>
+                                <td className="num"><b>{inr(pb.totalNet)}</b></td>
+                                <td className="mono" style={{ fontSize: 10 }}>{pb.linkedPvNo || <span style={{ color: "#94a3b8" }}>—</span>}</td>
+                                <td className="mono" style={{ fontSize: 10, color: hasUtr ? "#166534" : "#991b1b", fontWeight: 700 }}>{pv?.utrNo || <span style={{ color: "#94a3b8" }}>—</span>}</td>
+                                <td>
+                                  {isSettled && hasUtr ? (
+                                    <span style={{ padding: "2px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 800 }}>✓ PAID</span>
+                                  ) : isSettled ? (
+                                    <span style={{ padding: "2px 7px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⚠ UTR Pending</span>
+                                  ) : (
+                                    <span style={{ padding: "2px 7px", background: "#fed7aa", color: "#9a3412", border: "1px solid #fdba74", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⏳ GM Approved · Awaiting Settlement</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {selectedRows.length > 0 && (
+                      <div style={{ padding: "6px 10px", background: "#fdf2f8", borderTop: "1px solid #f9a8d4", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          data-testid="pb-bulk-excel"
+                          onClick={() => selectedRows.forEach((pb) => exportBankTransferXLSX(pb))}
+                          style={{ padding: "4px 10px", background: "#059669", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                        >⬇ Export Bulk Excel ({selectedRows.length})</button>
+                        <button
+                          data-testid="pb-bulk-advice"
+                          onClick={() => selectedRows.forEach((pb) => printBankTransferAdvice(pb))}
+                          style={{ padding: "4px 10px", background: "#be185d", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700 }}
+                        >🖨 Bulk Bank Advice ({selectedRows.length})</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="sec-body" style={{ padding: 0 }}>
                 <table className="data-table" data-testid="salary-bills-table">
                   <thead><tr>
@@ -1049,55 +1142,27 @@ export default function Reports() {
                 </F>
               </div>
 
-              {/* ---- Approved Bills Data Sheet with per-row selection checkbox ---- */}
+              {/* ---- Approved Bills Data Sheet with per-row selection checkbox (VENDOR BILLS ONLY) ---- */}
               {(() => {
                 const unpaidApproved = dueRows.filter((r) => r.balance > 0);
-                // Also include HR Pay Bills (GM Approved · awaiting Accounts settlement,
-                // or Settled with UTR still pending) so Accounts sees them together with
-                // vendor bills in the single Due List dashboard.
-                const hrPayBillRows = (payBillsAll || [])
-                  .filter((pb) => Number(pb.step) === 3 || (Number(pb.step) === 4 && pb.linkedPvNo && !((getPayments().find((p) => p.pvNo === pb.linkedPvNo) || {}).utrNo)))
-                  .map((pb) => {
-                    const period = `${new Date(pb.year, (pb.month || 1) - 1).toLocaleString("en-IN", { month: "short" })} ${pb.year}`;
-                    const isSettled = Number(pb.step) === 4;
-                    return {
-                      kind: "paybill",
-                      id: `hr:${pb.id}`,
-                      refNo: pb.refNo,
-                      vendorName: `HR Payroll · ${period}`,
-                      vendorCode: "AE-HR-PAYROLL",
-                      billNo: pb.linkedPvNo || "—",
-                      billDate: (pb.approvedAt || pb.createdAt || "").slice(0, 10),
-                      dueDate: (pb.approvedAt || pb.createdAt || "").slice(0, 10),
-                      net: Number(pb.totalNet || 0),
-                      paid: 0,
-                      balance: Number(pb.totalNet || 0),
-                      status: isSettled ? "AwaitingUTR" : "HRApproved",
-                      _pb: pb,
-                    };
-                  });
-                const allRows = [...unpaidApproved, ...hrPayBillRows];
-                // Selection only applies to vendor bills (HR flow is handled in Salary Bills tab)
-                const selectableRows = unpaidApproved;
-                const allSelected = selectableRows.length > 0 && selectableRows.every((r) => selectedDueBills.has(r.id));
+                const allSelected = unpaidApproved.length > 0 && unpaidApproved.every((r) => selectedDueBills.has(r.id));
                 const toggleAll = () => {
                   if (allSelected) setSelectedDueBills(new Set());
-                  else setSelectedDueBills(new Set(selectableRows.map((r) => r.id)));
+                  else setSelectedDueBills(new Set(unpaidApproved.map((r) => r.id)));
                 };
                 const toggleOne = (id) => {
                   const n = new Set(selectedDueBills);
                   n.has(id) ? n.delete(id) : n.add(id);
                   setSelectedDueBills(n);
                 };
-                const selectedRows = selectableRows.filter((r) => selectedDueBills.has(r.id));
+                const selectedRows = unpaidApproved.filter((r) => selectedDueBills.has(r.id));
                 const selSum = selectedRows.reduce((s, r) => s + r.balance, 0);
-                const hrSum = hrPayBillRows.reduce((s, r) => s + r.balance, 0);
                 return (
                   <div style={{ marginTop: 14, border: "1px solid #cbd5e1", borderRadius: 6, overflow: "hidden" }}>
                     <div style={{ padding: "7px 12px", background: "#f1f5f9", borderBottom: "1px solid #cbd5e1" }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: "#334155", letterSpacing: 0.5, textTransform: "uppercase" }}>
-                        All Approved Bills · {unpaidApproved.length} Vendor · <span style={{ color: "#9a3412" }}>{hrPayBillRows.length} HR Pay Bills (₹ {hrSum.toLocaleString("en-IN")})</span> · <span style={{ color: "#be185d" }}>Selected: {selectedRows.length}</span> · <span style={{ color: "#166534" }}>₹ {selSum.toLocaleString("en-IN")}</span>
-                        <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 600, color: "#64748b", textTransform: "none", letterSpacing: 0 }}>↓ Vendor decisions niche "Due List · Monthly Decision Sheet" me lagein · HR Pay Bills Salary Bills tab me settle hoti hain.</span>
+                        All Approved Vendor Bills · {unpaidApproved.length} unpaid · <span style={{ color: "#be185d" }}>Selected: {selectedRows.length}</span> · <span style={{ color: "#166534" }}>₹ {selSum.toLocaleString("en-IN")}</span>
+                        <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 600, color: "#64748b", textTransform: "none", letterSpacing: 0 }}>↓ Vendor decisions niche "Due List · Monthly Decision Sheet" me lagein · HR Pay Bills Salary Bills tab me handle hoti hain.</span>
                       </div>
                     </div>
                     <div style={{ maxHeight: 320, overflowY: "auto" }}>
@@ -1108,8 +1173,8 @@ export default function Reports() {
                               <input type="checkbox" data-testid="sum-select-all" checked={allSelected} onChange={toggleAll} title="Select all unpaid approved bills" />
                             </th>
                             <th>Ref No</th>
-                            <th>Vendor / Source</th>
-                            <th>Bill / PV</th>
+                            <th>Vendor</th>
+                            <th>Bill No</th>
                             <th>Bill Dt</th>
                             <th>Due Dt</th>
                             <th style={{ textAlign: "right" }}>Net</th>
@@ -1119,22 +1184,20 @@ export default function Reports() {
                           </tr>
                         </thead>
                         <tbody>
-                          {allRows.length === 0 && (
+                          {unpaidApproved.length === 0 && (
                             <tr><td colSpan={10} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No unpaid approved bills</td></tr>
                           )}
-                          {allRows.map((r) => {
-                            const isHr = r.kind === "paybill";
-                            const b = isHr ? null : bills.find((x) => x.id === r.id);
+                          {unpaidApproved.map((r) => {
+                            const b = bills.find((x) => x.id === r.id);
                             const decision = b?.paymentStatus || "";
                             const isPaid = r.balance <= 0;
-                            const openView = () => { if (!isHr && b) setViewBill(b); else if (isHr) toast.info(`${r.refNo} · HR Pay Bill — Salary Bills tab me settle karen`); };
                             return (
-                              <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: isHr ? "#fff7ed" : selectedDueBills.has(r.id) ? "#eff6ff" : isPaid ? "#f0fdf4" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff", borderLeft: isHr ? "3px solid #ea580c" : undefined }}>
+                              <tr key={r.id} data-testid={`sum-row-${r.refNo}`} style={{ background: selectedDueBills.has(r.id) ? "#eff6ff" : isPaid ? "#f0fdf4" : decision === "MarkedPay" ? "#f0fdf4" : decision === "Hold" ? "#fffbeb" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
                                 <td style={{ textAlign: "center" }}>
-                                {isHr ? <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} title="Select this HR Pay Bill (same decision flow applies)" /> : <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />}
+                                  <input type="checkbox" data-testid={`sum-chk-${r.refNo}`} checked={selectedDueBills.has(r.id)} onChange={() => toggleOne(r.id)} />
                                 </td>
-                                <td className="mono" style={{ cursor: "pointer", color: isHr ? "#9a3412" : "#0369a1", textDecoration: "underline dotted", fontWeight: isHr ? 700 : 400 }} onClick={openView} title={isHr ? "HR Pay Bill" : "Click to view full bill"}>{r.refNo}</td>
-                                <td style={{ cursor: "pointer" }} onClick={openView} title={isHr ? "HR Pay Bill" : "Click to view full bill"}>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
+                                <td className="mono" style={{ cursor: "pointer", color: "#0369a1", textDecoration: "underline dotted" }} onClick={() => setViewBill(b)} title="Click to view full bill">{r.refNo}</td>
+                                <td style={{ cursor: "pointer" }} onClick={() => setViewBill(b)} title="Click to view full bill">{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
                                 <td>{r.billNo}</td>
                                 <td>{r.billDate}</td>
                                 <td>{r.dueDate}</td>
@@ -1142,11 +1205,7 @@ export default function Reports() {
                                 <td className="num">{r.paid.toFixed(2)}</td>
                                 <td className="num"><b>{r.balance.toFixed(2)}</b></td>
                                 <td>
-                                  {isHr && r.status === "HRApproved" ? (
-                                    <span style={{ padding: "2px 7px", background: "#fed7aa", color: "#9a3412", border: "1px solid #fdba74", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>👥 HR · Awaiting Settlement</span>
-                                  ) : isHr && r.status === "AwaitingUTR" ? (
-                                    <span style={{ padding: "2px 7px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>⚠ UTR Pending</span>
-                                  ) : isPaid ? (
+                                  {isPaid ? (
                                     <span style={{ padding: "2px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 800 }}>✓ PAID</span>
                                   ) : decision === "MarkedPay" ? (
                                     <span style={{ padding: "2px 7px", background: "#bbf7d0", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontSize: 10, fontWeight: 700 }}>✓ Marked Pay</span>
