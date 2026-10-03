@@ -7,7 +7,7 @@ import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
-import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTransfer";
+import { exportBankTransferXLSX, printBankTransferAdvice, printBulkBankAdvice } from "../lib/bankTransfer";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
   currentUser, exportJSON, amountToWords,
@@ -29,6 +29,7 @@ const F = ({ label, children }) => (
 
 export default function Reports() {
   const nav = useNavigate();
+  const fileInputRef = React.useRef(null);
   const [selectedBillId, setSelectedBillId] = useState("");
   const [pv, setPv] = useState(null);
   const [refresh, setRefresh] = useState(0);
@@ -37,6 +38,9 @@ export default function Reports() {
   const [queryCode, setQueryCode] = useState("");
   const [selectedPvs, setSelectedPvs] = useState(() => new Set());
   const [reportsTab, setReportsTab] = useState("vouchers");
+  const _now = new Date();
+  const [dueMonth, setDueMonth] = useState(_now.getMonth() + 1);
+  const [dueYear, setDueYear] = useState(_now.getFullYear());
 
   const bills = useMemo(() => getBills(), [refresh]);
   const vendors = useMemo(() => getVendors(), [refresh]);
@@ -86,13 +90,192 @@ export default function Reports() {
     : dueRows;
 
   // ---- Due List Hold/Pay toggle (gates which approved bills flow into PV tab) ----
-  const setBillPaymentStatus = (billId, newStatus) => {
+  const setBillPaymentStatus = (billId, newStatus, extras = {}) => {
     const b = bills.find((x) => x.id === billId);
     if (!b) return;
-    const updated = { ...b, paymentStatus: newStatus };
+    const dmKey = `${dueYear}${String(dueMonth).padStart(2, "0")}`;
+    const updated = { ...b, paymentStatus: newStatus, decisionMonth: newStatus ? dmKey : (b.decisionMonth || ""), ...extras };
     upsertBill(updated);
     setRefresh((v) => v + 1);
-    toast.success(newStatus === "Hold" ? `Bill marked HOLD · will not appear in Payment Vouchers` : newStatus === "MarkedPay" ? `Bill marked PAY · now ready to process in Payment Vouchers tab` : `Bill decision cleared`);
+    if (!extras.silent) toast.success(newStatus === "Hold" ? `Bill marked HOLD` : newStatus === "MarkedPay" ? `Bill marked PAY` : newStatus === "Reject" ? `Bill marked REJECT` : `Decision cleared`);
+  };
+
+  // ---- Consolidated dues for selected month (vendor bills + pay bills) ----
+  const monthKey = `${dueYear}${String(dueMonth).padStart(2, "0")}`;
+  const monthLabel = new Date(dueYear, dueMonth - 1).toLocaleString("en", { month: "long", year: "numeric" });
+  const payBillsAll = useMemo(() => getPayBills(), [refresh]);
+
+  const consolidatedDues = useMemo(() => {
+    const rows = [];
+    // Vendor bills in the chosen month (by billDate OR dueDate falling in month)
+    approvedBills.forEach((b) => {
+      const c = computeBill(b);
+      const paid = payments.filter((p) => p.billId === b.id && p.status === "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
+      const balance = +(c.netPayable - paid).toFixed(2);
+      if (balance <= 0) return;
+      const dMonth = (b.billDate || b.dueDate || "").slice(0, 7); // "YYYY-MM"
+      const want = `${dueYear}-${String(dueMonth).padStart(2, "0")}`;
+      if (dMonth !== want) return;
+      rows.push({
+        key: `V:${b.id}`,
+        source: "Vendor Bill",
+        srcTone: "#0369a1",
+        id: b.id,
+        refNo: b.permanentBillNo || b.refNo,
+        party: b.vendorSnapshot?.firmName || b.vendorCode || "—",
+        partyCode: b.vendorCode || "",
+        billNo: b.billNo || "",
+        billDate: b.billDate || "",
+        dueDate: b.dueDate || "",
+        net: c.netPayable, paid, balance,
+        decision: b.paymentStatus || "",
+        scheduledPay: Number(b.scheduledPayAmount || 0),
+        holdReason: b.holdReason || "",
+      });
+    });
+    // Pay Bills matching this month that are GM-approved (step 3) or settled with UTR missing (step 4 && no utr)
+    payBillsAll.forEach((p) => {
+      if (p.monthKey !== monthKey) return;
+      if (Number(p.step) < 2) return;
+      const linkedPv = p.linkedPvNo ? payments.find((pp) => pp.pvNo === p.linkedPvNo) : null;
+      const hasUtr = !!(linkedPv && linkedPv.utrNo);
+      if (Number(p.step) === 4 && hasUtr) return; // Fully done
+      rows.push({
+        key: `P:${p.id}`,
+        source: "Pay Bill",
+        srcTone: "#be185d",
+        id: p.id,
+        refNo: p.refNo,
+        party: `Payroll · ${(p.lines || []).filter((l) => !l.excluded).length} employees`,
+        partyCode: "AE-HR-PAYROLL",
+        billNo: p.refNo,
+        billDate: `${p.year}-${String(p.month).padStart(2, "0")}-01`,
+        dueDate: "",
+        net: Number(p.totalNet || 0),
+        paid: Number(p.step) === 4 ? Number(p.totalNet || 0) : 0,
+        balance: Number(p.step) === 4 ? 0 : Number(p.totalNet || 0),
+        decision: Number(p.step) >= 3 ? "MarkedPay" : "",
+        scheduledPay: Number(p.totalNet || 0),
+        holdReason: "",
+      });
+    });
+    return rows;
+  }, [approvedBills, payBillsAll, payments, dueMonth, dueYear, monthKey]);
+
+  const monthSummary = useMemo(() => ({
+    total: consolidatedDues.length,
+    totalDue: consolidatedDues.reduce((s, r) => s + r.balance, 0),
+    markedPayCount: consolidatedDues.filter((r) => r.decision === "MarkedPay").length,
+    markedPaySum: consolidatedDues.filter((r) => r.decision === "MarkedPay").reduce((s, r) => s + (r.scheduledPay > 0 ? r.scheduledPay : r.balance), 0),
+    holdCount: consolidatedDues.filter((r) => r.decision === "Hold").length,
+    rejectCount: consolidatedDues.filter((r) => r.decision === "Reject").length,
+    undecided: consolidatedDues.filter((r) => !r.decision).length,
+  }), [consolidatedDues]);
+
+  // ---- Decision Excel: Download / Upload workflow ----
+  const downloadDecisionExcel = () => {
+    if (!consolidatedDues.length) { toast.error(`No dues for ${monthLabel}`); return; }
+    const aoa = [
+      [`M/s ARUN ENTERPRISES · DECISION SHEET · ${monthLabel.toUpperCase()}`],
+      [`Rows: ${consolidatedDues.length} · Total Due: ₹ ${monthSummary.totalDue.toLocaleString("en-IN")} · Edit "Decision" (Pay/Hold/Reject), "Pay Amount" (₹) & "Hold Reason" columns, then re-upload`],
+      [],
+      ["Row Key", "Source", "Ref No", "Party", "Party Code", "Bill No", "Bill Date", "Due Date", "Net (₹)", "Paid (₹)", "Balance (₹)", "Decision", "Pay Amount (₹)", "Hold Reason"],
+      ...consolidatedDues.map((r) => [r.key, r.source, r.refNo, r.party, r.partyCode, r.billNo, r.billDate, r.dueDate, r.net, r.paid, r.balance, r.decision, r.scheduledPay || "", r.holdReason]),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{ wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 20 }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Decisions");
+    XLSX.writeFile(wb, `DecisionSheet_${monthKey}.xlsx`);
+    toast.success(`Decision sheet downloaded · ${consolidatedDues.length} rows for ${monthLabel}`);
+  };
+
+  const uploadDecisionExcel = async (file) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      // Find header row — first row that contains "Row Key"
+      const headerIdx = rows.findIndex((r) => Array.isArray(r) && r.some((c) => String(c).trim() === "Row Key"));
+      if (headerIdx < 0) { toast.error("Invalid file — 'Row Key' header not found"); return; }
+      const header = rows[headerIdx];
+      const idxKey = header.indexOf("Row Key");
+      const idxDecision = header.indexOf("Decision");
+      const idxPayAmt = header.indexOf("Pay Amount (₹)");
+      const idxReason = header.indexOf("Hold Reason");
+      let applied = 0;
+      for (let i = headerIdx + 1; i < rows.length; i++) {
+        const row = rows[i]; if (!Array.isArray(row) || !row[idxKey]) continue;
+        const key = String(row[idxKey]);
+        const [kind, id] = key.split(":");
+        const decRaw = String(row[idxDecision] || "").trim();
+        const payAmt = Number(row[idxPayAmt] || 0);
+        const reason = String(row[idxReason] || "").trim();
+        const normDec = /^pay$|^✓.*pay|markedpay/i.test(decRaw) ? "MarkedPay"
+                       : /^hold$|^⏸/i.test(decRaw) ? "Hold"
+                       : /^reject$|^✗/i.test(decRaw) ? "Reject" : "";
+        if (kind === "V") {
+          const b = bills.find((x) => x.id === id); if (!b) continue;
+          upsertBill({ ...b, paymentStatus: normDec, scheduledPayAmount: payAmt, holdReason: reason, decisionMonth: monthKey });
+          applied += 1;
+        }
+        // Pay Bill decisions do not need to be stored — they already flow via step/UTR
+      }
+      setRefresh((v) => v + 1);
+      toast.success(`Decisions applied · ${applied} vendor bills updated for ${monthLabel}`);
+    } catch (e) {
+      toast.error(`Upload failed: ${e.message || e}`);
+    }
+  };
+
+  // ---- Bulk process: generate PVs or print bulk advice for "Marked Pay" rows ----
+  const processSinglePVs = () => {
+    const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay" && r.source === "Vendor Bill");
+    if (!toPay.length) { toast.error("No vendor bills marked 'Pay' for this month"); return; }
+    if (!window.confirm(`Generate ${toPay.length} party-wise Payment Voucher(s) for ${monthLabel}?\n\nEach vendor gets a separate PV draft. Review & approve in Payment Vouchers tab.`)) return;
+    let created = 0;
+    toPay.forEach((r) => {
+      const b = bills.find((x) => x.id === r.id); if (!b) return;
+      const amt = r.scheduledPay > 0 ? Math.min(r.scheduledPay, r.balance) : r.balance;
+      if (amt <= 0) return;
+      const pvNo = nextPvNo();
+      const payments = getPayments();
+      const vend = (b.vendorSnapshot || {});
+      payments.push({
+        id: `pv_bulk_${b.id}_${Date.now()}`,
+        pvNo, pvDate: new Date().toISOString().slice(0, 10),
+        date: new Date().toISOString().slice(0, 10),
+        billId: b.id, billRefNo: b.permanentBillNo || b.refNo, billNo: b.billNo,
+        vendorCode: b.vendorCode, vendorName: vend.firmName || "",
+        amount: amt, mode: "Bank Transfer",
+        bankName: vend.bankName || "", ifscCode: vend.ifsc || "", accountNumber: vend.bankAccount || "",
+        remarks: `Bulk-generated from Due List decision sheet · ${monthLabel}`,
+        status: "Draft", createdAt: new Date().toISOString(), createdByName: currentUser(),
+      });
+      savePayments(payments);
+      created += 1;
+    });
+    setRefresh((v) => v + 1);
+    toast.success(`${created} Payment Voucher drafts generated · Review in Payment Vouchers tab`);
+  };
+
+  const processBulkBankAdvice = () => {
+    const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay" && r.source === "Vendor Bill");
+    if (!toPay.length) { toast.error("No vendor bills marked 'Pay' for this month"); return; }
+    const items = toPay.map((r) => {
+      const b = bills.find((x) => x.id === r.id) || {};
+      const vend = b.vendorSnapshot || {};
+      return {
+        refNo: r.refNo, billNo: r.billNo,
+        party: r.party, partyCode: r.partyCode,
+        bank: vend.bankName || "—", branch: vend.bankBranch || "",
+        account: vend.bankAccount || "—", ifsc: vend.ifsc || "—",
+        amount: r.scheduledPay > 0 ? Math.min(r.scheduledPay, r.balance) : r.balance,
+      };
+    });
+    printBulkBankAdvice(items, { monthLabel, period: monthKey });
   };
 
   const summary = {
@@ -827,77 +1010,92 @@ export default function Reports() {
           </div>
 
           <div className="section">
-            <div className="sec-head">B. Due List (Approved Bills)</div>
+            <div className="sec-head">B. Due List · Monthly Decision Sheet</div>
             <div className="sec-body">
+              {/* Month filter + action bar */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", padding: "8px 10px", background: "#f1f5f9", borderRadius: 6, border: "1px solid #cbd5e1", marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#334155", textTransform: "uppercase", letterSpacing: 0.5 }}>Month</span>
+                <select data-testid="due-month" value={dueMonth} onChange={(e) => setDueMonth(+e.target.value)} style={{ padding: "5px 8px", fontSize: 11.5, border: "1px solid #cbd5e1", borderRadius: 4 }}>
+                  {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString("en", { month: "long" })}</option>)}
+                </select>
+                <input data-testid="due-year" type="number" value={dueYear} onChange={(e) => setDueYear(+e.target.value)} style={{ padding: "5px 8px", width: 90, fontSize: 11.5, border: "1px solid #cbd5e1", borderRadius: 4 }} />
+                <div style={{ flex: 1 }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#64748b" }}>
+                  {monthSummary.total} rows · Due ₹ {monthSummary.totalDue.toLocaleString("en-IN")} · <span style={{ color: "#16a34a" }}>✓Pay: {monthSummary.markedPayCount}</span> · <span style={{ color: "#b45309" }}>⏸Hold: {monthSummary.holdCount}</span> · <span style={{ color: "#991b1b" }}>✗Reject: {monthSummary.rejectCount}</span>
+                </span>
+                <button data-testid="due-download-xlsx" onClick={downloadDecisionExcel} style={{ padding: "5px 10px", background: "#059669", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700 }} title="Download XLSX decision sheet — edit Decision + Pay Amount offline and re-upload">⬇ Download Decision XLSX</button>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDecisionExcel(f); e.target.value = ""; }} />
+                <button data-testid="due-upload-xlsx" onClick={() => fileInputRef.current?.click()} disabled={!canApprove()} style={{ padding: "5px 10px", background: canApprove() ? "#7c3aed" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Upload edited decision XLSX to apply decisions in bulk">⬆ Upload Decision XLSX</button>
+                <button data-testid="due-bulk-single-pv" onClick={processSinglePVs} disabled={!canApprove() || monthSummary.markedPayCount === 0} style={{ padding: "5px 10px", background: canApprove() && monthSummary.markedPayCount > 0 ? "#0369a1" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: canApprove() && monthSummary.markedPayCount > 0 ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Generate individual Payment Voucher drafts per vendor from marked-Pay rows">💼 Process → Single PVs ({monthSummary.markedPayCount})</button>
+                <button data-testid="due-bulk-advice" onClick={processBulkBankAdvice} disabled={monthSummary.markedPayCount === 0} style={{ padding: "5px 10px", background: monthSummary.markedPayCount > 0 ? "#be185d" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 4, cursor: monthSummary.markedPayCount > 0 ? "pointer" : "not-allowed", fontSize: 11, fontWeight: 700 }} title="Print A4 landscape consolidated bank advice listing all marked-Pay vendor transfers">🖨 Print → Bulk Bank Advice</button>
+              </div>
+
               <table className="data-table" data-testid="due-table">
                 <thead><tr>
-                  <th>Ref No</th><th>Vendor</th><th>Bill No</th><th>Bill Dt</th><th>Due Dt</th>
+                  <th>Source</th>
+                  <th>Ref No</th><th>Party</th><th>Bill No</th><th>Bill Dt</th><th>Due Dt</th>
                   <th style={{ textAlign: "right" }}>Net</th>
                   <th style={{ textAlign: "right" }}>Paid</th>
                   <th style={{ textAlign: "right" }}>Balance</th>
+                  <th style={{ textAlign: "right", minWidth: 110 }}>Pay Amount</th>
                   <th>UTR / Ref</th>
-                  <th>WO Copy</th>
-                  <th>Decision</th>
-                  <th>Status</th>
+                  <th style={{ minWidth: 220 }}>Decision</th>
                 </tr></thead>
                 <tbody>
-                  {filtered.length === 0 && (
-                    <tr><td colSpan={12} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No approved bills</td></tr>
+                  {consolidatedDues.length === 0 && (
+                    <tr><td colSpan={12} style={{ textAlign: "center", color: "#64748b", padding: 14 }}>No dues for {monthLabel}</td></tr>
                   )}
-                  {filtered.map((r) => {
-                    const billObj = bills.find((b) => b.id === r.id);
-                    const pvForBill = payments.find((p) => p.billId === r.id);
-                    const decision = r.paymentStatus || "";
-                    const isPaid = r.balance <= 0;
+                  {consolidatedDues.map((r) => {
+                    const billObj = r.source === "Vendor Bill" ? bills.find((b) => b.id === r.id) : null;
+                    const pvForBill = r.source === "Vendor Bill" ? payments.find((p) => p.billId === r.id) : null;
+                    const decision = r.decision;
                     return (
-                    <tr key={r.id} data-testid={`due-row-${r.refNo}`} style={{ background: decision === "MarkedPay" ? "#ecfdf5" : decision === "Hold" ? "#fef3c7" : "#fff" }}>
+                    <tr key={r.key} data-testid={`due-row-${r.refNo}`} style={{ background: decision === "MarkedPay" ? "#ecfdf5" : decision === "Hold" ? "#fef3c7" : decision === "Reject" ? "#fef2f2" : "#fff" }}>
+                      <td><span style={{ padding: "2px 7px", background: `${r.srcTone}18`, color: r.srcTone, border: `1px solid ${r.srcTone}50`, borderRadius: 3, fontSize: 9, fontWeight: 800, letterSpacing: 0.3 }}>{r.source}</span></td>
                       <td className="mono">{r.refNo}</td>
-                      <td>{r.vendorName}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.vendorCode}</span></td>
+                      <td>{r.party}<br /><span style={{ fontSize: 10, color: "#64748b" }} className="mono">{r.partyCode}</span></td>
                       <td>{r.billNo}</td>
                       <td>{r.billDate}</td>
                       <td>{r.dueDate}</td>
                       <td className="num">{r.net.toFixed(2)}</td>
                       <td className="num">{r.paid.toFixed(2)}</td>
                       <td className="num"><b>{r.balance.toFixed(2)}</b></td>
+                      <td className="num">
+                        {r.source === "Vendor Bill" && decision === "MarkedPay" ? (
+                          <input type="number" defaultValue={r.scheduledPay > 0 ? r.scheduledPay : r.balance} data-testid={`due-pay-amt-${r.refNo}`}
+                            onBlur={(e) => setBillPaymentStatus(r.id, "MarkedPay", { scheduledPayAmount: Number(e.target.value || 0), silent: true })}
+                            style={{ width: 90, padding: "3px 6px", fontSize: 10, fontFamily: "monospace", border: "1.5px solid #86efac", background: "#f0fdf4", borderRadius: 3, textAlign: "right", fontWeight: 700 }} />
+                        ) : <span style={{ color: "#94a3b8", fontSize: 10 }}>—</span>}
+                      </td>
                       <td style={{ fontFamily: "monospace", fontSize: 10.5 }} data-testid={`due-utr-${r.refNo}`}>
                         {pvForBill?.utrNo ? (
                           <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 700 }}>{pvForBill.utrNo}</span>
                         ) : "—"}
                       </td>
-                      <td style={{ textAlign: "center" }}>
-                        {billObj?.workOrderFile ? (
-                          <a href={billObj.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
-                            data-testid={`due-wo-file-${r.refNo}`}
-                            title={billObj.workOrderFile.name}
-                            style={{ padding: "2px 8px", background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, fontWeight: 600, fontSize: 10.5, textDecoration: "none" }}>
-                            📎 View
-                          </a>
-                        ) : <span style={{ color: "#94a3b8" }}>—</span>}
-                      </td>
                       <td style={{ whiteSpace: "nowrap" }}>
-                        {isPaid ? (
-                          <span style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>✓ Done</span>
-                        ) : (
-                          <div style={{ display: "inline-flex", gap: 3, flexWrap: "wrap" }}>
-                            <button
-                              data-testid={`due-mark-pay-${r.refNo}`}
-                              onClick={() => setBillPaymentStatus(r.id, decision === "MarkedPay" ? "" : "MarkedPay")}
-                              disabled={!canApprove()}
-                              title={canApprove() ? "Mark this bill to flow into Payment Vouchers tab" : "Only Admin / Accounts can mark"}
-                              style={{ padding: "3px 7px", background: decision === "MarkedPay" ? "#16a34a" : "#dcfce7", color: decision === "MarkedPay" ? "#fff" : "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}
-                            >{decision === "MarkedPay" ? "✓ MARKED PAY" : "✓ Pay"}</button>
-                            <button
-                              data-testid={`due-mark-hold-${r.refNo}`}
-                              onClick={() => setBillPaymentStatus(r.id, decision === "Hold" ? "" : "Hold")}
-                              disabled={!canApprove()}
-                              title={canApprove() ? "Put this bill on HOLD — will not appear in Payment Vouchers tab" : "Only Admin / Accounts can hold"}
-                              style={{ padding: "3px 7px", background: decision === "Hold" ? "#b45309" : "#fef3c7", color: decision === "Hold" ? "#fff" : "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: canApprove() ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700 }}
-                            >{decision === "Hold" ? "⏸ ON HOLD" : "⏸ Hold"}</button>
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`pill-tag ${r.status === "Overdue" ? "overdue" : r.status === "Paid" ? "paid" : "due"}`}>{r.status}</span>
+                        <div style={{ display: "inline-flex", gap: 3, flexWrap: "wrap" }}>
+                          <button data-testid={`due-mark-pay-${r.refNo}`}
+                            onClick={() => setBillPaymentStatus(r.id, decision === "MarkedPay" ? "" : "MarkedPay")}
+                            disabled={!canApprove() || r.source !== "Vendor Bill"}
+                            style={{ padding: "3px 7px", background: decision === "MarkedPay" ? "#16a34a" : "#dcfce7", color: decision === "MarkedPay" ? "#fff" : "#166534", border: "1px solid #86efac", borderRadius: 3, cursor: canApprove() && r.source === "Vendor Bill" ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700, opacity: r.source !== "Vendor Bill" ? 0.6 : 1 }}>{decision === "MarkedPay" ? "✓ PAY" : "✓ Pay"}</button>
+                          <button data-testid={`due-mark-hold-${r.refNo}`}
+                            onClick={() => {
+                              if (decision !== "Hold") {
+                                const reason = window.prompt("Hold reason (optional):", r.holdReason || "");
+                                if (reason === null) return;
+                                setBillPaymentStatus(r.id, "Hold", { holdReason: reason });
+                              } else {
+                                setBillPaymentStatus(r.id, "");
+                              }
+                            }}
+                            disabled={!canApprove() || r.source !== "Vendor Bill"}
+                            style={{ padding: "3px 7px", background: decision === "Hold" ? "#b45309" : "#fef3c7", color: decision === "Hold" ? "#fff" : "#78350f", border: "1px solid #fcd34d", borderRadius: 3, cursor: canApprove() && r.source === "Vendor Bill" ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700, opacity: r.source !== "Vendor Bill" ? 0.6 : 1 }} title={r.holdReason || "Click to put on hold"}>{decision === "Hold" ? "⏸ HOLD" : "⏸ Hold"}</button>
+                          <button data-testid={`due-mark-reject-${r.refNo}`}
+                            onClick={() => setBillPaymentStatus(r.id, decision === "Reject" ? "" : "Reject")}
+                            disabled={!canApprove() || r.source !== "Vendor Bill"}
+                            style={{ padding: "3px 7px", background: decision === "Reject" ? "#991b1b" : "#fee2e2", color: decision === "Reject" ? "#fff" : "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, cursor: canApprove() && r.source === "Vendor Bill" ? "pointer" : "not-allowed", fontSize: 10, fontWeight: 700, opacity: r.source !== "Vendor Bill" ? 0.6 : 1 }}>{decision === "Reject" ? "✗ REJECT" : "✗ Reject"}</button>
+                        </div>
+                        {decision === "Hold" && r.holdReason && <div style={{ fontSize: 9, color: "#78350f", marginTop: 2, fontStyle: "italic" }}>⏸ {r.holdReason}</div>}
                       </td>
                     </tr>
                   );})}
