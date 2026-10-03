@@ -2,88 +2,81 @@
 
 ## Architecture
 - Backend: FastAPI + MongoDB. Frontend: React + Tailwind. Auth: JWT + per-user permissions.
-- Email: Emergent Resend proxy (platform-managed, no Resend account required).
+- Email: Emergent Resend proxy (platform-managed).
 - Scheduler: Emergent platform crons via `.emergent/crons.yml`.
-- Print: `@page size: A4` via `window.open` in `hrLetters.js`; PDF via `html2pdf.js`.
 
-## Recent Updates (Feb 2026 session)
-- **Nightly Backup Automation (Feb 2026)** — Daily 2 AM IST (`.emergent/crons.yml`) hits `POST /api/cron/nightly-backup` (bearer-auth with `WEBHOOK_CRON_SECRET`), generates full snapshot of 16 collections, stores in `backups` Mongo collection (last 7 retained), and emails SuperAdmin a summary via Emergent Resend proxy. UsersAdmin.jsx shows "Nightly Backups" list panel with Refresh / Run Backup Now / Download / Delete buttons.
-- **Advance Receipt Printable (Feb 2026)** — `printAdvanceReceipt()` in `hrLetters.js` emits A4 Portrait receipt (header, employee details, amount in words, repayment mode, UTR, declaration, 3-signature block). "🧾 Receipt" button in HR Advance Request row appears next to UTR input once UTR is filled.
-- **Pay Bill PDF Export (Feb 2026)** — `exportPayBillPDF()` uses `html2pdf.js` to download A4 landscape Pay Bill with all employee rows, totals, 4-signatory block. Wired as "⬇ PDF" button in HR Pay Bill history.
-- **Backup & Restore System (Feb 2026)** — `GET /api/admin/backup` (full JSON of 16 collections including password hashes) + `POST /api/admin/restore` (upsert or wipe-and-replace mode). SuperAdmin-only. UsersAdmin.jsx "Backup & Restore" blue panel. `/app/MIGRATION_GUIDE.md` documents complete MongoDB Atlas migration.
-- **Employee Advances · Status Badges Clickable (Feb 2026)** — ✓ Settled / ⚡ Auto-Adjusted / ⏳ In Pay Bill badges each open a modal showing per-line Source · RefNo · Month · Amount · Stage breakdown.
-- **Repayment Mode Field (Feb 2026)** — Advance Request form now has Repayment Mode select (Salary Deduction / EMI / Cash / Bank Transfer) + EMI Months when applicable. Register table shows colored pill.
-- **Advance UTR Inline Fill + Receipt (Feb 2026)** — Payment/UTR cell in advance request list is an inline input (auto-save on blur/Enter) once status ≥ 3; red→green visual flip; "🧾 Receipt" print button appears when filled.
-- **Advance Register Double-Count Fix (Feb 2026)** — `getAdvanceRegister()` now subtracts `autoAdvance` from Pay Bill advance (manual portion only) + uses target month/year for On-Demand request so same amount is counted once.
-- **HR Advance / Pay Bill Simple Delete (Feb 2026)** — Replaced SuperAdminDelete (UTR-locked) with canDelete-gated "Delete Pay Bills" / "Del + Voucher" buttons that also remove linked PV voucher from payments.
-- **HR Pay Bills in Reports Approved Bills Sheet (Feb 2026)** — "All Approved Bills" dashboard in Reports now includes HR Pay Bills (step 3 or step 4 awaiting UTR) with orange styling, checkboxes, "HR · Awaiting Settlement" / "UTR Pending" status pills.
-- **Advance Payment Vouchers moved to Employee Advances tab (Feb 2026)** — PV/ADV/* removed from main vouchers data sheet (vendorPayments filter) and shown in Employee Advances tab with simple delete button.
-- **Reports Tab Merger · Payment Vouchers & Due List Preparation (Oct 2026)** — Full workflow (Summary Dashboard + Monthly Decision Sheet XLSX round-trip + Bulk/Single Bank Advice).
-- **Bill Preview Modal + Click-to-View (Oct 2026)**.
-- **Delete Function Lockdown · Admin/SuperAdmin Only (Oct 2026)** — `canDelete()` role-gate across all pages.
+## Recent Updates (Feb 2026)
+
+### Security Hardening Pass (Feb 2026)
+- **SEC-001 fixed · Server-side RBAC on business mutations**: Added `require_write` + `require_approver` dependencies, `_can_create()` + `_can_approve()` helpers, and `_enforce_workflow()` that validates step/status transitions and strips 10 server-owned fields (approvedByName, approvedAt, submittedByName, etc.) from client input. Server stamps these from the authenticated user. Verified via curl: viewer with approve=false gets 403 on step 1→3 transition; SuperAdmin's `HACKER` spoof got overwritten with real name.
+- **SEC-002 fixed · Payments protection**: `POST /api/payments/bulk` + `POST /api/snapshot` now require approver role, blanket `delete_many({})` replaced with per-id upsert so no logged-in user can wipe the ledger.
+- **SEC-003 fixed · Secret rotation**: Rotated `JWT_SECRET` + `WEBHOOK_CRON_SECRET`. Old 30-day tokens invalidated — users must log in once. `test_credentials.md` no longer contains plaintext secrets.
+
+### Nightly Backup Automation (Feb 2026)
+- Daily 2 AM IST `.emergent/crons.yml` → `POST /api/cron/nightly-backup` (bearer-auth) → full 16-collection snapshot stored in `backups` Mongo collection (last 7 retained) + Resend email summary to SuperAdmin.
+
+### HR + Reports (Feb 2026)
+- Advance Receipt A4 printable (hrLetters.js `printAdvanceReceipt`)
+- Pay Bill PDF export via html2pdf.js
+- Advance Request toolbar: New / Save / Edit / Submit to Accounts / 📊 Adjust in Pay Bill / Delete
+- Employee Advance Register double-count fixed (subtracts `autoAdvance` from Pay Bill advance)
+- Repayment Mode select (Salary Deduction / EMI / Cash / Bank Transfer)
+- Status Breakdown badges clickable with detail modal
+- Simple delete (canDelete) replaces UTR-locked SuperAdminDelete; linked PV auto-cleanup
+- Reports → Salary Bills tab: Approved HR Pay Bills Data Sheet with checkboxes, Download/Upload Decision XLSX, 1-Click Process, Bulk Excel, Bulk Bank Advice, Hold/Reject status pills
+
+### Store.js Cross-Device Sync (Feb 2026)
+- `advancePayBillStep` / `rejectAdvanceRequest` / `advanceLoanStep` now call backend API
+- `_bg()` helper + `retryPendingSyncs()` queue + global Sonner toast on sync failure (App.js)
+- `autoSyncFromCloud(10s throttle)` on HR page mount + focus + visibility change
 
 ## Core Modules
-- Vendor Registration · Master · Bills · Payment Vouchers · Payments
-- Purchase Management (BOQ · Work Orders)
-- Expense Process
-- HR Management (Employees, Attendance, Pay Bills, Loans, Advance Requests, Recruitments, Exits)
-- Reports (Payment Vouchers & Due List, Salary Bills, Employee Advances, Aging, GST-TDS)
-- GM Dashboard
-- Users Management (SuperAdmin: Backup, Restore, Nightly Backups, HR Reset, Full Reset)
-
-## Key DB Schema
-`users`, `employees`, `work_orders`, `vendors`, `bills`, `paybills`, `advances` → `advance_requests`, `loans`, `recruitments`, `exits`, `payments`, `attendance`, `expenses`, `boqs`, `counters`, `settings`, `backups`, `backup_runs`
+Vendor Registration · Bills · Payment Vouchers · Payments · BOQ · Work Orders · Expense Process · HR Management (Employees, Attendance, Pay Bills, Loans, Advance Requests, Recruitments, Exits) · Reports (Payment Vouchers & Due List, Salary Bills, Employee Advances, Aging, GST-TDS) · GM Dashboard · Users Management
 
 ## Key API Endpoints
 ### Backup / Restore (SuperAdmin only)
-- `GET /api/admin/backup` — Full JSON snapshot
-- `POST /api/admin/restore` — Upsert or wipe-and-replace
-- `GET /api/admin/nightly-backups` — List last 7 nightly backups
-- `GET /api/admin/nightly-backups/{id}/download` — Full JSON of a specific backup
-- `DELETE /api/admin/nightly-backups/{id}` — Delete a specific backup
-- `POST /api/admin/nightly-backups/trigger` — Manually run the nightly backup flow
+- `GET /api/admin/backup`, `POST /api/admin/restore`
+- `GET/POST/DELETE /api/admin/nightly-backups[/trigger]`
 
-### Cron (platform-authenticated)
-- `POST /api/cron/nightly-backup` — Bearer: `WEBHOOK_CRON_SECRET` · scheduled 2 AM IST
+### Cron
+- `POST /api/cron/nightly-backup` (Bearer: `WEBHOOK_CRON_SECRET`)
 
-### Resend Email (internal only, called from `_run_nightly_backup`)
-Uses `_send_email()` with Emergent proxy at `https://integrations.emergentagent.com/api/v1/email/send`
+### Business (RBAC)
+- `/api/bills`, `/api/paybills`, `/api/advance_requests`, `/api/loans` — require_write + workflow validation on step/status transitions
+- `/api/payments/bulk`, `/api/snapshot` POST — require_approver
 
-## Env Variables (backend/.env)
-- `MONGO_URL`, `DB_NAME`, `CORS_ORIGINS`, `JWT_SECRET`
-- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, `LEGACY_ADMIN_EMAILS`
-- `EMERGENT_EMAIL_KEY`, `EMAIL_FROM_NAME` (platform-managed Resend)
-- `WEBHOOK_CRON_SECRET` (cron bearer)
-- Optional: `EMAIL_REPLY_TO`
+## Env Variables (/app/backend/.env)
+`MONGO_URL`, `DB_NAME`, `CORS_ORIGINS`, `JWT_SECRET` (rotated), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, `LEGACY_ADMIN_EMAILS`, `EMERGENT_EMAIL_KEY`, `EMAIL_FROM_NAME`, `WEBHOOK_CRON_SECRET` (rotated)
 
 ## Tech Stack
-- Frontend: React, Tailwind, xlsx, html2pdf.js, sonner, lucide-react
-- Backend: FastAPI, Motor (async Mongo), httpx (async HTTP), PyJWT, bcrypt
+Frontend: React, Tailwind, xlsx, html2pdf.js, sonner, lucide-react
+Backend: FastAPI, Motor, httpx, PyJWT, bcrypt
 
 ## Priorities / Roadmap
 
-### P0 (next session)
-- Automatic reversal of Pay Bill `autoAdvance` + `advance` column when linked advance request is deleted
-- Advance Register Excel export with UTR column
+### P0 (next)
+- Auto-reverse Pay Bill `advance+autoAdvance` on advance request delete
+- HR Decision Audit History: log Hold/Reject actions in `pb.history`
+- Clear Hold/Reject button (admin inline action)
 
 ### P1
-- Advance ledger running balance (Opening · Granted · Recovered · Closing)
-- Store.js refactor (currently 1800+ lines)
-- Loan EMI Schedule Printable PDF
+- Login rate-limiting + stronger password policy (min 8, breakpoint on failures) · JWT revocation
+- Advance Register Excel export with UTR + source + target month
+- Store.js refactor (1800+ lines → modular)
 
 ### P2
-- Keyboard shortcuts (Ctrl+N for new advance / pay bill)
-- Draft auto-save after 30s idle
+- Combined Monthly Decision Report (Vendor + HR consolidated)
+- Loan EMI Schedule Printable PDF
 - Bulk PDF export (multiple months → zip)
-- HRManagement.jsx + Reports.jsx component modularization
 
 ## Documentation
-- `/app/MIGRATION_GUIDE.md` — Backup / MongoDB Atlas migration / GitHub source backup walkthrough
-- `/app/memory/test_credentials.md` — SuperAdmin login + cron secret
+- `/app/MIGRATION_GUIDE.md` — Backup / MongoDB Atlas / GitHub source backup
+- `/app/memory/test_credentials.md` — login reference (no plaintext secrets)
 
 ## Known Workflow Rules
-- Advance Request flow is **3-step terminal**: Draft → Submitted to Accounts → Accounts Approved · Auto-adjusted in Pay Bill (status max 3, status 4 deprecated)
-- Due List + Payment Vouchers merged into one tab with XLSX round-trip
-- All deletes require `canDelete()` (Admin / SuperAdmin only)
-- Nightly backups retain last 7, older auto-deleted
-- Pay Bills + Advance delete auto-removes linked PV voucher to prevent duplicates
+- Advance Request flow is 3-step terminal (max status 3 = Accounts Approved)
+- Due List + Payment Vouchers merged tab with XLSX round-trip; Salary Bills has its own
+- All deletes require `canDelete()` (Admin / SuperAdmin only); server verifies via require_admin dependencies on DELETE routes
+- Pay Bills / Advance deletes also remove linked PV voucher to prevent duplicates
+- Nightly backups retain last 7
+- Business endpoint upserts: forward step/status transitions (step 1→2+ or status 1→2+) require approver role. Server stamps approvedByName / approvedAt / etc. — client values are ignored.

@@ -78,6 +78,106 @@ async def require_super_admin(user: Dict = Depends(get_current_user)) -> Dict[st
     return user
 
 
+# ==================== BUSINESS RBAC (SEC-001 / SEC-002) ====================
+# Server-side enforcement so a logged-in low-privilege user cannot bypass the UI
+# gates by calling the API directly to self-approve financial workflows.
+
+def _is_super_admin(user: Dict) -> bool:
+    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    return bool(primary) and (user.get("email") or "").lower().strip() == primary
+
+
+def _can_create(user: Dict) -> bool:
+    if _is_super_admin(user):
+        return True
+    perms = user.get("permissions") or {}
+    return bool(perms.get("create") or perms.get("edit") or perms.get("submit") or perms.get("approve"))
+
+
+def _can_approve(user: Dict) -> bool:
+    if _is_super_admin(user):
+        return True
+    perms = user.get("permissions") or {}
+    return bool(perms.get("approve"))
+
+
+async def require_write(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
+    if not _can_create(user):
+        raise HTTPException(status_code=403, detail="Create / edit permission required")
+    return user
+
+
+async def require_approver(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
+    if not _can_approve(user):
+        raise HTTPException(status_code=403, detail="Approver role required (Admin / Accounts / SuperAdmin)")
+    return user
+
+
+# Fields that the server authoritatively owns — client-supplied values are
+# discarded and the server stamps them based on the actual workflow transition
+# and the authenticated user. Prevents forged approver names / timestamps.
+_SERVER_OWNED_FIELDS = (
+    "approvedByName", "approvedAt",
+    "submittedByName", "submittedAt",
+    "settledByName", "settledAt",
+    "rejectedByName", "rejectedAt",
+    "disbursedByName", "disbursedAt",
+    "paidByName", "paidAt",
+)
+
+
+async def _enforce_workflow(coll: str, body: Dict, user: Dict, step_field: str = "step") -> Dict:
+    """For paybills / advance_requests / loans / bills: validate step/status
+    transition on the server, require approver for forward transitions, strip
+    server-owned fields and stamp them from the authenticated user."""
+    rid = body.get("id")
+    existing = await db[coll].find_one({"id": rid}, {"_id": 0}) if rid else None
+    try:
+        old_step = int((existing or {}).get(step_field, 1) or 1)
+    except (TypeError, ValueError):
+        old_step = 1
+    try:
+        new_step = int(body.get(step_field, old_step))
+    except (TypeError, ValueError):
+        new_step = old_step
+    # Strip any client-supplied privileged fields — server authors these
+    for f in _SERVER_OWNED_FIELDS:
+        body.pop(f, None)
+    # Preserve already-stamped values from the existing record so they don't
+    # get wiped when the user upserts the same step (e.g. UTR edit on settled)
+    if existing:
+        for f in _SERVER_OWNED_FIELDS:
+            if existing.get(f) is not None:
+                body[f] = existing[f]
+    # Permission check: new drafts need write perm, forward transitions need approve
+    if new_step > old_step:
+        if not _can_approve(user):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Approver role required to transition {step_field} {old_step} → {new_step}",
+            )
+    else:
+        if not _can_create(user):
+            raise HTTPException(status_code=403, detail="Create / edit permission required")
+    # Stamp server-owned fields based on the transition
+    me_name = user.get("name") or user.get("email") or "Unknown"
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if new_step > old_step:
+        if new_step == 2:
+            body["submittedByName"] = me_name
+            body["submittedAt"] = now_iso
+        elif new_step == 3:
+            body["approvedByName"] = me_name
+            body["approvedAt"] = now_iso
+        elif new_step == 4:
+            body["settledByName"] = me_name
+            body["settledAt"] = now_iso
+        elif new_step == 5:
+            body["paidByName"] = me_name
+            body["paidAt"] = now_iso
+    return body
+
+
 # ==================== AUTH MODELS ====================
 class RegisterBody(BaseModel):
     email: EmailStr
@@ -269,7 +369,7 @@ async def list_vendors(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/vendors")
-async def upsert_vendor(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+async def upsert_vendor(body: Dict = Body(...), user: Dict = Depends(require_write)):
     vid = body.get("id")
     if not vid:
         raise HTTPException(status_code=400, detail="id required")
@@ -291,10 +391,11 @@ async def list_bills(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/bills")
-async def upsert_bill(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+async def upsert_bill(body: Dict = Body(...), user: Dict = Depends(require_write)):
     bid = body.get("id")
     if not bid:
         raise HTTPException(status_code=400, detail="id required")
+    body = await _enforce_workflow("bills", body, user, step_field="step")
     body["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.bills.update_one({"id": bid}, {"$set": body}, upsert=True)
     return _clean(body)
@@ -313,9 +414,18 @@ async def list_payments(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/payments/bulk")
-async def replace_payments(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
-    items = body.get("items", [])
-    count = await _replace_collection("payments", items)
+async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_approver)):
+    """SEC-002 FIX: per-id upsert (approver only). The old blanket delete-and-
+    insert flow allowed any logged-in user to wipe the full payments ledger."""
+    items = body.get("items") or []
+    count = 0
+    for p in items:
+        pid = p.get("id") or p.get("pvNo")
+        if not pid:
+            continue
+        key = {"id": pid} if p.get("id") else {"pvNo": p.get("pvNo")}
+        await db.payments.update_one(key, {"$set": p}, upsert=True)
+        count += 1
     return {"count": count}
 
 
@@ -327,7 +437,7 @@ async def get_counters(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/counters")
-async def set_counters(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+async def set_counters(body: Dict = Body(...), user: Dict = Depends(require_write)):
     body["key"] = "global"
     await db.counters.update_one({"key": "global"}, {"$set": body}, upsert=True)
     return body
@@ -341,7 +451,7 @@ async def get_logo(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/logo")
-async def set_logo(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+async def set_logo(body: Dict = Body(...), user: Dict = Depends(require_write)):
     await db.settings.update_one({"key": "logo"}, {"$set": {"value": body.get("logo", "")}}, upsert=True)
     return {"ok": True}
 
@@ -353,7 +463,7 @@ async def list_employees(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/employees")
-async def upsert_employee(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+async def upsert_employee(body: Dict = Body(...), user: Dict = Depends(require_write)):
     eid = body.get("id")
     if not eid:
         raise HTTPException(status_code=400, detail="id required")
@@ -375,7 +485,7 @@ async def list_attendance(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/attendance")
-async def upsert_attendance(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+async def upsert_attendance(body: Dict = Body(...), user: Dict = Depends(require_write)):
     aid = body.get("id")
     if not aid:
         raise HTTPException(status_code=400, detail="id required")
@@ -407,8 +517,9 @@ async def snapshot(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/snapshot")
-async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
-    """One-shot migration/push of the client's full state to the cloud."""
+async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_approver)):
+    """One-shot migration/push of the client's full state to the cloud.
+    SEC-002 FIX: Approver-only + per-id upsert for payments (no blanket replace)."""
     vendors = body.get("vendors", [])
     bills = body.get("bills", [])
     payments = body.get("payments", [])
@@ -446,7 +557,12 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
         if ex.get("id"):
             await db.exits.update_one({"id": ex["id"]}, {"$set": ex}, upsert=True)
     if payments:
-        await _replace_collection("payments", payments)
+        for p in payments:
+            pid = p.get("id") or p.get("pvNo")
+            if not pid:
+                continue
+            key = {"id": pid} if p.get("id") else {"pvNo": p.get("pvNo")}
+            await db.payments.update_one(key, {"$set": p}, upsert=True)
     counters["key"] = "global"
     await db.counters.update_one({"key": "global"}, {"$set": counters}, upsert=True)
     if logo:
@@ -459,9 +575,11 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(get_current
 
 
 # ==================== HR: PAY BILLS / LOANS / ADVANCES / RECRUIT / EXITS ====================
-def _make_hr_crud(coll_name: str, path: str):
+def _make_hr_crud(coll_name: str, path: str, step_field: str = "step"):
     """Create generic get/upsert/delete endpoints for an HR collection.
-    DELETE routes are gated to Admin role (RBAC)."""
+    SEC-001 FIX: upsert runs through _enforce_workflow — the server validates
+    step/status transitions, requires the approver role to move past step 1,
+    and stamps server-owned fields (approvedByName / approvedAt / etc.)."""
     @api_router.get(f"/{path}")
     async def _list(user: Dict = Depends(get_current_user)):
         return await _list_collection(coll_name)
@@ -470,6 +588,7 @@ def _make_hr_crud(coll_name: str, path: str):
         rid = body.get("id")
         if not rid:
             raise HTTPException(status_code=400, detail="id required")
+        body = await _enforce_workflow(coll_name, body, user, step_field=step_field)
         await db[coll_name].update_one({"id": rid}, {"$set": body}, upsert=True)
         return {"ok": True, "id": rid}
     @api_router.delete(f"/{path}/{{rid}}")
@@ -478,17 +597,18 @@ def _make_hr_crud(coll_name: str, path: str):
         return {"ok": True, "deleted": r.deleted_count}
     return _list, _upsert, _delete
 
-# Register endpoints for all 5 HR collections
-_make_hr_crud("paybills", "paybills")
-_make_hr_crud("loans", "loans")
-_make_hr_crud("advance_requests", "advance_requests")
-_make_hr_crud("recruitments", "recruitments")
-_make_hr_crud("exits", "exits")
+# Register endpoints for all 5 HR collections (paybills + loans use `step`,
+# advance_requests uses `status`, recruitments + exits use `step`)
+_make_hr_crud("paybills", "paybills", step_field="step")
+_make_hr_crud("loans", "loans", step_field="status")
+_make_hr_crud("advance_requests", "advance_requests", step_field="status")
+_make_hr_crud("recruitments", "recruitments", step_field="step")
+_make_hr_crud("exits", "exits", step_field="step")
 
 
 # ==================== EXPENSES (single-record upsert) ====================
 @api_router.post("/expenses")
-async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(require_write)):
     xid = body.get("id")
     if not xid:
         raise HTTPException(status_code=400, detail="id is required")
