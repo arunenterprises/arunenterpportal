@@ -231,7 +231,7 @@ export default function Reports() {
         vendorCode: b.vendorCode, vendorName: vend.firmName || "",
         accountName: vend.accountHolder || vend.firmName || "",
         amount: amt, mode: "Bank Transfer",
-        bankName: vend.bankName || "", ifscCode: vend.ifsc || "", accountNumber: vend.bankAccount || "",
+        bankName: vend.bankName || "", ifscCode: vend.ifscCode || vend.ifsc || "", accountNumber: vend.accountNumber || vend.bankAccount || "",
         remarks: `Bulk-generated from Due List decision sheet · ${monthLabel}`,
         status: "Draft", createdAt: new Date().toISOString(), createdByName: currentUser(),
       });
@@ -361,7 +361,20 @@ export default function Reports() {
   };
   const loadVoucher = (pvNo) => {
     const p = payments.find((x) => x.pvNo === pvNo);
-    if (p) { setPv(p); setSelectedBillId(p.billId || ""); toast.info(`Loaded ${pvNo}`); }
+    if (p) {
+      // Self-heal: if existing PV has missing/stale bank details, pull latest from vendor master
+      const vend = vendors.find((x) => x.vendorCode === p.vendorCode) || {};
+      const healed = {
+        ...p,
+        bankName: p.bankName || vend.bankName || "",
+        accountName: p.accountName || vend.accountHolder || vend.firmName || "",
+        accountNumber: p.accountNumber || vend.accountNumber || vend.bankAccount || "",
+        ifscCode: p.ifscCode || vend.ifscCode || vend.ifsc || "",
+      };
+      setPv(healed);
+      setSelectedBillId(p.billId || "");
+      toast.info(`Loaded ${pvNo}`);
+    }
   };
 
   const handleSave = () => {
@@ -1685,9 +1698,23 @@ export default function Reports() {
                     <F label="Bank"><input value={pv.bankName} readOnly /></F>
                   </div>
                   <div className="row cols-3" style={{ marginTop: 10 }}>
-                    <F label="IFSC"><input value={pv.ifscCode} readOnly /></F>
+                    <F label="IFSC">
+                      <input
+                        value={pv.ifscCode || ""}
+                        readOnly
+                        data-testid="pv-ifsc"
+                        style={{ fontFamily: "monospace", letterSpacing: ".4px", textTransform: "uppercase", fontWeight: 700, width: "100%", minWidth: 150 }}
+                      />
+                    </F>
                     <F label="Account Holder"><input value={pv.accountName} readOnly /></F>
-                    <F label="Account Number"><input value={pv.accountNumber} readOnly /></F>
+                    <F label="Account Number">
+                      <input
+                        value={pv.accountNumber || ""}
+                        readOnly
+                        data-testid="pv-acctno"
+                        style={{ fontFamily: "monospace", letterSpacing: ".4px", fontWeight: 700, width: "100%", minWidth: 150 }}
+                      />
+                    </F>
                   </div>
                   <div className="row cols-2" style={{ marginTop: 10 }}>
                     <F label="Amount (₹)">
