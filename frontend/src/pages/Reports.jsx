@@ -776,18 +776,48 @@ export default function Reports() {
                         <button
                           data-testid="pb-bulk-settle"
                           onClick={() => {
-                            if (!canApprove()) { toast.error("Only Admin / SuperAdmin / Accounts can settle"); return; }
-                            const eligible = selectedRows.filter((pb) => Number(pb.step) === 3);
-                            if (eligible.length === 0) { toast.error("No GM-Approved pay bills selected · select step 3 rows to settle"); return; }
-                            if (!window.confirm(`1-Click Process · Settle ${eligible.length} Pay Bill(s)?\n\nEach will be moved to Settled (step 4) and a Payment Voucher auto-generated for the net salary payout.\n\nTotal payout: ₹ ${eligible.reduce((s, pb) => s + Number(pb.totalNet || 0), 0).toLocaleString("en-IN")}`)) return;
-                            let okCount = 0, pvs = [];
-                            eligible.forEach((pb) => {
-                              const n = advancePayBillStep(pb);
-                              if (Number(n.step) === 4) { okCount += 1; if (n.linkedPvNo) pvs.push(n.linkedPvNo); }
-                            });
-                            setSelectedPayBills(new Set());
-                            setRefresh((v) => v + 1);
-                            toast.success(`✓ Settled ${okCount}/${eligible.length} Pay Bills · ${pvs.length} PV auto-generated`, { duration: 7000, description: pvs.slice(0, 3).join(", ") + (pvs.length > 3 ? ` + ${pvs.length - 3} more` : "") });
+                            try {
+                              if (!canApprove()) { toast.error("Only Admin / SuperAdmin / Accounts can settle"); return; }
+                              // Use a fresh snapshot so stale/missing rows don't throw
+                              const fresh = getPayBills();
+                              const freshById = Object.fromEntries(fresh.map((pb) => [pb.id, pb]));
+                              const eligible = selectedRows
+                                .map((pb) => freshById[pb.id])
+                                .filter((pb) => pb && Number(pb.step) === 3);
+                              if (eligible.length === 0) { toast.error("No GM-Approved pay bills selected · select step 3 rows to settle"); return; }
+                              const totalPayout = eligible.reduce((s, pb) => s + Number(pb.totalNet || 0), 0);
+                              if (!window.confirm(`1-Click Process · Settle ${eligible.length} Pay Bill(s)?\n\nEach will be moved to Settled (step 4) and a Payment Voucher auto-generated for the net salary payout.\n\nTotal payout: ₹ ${totalPayout.toLocaleString("en-IN")}`)) return;
+                              let okCount = 0;
+                              const pvs = [];
+                              const errors = [];
+                              eligible.forEach((pb) => {
+                                try {
+                                  const n = advancePayBillStep(pb);
+                                  if (n && Number(n.step) === 4) {
+                                    okCount += 1;
+                                    if (n.linkedPvNo) pvs.push(n.linkedPvNo);
+                                  } else {
+                                    errors.push(`${pb.refNo}: step didn't advance`);
+                                  }
+                                } catch (ex) {
+                                  errors.push(`${pb.refNo}: ${ex.message || ex}`);
+                                }
+                              });
+                              setSelectedPayBills(new Set());
+                              setRefresh((v) => v + 1);
+                              if (okCount > 0) {
+                                toast.success(`✓ Settled ${okCount}/${eligible.length} Pay Bills · ${pvs.length} PV auto-generated`, {
+                                  duration: 7000,
+                                  description: pvs.length ? pvs.slice(0, 3).join(", ") + (pvs.length > 3 ? ` + ${pvs.length - 3} more` : "") : undefined,
+                                });
+                              }
+                              if (errors.length) {
+                                toast.error(`${errors.length} failed`, { duration: 9000, description: errors.slice(0, 3).join(" · ") });
+                              }
+                            } catch (ex) {
+                              toast.error(`1-Click Process failed: ${ex.message || ex}`);
+                              try { console.error("[1-click-settle]", ex); } catch {}
+                            }
                           }}
                           disabled={!canApprove()}
                           title={canApprove() ? "Settle all selected GM-approved pay bills in one click (step 3 → 4) with auto-PV generation" : "Only Admin / SuperAdmin / Accounts can settle"}

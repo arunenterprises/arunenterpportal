@@ -17,7 +17,7 @@ import {
   getAdvanceRegister,
   getAdvanceRequests, createAdvanceRequestDraft, upsertAdvanceRequest, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
   getLoans, createLoanDraft, upsertLoan, advanceLoanStep, deleteLoan, computeLoanEMI, LOAN_STATUS,
-  getLeaves, createLeaveDraft, upsertLeave, deleteLeave, approveLeave, LEAVE_TYPES, LEAVE_STATUS,
+  getLeaves, createLeaveDraft, upsertLeave, deleteLeave, approveLeave, saveLeaves, LEAVE_TYPES, LEAVE_STATUS,
   getRecruitments, createRecruitDraft, upsertRecruit, advanceRecruitStep, rejectRecruit, deleteRecruit, convertRecruitToEmployee, RECRUIT_STATUS,
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, advanceExitStep, EXIT_STATUS,
   getComplianceSnapshot,
