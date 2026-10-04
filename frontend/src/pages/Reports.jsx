@@ -1590,7 +1590,7 @@ export default function Reports() {
                 </F>
                 <div style={{ display: "flex", alignItems: "end" }}>
                   <div style={{ fontSize: 10.5, color: "#64748b", fontStyle: "italic" }}>
-                    👇 "Generate Voucher" button page ke last me hai.
+                    👇 Action bar page ke last me — Generate → Save → Edit → Delete → Approval → Bank Advice → UTR → Status.
                   </div>
                 </div>
               </div>
@@ -1763,42 +1763,165 @@ export default function Reports() {
             </>
           )}
 
-          {/* Bottom Action Bar · Section D "Generate Voucher" button (page bottom per UX request) */}
-          <div data-testid="pv-bottom-actions" style={{ marginTop: 16, padding: "14px 18px", background: "linear-gradient(135deg,#0f172a,#1e293b)", color: "#fff", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, boxShadow: "0 4px 12px rgba(15,23,42,.25)" }}>
-            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+          {/* Bottom Action Bar · Section D PV actions · left-to-right: Generate → Save → Edit → Delete → Approval → Bank Advice → Fill UTR → Status */}
+          <div data-testid="pv-bottom-actions" style={{ marginTop: 16, padding: "14px 18px", background: "linear-gradient(135deg,#0f172a,#1e293b)", color: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(15,23,42,.25)" }}>
+            <div style={{ fontSize: 11.5, lineHeight: 1.5, marginBottom: 10 }}>
               <b style={{ color: "#fbbf24" }}>Single Bill Payment Voucher</b> ·
               {selectedBillId ? (
                 <> Selected bill: <b>{(approvedBills.find((b) => b.id === selectedBillId)?.vendorSnapshot?.firmName) || "—"}</b></>
               ) : (
                 <> Pehle upar section D me "Approved Bill" select karein</>
               )}
-              {pv && <> · <span style={{ padding: "1px 8px", background: "rgba(251,191,36,.2)", color: "#fbbf24", borderRadius: 999, fontSize: 10, fontWeight: 700 }}>Current PV: {pv.pvNo} · {pv.status}</span></>}
+              {pv && <> · PV: <b style={{ color: "#fbbf24" }}>{pv.pvNo}</b></>}
             </div>
-            <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {/* 1. Generate Voucher · Amber */}
               <button
                 data-testid="pv-generate"
                 onClick={generateVoucher}
                 disabled={!selectedBillId}
-                style={{ padding: "8px 18px", background: selectedBillId ? "#f59e0b" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: selectedBillId ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, letterSpacing: 0.3 }}
+                style={{ padding: "9px 16px", background: selectedBillId ? "linear-gradient(135deg,#f59e0b,#d97706)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: selectedBillId ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: selectedBillId ? "0 2px 6px rgba(245,158,11,.4)" : "none", textTransform: "uppercase" }}
                 title={selectedBillId ? "Generate single-bill Payment Voucher draft" : "Select an approved bill first"}
               >🧾 Generate Voucher</button>
-              {pv && pv.status === "Draft" && (
-                <button data-testid="pv-save" onClick={handleSave} style={{ padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>💾 Save</button>
-              )}
-              {pv && pv.status === "Draft" && (
-                <button data-testid="pv-submit" onClick={handleSubmit} style={{ padding: "8px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>📤 Submit</button>
-              )}
-              {pv && pv.status === "Submitted" && (
+
+              {/* 2. Save · Blue */}
+              <button
+                data-testid="pv-save"
+                onClick={handleSave}
+                disabled={!pv || pv.status === "Approved"}
+                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#0ea5e9,#0369a1)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(14,165,233,.4)" : "none", textTransform: "uppercase" }}
+                title={pv ? (pv.status === "Approved" ? "Approved voucher — Save disabled" : "Save draft voucher") : "Generate voucher first"}
+              >💾 Save</button>
+
+              {/* 3. Edit · Indigo */}
+              <button
+                data-testid="pv-edit"
+                onClick={() => {
+                  if (!pv) { toast.error("Pehle voucher generate karein"); return; }
+                  if (pv.status === "Approved") { toast.error("Approved voucher edit nahi ho sakta"); return; }
+                  const el = document.querySelector('[data-testid="pv-no"]');
+                  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  toast.success("Edit mode · PV fields upar scroll kiye gaye");
+                }}
+                disabled={!pv || pv.status === "Approved"}
+                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#6366f1,#4338ca)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(99,102,241,.4)" : "none", textTransform: "uppercase" }}
+                title={pv ? (pv.status === "Approved" ? "Approved voucher edit nahi ho sakta" : "Scroll to editable voucher fields") : "Generate voucher first"}
+              >✏️ Edit</button>
+
+              {/* 4. Delete · Red */}
+              {pv && pv.status !== "Approved" ? (
                 <button
-                  data-testid="pv-approve"
-                  onClick={handleApprove}
-                  disabled={!canApprove()}
-                  title={canApprove() ? "Approve this voucher (Admin / SuperAdmin / Accounts only)" : "Only Admin / SuperAdmin / Accounts can approve"}
-                  style={{ padding: "8px 14px", background: canApprove() ? "#16a34a" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}
-                >✓ Approve</button>
+                  data-testid="pv-delete"
+                  onClick={() => {
+                    if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; }
+                    if (!window.confirm(`Delete voucher ${pv.pvNo}?\n\nStatus: ${pv.status}\nAmount: ₹${Number(pv.amount || 0).toLocaleString("en-IN")}\n\nYeh action undo nahi hoga.`)) return;
+                    deletePayment(pv.pvNo);
+                    setPv(null);
+                    setSelectedBillId("");
+                  }}
+                  disabled={!canDelete()}
+                  style={{ padding: "9px 16px", background: canDelete() ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: canDelete() ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: canDelete() ? "0 2px 6px rgba(239,68,68,.4)" : "none", textTransform: "uppercase" }}
+                  title={canDelete() ? "Delete this voucher (frees bill)" : "Only Admin / SuperAdmin can delete"}
+                >🗑️ Delete</button>
+              ) : pv && pv.status === "Approved" ? (
+                <SuperAdminDelete
+                  label={`Payment Voucher ${pv.pvNo}`}
+                  meta={{ "Vendor": pv.vendorName || pv.vendorCode, "Amount": `₹${Number(pv.amount || 0).toLocaleString("en-IN")}`, "Status": pv.status, "Approved By": pv.approvedByName || "—", "UTR": pv.utrNo || "—" }}
+                  auditKey="ae_vm_pv_delete_log"
+                  testid={`pv-sa-delete-${pv.pvNo}`}
+                  blockReason={!pv.utrNo ? `Delete locked · Pehle UTR number enter karo (UTR field niche), uske baad hi delete allow hoga.` : ""}
+                  onDelete={() => { deletePayment(pv.pvNo); setPv(null); setSelectedBillId(""); }}
+                />
+              ) : (
+                <button
+                  data-testid="pv-delete"
+                  disabled
+                  style={{ padding: "9px 16px", background: "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, textTransform: "uppercase" }}
+                  title="Generate voucher first"
+                >🗑️ Delete</button>
               )}
+
+              {/* 5. Approval · Green (SuperAdmin / Admin only via canApprove) */}
+              <button
+                data-testid="pv-approve"
+                onClick={() => {
+                  if (!pv) { toast.error("Pehle voucher generate karein"); return; }
+                  if (pv.status === "Draft") { handleSubmit(); return; }
+                  if (pv.status === "Submitted") { handleApprove(); return; }
+                  toast.info(`Voucher already ${pv.status}`);
+                }}
+                disabled={!pv || !canApprove() || pv.status === "Approved"}
+                title={!pv ? "Generate voucher first" : !canApprove() ? "Only SuperAdmin / Admin can approve" : pv.status === "Approved" ? "Already approved" : (pv.status === "Draft" ? "Submit → then Approve" : "Approve this voucher")}
+                style={{ padding: "9px 16px", background: pv && canApprove() && pv.status !== "Approved" ? "linear-gradient(135deg,#22c55e,#15803d)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && canApprove() && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && canApprove() && pv.status !== "Approved" ? "0 2px 6px rgba(34,197,94,.4)" : "none", textTransform: "uppercase" }}
+              >✓ Approval</button>
+
+              {/* 6. Bank Advice · Pink */}
+              <button
+                data-testid="pv-bank-advice"
+                onClick={() => {
+                  if (!pv) { toast.error("Pehle voucher generate karein"); return; }
+                  const bill = approvedBills.find((b) => b.id === pv.billId) || {};
+                  const vend = (bill.vendorSnapshot) || vendors.find((v) => v.vendorCode === pv.vendorCode) || {};
+                  const monthLabel = `PV ${pv.pvNo} · ${pv.date}`;
+                  printBulkBankAdvice([{
+                    refNo: pv.pvNo,
+                    billNo: pv.billRefNo || pv.billNo,
+                    party: pv.vendorName || vend.firmName || pv.vendorCode,
+                    partyCode: pv.vendorCode,
+                    bank: pv.bankName || vend.bankName || "—",
+                    branch: vend.bankBranch || "",
+                    account: pv.accountNumber || vend.bankAccount || "—",
+                    ifsc: pv.ifscCode || vend.ifsc || "—",
+                    amount: Number(pv.amount || 0),
+                  }], { monthLabel, period: pv.date || "" });
+                }}
+                disabled={!pv}
+                style={{ padding: "9px 16px", background: pv ? "linear-gradient(135deg,#ec4899,#be185d)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv ? "0 2px 6px rgba(236,72,153,.4)" : "none", textTransform: "uppercase" }}
+                title={pv ? "Print A4 landscape bank advice for this voucher" : "Generate voucher first"}
+              >🖨 Bank Advice</button>
+
+              {/* 7. Fill UTR · Yellow highlighted when Approved */}
+              <div
+                data-testid="pv-utr-wrap"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", background: pv && pv.status === "Approved" ? "linear-gradient(135deg,#fde68a,#fbbf24)" : "#334155", border: `1.5px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#475569"}`, borderRadius: 6, boxShadow: pv && pv.status === "Approved" ? "0 2px 6px rgba(251,191,36,.4)" : "none" }}
+                title={pv ? (pv.status === "Approved" ? "UTR / Reference No — post-payment entry" : "UTR available after voucher is Approved") : "Generate voucher first"}
+              >
+                <label style={{ fontSize: 10.5, color: pv && pv.status === "Approved" ? "#78350f" : "#fbbf24", fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase" }}>UTR</label>
+                <input
+                  data-testid="pv-utr-bottom"
+                  value={pv?.utrNo || ""}
+                  onChange={(e) => pv && setPv({ ...pv, utrNo: e.target.value.toUpperCase().slice(0, 32) })}
+                  onBlur={() => { if (pv && pv.status === "Approved" && pv.utrNo) { handleSave(); } }}
+                  disabled={!pv || pv.status !== "Approved"}
+                  placeholder={pv && pv.status === "Approved" ? "Enter UTR / Ref No" : "Approve first"}
+                  style={{ width: 150, padding: "5px 8px", fontSize: 11.5, fontFamily: "monospace", letterSpacing: ".3px", background: pv && pv.status === "Approved" ? "#fffbeb" : "#1e293b", color: pv && pv.status === "Approved" ? "#0f172a" : "#94a3b8", border: `1px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#475569"}`, borderRadius: 4, fontWeight: pv?.utrNo ? 800 : 500 }}
+                />
+              </div>
+
+              {/* 8. Status · Dynamic pill */}
+              <div
+                data-testid="pv-status-badge"
+                style={{
+                  padding: "7px 16px",
+                  background: !pv ? "#334155" : pv.utrNo && pv.status === "Approved" ? "linear-gradient(135deg,#10b981,#059669)" : pv.status === "Approved" ? "linear-gradient(135deg,#22c55e,#15803d)" : pv.status === "Submitted" ? "linear-gradient(135deg,#8b5cf6,#6d28d9)" : "linear-gradient(135deg,#f59e0b,#d97706)",
+                  color: "#fff",
+                  borderRadius: 999,
+                  fontSize: 11.5,
+                  fontWeight: 900,
+                  letterSpacing: 0.8,
+                  textTransform: "uppercase",
+                  border: "1.5px solid rgba(255,255,255,.25)",
+                  marginLeft: "auto",
+                  boxShadow: pv ? "0 2px 6px rgba(0,0,0,.3)" : "none",
+                }}
+                title="Current voucher status"
+              >
+                {pv ? (pv.utrNo && pv.status === "Approved" ? "✓ Paid" : pv.status) : "No Voucher"}
+              </div>
+
+              {/* New (reset) · Slate */}
               {pv && (
-                <button data-testid="pv-new" onClick={handleNew} style={{ padding: "8px 14px", background: "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>🆕 New</button>
+                <button data-testid="pv-new" onClick={handleNew} style={{ padding: "9px 16px", background: "linear-gradient(135deg,#64748b,#475569)", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: "0 2px 6px rgba(100,116,139,.4)", textTransform: "uppercase" }} title="Clear and start a new voucher">🆕 New</button>
               )}
             </div>
           </div>

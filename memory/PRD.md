@@ -5,6 +5,13 @@
 - Email: Emergent Resend proxy (platform-managed).
 - Scheduler: Emergent platform crons via `.emergent/crons.yml`.
 
+## Pending Requirements (Noted · Awaiting Specifics)
+- **Payment Register Temp / Sr. No prefix separation** (Feb 2026 · user requested):
+  Currently both Payment Register serial and Payment Voucher share the same `PV/{FY}/{0001}` series via `nextPvNo()` in `store.js:755`. User wants two independent counters/prefixes:
+  - Payment Register (Temp / Sr. No) → separate prefix (e.g. `PR/{FY}/{0001}` — to be confirmed)
+  - Payment Voucher → stays as `PV/{FY}/{0001}` (or new prefix if user prefers)
+  Scope: new counter in `counters` collection, update register/voucher generation, keep migration safe for already-issued numbers. **Blocked on user confirming exact prefix strings and whether existing PV numbers need backfill.**
+
 ## Recent Updates (Feb 2026)
 
 ### Security Hardening Pass (Feb 2026)
