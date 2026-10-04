@@ -1585,13 +1585,14 @@ export default function Reports() {
                     })}
                   </select>
                 </F>
-                <div className="field-b" style={{ justifyContent: "end" }}>
-                  <label>&nbsp;</label>
-                  <button className="btn-color btn-nav" data-testid="pv-generate" onClick={generateVoucher}>Generate Voucher</button>
-                </div>
                 <F label="Voucher Status">
                   <input className="pill-status" value={pv?.status || "—"} readOnly data-testid="pv-status" />
                 </F>
+                <div style={{ display: "flex", alignItems: "end" }}>
+                  <div style={{ fontSize: 10.5, color: "#64748b", fontStyle: "italic" }}>
+                    👇 "Generate Voucher" button page ke last me hai.
+                  </div>
+                </div>
               </div>
               <div className="row" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1.4fr 1.4fr auto", gap: "8px 12px", alignItems: "end", padding: "10px 12px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6 }}>
                 <div style={{ fontSize: 11.5, color: "#166534", lineHeight: 1.4, gridColumn: "1 / -1" }} data-testid="export-info">
@@ -1762,81 +1763,45 @@ export default function Reports() {
             </>
           )}
 
-          {/* Vouchers Data Sheet — bottom of page, VENDOR payment vouchers only (HR/ADV excluded) */}
-          {vendorPayments.length > 0 && (
-            <div className="section" data-testid="vouchers-data-sheet" style={{ marginTop: 14 }}>
-              <div className="sec-head">Payment Vouchers Data Sheet · Click to Load <span style={{ fontSize: 10, fontWeight: 500, color: "#64748b", marginLeft: 8 }}>(Vendor PVs only — HR Advance PVs are shown in Employee Advances tab)</span></div>
-              <div className="sec-body">
-                <table className="data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                  <thead>
-                    <tr style={{ background: "#f1f5f9" }}>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>PV No</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Vendor</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Bill No</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>Date</th>
-                      <th style={{ padding: "6px 8px", textAlign: "right", borderBottom: "1px solid #cbd5e1" }}>Amount (₹)</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Mode</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Status</th>
-                      <th style={{ padding: "6px 8px", textAlign: "center", borderBottom: "1px solid #cbd5e1" }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vendorPayments.map((p) => {
-                      const isApp = p.status === "Approved";
-                      return (
-                        <tr key={p.pvNo} data-testid={`voucher-row-${p.pvNo}`}
-                          style={{ background: "#fff", borderBottom: "1px solid #e2e8f0" }}>
-                          <td style={{ padding: "5px 8px", fontFamily: "monospace", fontWeight: 700, color: isApp ? "#166534" : "#92400e" }}>
-                            {isApp ? `✓ ${p.pvNo}` : `⏳ ${p.pvNo}`}
-                            {p.revision > 0 && <span style={{ marginLeft: 6, padding: "1px 6px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", borderRadius: 999, fontSize: 9, fontWeight: 700 }}>R{p.revision}</span>}
-                          </td>
-                          <td style={{ padding: "5px 8px" }}>{p.vendorName || p.vendorCode}</td>
-                          <td style={{ padding: "5px 8px" }}>{p.billNo || "—"}</td>
-                          <td style={{ padding: "5px 8px" }}>{p.date || "—"}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "right", fontFamily: "monospace" }}>{Number(p.amount || 0).toFixed(2)}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "center" }}>{p.mode || "—"}</td>
-                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                            <span style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: isApp ? "#dcfce7" : "#fef3c7", color: isApp ? "#166534" : "#92400e", border: `1px solid ${isApp ? "#86efac" : "#fcd34d"}` }}>
-                              {p.status || "Draft"}
-                            </span>
-                          </td>
-                          <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                            <button
-                              onClick={() => loadVoucher(p.pvNo)}
-                              data-testid={`voucher-load-${p.pvNo}`}
-                              style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 600, marginRight: 4 }}
-                            >
-                              Load
-                            </button>
-                            {p.status !== "Approved" ? (
-                              <button
-                                onClick={() => { if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; } deletePayment(p.pvNo); }}
-                                disabled={!canDelete()}
-                                data-testid={`voucher-del-${p.pvNo}`}
-                                style={{ padding: "3px 10px", fontSize: 10.5, background: canDelete() ? "#fee2e2" : "#f1f5f9", color: canDelete() ? "#991b1b" : "#94a3b8", border: `1px solid ${canDelete() ? "#fca5a5" : "#cbd5e1"}`, borderRadius: 4, cursor: canDelete() ? "pointer" : "not-allowed", fontWeight: 600 }}
-                                title={canDelete() ? "Delete voucher" : "Only Admin / SuperAdmin can delete"}
-                              >
-                                Delete
-                              </button>
-                            ) : (
-                              <SuperAdminDelete
-                                label={`Payment Voucher ${p.pvNo}`}
-                                meta={{ "Vendor": p.vendorName || p.vendorCode, "Amount": `₹${Number(p.amount || 0).toLocaleString("en-IN")}`, "Status": p.status, "Approved By": p.approvedByName || "—", "UTR": p.utrNo || "—" }}
-                                auditKey="ae_vm_pv_delete_log"
-                                testid={`voucher-sa-del-${p.pvNo}`}
-                                blockReason={!p.utrNo ? `Delete locked · Pehle UTR number enter karo (Edit voucher → UTR / Reference No field), uske baad hi delete allow hoga.` : ""}
-                                onDelete={() => deletePayment(p.pvNo)}
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+          {/* Bottom Action Bar · Section D "Generate Voucher" button (page bottom per UX request) */}
+          <div data-testid="pv-bottom-actions" style={{ marginTop: 16, padding: "14px 18px", background: "linear-gradient(135deg,#0f172a,#1e293b)", color: "#fff", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, boxShadow: "0 4px 12px rgba(15,23,42,.25)" }}>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+              <b style={{ color: "#fbbf24" }}>Single Bill Payment Voucher</b> ·
+              {selectedBillId ? (
+                <> Selected bill: <b>{(approvedBills.find((b) => b.id === selectedBillId)?.vendorSnapshot?.firmName) || "—"}</b></>
+              ) : (
+                <> Pehle upar section D me "Approved Bill" select karein</>
+              )}
+              {pv && <> · <span style={{ padding: "1px 8px", background: "rgba(251,191,36,.2)", color: "#fbbf24", borderRadius: 999, fontSize: 10, fontWeight: 700 }}>Current PV: {pv.pvNo} · {pv.status}</span></>}
             </div>
-          )}
+            <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                data-testid="pv-generate"
+                onClick={generateVoucher}
+                disabled={!selectedBillId}
+                style={{ padding: "8px 18px", background: selectedBillId ? "#f59e0b" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: selectedBillId ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, letterSpacing: 0.3 }}
+                title={selectedBillId ? "Generate single-bill Payment Voucher draft" : "Select an approved bill first"}
+              >🧾 Generate Voucher</button>
+              {pv && pv.status === "Draft" && (
+                <button data-testid="pv-save" onClick={handleSave} style={{ padding: "8px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>💾 Save</button>
+              )}
+              {pv && pv.status === "Draft" && (
+                <button data-testid="pv-submit" onClick={handleSubmit} style={{ padding: "8px 14px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>📤 Submit</button>
+              )}
+              {pv && pv.status === "Submitted" && (
+                <button
+                  data-testid="pv-approve"
+                  onClick={handleApprove}
+                  disabled={!canApprove()}
+                  title={canApprove() ? "Approve this voucher (Admin / SuperAdmin / Accounts only)" : "Only Admin / SuperAdmin / Accounts can approve"}
+                  style={{ padding: "8px 14px", background: canApprove() ? "#16a34a" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}
+                >✓ Approve</button>
+              )}
+              {pv && (
+                <button data-testid="pv-new" onClick={handleNew} style={{ padding: "8px 14px", background: "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>🆕 New</button>
+              )}
+            </div>
+          </div>
           </>
           )}
 
