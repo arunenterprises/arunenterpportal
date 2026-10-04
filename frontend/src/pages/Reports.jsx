@@ -1842,38 +1842,47 @@ export default function Reports() {
                 title={pv ? (pv.status === "Approved" ? "Reopen for editing (Admin/SuperAdmin)" : "Refresh bank details & focus amount") : "Generate voucher first"}
               >✏️ Edit</button>
 
-              {/* 4. Delete · Red */}
-              {pv && pv.status !== "Approved" ? (
-                <button
-                  data-testid="pv-delete"
-                  onClick={() => {
-                    if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; }
-                    if (!window.confirm(`Delete voucher ${pv.pvNo}?\n\nStatus: ${pv.status}\nAmount: ₹${Number(pv.amount || 0).toLocaleString("en-IN")}\n\nYeh action undo nahi hoga.`)) return;
-                    deletePayment(pv.pvNo);
-                    setPv(null);
-                    setSelectedBillId("");
-                  }}
-                  disabled={!canDelete()}
-                  style={{ padding: "9px 16px", background: canDelete() ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: canDelete() ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: canDelete() ? "0 2px 6px rgba(239,68,68,.4)" : "none", textTransform: "uppercase" }}
-                  title={canDelete() ? "Delete this voucher (frees bill)" : "Only Admin / SuperAdmin can delete"}
-                >🗑️ Delete</button>
-              ) : pv && pv.status === "Approved" ? (
-                <SuperAdminDelete
-                  label={`Payment Voucher ${pv.pvNo}`}
-                  meta={{ "Vendor": pv.vendorName || pv.vendorCode, "Amount": `₹${Number(pv.amount || 0).toLocaleString("en-IN")}`, "Status": pv.status, "Approved By": pv.approvedByName || "—", "UTR": pv.utrNo || "—" }}
-                  auditKey="ae_vm_pv_delete_log"
-                  testid={`pv-sa-delete-${pv.pvNo}`}
-                  blockReason={!pv.utrNo ? `Delete locked · Pehle UTR number enter karo (UTR field niche), uske baad hi delete allow hoga.` : ""}
-                  onDelete={() => { deletePayment(pv.pvNo); setPv(null); setSelectedBillId(""); }}
-                />
-              ) : (
-                <button
-                  data-testid="pv-delete"
-                  disabled
-                  style={{ padding: "9px 16px", background: "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, textTransform: "uppercase" }}
-                  title="Generate voucher first"
-                >🗑️ Delete</button>
-              )}
+              {/* 4. Delete · Red · Unified style (Approved vouchers keep UTR-lock + audit log) */}
+              {(() => {
+                const isApproved = !!(pv && pv.status === "Approved");
+                const utrLocked = isApproved && !pv.utrNo;
+                const roleOk = isApproved ? currentRole() === "SuperAdmin" : canDelete();
+                const enabled = !!pv && roleOk && !utrLocked;
+                const tooltip = !pv
+                  ? "Generate voucher first"
+                  : utrLocked
+                    ? "Delete locked · Pehle UTR number enter karo, uske baad hi delete allow hoga."
+                    : !roleOk
+                      ? (isApproved ? "Only SuperAdmin can delete an approved voucher" : "Only Admin / SuperAdmin can delete")
+                      : (isApproved ? "SuperAdmin override · Delete approved voucher (audit logged)" : "Delete this voucher (frees bill)");
+                return (
+                  <button
+                    data-testid="pv-delete"
+                    onClick={() => {
+                      if (!pv) { toast.error("Pehle voucher generate karein"); return; }
+                      if (utrLocked) { toast.error("Delete locked · Pehle UTR number enter karo, uske baad hi delete allow hoga."); return; }
+                      if (!roleOk) { toast.error(isApproved ? "Only SuperAdmin can delete an approved voucher" : "Only Admin / SuperAdmin can delete"); return; }
+                      if (isApproved) {
+                        const detail = `Vendor: ${pv.vendorName || pv.vendorCode}\nAmount: ₹${Number(pv.amount || 0).toLocaleString("en-IN")}\nStatus: ${pv.status}\nApproved By: ${pv.approvedByName || "—"}\nUTR: ${pv.utrNo || "—"}`;
+                        if (!window.confirm(`⚠️ SuperAdmin Override\n\nDelete Payment Voucher ${pv.pvNo}?\n\n${detail}\n\nThis action is logged in audit trail. Linked bill will re-appear in Due List.`)) return;
+                        try {
+                          const log = JSON.parse(localStorage.getItem("ae_vm_pv_delete_log") || "[]");
+                          log.push({ label: `Payment Voucher ${pv.pvNo}`, Vendor: pv.vendorName || pv.vendorCode, Amount: pv.amount, Status: pv.status, "Approved By": pv.approvedByName || "—", UTR: pv.utrNo || "—", deletedBy: currentUser() || "SuperAdmin", deletedAt: new Date().toISOString() });
+                          localStorage.setItem("ae_vm_pv_delete_log", JSON.stringify(log));
+                        } catch (_e) { /* noop */ }
+                      } else {
+                        if (!window.confirm(`Delete voucher ${pv.pvNo}?\n\nStatus: ${pv.status}\nAmount: ₹${Number(pv.amount || 0).toLocaleString("en-IN")}\n\nYeh action undo nahi hoga.`)) return;
+                      }
+                      deletePayment(pv.pvNo);
+                      setPv(null);
+                      setSelectedBillId("");
+                    }}
+                    disabled={!enabled}
+                    style={{ padding: "9px 16px", background: enabled ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: enabled ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: enabled ? "0 2px 6px rgba(239,68,68,.4)" : "none", textTransform: "uppercase" }}
+                    title={tooltip}
+                  >{utrLocked ? "🔒 Delete" : "🗑️ Delete"}</button>
+                );
+              })()}
 
               {/* 5. Approval · Green (SuperAdmin / Admin only via canApprove) */}
               <button
