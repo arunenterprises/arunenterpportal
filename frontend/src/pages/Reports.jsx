@@ -221,13 +221,15 @@ export default function Reports() {
       if (amt <= 0) return;
       const pvNo = nextPvNo();
       const payments = getPayments();
-      const vend = (b.vendorSnapshot || {});
+      // FIX: fallback to current vendor master if snapshot missing (older bills)
+      const vend = b.vendorSnapshot || vendors.find((x) => x.vendorCode === b.vendorCode) || {};
       payments.push({
         id: `pv_bulk_${b.id}_${Date.now()}`,
         pvNo, pvDate: new Date().toISOString().slice(0, 10),
         date: new Date().toISOString().slice(0, 10),
         billId: b.id, billRefNo: b.permanentBillNo || b.refNo, billNo: b.billNo,
         vendorCode: b.vendorCode, vendorName: vend.firmName || "",
+        accountName: vend.accountHolder || vend.firmName || "",
         amount: amt, mode: "Bank Transfer",
         bankName: vend.bankName || "", ifscCode: vend.ifsc || "", accountNumber: vend.bankAccount || "",
         remarks: `Bulk-generated from Due List decision sheet · ${monthLabel}`,
@@ -245,7 +247,8 @@ export default function Reports() {
     if (!toPay.length) { toast.error("No vendor bills marked 'Pay' for this month"); return; }
     const items = toPay.map((r) => {
       const b = bills.find((x) => x.id === r.id) || {};
-      const vend = b.vendorSnapshot || {};
+      // FIX: fallback to current vendor master if snapshot missing (older bills)
+      const vend = b.vendorSnapshot || vendors.find((x) => x.vendorCode === b.vendorCode) || {};
       return {
         refNo: r.refNo, billNo: r.billNo,
         party: r.party, partyCode: r.partyCode,
@@ -408,22 +411,28 @@ export default function Reports() {
     );
     if (existing) {
       toast.error(`Voucher already exists for this bill (${existing.pvNo}). Cannot create duplicate.`);
-      // Load the existing voucher so user can view/edit it
       setPv(existing);
       return;
     }
     const c = computeBill(b);
     const paid = payments.filter((p) => p.billId === b.id).reduce((s, p) => s + Number(p.amount || 0), 0);
     const balance = +(c.netPayable - paid).toFixed(2);
+    // FIX: use correct vendor master keys (bankAccount, ifsc, accountHolder) AND fallback
+    // to current vendor master if the snapshot is missing (older bills).
+    const vend = b.vendorSnapshot || vendors.find((x) => x.vendorCode === b.vendorCode) || {};
+    const missing = !(vend.bankName || vend.bankAccount || vend.ifsc);
+    if (missing) {
+      toast.warning(`Bank details missing for ${vend.firmName || b.vendorCode}. Please update the vendor master.`);
+    }
     setPv({
       pvNo: nextPvNo(),
       date: new Date().toISOString().slice(0, 10),
       billId: b.id, billRefNo: b.permanentBillNo || b.refNo, billNo: b.billNo,
-      vendorCode: b.vendorCode, vendorName: b.vendorSnapshot?.firmName || "",
-      accountName: b.vendorSnapshot?.accountHolder || "",
-      accountNumber: b.vendorSnapshot?.accountNumber || "",
-      ifscCode: b.vendorSnapshot?.ifscCode || "",
-      bankName: b.vendorSnapshot?.bankName || "",
+      vendorCode: b.vendorCode, vendorName: vend.firmName || "",
+      accountName: vend.accountHolder || vend.firmName || "",
+      accountNumber: vend.bankAccount || "",
+      ifscCode: vend.ifsc || "",
+      bankName: vend.bankName || "",
       basic: c.basic, gst: c.gst, tds: c.tds, net: c.netPayable,
       amount: balance, mode: "NEFT", remarks: "",
       utrNo: "",
@@ -431,7 +440,7 @@ export default function Reports() {
       createdByName: currentUser(),
       preparedByName: "", checkedByName: "", approvedByName: "", approvalDate: "",
     });
-    toast.success("Voucher generated");
+    toast.success(`Voucher generated · ${vend.firmName || b.vendorCode}${missing ? " (bank details pending)" : ""}`);
   };
 
   const exportDuesExcel = () => {
