@@ -424,7 +424,13 @@ export default function Reports() {
     // FIX: use correct vendor master keys (bankAccount, ifsc, accountHolder) AND fallback
     // to current vendor master if the snapshot is missing (older bills).
     const vend = b.vendorSnapshot || vendors.find((x) => x.vendorCode === b.vendorCode) || {};
-    const missing = !(vend.bankName || vend.bankAccount || vend.ifsc);
+    // Vendor master uses accountNumber + ifscCode (per VendorRegistration schema).
+    // Older snapshots may have bankAccount + ifsc — kept as fallbacks.
+    const vAcct = vend.accountNumber || vend.bankAccount || "";
+    const vIfsc = vend.ifscCode || vend.ifsc || "";
+    const vHolder = vend.accountHolder || vend.firmName || "";
+    const vBank = vend.bankName || "";
+    const missing = !(vBank || vAcct || vIfsc);
     if (missing) {
       toast.warning(`Bank details missing for ${vend.firmName || b.vendorCode}. Please update the vendor master.`);
     }
@@ -433,10 +439,10 @@ export default function Reports() {
       date: new Date().toISOString().slice(0, 10),
       billId: b.id, billRefNo: b.permanentBillNo || b.refNo, billNo: b.billNo,
       vendorCode: b.vendorCode, vendorName: vend.firmName || "",
-      accountName: vend.accountHolder || vend.firmName || "",
-      accountNumber: vend.bankAccount || "",
-      ifscCode: vend.ifsc || "",
-      bankName: vend.bankName || "",
+      accountName: vHolder,
+      accountNumber: vAcct,
+      ifscCode: vIfsc,
+      bankName: vBank,
       basic: c.basic, gst: c.gst, tds: c.tds, net: c.netPayable,
       amount: balance, mode: "NEFT", remarks: "",
       utrNo: "",
@@ -1797,19 +1803,43 @@ export default function Reports() {
                 title={pv ? (pv.status === "Approved" ? "Approved voucher — Save disabled" : "Save draft voucher") : "Generate voucher first"}
               >💾 Save</button>
 
-              {/* 3. Edit · Indigo */}
+              {/* 3. Edit · Indigo — reopens Approved vouchers, re-fetches bank, focuses Amount */}
               <button
                 data-testid="pv-edit"
                 onClick={() => {
-                  if (!pv) { toast.error("Pehle voucher generate karein"); return; }
-                  if (pv.status === "Approved") { toast.error("Approved voucher edit nahi ho sakta"); return; }
-                  const el = document.querySelector('[data-testid="pv-no"]');
-                  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                  toast.success("Edit mode · PV fields upar scroll kiye gaye");
+                  if (!pv) {
+                    if (selectedBillId) { toast.error("Pehle 'Generate Voucher' click karein"); return; }
+                    toast.error("Pehle Approved Bill select karein, phir Generate / Edit"); return;
+                  }
+                  // Re-fetch latest vendor master bank details (in case vendor master was updated after voucher creation)
+                  const vend = vendors.find((x) => x.vendorCode === pv.vendorCode) || {};
+                  const refreshed = {
+                    ...pv,
+                    bankName: pv.bankName || vend.bankName || "",
+                    accountName: pv.accountName || vend.accountHolder || vend.firmName || "",
+                    accountNumber: pv.accountNumber || vend.accountNumber || vend.bankAccount || "",
+                    ifscCode: pv.ifscCode || vend.ifscCode || vend.ifsc || "",
+                  };
+                  if (pv.status === "Approved") {
+                    if (!canApprove()) { toast.error("Only SuperAdmin / Admin can reopen an approved voucher"); return; }
+                    if (!window.confirm(`Reopen Approved voucher ${pv.pvNo} for editing?\n\nThis will reset status to Draft and require Re-Approval. Audit log entry banega.`)) return;
+                    reopenPayment(pv.pvNo);
+                    toast.info("Voucher reopened · PV fields now editable");
+                  } else {
+                    setPv(refreshed);
+                    toast.success("Edit mode · Bank details refreshed, fields editable");
+                  }
+                  setTimeout(() => {
+                    const el = document.querySelector('[data-testid="pv-amount"]');
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      try { el.focus(); el.select && el.select(); } catch (e) { /* noop */ }
+                    }
+                  }, 150);
                 }}
-                disabled={!pv || pv.status === "Approved"}
-                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#6366f1,#4338ca)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(99,102,241,.4)" : "none", textTransform: "uppercase" }}
-                title={pv ? (pv.status === "Approved" ? "Approved voucher edit nahi ho sakta" : "Scroll to editable voucher fields") : "Generate voucher first"}
+                disabled={!pv && !selectedBillId}
+                style={{ padding: "9px 16px", background: pv ? "linear-gradient(135deg,#6366f1,#4338ca)" : (selectedBillId ? "linear-gradient(135deg,#6366f1,#4338ca)" : "#334155"), color: "#fff", border: "none", borderRadius: 6, cursor: (pv || selectedBillId) ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv ? "0 2px 6px rgba(99,102,241,.4)" : "none", textTransform: "uppercase" }}
+                title={pv ? (pv.status === "Approved" ? "Reopen for editing (Admin/SuperAdmin)" : "Refresh bank details & focus amount") : "Generate voucher first"}
               >✏️ Edit</button>
 
               {/* 4. Delete · Red */}

@@ -5,6 +5,10 @@
 - Email: Emergent Resend proxy (platform-managed).
 - Scheduler: Emergent platform crons via `.emergent/crons.yml`.
 
+## Bug Fixes (Feb 2026 · Latest)
+- **Vendor Bank Details Not Fetching in Voucher**: `generateVoucher` in Reports.jsx was reading `vend.bankAccount` + `vend.ifsc`, but vendor master schema uses `accountNumber` + `ifscCode`. Fixed with fallback chain: `vend.accountNumber || vend.bankAccount` and `vend.ifscCode || vend.ifsc`. Missing-field warning updated too.
+- **Edit Button Not Working**: Rewrote Edit action — now re-fetches latest vendor bank details on click, allows re-opening Approved vouchers (SuperAdmin/Admin with confirm → calls `reopenPayment`), scrolls to Amount field and focuses it, enables for both existing PV and newly selectable bills.
+
 ## Payment Voucher Prefix Scheme (Feb 2026 · Implemented)
 - **GPV/{FY}/{XXXX}** → draft on "Generate Voucher" (Generate Register)
 - **PN/{FY}/{XXXX}** → auto-renamed on Approval (same serial retained; shown in Payments Register)
