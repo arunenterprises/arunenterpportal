@@ -1831,39 +1831,6 @@ export default function Reports() {
           </>
           )}
 
-          {/* Per-tab Action Bar — context-aware working buttons (page bottom) */}
-          <div data-testid="reports-action-bar" style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", color: "#fff", borderRadius: 8, flexWrap: "wrap", gap: 10, boxShadow: "0 4px 12px rgba(15,23,42,.25)" }}>
-            <div style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, lineHeight: 1.5 }}>
-              {reportsTab === "vouchers" && <>💳 <b style={{ color: "#fbbf24" }}>Payment Vouchers &amp; Due List Preparation</b> · Summary dashboard me bills select karein, Monthly Decision Sheet se XLSX round-trip ya Process → Single PVs / Bulk Bank Advice run karein.</>}
-              {reportsTab === "salary" && <>👥 <b style={{ color: "#fbbf24" }}>Salary Bills (HR Payroll)</b> · GM-approved pay bills ko Accounts yaha settle karega → auto PV generation.</>}
-              {reportsTab === "advance" && <>💰 <b style={{ color: "#fbbf24" }}>Employee Advances</b> · Per-employee advance ledger from pay bills + on-demand advances.</>}
-              {reportsTab === "aging" && <>⏱️ <b style={{ color: "#fbbf24" }}>Aging Report</b> · Payables ageing bucket-wise (0-30 / 31-60 / 61-90 / 90+).</>}
-              {reportsTab === "gsttds" && <>🧾 <b style={{ color: "#fbbf24" }}>GST-TDS Register</b> · Compliance-ready register of approved bills with GST &amp; TDS splits.</>}
-            </div>
-            <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
-              {reportsTab === "vouchers" && <>
-                <button data-testid="rpt-btn-export-approved" onClick={exportApprovedVouchers} style={bbtn("#16a34a")}>⬇ Export Approved</button>
-                <button data-testid="rpt-btn-new-voucher" onClick={() => { setPv(null); setSelectedBillId(""); window.scrollTo({ top: 0, behavior: "smooth" }); toast.info("Scroll to form · Select a bill and Generate Voucher"); }} style={bbtn("#7c3aed")}>🆕 New Voucher</button>
-                <button data-testid="rpt-btn-print" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>
-                <button data-testid="rpt-btn-export-json" onClick={handleExportJSON} style={bbtn("#0369a1")}>🧾 Export JSON</button>
-                {pv && pv.status !== "Approved" && canDelete() && <button data-testid="rpt-btn-delete-voucher" onClick={() => deletePayment(pv.pvNo)} style={bbtn("#dc2626")}>🗑 Delete Voucher</button>}
-                {pv && pv.status === "Approved" && (
-                  <SuperAdminDelete
-                    label={`Payment Voucher ${pv.pvNo}`}
-                    meta={{ "Vendor": pv.vendorName || pv.vendorCode, "Amount": `₹${Number(pv.amount || 0).toLocaleString("en-IN")}`, "Status": pv.status, "Approved By": pv.approvedByName || "—", "UTR": pv.utrNo || "—" }}
-                    auditKey="ae_vm_pv_delete_log"
-                    testid="rpt-btn-sa-del-voucher"
-                    blockReason={!pv.utrNo ? `Delete locked · Pehle UTR number enter karo (UTR / Reference No field above), uske baad hi delete allow hoga.` : ""}
-                    onDelete={() => deletePayment(pv.pvNo)}
-                  />
-                )}
-              </>}
-              {reportsTab === "salary" && (<button data-testid="rpt-btn-print-salary" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-              {reportsTab === "advance" && (<button data-testid="rpt-btn-print-advance" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-              {reportsTab === "aging" && (<button data-testid="rpt-btn-print-aging" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-              {reportsTab === "gsttds" && (<button data-testid="rpt-btn-print-gsttds" onClick={handlePrint} style={bbtn("#ea580c")}>🖨 Print</button>)}
-            </div>
-          </div>
         </div>
       </div>
     {advDetail && (() => {
