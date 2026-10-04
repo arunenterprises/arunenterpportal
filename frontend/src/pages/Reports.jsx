@@ -9,7 +9,7 @@ import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { exportBankTransferXLSX, printBankTransferAdvice, printBulkBankAdvice } from "../lib/bankTransfer";
 import {
-  getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo,
+  getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo, toApprovedPvNo,
   currentUser, exportJSON, amountToWords,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getPayBills, advancePayBillStep, deletePayBill, upsertPayBill, PAYBILL_STATUS,
@@ -54,7 +54,7 @@ export default function Reports() {
   // are shown in Salary Bills + Employee Advances tabs instead.
   const vendorPayments = useMemo(
     () => payments.filter((p) => {
-      const isHrSource = /^PV\/(HR|ADV|HR-FNF)/i.test(String(p.pvNo || ""))
+      const isHrSource = /^(PV|GPV|PN)\/(HR|ADV|HR-FNF)/i.test(String(p.pvNo || ""))
         || ["AE-HR-PAYROLL", "AE-HR-ADVANCE", "AE-HR-FNF"].includes(p.vendorCode)
         || (p.source && /HR|Advance|Pay Bill/i.test(p.source));
       return !isHrSource;
@@ -388,17 +388,21 @@ export default function Reports() {
     if (!pv) { toast.error("Generate a voucher first"); return; }
     if (pv.status === "Approved") { toast.info("Already approved"); return; }
     if (pv.status !== "Submitted") { toast.error("Submit the voucher first"); return; }
+    const oldNo = pv.pvNo;
+    const newNo = toApprovedPvNo(oldNo); // GPV/... → PN/... (same serial)
     const next = {
-      ...pv, status: "Approved",
+      ...pv,
+      pvNo: newNo,
+      draftNo: oldNo !== newNo ? oldNo : (pv.draftNo || ""),
+      status: "Approved",
       approvedByName: pv.approvedByName || currentUser(),
       approvalDate: new Date().toISOString().slice(0, 10),
     };
     setPv(next);
-    const list = getPayments();
-    const idx = list.findIndex((x) => x.pvNo === next.pvNo);
-    if (idx >= 0) list[idx] = next; else list.push(next);
+    const list = getPayments().filter((x) => x.pvNo !== oldNo && x.pvNo !== newNo);
+    list.push(next);
     savePayments(list); setRefresh((n) => n + 1);
-    toast.success("Voucher approved");
+    toast.success(`Voucher approved · ${oldNo}${oldNo !== newNo ? " → " + newNo : ""}`);
   };
 
   const generateVoucher = () => {
@@ -458,7 +462,7 @@ export default function Reports() {
       ["Total Outstanding", summary.totalOutstanding], ["Overdue Bills", summary.overdue],
     ]), "Summary");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(payments.map((p) => ({
-      "PV No": p.pvNo, Date: p.date, "Bill Ref": p.billRefNo, "Bill No": p.billNo,
+      "GPV / PN No": p.pvNo, Date: p.date, "Bill Ref": p.billRefNo, "Bill No": p.billNo,
       "Vendor Code": p.vendorCode, "Vendor Name": p.vendorName,
       Amount: p.amount, Mode: p.mode, "UTR / Ref No": p.utrNo || "",
       Bank: p.bankName, IFSC: p.ifscCode,
@@ -508,7 +512,7 @@ export default function Reports() {
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.json_to_sheet(toExport.map((p) => ({
-        "PV No": p.pvNo,
+        "GPV / PN No": p.pvNo,
         "Date": p.date,
         "Bill Ref": p.billRefNo,
         "Bill No": p.billNo,
@@ -1061,7 +1065,7 @@ export default function Reports() {
                       </div>
                       <table className="data-table" data-testid="advance-pv-table">
                         <thead><tr>
-                          <th>PV No</th>
+                          <th title="GPV = Draft · PN = Approved · PV = Legacy">GPV / PN No</th>
                           <th>Employee</th>
                           <th>Date</th>
                           <th style={{ textAlign: "right" }}>Amount (₹)</th>
@@ -1449,7 +1453,7 @@ export default function Reports() {
                           title="Select / Deselect all approved vouchers"
                         />
                       </th>
-                      <th>PV No</th>
+                      <th title="GPV = Generated draft · PN = Approved · PV = Legacy">GPV / PN No</th>
                       <th>Vendor</th>
                       <th>Bill No</th>
                       <th>Payment Date</th>
@@ -1657,7 +1661,7 @@ export default function Reports() {
                 <div className="sec-head">E. Voucher Details</div>
                 <div className="sec-body">
                   <div className="row cols-3">
-                    <F label="PV Number"><input className="pill-generated" value={pv.pvNo} readOnly data-testid="pv-no" /></F>
+                    <F label={pv.status === "Approved" ? "PN Number (Approved)" : "GPV Number (Draft)"}><input className="pill-generated" value={pv.pvNo} readOnly data-testid="pv-no" title={pv.draftNo ? `Draft was ${pv.draftNo} · Approved as ${pv.pvNo}` : ""} /></F>
                     <F label="Date"><input type="date" value={pv.date} onChange={(e) => setPv({ ...pv, date: e.target.value })} /></F>
                     <F label="Payment Mode">
                       <select value={pv.mode} onChange={(e) => setPv({ ...pv, mode: e.target.value })} data-testid="pv-mode">

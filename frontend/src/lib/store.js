@@ -752,11 +752,22 @@ export const savePayments = (list) => {
   if (getToken()) apiPushPayments(list).catch(() => {});
 };
 
+// GPV = Generated Payment Voucher (draft prefix shown in Section D "Generate Register").
+// On Approval the prefix is replaced with PN (Payment Number) in Reports.handleApprove.
+// After approval it appears in the Payments Register with PN/... series.
 export const nextPvNo = () => {
   const c = getCounters();
   c.pvSerial = (c.pvSerial || 0) + 1;
   saveCounters(c);
-  return `PV/${getFY()}/${String(c.pvSerial).padStart(4, "0")}`;
+  return `GPV/${getFY()}/${String(c.pvSerial).padStart(4, "0")}`;
+};
+
+// On approval, convert draft GPV prefix → final PN prefix (same serial retained).
+// Keeps legacy PV/... records untouched for backward compatibility.
+export const toApprovedPvNo = (draftNo) => {
+  const s = String(draftNo || "");
+  if (s.startsWith("GPV/")) return "PN/" + s.slice(4);
+  return s; // legacy PV/... or already PN/... — leave as-is
 };
 
 // ---- Bills lookup helpers ----
@@ -1274,7 +1285,7 @@ export const advanceExitStep = (x) => {
     // Auto-generate Payment Voucher for F&F payout
     try {
       const payments = getPayments();
-      const pvNo = `PV/HR-FNF/${new Date().getFullYear()}/${payments.length + 1}`;
+      const pvNo = `GPV/HR-FNF/${new Date().getFullYear()}/${payments.length + 1}`;
       const pv = {
         id: `pv_fnf_${next.id}`,
         pvNo,
@@ -1484,7 +1495,7 @@ export const advancePayBillStep = (pb) => {
     // ---- Auto-generate Payment Voucher for the net salary payout ----
     try {
       const payments = getPayments();
-      const pvNo = `PV/HR/${pb.year}-${String(pb.month).padStart(2, "0")}/${payments.length + 1}`;
+      const pvNo = `GPV/HR/${pb.year}-${String(pb.month).padStart(2, "0")}/${payments.length + 1}`;
       const monthName = new Date(pb.year, pb.month - 1).toLocaleString("en-IN", { month: "long" });
       const pv = {
         id: `pv_pb_${pb.id}`,

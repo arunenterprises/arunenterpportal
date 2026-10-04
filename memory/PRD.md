@@ -5,6 +5,14 @@
 - Email: Emergent Resend proxy (platform-managed).
 - Scheduler: Emergent platform crons via `.emergent/crons.yml`.
 
+## Payment Voucher Prefix Scheme (Feb 2026 · Implemented)
+- **GPV/{FY}/{XXXX}** → draft on "Generate Voucher" (Generate Register)
+- **PN/{FY}/{XXXX}** → auto-renamed on Approval (same serial retained; shown in Payments Register)
+- **PV/...** → legacy records untouched for backward compatibility
+- HR auto-vouchers: `GPV/HR-FNF/...` and `GPV/HR/...` on creation (Submitted) → `PN/HR-FNF/...` / `PN/HR/...` on Approval
+- Helpers: `nextPvNo()` (store.js) returns GPV/..., `toApprovedPvNo()` converts GPV→PN
+- HR source regex updated to `/^(PV|GPV|PN)\/(HR|ADV|HR-FNF)/i`
+
 ## Pending Requirements (Noted · Awaiting Specifics)
 - **Payment Register Temp / Sr. No prefix separation** (Feb 2026 · user requested):
   Currently both Payment Register serial and Payment Voucher share the same `PV/{FY}/{0001}` series via `nextPvNo()` in `store.js:755`. User wants two independent counters/prefixes:
