@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import {
@@ -262,6 +262,15 @@ export default function GeneralManager() {
   const [tab, setTab] = useState("pending");
   const bump = () => setTick((t) => t + 1);
   const delOk = canDelete();
+
+  // REAL-TIME SYNC: auto-refresh when any user (admin/superadmin anywhere) commits a change.
+  // App.js runs an 8-second global poll + focus-triggered pulls, which fire the
+  // "ae-sync-done" window event — we listen and bump() to re-render inboxes.
+  useEffect(() => {
+    const onSync = () => bump();
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+  }, []);
 
   // ZOMBIE-DUPLICATE FIX: dedupe arrays by id (older cross-device sync could
   // reintroduce stale copies after a GPV→PN rename or deleted record).

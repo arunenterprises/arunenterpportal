@@ -38,6 +38,16 @@
 - **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
+## Real-Time Cross-User Sync + Admin User Management (Feb 2026 · Implemented)
+### Real-time sync (every ~8s while tab visible)
+- **App.js**: Added global `useEffect` with `setInterval(tick, 8000)` while `document.visibilityState === "visible"`. Calls `autoSyncFromCloud(5000)` and dispatches `ae-sync-done` custom event on successful snapshot pull. On tab focus → immediate catch-up sync. On tab hidden → polling paused.
+- **GeneralManager.jsx**: Added `useEffect` listener for `ae-sync-done` that bumps the `tick` state — inboxes re-render automatically within 8s of another user's approve/reject/delete action.
+- Impact: Admin on device A approves → User on device B sees change within 8s without manual refresh (vs manual refresh/log out+in before).
+
+### Admin → User Management access
+- **Home.jsx**: Admin role is now included in "users" card `roles` (`["SuperAdmin", "Admin"]`), so Admin sees User Management card on Home.
+- **UsersAdmin.jsx**: Already permitted Admin login (line 98) — no backend change needed. Role change dropdown still SuperAdmin only (via `isSuperAdmin(me?.user)` check).
+
 ## Home Screen Flat Layout (Feb 2026 · Implemented)
 - Reordered modules per user spec: **GM → HR → VENDOR → PURCHASE → ACCOUNTS → REPORTS & VOUCHERS → USER MANAGEMENT (SuperAdmin only)**
 - Removed 3-tier hierarchy (Executive / Operating / System Admin) — now single flat `auto-fit minmax(240px, 1fr)` responsive grid where all cards sit in the specified order and wrap naturally on narrow screens.

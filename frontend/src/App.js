@@ -15,7 +15,7 @@ import HRManagement from "./pages/HRManagement";
 import VendorPortalWO from "./pages/VendorPortalWO";
 import AdvertisementPortal from "./pages/AdvertisementPortal";
 import SplashScreen from "./components/SplashScreen";
-import { isAuthed, retryPendingSyncs, getPendingSyncCount } from "./lib/store";
+import { isAuthed, retryPendingSyncs, getPendingSyncCount, autoSyncFromCloud } from "./lib/store";
 
 const RequireAuth = ({ children }) => {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -40,6 +40,36 @@ function App() {
       window.removeEventListener("focus", onFocus);
     };
   }, []);
+
+  // ---- REAL-TIME CROSS-USER SYNC (Feb 2026 · user request) ----
+  // Global 8-second polling while tab is visible so User A sees User B's
+  // approvals / submissions / deletions within ~8s without manual refresh.
+  // Pauses while tab is hidden to save battery / data. On focus → immediate
+  // catch-up sync. Fires `ae-sync-done` so pages that listen re-render.
+  useEffect(() => {
+    if (!isAuthed()) return;
+    let timer = null;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      autoSyncFromCloud(5000).then((snap) => {
+        if (snap) { try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch (e) { /* noop */ } }
+      });
+    };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const start = () => { stop(); timer = setInterval(tick, 8000); };
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        autoSyncFromCloud(0).then((snap) => { if (snap) { try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch (e) { /* noop */ } } });
+        start();
+      } else {
+        stop();
+      }
+    };
+    start();
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
+
   return (
     <div className="App">
       <Toaster position="top-right" richColors />

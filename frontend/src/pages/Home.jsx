@@ -129,7 +129,7 @@ const DEPARTMENTS = [
       "Password reset",
       "Super Admin: Reset All Data",
     ],
-    roles: ["SuperAdmin"],
+    roles: ["SuperAdmin", "Admin"],
   },
 ];
 
@@ -218,7 +218,7 @@ export default function Home() {
   const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "users"];
   const visibleDepts = ORDER
     .map((id) => DEPARTMENTS.find((d) => d.id === id))
-    .filter((d) => d && (d.id !== "users" || superAdmin));
+    .filter((d) => d && (d.id !== "users" || superAdmin || role === "Admin"));
 
   return (
     <>
