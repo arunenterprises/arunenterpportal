@@ -101,6 +101,13 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
 
   const refresh = () => { setList(getBOQs()); setVendors(getVendors().filter((v) => v.step === 3)); };
   useEffect(() => { refresh(); }, []);
+  // REAL-TIME CROSS-USER SYNC: pull fresh state when App.js dispatches ae-sync-done.
+  useEffect(() => {
+    const onSync = () => refresh();
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startNew = () => {
     const draft = createBOQDraft();

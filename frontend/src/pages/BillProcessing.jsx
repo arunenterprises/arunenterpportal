@@ -58,6 +58,13 @@ export default function BillProcessing() {
   const [refresh, setRefresh] = useState(0);
   const [activeView, setActiveView] = useState("vendor"); // vendor | advance | paybill | exit
   const [rev, setRev] = useState(0);
+
+  // REAL-TIME CROSS-USER SYNC: re-render on ae-sync-done (every ~8s via App.js).
+  useEffect(() => {
+    const onSync = () => { setRefresh((v) => v + 1); setRev((v) => v + 1); };
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+  }, []);
   const bumpRev = () => setRev((r) => r + 1);
 
   // Auto-cleanup legacy HR-INTERNAL / isPayrollBill rows from Bills table on first mount.

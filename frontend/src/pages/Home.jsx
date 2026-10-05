@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban } from "lucide-react";
@@ -199,6 +199,14 @@ export default function Home() {
   const me = currentUserProfile();
   const superAdmin = isSuperAdmin(me?.user);
   const role = currentRole();
+
+  // REAL-TIME CROSS-USER SYNC: re-render badges when App.js dispatches ae-sync-done.
+  const [, setSyncTick] = useState(0);
+  useEffect(() => {
+    const onSync = () => setSyncTick((v) => v + 1);
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+  }, []);
 
   const vendors = getVendors();
   const bills = getBills();

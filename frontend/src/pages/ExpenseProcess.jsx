@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { toast, Toaster } from "sonner";
 import * as XLSX from "xlsx";
 import { Wallet, Search, FilePlus2, Save, Pencil, Send, Printer, Download, CheckCircle2 } from "lucide-react";
@@ -32,6 +32,13 @@ export default function ExpenseProcess() {
   const [locked, setLocked] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [searchQ, setSearchQ] = useState("");
+
+  // REAL-TIME CROSS-USER SYNC: re-render on ae-sync-done.
+  useEffect(() => {
+    const onSync = () => setRefresh((v) => v + 1);
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+  }, []);
 
   const comp = useMemo(() => computeExpense(expense), [expense]);
   const allExpenses = useMemo(() => getExpenses(), [refresh, expense.id]);

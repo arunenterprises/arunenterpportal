@@ -32,6 +32,13 @@ export default function VendorRegistration() {
   const [queryCode, setQueryCode] = useState("");
   const [refresh, setRefresh] = useState(0);
 
+  // REAL-TIME CROSS-USER SYNC: re-render on ae-sync-done (every ~8s via App.js).
+  useEffect(() => {
+    const onSync = () => setRefresh((v) => v + 1);
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+  }, []);
+
   const allVendors = useMemo(() => getVendors(), [refresh, vendor.id, vendor.step]);
   const loadVendorById = (v) => {
     // Normalize legacy vendors that may have missing/invalid step

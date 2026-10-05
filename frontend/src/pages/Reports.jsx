@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
@@ -34,6 +34,14 @@ export default function Reports() {
   const [selectedBillId, setSelectedBillId] = useState("");
   const [pv, setPv] = useState(null);
   const [refresh, setRefresh] = useState(0);
+
+  // REAL-TIME CROSS-USER SYNC: re-render whenever App.js dispatches ae-sync-done.
+  // Ensures Admin/User actions from other devices propagate to this page within ~8s.
+  useEffect(() => {
+    const onSync = () => setRefresh((v) => v + 1);
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+  }, []);
   const [filter, setFilter] = useState("");
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");

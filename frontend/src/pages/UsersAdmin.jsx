@@ -102,6 +102,10 @@ export default function UsersAdmin() {
     }
     load();
     if (isSuperAdmin(me?.user)) loadNightly();
+    // REAL-TIME CROSS-USER SYNC: refresh user list on every ae-sync-done pulse.
+    const onSync = () => { load(); if (isSuperAdmin(me?.user)) loadNightly(); };
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
   }, []);
 
   const setField = (k, v) => setF((p) => ({ ...p, [k]: v }));

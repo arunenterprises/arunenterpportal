@@ -38,6 +38,29 @@
 - **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
+## Real-Time Cross-User Sync — Full Coverage + Advance Approval Policy (Feb 2026 · Pending Deploy)
+
+### Problem reported
+SuperAdmin's actions were visible to all users, but Admin / regular users' actions didn't propagate real-time to SuperAdmin or each other. Advance Request approval was open to all approver roles instead of only the Accounts Manager designation.
+
+### Real-time sync — Added `ae-sync-done` listener to all major pages
+Previously only GeneralManager.jsx listened to the global 8-second sync pulse (dispatched from App.js). Other pages stayed stale between page mounts. Added listeners that bump the page's local refresh state:
+- `Reports.jsx` → bumps `refresh`
+- `VendorRegistration.jsx` → bumps `refresh`
+- `BillProcessing.jsx` → bumps both `refresh` and `rev`
+- `ExpenseProcess.jsx` → bumps `refresh`
+- `PurchaseManagement.jsx` → calls `refresh()`
+- `UsersAdmin.jsx` → re-runs `load()` + `loadNightly()`
+- `Home.jsx` → bumps internal syncTick so badges update
+- `HRManagement.jsx` (AdvanceRegisterTab) → calls `refresh()`
+
+Impact: Any user's commit on device A appears on all other users' already-open pages within ~8s, no manual refresh needed.
+
+### Advance Request approval → Accounts Manager designation only
+- Added `isAccountsManager()` helper in `store.js` — checks `currentUserProfile().designation` for "Accounts Manager" (case-insensitive, hyphen/space variants). SuperAdmin always allowed as emergency override.
+- `HRManagement.jsx` `AdvanceRegisterTab` now uses `isAccountsManager()` for `approveAllowed` instead of the generic prop. Admin/User no longer sees Approve/Reject buttons on Advance Requests unless their profile designation is Accounts Manager.
+- No published yet · awaiting user go-ahead.
+
 ## Project Management Department (Feb 2026 · Layout Implemented)
 - **New page**: `/app/frontend/src/pages/ProjectManagement.jsx` (~440 lines) — Project register with teal/emerald branding, grid + list views, 5 status types (Planning / In Progress / On Hold / Completed / Cancelled), 4 priority levels, filter chips with counts, KPI banner (Total / In Progress / Completed / Budget / Spent + Utilization %).
 - **Project form**: Code auto-generated `PRJ/{YYYY}/{XXXX}`, fields for Name / Client / Site / Manager / Dates / Status / Priority / Progress / Budget / Spent / Description. Milestones sub-table (title / due date / done checkbox). Team sub-grid (name / role).

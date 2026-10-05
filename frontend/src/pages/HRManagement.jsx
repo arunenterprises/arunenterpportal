@@ -22,7 +22,7 @@ import {
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, advanceExitStep, EXIT_STATUS,
   getComplianceSnapshot,
   getPayments, savePayments,
-  currentRole, canCreate, canApprove, canDelete, currentUser, fmtDMY, amountToWords,
+  currentRole, canCreate, canApprove, canDelete, isAccountsManager, currentUser, fmtDMY, amountToWords,
   autoSyncFromCloud,
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, exportPayBillPDF, printAdvanceReceipt } from "../lib/hrLetters";
@@ -1618,7 +1618,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
 };
 
 // -------------- Advance Register + On-Demand Advance Request Flow --------------
-const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
+const AdvanceRegisterTab = ({ writeAllowed, approveAllowed: approveAllowedProp }) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5);
   const [reg, setReg] = useState([]);
   const [reqs, setReqs] = useState([]);
@@ -1627,14 +1627,19 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [adjustOpen, setAdjustOpen] = useState(false);
+  // Advance approval policy (Feb 2026 · user request):
+  // Only Accounts Manager designation (or SuperAdmin) can approve/reject Advance Requests.
+  const approveAllowed = isAccountsManager();
   const refresh = () => { setReg(getAdvanceRegister()); setReqs(getAdvanceRequests()); setPayments(getPayments()); };
   useEffect(() => {
     refresh();
     const onFocus = () => refresh();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    const onSync = () => refresh(); // real-time cross-user pull · fires every ~8s via App.js
     window.addEventListener("focus", onFocus);
+    window.addEventListener("ae-sync-done", onSync);
     document.addEventListener("visibilitychange", onVisible);
-    return () => { window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisible); };
+    return () => { window.removeEventListener("focus", onFocus); window.removeEventListener("ae-sync-done", onSync); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
   const pvByNo = (pvNo) => payments.find((p) => p.pvNo === pvNo) || null;
   const inrN = (n) => Number(n || 0).toLocaleString("en-IN");

@@ -950,6 +950,18 @@ export const canDelete = () => {
 // Backward-compat aliases used by older code paths
 export const canApproveAccounts = () => canApprove();
 export const canApproveGM = () => canApprove();
+
+// Advance Request approval policy (Feb 2026 · user request):
+// Only SuperAdmin OR a user whose profile designation is "Accounts Manager"
+// (case-insensitive, allows minor variants) can approve advance requests.
+export const isAccountsManager = () => {
+  const p = currentUserProfile();
+  if (!p) return false;
+  const email = (p.user || "").toLowerCase().trim();
+  if (isSuperAdmin(email)) return true;
+  const d = String(p.designation || "").toLowerCase().trim();
+  return d === "accounts manager" || d === "account manager" || d === "accountsmanager" || d === "accounts-manager";
+};
 export const isReadOnly = () => currentRole() === "Viewer";
 
 // ==================== HR: EMPLOYEE MASTER ====================
