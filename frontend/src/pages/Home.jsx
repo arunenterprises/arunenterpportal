@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck } from "lucide-react";
+import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import {
@@ -116,6 +116,22 @@ const DEPARTMENTS = [
     roles: ALL_ROLES,
   },
   {
+    id: "project",
+    title: "Project Management",
+    subtitle: "Projects · Milestones · Teams · Budget",
+    to: "/project",
+    icon: FolderKanban,
+    color: "#0f766e",
+    dark: "#115e59",
+    lines: [
+      "Project register with code & status",
+      "Milestones tracking · due dates",
+      "Team allocation · roles",
+      "Budget vs spent · progress %",
+    ],
+    roles: ALL_ROLES,
+  },
+  {
     id: "users",
     title: "User Management",
     subtitle: "Employees · Roles · Passwords",
@@ -215,7 +231,7 @@ export default function Home() {
 
   // Fresh flat alignment per user request (Feb 2026):
   // GM → HR → VENDOR → PURCHASE → ACCOUNTS → REPORTS & VOUCHERS → USER MANAGEMENT
-  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "users"];
+  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "project", "users"];
   const visibleDepts = ORDER
     .map((id) => DEPARTMENTS.find((d) => d.id === id))
     .filter((d) => d && (d.id !== "users" || superAdmin || role === "Admin"));

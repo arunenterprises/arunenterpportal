@@ -38,6 +38,14 @@
 - **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
+## Project Management Department (Feb 2026 · Layout Implemented)
+- **New page**: `/app/frontend/src/pages/ProjectManagement.jsx` (~440 lines) — Project register with teal/emerald branding, grid + list views, 5 status types (Planning / In Progress / On Hold / Completed / Cancelled), 4 priority levels, filter chips with counts, KPI banner (Total / In Progress / Completed / Budget / Spent + Utilization %).
+- **Project form**: Code auto-generated `PRJ/{YYYY}/{XXXX}`, fields for Name / Client / Site / Manager / Dates / Status / Priority / Progress / Budget / Spent / Description. Milestones sub-table (title / due date / done checkbox). Team sub-grid (name / role).
+- **Routing**: `/project` route added in `App.js`.
+- **Home.jsx**: New card inserted between "Reports & Vouchers" and "User Management" with FolderKanban icon + teal gradient. Visible to all roles (per-page RBAC gates write actions).
+- **Local persistence** for now (`ae_vm_projects` localStorage key); cloud sync + approvals + document attachments to be wired next.
+- **Real-time sync**: Page listens for `ae-sync-done` to auto-refresh.
+
 ## Real-Time Cross-User Sync + Admin User Management (Feb 2026 · Implemented)
 ### Real-time sync (every ~8s while tab visible)
 - **App.js**: Added global `useEffect` with `setInterval(tick, 8000)` while `document.visibilityState === "visible"`. Calls `autoSyncFromCloud(5000)` and dispatches `ae-sync-done` custom event on successful snapshot pull. On tab focus → immediate catch-up sync. On tab hidden → polling paused.
