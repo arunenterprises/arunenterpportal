@@ -430,7 +430,7 @@ export default function Reports() {
         (p.vendorCode === b.vendorCode && String(p.billNo || "").trim() === String(b.billNo || "").trim() && b.billNo)
     );
     if (existing) {
-      toast.error(`Voucher already exists for this bill (${existing.pvNo}). Cannot create duplicate.`);
+      toast.error(`Duplicate · voucher ${existing.pvNo} already exists for this bill. Open existing voucher instead.`);
       setPv(existing);
       return;
     }
@@ -1914,19 +1914,19 @@ export default function Reports() {
                 );
               })()}
 
-              {/* 5. Approval · Green (SuperAdmin / Admin only via canApprove) */}
+              {/* 5. Submit to GM · Purple (all approvals route via GM Dashboard only, per user policy) */}
               <button
                 data-testid="pv-approve"
                 onClick={() => {
                   if (!pv) { toast.error("Pehle voucher generate karein"); return; }
-                  if (pv.status === "Draft") { handleSubmit(); return; }
-                  if (pv.status === "Submitted") { handleApprove(); return; }
+                  if (pv.status === "Draft") { handleSubmit(); toast.info("Submitted · ab GM Dashboard me approve hoga"); return; }
+                  if (pv.status === "Submitted") { toast.info("Pehle hi Submitted hai · GM Dashboard me approve karein"); return; }
                   toast.info(`Voucher already ${pv.status}`);
                 }}
-                disabled={!pv || !canApprove() || pv.status === "Approved"}
-                title={!pv ? "Generate voucher first" : !canApprove() ? "Only SuperAdmin / Admin can approve" : pv.status === "Approved" ? "Already approved" : (pv.status === "Draft" ? "Submit → then Approve" : "Approve this voucher")}
-                style={{ padding: "9px 16px", background: pv && canApprove() && pv.status !== "Approved" ? "linear-gradient(135deg,#22c55e,#15803d)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && canApprove() && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && canApprove() && pv.status !== "Approved" ? "0 2px 6px rgba(34,197,94,.4)" : "none", textTransform: "uppercase" }}
-              >✓ Approval</button>
+                disabled={!pv || pv.status === "Approved"}
+                title={!pv ? "Generate voucher first" : pv.status === "Approved" ? "Already approved" : pv.status === "Submitted" ? "Submitted — approval ab sirf GM Dashboard me hoga" : "Submit to GM Dashboard for approval"}
+                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#8b5cf6,#6d28d9)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(139,92,246,.4)" : "none", textTransform: "uppercase" }}
+              >📤 Submit to GM</button>
 
               {/* 6. Bank Advice · Pink */}
               <button

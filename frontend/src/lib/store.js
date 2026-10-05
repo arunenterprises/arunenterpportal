@@ -8,6 +8,7 @@ import {
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
+import { toast as _toast } from "sonner";
 
 const KEYS = {
   VENDORS: "ae_vm_vendors",
@@ -1626,6 +1627,21 @@ export const createAdvanceRequestDraft = (empId = "") => {
 };
 export const upsertAdvanceRequest = (r) => {
   const list = getAdvanceRequests();
+  // DUPLICATE PREVENTION (Feb 2026 · user policy): block duplicate advance
+  // request on same emp + request date + amount (ignore when editing same id).
+  if (Number(r.amount) > 0) {
+    const dup = list.find((x) =>
+      x.id !== r.id &&
+      x.empId === r.empId &&
+      String(x.requestDate || "") === String(r.requestDate || "") &&
+      Number(x.amount) === Number(r.amount) &&
+      Number(x.status) !== 5 // ignore rejected
+    );
+    if (dup) {
+      try { _toast.error(`Duplicate · advance ${dup.refNo} already exists for ${r.empName || r.empCode} on ${r.requestDate} with amount ₹${Number(r.amount).toLocaleString("en-IN")}`); } catch (_e) { /* toast unavailable */ }
+      throw new Error(`Duplicate advance request: ${dup.refNo}`);
+    }
+  }
   const updated = { ...r, updatedAt: new Date().toISOString() };
   const idx = list.findIndex((x) => x.id === updated.id);
   if (idx >= 0) list[idx] = updated; else list.push(updated);

@@ -32,7 +32,27 @@
 - Helpers: `nextPvNo()` (store.js) returns GPV/..., `toApprovedPvNo()` converts GPV→PN
 - HR source regex updated to `/^(PV|GPV|PN)\/(HR|ADV|HR-FNF)/i`
 
+## Centralized Approval + Duplicate Prevention (Feb 2026 · Implemented)
+- **Module-level Approve removed**: Reports.jsx Section D action bar "Approval" button converted to "📤 Submit to GM" (purple) — triggers Submit on Draft and shows info toast on Submitted. Direct approval only via GM Dashboard now.
+- **Advance Request duplicate guard**: `upsertAdvanceRequest` in store.js blocks dup entry on same (empId + requestDate + amount) when amount > 0 and status !== Rejected. Throws + toasts "Duplicate · advance REF already exists for X on DATE with amount Y".
+- **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
+- **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
+
+## HRManagement UI Polish (Feb 2026)
+- Advance Request section action toolbar moved from top header to bottom with navy gradient background + prominent gradient-colored buttons (New / Save / Edit / Submit to Accounts / Adjust in Pay Bill / Delete).
+
 ## Pending Requirements (Noted · Awaiting Specifics)
+
+### Centralized Approval + Duplicate Prevention (Feb 2026 · user requested, note)
+- **All approvals route only via GM Dashboard**: Currently approvals happen in both individual modules (Vendor/Bill/PayBill/Reports) AND GM Dashboard. User wants single entry point — GM Dashboard only. Individual module "Approve" buttons should be removed or converted to view-only for non-GM users; only GM/SuperAdmin can approve from the Dashboard.
+- **No duplicate voucher creation**: Across PV/GPV/PN/Advance Pay/Bill/PayBill — one voucher per unique amount+entity. Attempting duplicate must raise toast "Duplicate error · voucher already exists" or "Not permitted".
+- **Blocking questions**:
+  - Dedup key: `vendorCode + amount` ya `vendorCode + billRefNo + amount` ya `vendorCode + billRefNo` (ignore amount)?
+  - Same amount for different vendors allowed? (Expected: yes.)
+  - For PayBill: dedup by `empId + month + year`?
+  - For Advance: dedup by `empId + requestDate` or allow multiple on same day?
+  - Approvals centralization: remove module-level Approve buttons entirely OR hide them except for GM role?
+
 - **Payment Register Temp / Sr. No prefix separation** (Feb 2026 · user requested):
   Currently both Payment Register serial and Payment Voucher share the same `PV/{FY}/{0001}` series via `nextPvNo()` in `store.js:755`. User wants two independent counters/prefixes:
   - Payment Register (Temp / Sr. No) → separate prefix (e.g. `PR/{FY}/{0001}` — to be confirmed)

@@ -1708,57 +1708,7 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
             <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: "#64748b", textTransform: "uppercase" }}>On-Demand Advance Flow</div>
             <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>Advance Request · HR → Accounts → Payment Voucher</div>
           </div>
-          <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }} data-testid="adv-toolbar">
-            <button
-              data-testid="adv-tb-new"
-              onClick={startNew}
-              disabled={!writeAllowed}
-              title="Start a new advance request"
-              style={{ padding: "7px 12px", background: writeAllowed ? "#f59e0b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
-            ><Plus size={12} /> New</button>
-            <button
-              data-testid="adv-tb-save"
-              onClick={save}
-              disabled={!cur || locked || !writeAllowed}
-              title={!cur ? "Open or create a request first" : locked ? "Submitted drafts cannot be edited" : "Save draft"}
-              style={{ padding: "7px 12px", background: (cur && !locked && writeAllowed) ? "#16a34a" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: (cur && !locked && writeAllowed) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
-            ><Save size={12} /> Save</button>
-            <button
-              data-testid="adv-tb-edit"
-              onClick={() => {
-                if (!cur) { toast.info("Niche list se koi row click karein ya New se naya banayein"); return; }
-                if (locked) { toast.error("Submitted / Approved request edit nahi hoti"); return; }
-                toast.info(`Editing ${cur.refNo} · Form fields unlocked`);
-              }}
-              disabled={!cur}
-              title="Edit the currently loaded draft"
-              style={{ padding: "7px 12px", background: cur ? "#0369a1" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: cur ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
-            ><Edit3 size={12} /> Edit</button>
-            <button
-              data-testid="adv-tb-submit"
-              onClick={submit}
-              disabled={!cur || Number(cur?.status) !== 1 || !writeAllowed}
-              title="Submit draft to Accounts for approval"
-              style={{ padding: "7px 12px", background: (cur && Number(cur.status) === 1 && writeAllowed) ? "#7c3aed" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: (cur && Number(cur.status) === 1 && writeAllowed) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
-            ><Send size={12} /> Submit to Accounts</button>
-            <button
-              data-testid="adv-tb-adjust"
-              onClick={() => setAdjustOpen(true)}
-              title="Employee-wise total advance to be adjusted in each target month's Pay Bill"
-              style={{ padding: "7px 12px", background: "#be185d", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
-            >📊 Adjust in Pay Bill</button>
-            <button
-              data-testid="adv-tb-delete"
-              onClick={() => {
-                if (!cur || !cur.id) { toast.error("Pehle koi row load karein"); return; }
-                if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; }
-                removeFull(cur);
-              }}
-              disabled={!cur || !cur.id || !canDelete()}
-              title={!canDelete() ? "Only Admin / SuperAdmin can delete" : cur?.id ? `Delete ${cur.refNo}${cur.linkedPvNo ? " + voucher " + cur.linkedPvNo : ""}` : "Load a row first"}
-              style={{ padding: "7px 12px", background: (cur?.id && canDelete()) ? "#991b1b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: (cur?.id && canDelete()) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}
-            ><Trash2 size={12} /> Delete</button>
-          </div>
+          <div style={{ fontSize: 10.5, color: "#64748b", fontStyle: "italic" }}>👇 Action toolbar is now at the bottom of this section</div>
         </div>
 
         {cur && (
@@ -1942,6 +1892,61 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
             </table>
           </div>
         )}
+        {/* Bottom Action Toolbar · Advance Request section (moved from top per UX request) */}
+        <div style={{ marginTop: 14, padding: "12px 16px", background: "linear-gradient(135deg,#0f172a,#1e293b)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", boxShadow: "0 4px 12px rgba(15,23,42,.25)" }} data-testid="adv-toolbar-bottom">
+          <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", marginRight: 8 }}>Actions ·</div>
+          <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }} data-testid="adv-toolbar">
+            <button
+              data-testid="adv-tb-new"
+              onClick={startNew}
+              disabled={!writeAllowed}
+              title="Start a new advance request"
+              style={{ padding: "7px 12px", background: writeAllowed ? "linear-gradient(135deg,#f59e0b,#d97706)" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: writeAllowed ? "0 2px 6px rgba(245,158,11,.4)" : "none" }}
+            ><Plus size={12} /> New</button>
+            <button
+              data-testid="adv-tb-save"
+              onClick={save}
+              disabled={!cur || locked || !writeAllowed}
+              title={!cur ? "Open or create a request first" : locked ? "Submitted drafts cannot be edited" : "Save draft"}
+              style={{ padding: "7px 12px", background: (cur && !locked && writeAllowed) ? "linear-gradient(135deg,#22c55e,#15803d)" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: (cur && !locked && writeAllowed) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: (cur && !locked && writeAllowed) ? "0 2px 6px rgba(34,197,94,.4)" : "none" }}
+            ><Save size={12} /> Save</button>
+            <button
+              data-testid="adv-tb-edit"
+              onClick={() => {
+                if (!cur) { toast.info("Niche list se koi row click karein ya New se naya banayein"); return; }
+                if (locked) { toast.error("Submitted / Approved request edit nahi hoti"); return; }
+                toast.info(`Editing ${cur.refNo} · Form fields unlocked`);
+              }}
+              disabled={!cur}
+              title="Edit the currently loaded draft"
+              style={{ padding: "7px 12px", background: cur ? "linear-gradient(135deg,#0ea5e9,#0369a1)" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: cur ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: cur ? "0 2px 6px rgba(14,165,233,.4)" : "none" }}
+            ><Edit3 size={12} /> Edit</button>
+            <button
+              data-testid="adv-tb-submit"
+              onClick={submit}
+              disabled={!cur || Number(cur?.status) !== 1 || !writeAllowed}
+              title="Submit draft to Accounts for approval"
+              style={{ padding: "7px 12px", background: (cur && Number(cur.status) === 1 && writeAllowed) ? "linear-gradient(135deg,#8b5cf6,#6d28d9)" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: (cur && Number(cur.status) === 1 && writeAllowed) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: (cur && Number(cur.status) === 1 && writeAllowed) ? "0 2px 6px rgba(139,92,246,.4)" : "none" }}
+            ><Send size={12} /> Submit to Accounts</button>
+            <button
+              data-testid="adv-tb-adjust"
+              onClick={() => setAdjustOpen(true)}
+              title="Employee-wise total advance to be adjusted in each target month's Pay Bill"
+              style={{ padding: "7px 12px", background: "linear-gradient(135deg,#ec4899,#be185d)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: "0 2px 6px rgba(236,72,153,.4)" }}
+            >📊 Adjust in Pay Bill</button>
+            <button
+              data-testid="adv-tb-delete"
+              onClick={() => {
+                if (!cur || !cur.id) { toast.error("Pehle koi row load karein"); return; }
+                if (!canDelete()) { toast.error("Only Admin / SuperAdmin can delete"); return; }
+                removeFull(cur);
+              }}
+              disabled={!cur || !cur.id || !canDelete()}
+              title={!canDelete() ? "Only Admin / SuperAdmin can delete" : cur?.id ? `Delete ${cur.refNo}${cur.linkedPvNo ? " + voucher " + cur.linkedPvNo : ""}` : "Load a row first"}
+              style={{ padding: "7px 12px", background: (cur?.id && canDelete()) ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "#475569", color: "#fff", border: "none", borderRadius: 5, cursor: (cur?.id && canDelete()) ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: (cur?.id && canDelete()) ? "0 2px 6px rgba(239,68,68,.4)" : "none" }}
+            ><Trash2 size={12} /> Delete</button>
+          </div>
+        </div>
       </div>
 
       {/* Existing Advance Register */}
