@@ -234,9 +234,8 @@ export default function Home() {
           </div>
 
           {/* Organisation banner */}
-          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "10px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#e9d5ff", letterSpacing: 2.5, textTransform: "uppercase" }}>Arun Enterprises</div>
-            <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>Department Modules</div>
+          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "12px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)" }}>
+            <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" }}>Department</div>
           </div>
 
           {/* Flat department grid in user-specified order */}
