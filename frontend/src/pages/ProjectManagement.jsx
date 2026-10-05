@@ -148,6 +148,76 @@ export default function ProjectManagement() {
   const updTeam = (id, patch) => setEditing({ ...editing, team: editing.team.map((t) => t.id === id ? { ...t, ...patch } : t) });
   const delTeam = (id) => setEditing({ ...editing, team: editing.team.filter((t) => t.id !== id) });
 
+  // ---------- Seed / demo data (one-click layout preview) ----------
+  const seedDemo = () => {
+    if (!writeAllowed) { toast.error("Not permitted"); return; }
+    const now = new Date();
+    const toISO = (addDays = 0) => { const d = new Date(now); d.setDate(d.getDate() + addDays); return d.toISOString().slice(0, 10); };
+    const samples = [
+      {
+        id: uid(), code: `PRJ/${now.getFullYear()}/0001`, name: "Office Interior Renovation",
+        client: "Arun Enterprises HQ", siteLocation: "Lucknow · Hazratganj",
+        manager: "Rajesh Kumar", startDate: toISO(-15), endDate: toISO(45),
+        budget: 1200000, spent: 450000, progress: 42,
+        status: "In Progress", priority: "High",
+        description: "False ceiling, modular furniture, electrical rewiring and painting for 3rd floor office space.",
+        milestones: [
+          { id: uid(), title: "Site survey & measurements", dueDate: toISO(-10), done: true },
+          { id: uid(), title: "Material procurement", dueDate: toISO(-3), done: true },
+          { id: uid(), title: "False ceiling completion", dueDate: toISO(20), done: false },
+          { id: uid(), title: "Furniture installation", dueDate: toISO(35), done: false },
+          { id: uid(), title: "Final handover", dueDate: toISO(45), done: false },
+        ],
+        team: [
+          { id: uid(), name: "Rajesh Kumar", role: "Project Manager" },
+          { id: uid(), name: "Suresh Singh", role: "Site Engineer" },
+          { id: uid(), name: "Ramesh Yadav", role: "Procurement Lead" },
+        ],
+        createdAt: now.toISOString(), updatedAt: now.toISOString(),
+      },
+      {
+        id: uid(), code: `PRJ/${now.getFullYear()}/0002`, name: "Warehouse Expansion Phase II",
+        client: "Internal · Logistics Division", siteLocation: "Kanpur Dehat",
+        manager: "Priya Sharma", startDate: toISO(-45), endDate: toISO(-5),
+        budget: 2800000, spent: 2650000, progress: 100,
+        status: "Completed", priority: "Critical",
+        description: "Expansion of main warehouse by 8,000 sqft including loading bay and sprinkler system.",
+        milestones: [
+          { id: uid(), title: "Foundation", dueDate: toISO(-40), done: true },
+          { id: uid(), title: "Steel structure", dueDate: toISO(-25), done: true },
+          { id: uid(), title: "Roofing & walls", dueDate: toISO(-15), done: true },
+          { id: uid(), title: "Final inspection", dueDate: toISO(-5), done: true },
+        ],
+        team: [
+          { id: uid(), name: "Priya Sharma", role: "Project Manager" },
+          { id: uid(), name: "Vikas Mishra", role: "Civil Engineer" },
+        ],
+        createdAt: now.toISOString(), updatedAt: now.toISOString(),
+      },
+      {
+        id: uid(), code: `PRJ/${now.getFullYear()}/0003`, name: "Factory Shed Painting",
+        client: "Internal · Production", siteLocation: "Unnao Industrial Area",
+        manager: "Amit Gupta", startDate: toISO(10), endDate: toISO(60),
+        budget: 350000, spent: 0, progress: 0,
+        status: "Planning", priority: "Medium",
+        description: "Protective anti-rust painting of 4 production shed exteriors and interior walls.",
+        milestones: [
+          { id: uid(), title: "Vendor finalization", dueDate: toISO(5), done: false },
+          { id: uid(), title: "Scaffolding setup", dueDate: toISO(15), done: false },
+          { id: uid(), title: "Paint work completion", dueDate: toISO(55), done: false },
+        ],
+        team: [
+          { id: uid(), name: "Amit Gupta", role: "Project Manager" },
+        ],
+        createdAt: now.toISOString(), updatedAt: now.toISOString(),
+      },
+    ];
+    const existing = getProjects();
+    saveProjects([...samples, ...existing]);
+    setTick((t) => t + 1);
+    toast.success(`3 sample projects loaded · layout preview ready`);
+  };
+
   // ---------- Status / priority helpers ----------
   const statusMeta = (s) => STATUS.find((x) => x.k === s) || STATUS[0];
   const priorityMeta = (p) => PRIORITY.find((x) => x.k === p) || PRIORITY[0];
@@ -208,7 +278,7 @@ export default function ProjectManagement() {
 
           {/* Project list / grid */}
           {filtered.length === 0 ? (
-            <EmptyState onCreate={writeAllowed ? startNew : null} />
+            <EmptyState onCreate={writeAllowed ? startNew : null} onSeed={writeAllowed ? seedDemo : null} />
           ) : view === "grid" ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }} data-testid="pm-grid">
               {filtered.map((p) => (
@@ -423,12 +493,15 @@ const ProjectCard = ({ p, statusMeta, priorityMeta, onEdit, onDelete, canDelete,
   );
 };
 
-const EmptyState = ({ onCreate }) => (
+const EmptyState = ({ onCreate, onSeed }) => (
   <div style={{ padding: 40, textAlign: "center", background: "#fff", border: "2px dashed #cbd5e1", borderRadius: 10 }}>
     <FolderKanban size={48} style={{ margin: "0 auto 10px", display: "block", color: "#94a3b8" }} />
     <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>Abhi tak koi project nahi hai</div>
-    <div style={{ fontSize: 11.5, color: "#64748b", marginBottom: 14 }}>Pehla project add karne ke liye niche button click karein</div>
-    {onCreate && <button onClick={onCreate} style={{ padding: "9px 20px", background: "linear-gradient(135deg,#0ea5e9,#0369a1)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 6px rgba(14,165,233,.4)" }}><Plus size={14} /> Add First Project</button>}
+    <div style={{ fontSize: 11.5, color: "#64748b", marginBottom: 14 }}>Pehla project add karein, ya sample projects load karke layout preview dekhein</div>
+    <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+      {onCreate && <button onClick={onCreate} data-testid="pm-empty-create" style={{ padding: "9px 20px", background: "linear-gradient(135deg,#0ea5e9,#0369a1)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 6px rgba(14,165,233,.4)" }}><Plus size={14} /> Add First Project</button>}
+      {onSeed && <button onClick={onSeed} data-testid="pm-empty-seed" style={{ padding: "9px 20px", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 6px rgba(245,158,11,.4)" }}>🎨 Load Sample Projects (Layout Preview)</button>}
+    </div>
   </div>
 );
 
