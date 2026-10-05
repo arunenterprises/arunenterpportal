@@ -1436,7 +1436,17 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
             <button type="button" data-testid="pb-mode-selective" onClick={() => setSelectionMode("selective")} style={{ padding: "6px 12px", background: selectionMode === "selective" ? "#be185d" : "#fff", color: selectionMode === "selective" ? "#fff" : "#334155", border: "none", borderLeft: "1px solid #cbd5e1", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Selective</button>
           </div>
         </div>
-        <button onClick={createDraft} disabled={!writeAllowed} data-testid="pb-create" style={{ padding: "7px 14px", background: writeAllowed ? "#0369a1" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> Create / Refresh Draft</button>
+        <div>
+          <label style={{ fontSize: 10.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 4 }}>&nbsp;</label>
+          <button
+            onClick={createDraft}
+            disabled={!writeAllowed}
+            data-testid="pb-create"
+            style={{ padding: "8px 16px", background: writeAllowed ? "linear-gradient(135deg,#0ea5e9,#0369a1)" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, height: 34, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: writeAllowed ? "0 2px 6px rgba(14,165,233,.35)" : "none", letterSpacing: 0.3, textTransform: "uppercase" }}
+          >
+            <Plus size={14} /> Create / Refresh Draft
+          </button>
+        </div>
         <div style={{ marginLeft: "auto", fontSize: 11, color: "#64748b" }}>
           {selectionMode === "all"
             ? "All finalized active employees will be included"
