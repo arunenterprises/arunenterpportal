@@ -38,6 +38,37 @@
 - **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
+## Three Critical Updates (Feb 2026 · Preview Ready · NOT Published)
+
+### 1. Project Management hidden from Home
+- Removed `"project"` from the Home `ORDER` array so the card no longer renders. The route (`/project`) + full page layout stay intact for approval preview. Will be re-enabled once user approves.
+
+### 2. Single-Session Enforcement + Session Tracking (Login Audit)
+**Backend (`server.py`)** — new endpoints:
+- `POST /api/auth/login` enhanced: on login, writes `current_session { active, login_at, ip, user_agent, location }` + `last_login_at` to the user doc. If an existing session is < 10 hours old AND active (and user is not SuperAdmin), returns `409` "Already logged in from <ip> at <timestamp>".
+- `POST /api/auth/logout` — clears `current_session.active`.
+- `GET /api/users/sessions` — returns all users with session info (Admin / SuperAdmin only).
+- `POST /api/users/{email}/force_logout` — Admin can forcibly clear another user's session.
+- `POST /api/attendance/punch` — only accepts between 09:10–09:30 IST, one entry per user per day.
+- `GET /api/attendance/today` — my punch + all punches today.
+
+**Frontend**:
+- `api.js`: `apiLogout`, `apiListSessions`, `apiForceLogout`, `apiAttendancePunch`, `apiAttendanceToday`.
+- `store.js`: `logout()` now fires `apiLogout` before clearing local token.
+- `Login.jsx`: Handles `409` gracefully with ⚠ warning message.
+- `UsersAdmin.jsx`: New **Active Sessions** section (Admin / SuperAdmin only) — shows every user's status (ONLINE / offline pill), name/email, role, designation, login time (UTC), IP, device/browser, with **Force Logout** action. Auto-refreshes every 15 s + on `ae-sync-done`.
+- Removed non-working Logout button from UsersAdmin header (was no-op per user feedback).
+
+### 3. Attendance Punch Widget (All Users · 09:10–09:30 IST)
+- New `AttendancePunchWidget` on Home page, visible to every user, polls `/api/attendance/today` every 30 s + shows current IST, today's total punches, user's own punch status.
+- When within window (09:10–09:30 IST) and user hasn't punched today → bright amber "👉 Punch In Now" button.
+- When punched → turns green with ✓ and shows punch time IST.
+- When outside window → slate grey "⏳ Window Closed".
+- Server enforces one-per-day in `attendance_punches` collection.
+
+### Pending user action
+- Awaiting user go-ahead to deploy. All three features compile clean locally and backend restarted successfully.
+
 ## Real-Time Cross-User Sync — Full Coverage + Advance Approval Policy (Feb 2026 · Pending Deploy)
 
 ### Problem reported

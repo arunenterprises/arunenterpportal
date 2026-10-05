@@ -26,7 +26,13 @@ export default function Login() {
         setErr("Invalid email or password. Please contact administrator if you don't have an account.");
       }
     } catch (ex) {
-      setErr(ex.message || "Login failed");
+      // 409 = account already active on another device (single-session policy)
+      const msg = ex.message || "Login failed";
+      if (/already logged in/i.test(msg)) {
+        setErr(`⚠ ${msg}`);
+      } else {
+        setErr(msg);
+      }
     } finally {
       setBusy(false);
     }

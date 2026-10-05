@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban } from "lucide-react";
+import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, Clock, CheckCircle2 } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
+import { toast } from "sonner";
+import { apiAttendancePunch, apiAttendanceToday } from "../lib/api";
 import {
   currentUserProfile,
   isSuperAdmin,
@@ -16,6 +18,69 @@ import {
 } from "../lib/store";
 
 const ALL_ROLES = ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
+
+// ---- Attendance Punch Widget (Feb 2026 · all users, window 09:10-09:30 IST) ----
+const AttendancePunchWidget = () => {
+  const [state, setState] = useState({ loading: true, myPunch: null, totalToday: 0, inWindow: false, nowIst: "" });
+  const [busy, setBusy] = useState(false);
+
+  const refresh = async () => {
+    try {
+      const r = await apiAttendanceToday();
+      // Compute IST now + window check client-side (server is authoritative on actual punch)
+      const nowUtc = new Date();
+      const nowIst = new Date(nowUtc.getTime() + (5 * 60 + 30) * 60 * 1000);
+      const mod = nowIst.getUTCHours() * 60 + nowIst.getUTCMinutes();
+      const inWindow = mod >= 9 * 60 + 10 && mod <= 9 * 60 + 30;
+      setState({ loading: false, myPunch: r.my_punch, totalToday: (r.all || []).length, inWindow, nowIst: `${String(nowIst.getUTCHours()).padStart(2, "0")}:${String(nowIst.getUTCMinutes()).padStart(2, "0")}` });
+    } catch (e) {
+      setState((s) => ({ ...s, loading: false }));
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const punch = async () => {
+    setBusy(true);
+    try {
+      const r = await apiAttendancePunch();
+      toast.success(`Punched at ${r.punch?.punch_time_ist} IST ✓`);
+      await refresh();
+    } catch (ex) {
+      toast.error(ex.message || "Punch failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const punched = !!state.myPunch;
+  const bgGrad = punched ? "linear-gradient(135deg,#15803d,#166534)" : state.inWindow ? "linear-gradient(135deg,#f59e0b,#d97706)" : "linear-gradient(135deg,#334155,#1e293b)";
+
+  return (
+    <div data-testid="attendance-widget" style={{ background: bgGrad, color: "#fff", borderRadius: 8, padding: "12px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, boxShadow: "0 3px 10px rgba(15,23,42,.2)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Clock size={26} />
+        <div>
+          <div style={{ fontSize: 9, letterSpacing: 2, fontWeight: 800, textTransform: "uppercase", opacity: 0.85 }}>Daily Attendance</div>
+          <div style={{ fontSize: 15, fontWeight: 900 }}>{punched ? `✓ Punched at ${state.myPunch.punch_time_ist} IST` : state.inWindow ? "Punch window OPEN · 09:10 – 09:30 IST" : "Punch window: 09:10 – 09:30 IST"}</div>
+          <div style={{ fontSize: 10.5, opacity: 0.85 }}>Current IST: <b>{state.nowIst}</b> · Today's punches: <b>{state.totalToday}</b></div>
+        </div>
+      </div>
+      {!punched && (
+        <button data-testid="attendance-punch-btn" onClick={punch} disabled={busy || !state.inWindow} style={{ padding: "9px 20px", background: state.inWindow ? "#fff" : "rgba(255,255,255,.2)", color: state.inWindow ? "#d97706" : "#fff", border: state.inWindow ? "none" : "1px solid rgba(255,255,255,.4)", borderRadius: 6, cursor: state.inWindow && !busy ? "pointer" : "not-allowed", fontWeight: 900, fontSize: 13, letterSpacing: 0.5, textTransform: "uppercase", boxShadow: state.inWindow ? "0 2px 8px rgba(0,0,0,.3)" : "none" }}>
+          {busy ? "Punching..." : state.inWindow ? "👉 Punch In Now" : "⏳ Window Closed"}
+        </button>
+      )}
+      {punched && <CheckCircle2 size={28} />}
+    </div>
+  );
+};
+
+const DepartmentCard_END_MARKER = null;
 
 const DEPARTMENTS = [
   {
@@ -239,7 +304,9 @@ export default function Home() {
 
   // Fresh flat alignment per user request (Feb 2026):
   // GM → HR → VENDOR → PURCHASE → ACCOUNTS → REPORTS & VOUCHERS → USER MANAGEMENT
-  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "project", "users"];
+  // Project Management hidden until user approves the layout — route still works
+  // for preview but card removed from home grid per user request (Feb 2026).
+  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "users"];
   const visibleDepts = ORDER
     .map((id) => DEPARTMENTS.find((d) => d.id === id))
     .filter((d) => d && (d.id !== "users" || superAdmin || role === "Admin"));
@@ -261,6 +328,9 @@ export default function Home() {
           <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "12px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)" }}>
             <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" }}>Department</div>
           </div>
+
+          {/* Attendance Punch widget — all users (window: 09:10 - 09:30 IST) */}
+          <AttendancePunchWidget />
 
           {/* Flat department grid in user-specified order */}
           <div

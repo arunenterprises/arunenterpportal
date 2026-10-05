@@ -281,25 +281,152 @@ async def change_password(body: ChangePasswordBody, user: Dict = Depends(get_cur
 
 
 @api_router.post("/auth/login")
-async def login(body: LoginBody):
+async def login(body: LoginBody, request: Request):
     ident = body.identifier.lower().strip()
     password = body.password.strip()
     user = await db.users.find_one({"email": ident})
     if not user or not verify_password(password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # ---- SINGLE-SESSION ENFORCEMENT (Feb 2026 · user request) ----
+    # Block login if the same account already has an active session newer than
+    # 10 hours (full working day). SuperAdmin (primary ADMIN_EMAIL) is exempt.
+    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    is_super = bool(primary) and user["email"].lower().strip() == primary
+    now_iso = datetime.now(timezone.utc).isoformat()
+    cs = user.get("current_session") or {}
+    if not is_super and cs.get("active") and cs.get("login_at"):
+        try:
+            prev = datetime.fromisoformat(cs["login_at"].replace("Z", "+00:00"))
+            age_hours = (datetime.now(timezone.utc) - prev).total_seconds() / 3600.0
+        except Exception:
+            age_hours = 999
+        if age_hours < 10:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Already logged in from {cs.get('ip', 'another device')} at {cs.get('login_at')[:16].replace('T', ' ')}. Logout first or contact admin.",
+            )
+
+    # Resolve client IP + user-agent for the session record
+    xff = request.headers.get("x-forwarded-for") or ""
+    client_ip = xff.split(",")[0].strip() if xff else (request.client.host if request.client else "unknown")
+    ua = (request.headers.get("user-agent") or "")[:200]
+    session_doc = {
+        "active": True,
+        "login_at": now_iso,
+        "ip": client_ip,
+        "user_agent": ua,
+        "location": "",  # best-effort placeholder — enrich via IP lookup in a future pass
+    }
+    await db.users.update_one(
+        {"email": user["email"]},
+        {"$set": {"current_session": session_doc, "last_login_at": now_iso, "last_login_ip": client_ip}},
+    )
+
     token = create_access_token(user["email"], user["email"])
     perms = user.get("permissions") or _role_default_perms(user.get("role"))
-    # SuperAdmin always gets full permissions
-    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
-    if primary and user["email"].lower().strip() == primary:
+    if is_super:
         perms = {"create": True, "edit": True, "submit": True, "approve": True}
     return {
         "token": token,
         "user": {
             "email": user["email"], "name": user["name"], "role": user["role"],
-            "permissions": perms,
+            "permissions": perms, "designation": user.get("designation", ""),
         },
     }
+
+
+@api_router.post("/auth/logout")
+async def logout(user: Dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"email": user["email"]},
+        {"$set": {"current_session.active": False, "last_logout_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True}
+
+
+@api_router.get("/users/sessions")
+async def list_sessions(admin: Dict = Depends(get_current_user)):
+    """Return active + last session info for every user. Admin / SuperAdmin only."""
+    if (admin.get("role") or "").lower() not in ("admin",) and not _is_super_admin(admin):
+        raise HTTPException(status_code=403, detail="Admin / SuperAdmin only")
+    cursor = db.users.find({}, {"password_hash": 0})
+    out = []
+    async for u in cursor:
+        u.pop("_id", None)
+        cs = u.get("current_session") or {}
+        out.append({
+            "email": u.get("email"), "name": u.get("name"), "role": u.get("role"),
+            "designation": u.get("designation", ""),
+            "active": bool(cs.get("active")),
+            "login_at": cs.get("login_at", ""),
+            "ip": cs.get("ip", ""),
+            "user_agent": cs.get("user_agent", ""),
+            "location": cs.get("location", ""),
+            "last_logout_at": u.get("last_logout_at", ""),
+        })
+    out.sort(key=lambda x: (not x["active"], -(len(x["login_at"] or ""))))
+    return {"items": out}
+
+
+@api_router.post("/users/{email}/force_logout")
+async def force_logout(email: str, admin: Dict = Depends(require_admin)):
+    """Admin can force-logout another user (clears current_session.active)."""
+    email = email.lower().strip()
+    r = await db.users.update_one(
+        {"email": email},
+        {"$set": {"current_session.active": False, "forced_logout_at": datetime.now(timezone.utc).isoformat(), "forced_logout_by": admin.get("email")}},
+    )
+    return {"ok": True, "updated": r.modified_count}
+
+
+# ---- ATTENDANCE PUNCH (Feb 2026 · user request) ----
+# Allowed window: 09:10 - 09:30 IST (05:40 - 06:00 UTC). One punch per user per day.
+@api_router.post("/attendance/punch")
+async def attendance_punch(user: Dict = Depends(get_current_user)):
+    now_utc = datetime.now(timezone.utc)
+    # IST = UTC + 05:30
+    from datetime import timedelta
+    now_ist = now_utc + timedelta(hours=5, minutes=30)
+    minutes_of_day = now_ist.hour * 60 + now_ist.minute
+    # 09:10 = 550, 09:30 = 570
+    WINDOW_START, WINDOW_END = 9 * 60 + 10, 9 * 60 + 30
+    if not (WINDOW_START <= minutes_of_day <= WINDOW_END):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Punch window is 09:10 - 09:30 IST only. Current IST time: {now_ist.strftime('%H:%M')}",
+        )
+    date_key = now_ist.strftime("%Y-%m-%d")
+    existing = await db.attendance_punches.find_one({"email": user["email"], "date": date_key})
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Already punched today at {existing.get('punch_time_ist', '')} IST",
+        )
+    doc = {
+        "email": user["email"],
+        "name": user.get("name", ""),
+        "designation": user.get("designation", ""),
+        "date": date_key,
+        "punch_time_ist": now_ist.strftime("%H:%M:%S"),
+        "punch_time_utc": now_utc.isoformat(),
+    }
+    await db.attendance_punches.insert_one(doc)
+    doc.pop("_id", None)
+    return {"ok": True, "punch": doc}
+
+
+@api_router.get("/attendance/today")
+async def attendance_today(user: Dict = Depends(get_current_user)):
+    from datetime import timedelta
+    now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    date_key = now_ist.strftime("%Y-%m-%d")
+    rows = []
+    async for r in db.attendance_punches.find({"date": date_key}):
+        r.pop("_id", None); rows.append(r)
+    rows.sort(key=lambda x: x.get("punch_time_ist", ""))
+    my = next((r for r in rows if r.get("email") == user["email"]), None)
+    return {"date": date_key, "my_punch": my, "all": rows}
 
 
 # ---- Per-user permission override (Super Admin only) ----

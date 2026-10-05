@@ -3,12 +3,92 @@ import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 import AuthSplash from "../components/AuthSplash";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
+
+// ---- Active Sessions Section (Feb 2026 · user request) ----
+// Shows every user's current login state with IP, user-agent, and login time.
+// Admin can force-logout any user to free their single-session lock.
+const ActiveSessionsSection = ({ meEmail }) => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await apiListSessions();
+      setRows(r.items || []);
+    } catch (ex) {
+      toast.error(ex.message || "Could not load sessions");
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 15000); // auto-refresh every 15s
+    const onSync = () => load();
+    window.addEventListener("ae-sync-done", onSync);
+    return () => { clearInterval(t); window.removeEventListener("ae-sync-done", onSync); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const kick = async (email) => {
+    if (!window.confirm(`Force-logout ${email}?\n\nTheir token will be cleared on next action and they can re-login.`)) return;
+    try {
+      await apiForceLogout(email);
+      toast.success(`${email} forcibly logged out`);
+      await load();
+    } catch (ex) { toast.error(ex.message || "Force-logout failed"); }
+  };
+
+  const active = rows.filter((r) => r.active);
+  return (
+    <div data-testid="active-sessions-section" style={{ marginTop: 16, border: "1.5px solid #86efac", borderRadius: 6, background: "#f0fdf4" }}>
+      <div style={{ background: "#dcfce7", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#166534", display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>🟢 ACTIVE SESSIONS · {active.length} ONLINE / {rows.length} TOTAL · ADMIN &amp; SUPERADMIN ONLY</span>
+        <button onClick={load} style={{ padding: "3px 10px", background: "#166534", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>↻ Refresh</button>
+      </div>
+      <div style={{ padding: 10, overflowX: "auto" }}>
+        {loading ? (<div style={{ textAlign: "center", color: "#64748b", fontSize: 12, padding: 10 }}>Loading…</div>) : rows.length === 0 ? (<div style={{ textAlign: "center", color: "#64748b", fontSize: 12, padding: 10 }}>No session data</div>) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ background: "#dcfce7" }}>
+                {["Status", "User", "Role", "Designation", "Login Time (UTC)", "IP Address", "Device / Browser", "Action"].map((h) => (
+                  <th key={h} style={{ padding: "7px 10px", textAlign: "left", fontSize: 10, fontWeight: 800, color: "#166534", borderBottom: "1px solid #86efac", textTransform: "uppercase", letterSpacing: 0.3 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.email} style={{ background: i % 2 ? "#f0fdf4" : "#fff", borderBottom: "1px solid #d1fae5" }}>
+                  <td style={{ padding: "6px 10px" }}>
+                    <span style={{ display: "inline-block", padding: "1px 8px", background: r.active ? "#15803d" : "#94a3b8", color: "#fff", fontSize: 9.5, fontWeight: 800, borderRadius: 999, letterSpacing: 0.3 }}>{r.active ? "ONLINE" : "offline"}</span>
+                  </td>
+                  <td style={{ padding: "6px 10px" }}><b>{r.name}</b><br/><span style={{ fontSize: 10, color: "#64748b" }}>{r.email}</span></td>
+                  <td style={{ padding: "6px 10px", fontSize: 10.5, fontWeight: 700 }}>{r.role || "User"}</td>
+                  <td style={{ padding: "6px 10px", fontSize: 10.5 }}>{r.designation || "—"}</td>
+                  <td style={{ padding: "6px 10px", fontSize: 10.5, fontFamily: "monospace" }}>{r.login_at ? r.login_at.slice(0, 19).replace("T", " ") : "—"}</td>
+                  <td style={{ padding: "6px 10px", fontSize: 10.5, fontFamily: "monospace" }}>{r.ip || "—"}</td>
+                  <td style={{ padding: "6px 10px", fontSize: 9.5, color: "#475569", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.user_agent}>{r.user_agent || "—"}</td>
+                  <td style={{ padding: "6px 10px" }}>
+                    {r.active && r.email !== meEmail && (
+                      <button onClick={() => kick(r.email)} data-testid={`sess-kick-${r.email}`} style={{ padding: "3px 10px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 20, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Force Logout</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+};
+
 
 // Static role → permissions matrix used purely for display in the Users list.
 // Actual enforcement is done by canCreate / canApprove in store.js.
@@ -266,12 +346,6 @@ export default function UsersAdmin() {
             <button data-testid="btn-back-vendor" onClick={() => nav("/vendor")} style={{ padding: "6px 12px", background: "#e2e8f0", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <ArrowLeft size={13} /> Back to App
             </button>
-            <button data-testid="btn-logout-admin" onClick={() => {
-              const nm = me?.name || me?.user?.split("@")[0] || "User";
-              setGoodbye({ name: nm });
-            }} style={{ padding: "9px 18px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 13, letterSpacing: 0.4 }}>
-              Logout
-            </button>
           </div>
         </div>
 
@@ -515,6 +589,9 @@ export default function UsersAdmin() {
             </tbody>
           </table>
         </div>
+
+        {/* Active Sessions (Admin / SuperAdmin only) · IP + Location + Login Time */}
+        <ActiveSessionsSection meEmail={me?.user} />
 
         {/* Backup & Restore (SUPER ADMIN ONLY) */}
         {isSuperAdmin(me?.user) && (

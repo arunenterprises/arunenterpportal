@@ -25,6 +25,11 @@ const req = async (path, opts = {}) => {
 // ---- Auth ----
 export const apiLogin = (identifier, password) =>
   req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
+export const apiLogout = () => req("/auth/logout", { method: "POST" });
+export const apiListSessions = () => req("/users/sessions");
+export const apiForceLogout = (email) => req(`/users/${encodeURIComponent(email)}/force_logout`, { method: "POST" });
+export const apiAttendancePunch = () => req("/attendance/punch", { method: "POST" });
+export const apiAttendanceToday = () => req("/attendance/today");
 
 export const apiRegister = (email, password, name, role = "User", extra = {}) =>
   req("/auth/register", {

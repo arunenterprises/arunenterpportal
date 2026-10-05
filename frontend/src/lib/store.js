@@ -859,7 +859,11 @@ export const login = async (u, p) => {
   }
 };
 
-export const logout = () => {
+export const logout = async () => {
+  try {
+    const { apiLogout } = await import("./api");
+    apiLogout().catch(() => {});
+  } catch (_e) { /* noop */ }
   localStorage.removeItem(KEYS.AUTH);
   clearToken();
 };
