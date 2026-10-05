@@ -39,7 +39,8 @@
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
 ## HRManagement UI Polish (Feb 2026)
-- Advance Request section action toolbar moved from top header to bottom with navy gradient background + prominent gradient-colored buttons (New / Save / Edit / Submit to Accounts / Adjust in Pay Bill / Delete).
+- Advance Request section action toolbar moved from top header to bottom with navy gradient background + prominent gradient-colored buttons (New / Save / Edit / Submit to Accounts / Adjust in Pay Bill / Accounts Approve / Reject / Delete).
+- Inner form action bar (duplicated buttons under form card) removed entirely — all actions now consolidated in the single bottom bar. Approved status pill + Reject reason inline input retained.
 
 ## Pending Requirements (Noted · Awaiting Specifics)
 

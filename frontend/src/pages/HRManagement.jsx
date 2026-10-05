@@ -1772,15 +1772,6 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
                 </F>
               </div>
             </div>
-            <div style={{ padding: 12, display: "flex", gap: 8, flexWrap: "wrap", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
-              <button data-testid="adv-save" onClick={save} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save Draft</button>
-              <button data-testid="adv-req-new" onClick={startNew} disabled={!writeAllowed} style={{ padding: "7px 14px", background: writeAllowed ? "#f59e0b" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: writeAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><Plus size={13} style={{ verticalAlign: -2 }} /> New Advance Request</button>
-              <button data-testid="adv-submit" onClick={submit} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to Accounts</button>
-              {Number(cur.status) === 2 && approveAllowed && <button data-testid="adv-approve" onClick={() => approveNow(cur)} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> Accounts Approve &amp; Auto-Adjust</button>}
-              {Number(cur.status) === 3 && <span style={{ padding: "7px 14px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 5, fontWeight: 800, fontSize: 11 }}>✓ Approved · Auto-adjusted in {new Date(cur.targetYear || new Date().getFullYear(), (cur.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "long", year: "numeric" })} Pay Bill</span>}
-              {[2, 3].includes(Number(cur.status)) && approveAllowed && <button data-testid="adv-reject" onClick={() => setRejectingId(cur.id)} style={{ padding: "7px 14px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12 }}><X size={13} style={{ verticalAlign: -2 }} /> Reject</button>}
-              {cur.id && Number(cur.status) < 2 && canDelete() && <button data-testid="adv-delete" onClick={() => remove(cur.id)} title="Delete draft advance" style={{ padding: "7px 14px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, marginLeft: "auto" }}><Trash2 size={13} style={{ verticalAlign: -2 }} /> Delete Draft</button>}
-            </div>
             {rejectingId === cur.id && (
               <div style={{ padding: 12, background: "#fef2f2", borderTop: "1px solid #fecaca", display: "flex", gap: 8, alignItems: "center" }}>
                 <input autoFocus placeholder="Rejection reason..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} data-testid="adv-reject-reason" style={{ ...inputStyle, flex: 1 }} />
@@ -1934,6 +1925,27 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed }) => {
               title="Employee-wise total advance to be adjusted in each target month's Pay Bill"
               style={{ padding: "7px 12px", background: "linear-gradient(135deg,#ec4899,#be185d)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: "0 2px 6px rgba(236,72,153,.4)" }}
             >📊 Adjust in Pay Bill</button>
+            {cur && Number(cur.status) === 2 && approveAllowed && (
+              <button
+                data-testid="adv-tb-approve"
+                onClick={() => approveNow(cur)}
+                title="Accounts approve this advance request and auto-adjust in target month's Pay Bill"
+                style={{ padding: "7px 12px", background: "linear-gradient(135deg,#10b981,#0369a1)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: "0 2px 6px rgba(16,185,129,.4)" }}
+              ><CheckCircle2 size={12} /> Accounts Approve</button>
+            )}
+            {cur && Number(cur.status) === 3 && (
+              <span style={{ padding: "7px 12px", background: "linear-gradient(135deg,#22c55e,#15803d)", color: "#fff", borderRadius: 5, fontWeight: 800, fontSize: 11, boxShadow: "0 2px 6px rgba(34,197,94,.4)" }}>
+                ✓ Approved · Auto-adjusted {new Date(cur.targetYear || new Date().getFullYear(), (cur.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "short", year: "numeric" })}
+              </span>
+            )}
+            {cur && [2, 3].includes(Number(cur.status)) && approveAllowed && (
+              <button
+                data-testid="adv-tb-reject"
+                onClick={() => setRejectingId(cur.id)}
+                title="Reject this request with a reason"
+                style={{ padding: "7px 12px", background: "linear-gradient(135deg,#f59e0b,#b45309)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, boxShadow: "0 2px 6px rgba(245,158,11,.4)" }}
+              ><X size={12} /> Reject</button>
+            )}
             <button
               data-testid="adv-tb-delete"
               onClick={() => {
