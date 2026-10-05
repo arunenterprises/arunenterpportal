@@ -38,6 +38,12 @@
 - **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
+## Home Screen Flat Layout (Feb 2026 · Implemented)
+- Reordered modules per user spec: **GM → HR → VENDOR → PURCHASE → ACCOUNTS → REPORTS & VOUCHERS → USER MANAGEMENT (SuperAdmin only)**
+- Removed 3-tier hierarchy (Executive / Operating / System Admin) — now single flat `auto-fit minmax(240px, 1fr)` responsive grid where all cards sit in the specified order and wrap naturally on narrow screens.
+- Banner updated: "Department Modules" with the module name trail in gold.
+- SuperAdmin footer helper strip retained.
+
 ## Role Change Permission (Feb 2026 · Implemented)
 - **Backend**: Added `PATCH /api/users/{email}/role` endpoint (`require_super_admin`). Accepts `{role: "User|Admin|Accounts|GM|HR|Viewer"}`. Resets permissions to new role defaults. Primary ADMIN_EMAIL locked.
 - **Frontend `api.js`**: Exported `apiUpdateUserRole(email, role)`.

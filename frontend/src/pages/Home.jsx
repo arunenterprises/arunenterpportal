@@ -213,13 +213,12 @@ export default function Home() {
     users: null,
   };
 
-  // Every authed user sees all department cards on Home so they can navigate to
-  // read-only / creator-tier pages. Per-page RBAC gates what they can DO inside.
-  // Only the "User Management" tile stays SuperAdmin-only.
-  const visibleDepts = DEPARTMENTS.filter((d) => {
-    if (d.id === "users") return superAdmin;
-    return true;
-  });
+  // Fresh flat alignment per user request (Feb 2026):
+  // GM → HR → VENDOR → PURCHASE → ACCOUNTS → REPORTS & VOUCHERS → USER MANAGEMENT
+  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "users"];
+  const visibleDepts = ORDER
+    .map((id) => DEPARTMENTS.find((d) => d.id === id))
+    .filter((d) => d && (d.id !== "users" || superAdmin));
 
   return (
     <>
@@ -234,63 +233,39 @@ export default function Home() {
             <Header formTitle="" compact />
           </div>
 
-          {/* Organisation Structure banner */}
-          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "8px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#e9d5ff", letterSpacing: 2.5, textTransform: "uppercase" }}>Enterprise Hierarchy</div>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>Organisation Structure</div>
-          </div>
-
-          {/* ---------- TIER 1 — Executive (GM) ---------- */}
-          <div data-testid="org-tier-1" style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ width: 320 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, color: "#5b21b6", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#ede9fe", borderRadius: 4 }}>Executive · Approval Authority</div>
-              {(() => {
-                const gm = DEPARTMENTS.find((d) => d.id === "gm");
-                const allowed = gm.roles.includes(role) || superAdmin;
-                return <DepartmentCard dept={gm} badge={badges.gm} allowed={allowed} onClick={() => allowed && nav(gm.to)} />;
-              })()}
+          {/* Organisation banner */}
+          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "10px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#e9d5ff", letterSpacing: 2.5, textTransform: "uppercase" }}>Arun Enterprises</div>
+            <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>Department Modules</div>
+            <div style={{ fontSize: 10.5, color: "#fde68a", marginTop: 4, letterSpacing: 1, fontWeight: 700 }}>
+              GM · HR · VENDOR · PURCHASE · ACCOUNTS · REPORTS &amp; VOUCHERS{superAdmin ? " · USER MANAGEMENT" : ""}
             </div>
           </div>
 
-          {/* Connector */}
-          <div aria-hidden style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, #7c3aed, #cbd5e1)" }} />
-          </div>
-          <div aria-hidden style={{ height: 2, background: "linear-gradient(to right, transparent 6%, #94a3b8 12%, #94a3b8 88%, transparent 94%)", margin: "0 6%", borderRadius: 2 }} />
-
-          {/* ---------- TIER 2 — Operating Departments ---------- */}
-          <div data-testid="org-tier-2">
-            <div style={{ fontSize: 9, fontWeight: 800, color: "#0f172a", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 8, padding: "3px 10px", background: "#e2e8f0", borderRadius: 4, margin: "0 auto 10px", width: "fit-content" }}>Operating Departments</div>
-            <div data-testid="dept-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16, alignItems: "stretch", justifyContent: "center" }}>
-              {["hr", "vendor", "purchase", "accounts", "reports"].map((id) => {
-                const d = DEPARTMENTS.find((x) => x.id === id);
-                if (!d) return null;
-                const allowed = d.roles.includes(role) || superAdmin;
-                return (
-                  <div key={d.id} style={{ display: "flex", flexDirection: "column" }}>
-                    <DepartmentCard dept={d} badge={badges[d.id]} allowed={allowed} onClick={() => { if (allowed) nav(d.to); }} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ---------- TIER 3 — SuperAdmin ---------- */}
-          {superAdmin && (
-            <>
-              <div aria-hidden style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-                <div style={{ width: 2, height: 20, background: "linear-gradient(to bottom, #cbd5e1, #dc2626)" }} />
-              </div>
-              <div data-testid="org-tier-3" style={{ display: "flex", justifyContent: "center" }}>
-                <div style={{ width: 320 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: "#991b1b", letterSpacing: 1.3, textTransform: "uppercase", textAlign: "center", marginBottom: 6, padding: "3px 10px", background: "#fee2e2", borderRadius: 4 }}>System Administration · SuperAdmin</div>
-                  {(() => {
-                    const u = DEPARTMENTS.find((d) => d.id === "users");
-                    return <DepartmentCard dept={u} badge={badges.users} allowed={true} onClick={() => nav(u.to)} />;
-                  })()}
+          {/* Flat department grid in user-specified order */}
+          <div
+            data-testid="dept-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(auto-fit, minmax(240px, 1fr))`,
+              gap: 14,
+              alignItems: "stretch",
+            }}
+          >
+            {visibleDepts.map((d) => {
+              const allowed = d.roles.includes(role) || superAdmin;
+              return (
+                <div key={d.id} style={{ display: "flex", flexDirection: "column" }}>
+                  <DepartmentCard dept={d} badge={badges[d.id]} allowed={allowed} onClick={() => { if (allowed) nav(d.to); }} />
                 </div>
-              </div>
-            </>
+              );
+            })}
+          </div>
+
+          {superAdmin && (
+            <div style={{ marginTop: 2, padding: "8px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11, color: "#64748b", textAlign: "center" }}>
+              💡 <b>SuperAdmin view</b> · aapke paas sabhi 7 modules ka access hai · User Management last card hai.
+            </div>
           )}
         </div>
       </div>
