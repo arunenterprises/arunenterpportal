@@ -9,7 +9,7 @@ import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { exportBankTransferXLSX, printBankTransferAdvice, printBulkBankAdvice } from "../lib/bankTransfer";
 import {
-  getBills, getVendors, computeBill, getPayments, savePayments, nextPvNo, toApprovedPvNo,
+  getBills, getVendors, computeBill, getPayments, savePayments, deletePaymentCloud, nextPvNo, toApprovedPvNo,
   currentUser, exportJSON, amountToWords,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getPayBills, advancePayBillStep, deletePayBill, upsertPayBill, PAYBILL_STATUS,
@@ -333,8 +333,8 @@ export default function Reports() {
   };
   const deletePayment = (pvNo) => {
     if (!window.confirm(`Delete voucher ${pvNo}? Bill will re-appear in Due List.`)) return;
-    const list = getPayments().filter((x) => x.pvNo !== pvNo);
-    savePayments(list);
+    // ZOMBIE FIX: use deletePaymentCloud → backend DELETE + local filter + cloud reconcile
+    deletePaymentCloud(pvNo);
     if (pv?.pvNo === pvNo) setPv(null);
     setRefresh((n) => n + 1);
     toast.success(`${pvNo} deleted · Bill moved back to Due List`);
@@ -412,9 +412,12 @@ export default function Reports() {
       approvalDate: new Date().toISOString().slice(0, 10),
     };
     setPv(next);
+    // Remove the OLD GPV entry both locally and in cloud — otherwise it reappears
+    // on next cross-device sync as a duplicate submission (GM dashboard duplicate bug).
     const list = getPayments().filter((x) => x.pvNo !== oldNo && x.pvNo !== newNo);
     list.push(next);
-    savePayments(list); setRefresh((n) => n + 1);
+    savePayments(list); // savePayments now auto-reconciles the removed oldNo on backend
+    setRefresh((n) => n + 1);
     toast.success(`Voucher approved · ${oldNo}${oldNo !== newNo ? " → " + newNo : ""}`);
   };
 

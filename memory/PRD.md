@@ -9,7 +9,22 @@
 - **Vendor Bank Details Not Fetching in Voucher**: `generateVoucher` in Reports.jsx was reading `vend.bankAccount` + `vend.ifsc`, but vendor master schema uses `accountNumber` + `ifscCode`. Fixed with fallback chain: `vend.accountNumber || vend.bankAccount` and `vend.ifscCode || vend.ifsc`. Missing-field warning updated too.
 - **Edit Button Not Working**: Rewrote Edit action — now re-fetches latest vendor bank details on click, allows re-opening Approved vouchers (SuperAdmin/Admin with confirm → calls `reopenPayment`), scrolls to Amount field and focuses it, enables for both existing PV and newly selectable bills.
 
-## Payment Voucher Prefix Scheme (Feb 2026 · Implemented)
+## Cross-Device Sync & GM Dashboard Overhaul (Feb 2026 · Critical)
+
+### Zombie Resurrection Fix (Data Integrity)
+- **Root cause**: Deleted payment vouchers were only filtered client-side. `/api/payments/bulk` is per-id upsert (no delete), so deleted records persisted in cloud and resurrected on every cross-device sync. Users reported "purana data wapas aa jata hai" after night deletes.
+- **Backend**: Added `DELETE /api/payments/{pvNo:path}` + `POST /api/payments/delete_bulk` (both `require_admin`). Supports slashes in pvNo (GPV/.../... format).
+- **Frontend `savePayments()` reconciliation**: Diffs previous vs new pvNo set, calls `apiDeletePaymentsBulk` for records that disappeared. Guarantees cloud removal on GPV→PN rename or any client-side filter.
+- **New helper `deletePaymentCloud(pvNo)`**: Explicit single-voucher delete with backend DELETE + local filter + cloud reconcile. Used by Reports.jsx and GM dashboard.
+- **New core deletes exported**: `deleteVendor`, `deleteBill`, `deleteExpense` in store.js (call corresponding backend DELETE endpoints).
+
+### GM Dashboard Overhaul
+- **Duplicate approvals fix**: Added `uniqById()` dedupe wrapper to all 11 collection reads in GM Dashboard. Prevents same approval showing multiple times from stale cross-device cache.
+- **Reject button on every row** (all 11 inbox sections, both Pending + Approved tabs): Prompts for reason → sends record back to Draft/status=1 with `rejectReason`, `rejectedByName`, `rejectedAt` fields. Fully cloud-synced.
+- **Delete button on every row** (all 11 sections, both tabs): Visible for all users (styled grey if role-locked), executes only for Admin/SuperAdmin per `canDelete()` gate. Calls cloud-reconciled delete so records never resurrect.
+- **New action handlers**: 11 reject + 10 delete functions wired in GeneralManager.jsx, 1 missing (leave delete) by design.
+
+### Payment Voucher Prefix Scheme (Feb 2026 · Implemented)
 - **GPV/{FY}/{XXXX}** → draft on "Generate Voucher" (Generate Register)
 - **PN/{FY}/{XXXX}** → auto-renamed on Approval (same serial retained; shown in Payments Register)
 - **PV/...** → legacy records untouched for backward compatibility

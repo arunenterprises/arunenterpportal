@@ -78,6 +78,10 @@ export const apiListWOs = () => req("/work_orders");
 
 export const apiPushPayments = (items) =>
   req("/payments/bulk", { method: "POST", body: JSON.stringify({ items }) });
+export const apiDeletePayment = (pvNo) =>
+  req(`/payments/${encodeURIComponent(pvNo).replace(/%2F/g, "/")}`, { method: "DELETE" });
+export const apiDeletePaymentsBulk = (pvNos) =>
+  req("/payments/delete_bulk", { method: "POST", body: JSON.stringify({ pvNos }) });
 
 // ---- HR: Employees & Attendance ----
 export const apiListEmployees = () => req("/employees");

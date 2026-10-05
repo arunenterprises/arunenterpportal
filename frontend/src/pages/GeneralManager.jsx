@@ -4,18 +4,21 @@ import { Toaster, toast } from "sonner";
 import {
   ArrowRight, CheckCircle2, RefreshCw, ClipboardList, Users, FileText,
   Wallet, Receipt, CreditCard, Clock, TrendingUp, LayoutDashboard, ShieldCheck,
-  UserCheck, Calendar, LogOut, Briefcase, Banknote,
+  UserCheck, Calendar, LogOut, Briefcase, Banknote, XCircle, Trash2,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import {
   getVendors, getBills, getPayments, getExpenses, getBOQs, getWOs,
   getEmployees, getLeaves, getExits, getRecruitments, getPayBills,
-  canApprove,
+  canApprove, canDelete,
   advanceVendorStep, advanceBillStep, advanceExpenseStep, advanceBOQStep, advanceWOStep,
   advanceEmployeeStep, approveLeave, finalizeExit, advanceExitStep, upsertRecruit, advancePayBillStep,
   reapproveVendor, reapproveBill, reapproveExpense, reapproveBOQ, reapproveVoucher, reapproveWO,
   reapproveEmployee,
-  savePayments,
+  savePayments, deletePaymentCloud,
+  upsertVendor, upsertBill, upsertExpense, upsertBOQ, upsertWO,
+  upsertEmployee, saveLeaves, deletePayBill, deleteAdvanceRequest, deleteExit, deleteRecruit,
+  deleteBOQ, deleteWO, deleteBill, deleteExpense, deleteVendor, deleteEmployee,
   currentUserProfile,
 } from "../lib/store";
 
@@ -120,8 +123,8 @@ const HeroHeader = ({ gmName, canDo, totalPending, totalApproved }) => (
   </div>
 );
 
-// Inbox section — colored title bar with count pill + table
-const InboxSection = ({ title, tone, icon: Icon, items, onApprove, onOpen, colLabels, rowRender, testid, actionLabel = "Approve", actionIcon = "check" }) => (
+// Inbox section — colored title bar with count pill + table (now with Reject + Delete)
+const InboxSection = ({ title, tone, icon: Icon, items, onApprove, onReject, onDelete, onOpen, colLabels, rowRender, testid, actionLabel = "Approve", actionIcon = "check", canDoDelete = false }) => (
   <div data-testid={testid} style={{
     background: "#fff", borderRadius: 12, overflow: "hidden",
     border: "1px solid #e2e8f0",
@@ -160,7 +163,7 @@ const InboxSection = ({ title, tone, icon: Icon, items, onApprove, onOpen, colLa
             {colLabels.map((c, i) => (
               <th key={i} style={{ padding: "9px 14px", textAlign: "left", fontWeight: 700, color: "#0f172a", borderBottom: "1px solid #e2e8f0", fontSize: 11, letterSpacing: .3, textTransform: "uppercase" }}>{c}</th>
             ))}
-            <th style={{ padding: "9px 14px", textAlign: "center", fontWeight: 700, color: "#0f172a", borderBottom: "1px solid #e2e8f0", width: 140, fontSize: 11, letterSpacing: .3, textTransform: "uppercase" }}>Action</th>
+            <th style={{ padding: "9px 14px", textAlign: "center", fontWeight: 700, color: "#0f172a", borderBottom: "1px solid #e2e8f0", width: 240, fontSize: 11, letterSpacing: .3, textTransform: "uppercase" }}>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -170,19 +173,55 @@ const InboxSection = ({ title, tone, icon: Icon, items, onApprove, onOpen, colLa
                 <td key={i} style={{ padding: "9px 14px", color: "#334155" }}>{cell}</td>
               ))}
               <td style={{ padding: "6px 8px", textAlign: "center" }}>
-                <button
-                  data-testid={`gm-${actionIcon}-${testid}-${it.id}`}
-                  onClick={() => onApprove(it)}
-                  style={{
-                    padding: "6px 14px", background: tone, color: "#fff",
-                    border: "none", borderRadius: 20, cursor: "pointer",
-                    fontSize: 10.5, fontWeight: 700,
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    boxShadow: `0 2px 6px ${tone}55`,
-                  }}
-                >
-                  {actionIcon === "check" ? <CheckCircle2 size={12} /> : <RefreshCw size={12} />} {actionLabel}
-                </button>
+                <div style={{ display: "inline-flex", gap: 4, flexWrap: "wrap", justifyContent: "center" }}>
+                  <button
+                    data-testid={`gm-${actionIcon}-${testid}-${it.id}`}
+                    onClick={() => onApprove(it)}
+                    title={actionLabel}
+                    style={{
+                      padding: "5px 10px", background: tone, color: "#fff",
+                      border: "none", borderRadius: 20, cursor: "pointer",
+                      fontSize: 10.5, fontWeight: 700,
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      boxShadow: `0 2px 6px ${tone}55`,
+                    }}
+                  >
+                    {actionIcon === "check" ? <CheckCircle2 size={12} /> : <RefreshCw size={12} />} {actionLabel}
+                  </button>
+                  {onReject && (
+                    <button
+                      data-testid={`gm-reject-${testid}-${it.id}`}
+                      onClick={() => onReject(it)}
+                      title="Reject · send back to Draft with reason"
+                      style={{
+                        padding: "5px 10px", background: "#f59e0b", color: "#fff",
+                        border: "none", borderRadius: 20, cursor: "pointer",
+                        fontSize: 10.5, fontWeight: 700,
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        boxShadow: "0 2px 6px rgba(245,158,11,.4)",
+                      }}
+                    >
+                      <XCircle size={12} /> Reject
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      data-testid={`gm-delete-${testid}-${it.id}`}
+                      onClick={() => onDelete(it)}
+                      title={canDoDelete ? "Delete permanently (cloud reconciled)" : "Only Admin / SuperAdmin can delete"}
+                      style={{
+                        padding: "5px 10px", background: canDoDelete ? "#dc2626" : "#94a3b8", color: "#fff",
+                        border: "none", borderRadius: 20, cursor: "pointer",
+                        fontSize: 10.5, fontWeight: 700,
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        boxShadow: canDoDelete ? "0 2px 6px rgba(220,38,38,.4)" : "none",
+                        opacity: canDoDelete ? 1 : 0.75,
+                      }}
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
@@ -222,18 +261,30 @@ export default function GeneralManager() {
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState("pending");
   const bump = () => setTick((t) => t + 1);
+  const delOk = canDelete();
 
-  const vendors = getVendors();
-  const bills = getBills();
-  const payments = getPayments();
-  const expenses = getExpenses();
-  const boqs = getBOQs();
-  const wos = getWOs();
-  const employees = getEmployees();
-  const leaves = getLeaves();
-  const exits = getExits();
-  const recruits = getRecruitments();
-  const payBills = getPayBills();
+  // ZOMBIE-DUPLICATE FIX: dedupe arrays by id (older cross-device sync could
+  // reintroduce stale copies after a GPV→PN rename or deleted record).
+  const uniqById = (arr) => {
+    const seen = new Set();
+    return (arr || []).filter((x) => {
+      const k = x?.id;
+      if (!k || seen.has(k)) return !k;
+      seen.add(k); return true;
+    });
+  };
+
+  const vendors = uniqById(getVendors());
+  const bills = uniqById(getBills());
+  const payments = uniqById(getPayments());
+  const expenses = uniqById(getExpenses());
+  const boqs = uniqById(getBOQs());
+  const wos = uniqById(getWOs());
+  const employees = uniqById(getEmployees());
+  const leaves = uniqById(getLeaves());
+  const exits = uniqById(getExits());
+  const recruits = uniqById(getRecruitments());
+  const payBills = uniqById(getPayBills());
 
   const stats = useMemo(() => {
     const vendorPending = vendors.filter((v) => v.step === 2);
@@ -330,30 +381,70 @@ export default function GeneralManager() {
     toast.success(`Pay Bill ${n.refNo} approved · Net ₹${Number(n.totalNet || 0).toLocaleString("en-IN")}`); bump();
   };
 
+  // ----- REJECT handlers (send back to Draft with reason, cloud-synced) -----
+  const askReason = (label) => {
+    const r = window.prompt(`Reject ${label} — reason:`);
+    return r == null ? null : (r.trim() || "Rejected by GM");
+  };
+  const rejectVendor = (v) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(v.firmName || v.tempRefId); if (r == null) return; upsertVendor({ ...v, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`Vendor rejected · reason: ${r}`); bump(); };
+  const rejectBill = (b) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(b.permanentBillNo || b.refNo); if (r == null) return; upsertBill({ ...b, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`Bill rejected · reason: ${r}`); bump(); };
+  const rejectVoucher = (p) => {
+    if (!canDo) return toast.error("Not permitted");
+    const r = askReason(p.pvNo); if (r == null) return;
+    const list = getPayments().map((x) => x.id === p.id ? { ...x, status: "Rejected", rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() } : x);
+    savePayments(list); toast.success(`Voucher ${p.pvNo} rejected · reason: ${r}`); bump();
+  };
+  const rejectExpense = (x) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(x.permanentExpenseNo || x.refNo); if (r == null) return; upsertExpense({ ...x, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`Expense rejected · reason: ${r}`); bump(); };
+  const rejectBOQ = (b) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(b.boqNo); if (r == null) return; upsertBOQ({ ...b, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`BOQ rejected · reason: ${r}`); bump(); };
+  const rejectWO = (w) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(w.woNo || w.boqRefNo); if (r == null) return; upsertWO({ ...w, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`Work Order rejected · reason: ${r}`); bump(); };
+  const rejectEmployee = (e) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(e.fullName); if (r == null) return; upsertEmployee({ ...e, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`Employee rejected · reason: ${r}`); bump(); };
+  const rejectLeave = (l) => {
+    if (!canDo) return toast.error("Not permitted");
+    const r = askReason(`${l.empName || l.empCode} leave`); if (r == null) return;
+    const list = getLeaves().map((x) => x.id === l.id ? { ...x, status: 4, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() } : x);
+    saveLeaves(list); toast.success(`Leave rejected · reason: ${r}`); bump();
+  };
+  const rejectExit = (x) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(x.empName || x.empCode); if (r == null) return; const list = getExits().map((y) => y.id === x.id ? { ...y, status: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() } : y); if (typeof window !== "undefined") { localStorage.setItem("ae_vm_exits", JSON.stringify(list)); } upsertRecruit; bump(); toast.success(`Exit rejected · reason: ${r}`); };
+  const rejectRecruit = (rc) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(rc.candidateName); if (r == null) return; upsertRecruit({ ...rc, status: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`Offer rejected · reason: ${r}`); bump(); };
+  const rejectPayBill = (pb) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(pb.refNo); if (r == null) return; const list = getPayBills().map((x) => x.id === pb.id ? { ...x, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() } : x); try { localStorage.setItem("ae_vm_paybills", JSON.stringify(list)); } catch {} bump(); toast.success(`Pay Bill rejected · reason: ${r}`); };
+
+  // ----- DELETE handlers (Admin / SuperAdmin only · cloud reconciled) -----
+  const confirmDel = (label) => window.confirm(`Delete ${label}?\n\nAction is permanent and will be reconciled across all devices.`);
+  const delVendor = (v) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(v.firmName || v.tempRefId)) return; deleteVendor(v.id); toast.success("Vendor deleted"); bump(); };
+  const delBill = (b) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(b.permanentBillNo || b.refNo)) return; deleteBill(b.id); toast.success("Bill deleted"); bump(); };
+  const delVoucher = (p) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(p.pvNo)) return; deletePaymentCloud(p.pvNo); toast.success("Voucher deleted · cloud synced"); bump(); };
+  const delExpense = (x) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(x.permanentExpenseNo || x.refNo)) return; deleteExpense(x.id); toast.success("Expense deleted"); bump(); };
+  const delBOQ = (b) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(b.boqNo)) return; deleteBOQ(b.id); toast.success("BOQ deleted"); bump(); };
+  const delWO = (w) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(w.woNo || w.boqRefNo)) return; deleteWO(w.id); toast.success("Work Order deleted"); bump(); };
+  const delEmployee = (e) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(e.fullName)) return; deleteEmployee(e.id); toast.success("Employee deleted"); bump(); };
+  const delExit = (x) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(x.empName || x.empCode)) return; deleteExit(x.id); toast.success("Exit record deleted"); bump(); };
+  const delRecruit = (r) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(r.candidateName)) return; deleteRecruit(r.id); toast.success("Recruitment deleted"); bump(); };
+  const delPayBill = (pb) => { if (!delOk) return toast.error("Only Admin / SuperAdmin can delete"); if (!confirmDel(pb.refNo)) return; deletePayBill(pb.id); toast.success("Pay Bill deleted"); bump(); };
+
   const pendingInbox = (
     <div data-testid="gm-inbox-pending">
       <DeptGroup index={1} title="Vendor Management" tone="#0369a1">
-        <InboxSection testid="inbox-vendors" title="Vendors pending" tone="#0369a1" icon={Users} items={stats.vendorPending} onOpen={() => nav("/vendor")} onApprove={approveVendor} colLabels={["Firm", "Contact", "PAN"]} rowRender={(v) => [v.firmName || v.tempRefId, v.contactPerson || "-", v.panNo || "-"]} />
+        <InboxSection testid="inbox-vendors" title="Vendors pending" tone="#0369a1" icon={Users} items={stats.vendorPending} onOpen={() => nav("/vendor")} onApprove={approveVendor} onReject={rejectVendor} onDelete={delVendor} canDoDelete={delOk} colLabels={["Firm", "Contact", "PAN"]} rowRender={(v) => [v.firmName || v.tempRefId, v.contactPerson || "-", v.panNo || "-"]} />
       </DeptGroup>
       <DeptGroup index={2} title="Purchase — BOQ & Work Orders" tone="#0ea5e9">
-        <InboxSection testid="inbox-boq" title="BOQ pending" tone="#0ea5e9" icon={ClipboardList} items={stats.boqsPending} onOpen={() => nav("/purchase")} onApprove={approveBOQ} colLabels={["BOQ No.", "Project", "Total"]} rowRender={(b) => [b.boqNo, b.projectSite, `₹ ${Number(b.total || 0).toLocaleString("en-IN")}`]} />
-        <InboxSection testid="inbox-wo" title="Work Orders pending" tone="#15803d" icon={FileText} items={stats.wosPending} onOpen={() => nav("/purchase")} onApprove={approveWO} colLabels={["Ref (BOQ)", "Vendor", "Total"]} rowRender={(w) => [w.boqRefNo || "—", w.vendorName || w.vendorCode || "—", `₹ ${Number(w.total || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-boq" title="BOQ pending" tone="#0ea5e9" icon={ClipboardList} items={stats.boqsPending} onOpen={() => nav("/purchase")} onApprove={approveBOQ} onReject={rejectBOQ} onDelete={delBOQ} canDoDelete={delOk} colLabels={["BOQ No.", "Project", "Total"]} rowRender={(b) => [b.boqNo, b.projectSite, `₹ ${Number(b.total || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-wo" title="Work Orders pending" tone="#15803d" icon={FileText} items={stats.wosPending} onOpen={() => nav("/purchase")} onApprove={approveWO} onReject={rejectWO} onDelete={delWO} canDoDelete={delOk} colLabels={["Ref (BOQ)", "Vendor", "Total"]} rowRender={(w) => [w.boqRefNo || "—", w.vendorName || w.vendorCode || "—", `₹ ${Number(w.total || 0).toLocaleString("en-IN")}`]} />
       </DeptGroup>
       <DeptGroup index={3} title="Accounts — Bills" tone="#16a34a">
-        <InboxSection testid="inbox-bills" title="Bills pending" tone="#16a34a" icon={Receipt} items={stats.billsPending} onOpen={() => nav("/bill")} onApprove={approveBill} colLabels={["Bill Ref", "Vendor", "Amount"]} rowRender={(b) => [b.refNo || b.permanentBillNo, b.vendorSnapshot?.firmName || b.vendorCode, `₹ ${Number(b.basicAmount || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-bills" title="Bills pending" tone="#16a34a" icon={Receipt} items={stats.billsPending} onOpen={() => nav("/bill")} onApprove={approveBill} onReject={rejectBill} onDelete={delBill} canDoDelete={delOk} colLabels={["Bill Ref", "Vendor", "Amount"]} rowRender={(b) => [b.refNo || b.permanentBillNo, b.vendorSnapshot?.firmName || b.vendorCode, `₹ ${Number(b.basicAmount || 0).toLocaleString("en-IN")}`]} />
       </DeptGroup>
       <DeptGroup index={4} title="Expenses" tone="#f59e0b">
-        <InboxSection testid="inbox-expenses" title="Expenses pending" tone="#f59e0b" icon={Wallet} items={stats.expensesPending} onOpen={() => nav("/expense")} onApprove={approveExpense} colLabels={["Ref No.", "Paid To", "Amount"]} rowRender={(x) => [x.refNo || x.permanentExpenseNo, x.paidToName || "-", `₹ ${Number(x.basicAmount || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-expenses" title="Expenses pending" tone="#f59e0b" icon={Wallet} items={stats.expensesPending} onOpen={() => nav("/expense")} onApprove={approveExpense} onReject={rejectExpense} onDelete={delExpense} canDoDelete={delOk} colLabels={["Ref No.", "Paid To", "Amount"]} rowRender={(x) => [x.refNo || x.permanentExpenseNo, x.paidToName || "-", `₹ ${Number(x.basicAmount || 0).toLocaleString("en-IN")}`]} />
       </DeptGroup>
       <DeptGroup index={5} title="Payment Vouchers" tone="#7c3aed">
-        <InboxSection testid="inbox-vouchers" title="Payment Vouchers pending" tone="#7c3aed" icon={CreditCard} items={stats.vouchersPending} onOpen={() => nav("/final")} onApprove={approveVoucher} colLabels={["PV No.", "Vendor", "Amount"]} rowRender={(p) => [p.pvNo, p.vendorSnapshot?.firmName || p.vendorCode, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-vouchers" title="Payment Vouchers pending" tone="#7c3aed" icon={CreditCard} items={stats.vouchersPending} onOpen={() => nav("/final")} onApprove={approveVoucher} onReject={rejectVoucher} onDelete={delVoucher} canDoDelete={delOk} colLabels={["PV No.", "Vendor", "Amount"]} rowRender={(p) => [p.pvNo, p.vendorSnapshot?.firmName || p.vendorCode, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`]} />
       </DeptGroup>
       <DeptGroup index={6} title="HR Management — Employees, Leaves, Recruitment, Exit" tone="#c026d3">
-        <InboxSection testid="inbox-emps" title="Employees pending Final Approval" tone="#c026d3" icon={UserCheck} items={stats.empsPending} onOpen={() => nav("/hr")} onApprove={approveEmployee} colLabels={["Temp Code", "Name", "Applied Post"]} rowRender={(e) => [e.tempCode || "—", e.fullName || "—", e.appliedPost || e.designation || "—"]} />
-        <InboxSection testid="inbox-leaves" title="Leave Applications pending" tone="#f59e0b" icon={Calendar} items={stats.leavesPending} onOpen={() => nav("/hr")} onApprove={approveLeaveGM} colLabels={["Employee", "Type", "Days (From → To)"]} rowRender={(l) => [l.empName || l.empCode || "—", l.type || "—", `${l.days || 0} days · ${l.from || "—"} → ${l.to || "—"}`]} />
-        <InboxSection testid="inbox-recruits" title="Recruitment Offers pending release" tone="#16a34a" icon={Briefcase} items={stats.recruitsPending} onOpen={() => nav("/hr")} onApprove={approveRecruitGM} colLabels={["Candidate", "Position", "Offer CTC"]} rowRender={(r) => [r.candidateName || "—", `${r.position || "—"} · ${r.department || "—"}`, `₹ ${Number(r.offerCTC || 0).toLocaleString("en-IN")}`]} />
-        <InboxSection testid="inbox-exits" title="Exit & F&F pending GM approval" tone="#991b1b" icon={LogOut} items={stats.exitsPending} onOpen={() => nav("/hr")} onApprove={approveExitGM} colLabels={["Employee", "LWD", "Net F&F"]} rowRender={(x) => [x.empName || x.empCode || "—", x.lastWorkingDay || "—", `₹ ${Number(x.fnfNet || 0).toLocaleString("en-IN")}`]} />
-        <InboxSection testid="inbox-paybills" title="Monthly Pay Bills pending approval" tone="#be185d" icon={Receipt} items={stats.payBillsPending} onOpen={() => nav("/hr")} onApprove={approvePayBillGM} colLabels={["Ref No.", "Period", "Employees · Net"]} rowRender={(p) => [p.refNo || "—", `${new Date(p.year, p.month - 1).toLocaleString("en", { month: "short" })} ${p.year}`, `${p.lines?.length || 0} emps · ₹${Number(p.totalNet || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-emps" title="Employees pending Final Approval" tone="#c026d3" icon={UserCheck} items={stats.empsPending} onOpen={() => nav("/hr")} onApprove={approveEmployee} onReject={rejectEmployee} onDelete={delEmployee} canDoDelete={delOk} colLabels={["Temp Code", "Name", "Applied Post"]} rowRender={(e) => [e.tempCode || "—", e.fullName || "—", e.appliedPost || e.designation || "—"]} />
+        <InboxSection testid="inbox-leaves" title="Leave Applications pending" tone="#f59e0b" icon={Calendar} items={stats.leavesPending} onOpen={() => nav("/hr")} onApprove={approveLeaveGM} onReject={rejectLeave} canDoDelete={false} colLabels={["Employee", "Type", "Days (From → To)"]} rowRender={(l) => [l.empName || l.empCode || "—", l.type || "—", `${l.days || 0} days · ${l.from || "—"} → ${l.to || "—"}`]} />
+        <InboxSection testid="inbox-recruits" title="Recruitment Offers pending release" tone="#16a34a" icon={Briefcase} items={stats.recruitsPending} onOpen={() => nav("/hr")} onApprove={approveRecruitGM} onReject={rejectRecruit} onDelete={delRecruit} canDoDelete={delOk} colLabels={["Candidate", "Position", "Offer CTC"]} rowRender={(r) => [r.candidateName || "—", `${r.position || "—"} · ${r.department || "—"}`, `₹ ${Number(r.offerCTC || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-exits" title="Exit & F&F pending GM approval" tone="#991b1b" icon={LogOut} items={stats.exitsPending} onOpen={() => nav("/hr")} onApprove={approveExitGM} onReject={rejectExit} onDelete={delExit} canDoDelete={delOk} colLabels={["Employee", "LWD", "Net F&F"]} rowRender={(x) => [x.empName || x.empCode || "—", x.lastWorkingDay || "—", `₹ ${Number(x.fnfNet || 0).toLocaleString("en-IN")}`]} />
+        <InboxSection testid="inbox-paybills" title="Monthly Pay Bills pending approval" tone="#be185d" icon={Receipt} items={stats.payBillsPending} onOpen={() => nav("/hr")} onApprove={approvePayBillGM} onReject={rejectPayBill} onDelete={delPayBill} canDoDelete={delOk} colLabels={["Ref No.", "Period", "Employees · Net"]} rowRender={(p) => [p.refNo || "—", `${new Date(p.year, p.month - 1).toLocaleString("en", { month: "short" })} ${p.year}`, `${p.lines?.length || 0} emps · ₹${Number(p.totalNet || 0).toLocaleString("en-IN")}`]} />
       </DeptGroup>
     </div>
   );
@@ -361,20 +452,20 @@ export default function GeneralManager() {
   const approvedInbox = (
     <div data-testid="gm-inbox-approved">
       <DeptGroup index={1} title="Vendor Management" tone="#0369a1">
-        <InboxSection testid="reap-vendors" title="Vendors approved" tone="#0369a1" icon={Users} items={stats.vendorApproved} onOpen={() => nav("/vendor")} onApprove={doReapproveVendor} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Vendor Code", "Firm", "Approved By"]} rowRender={(v) => [v.vendorCode, v.firmName, v.approvedByName || "-"]} />
+        <InboxSection testid="reap-vendors" title="Vendors approved" tone="#0369a1" icon={Users} items={stats.vendorApproved} onOpen={() => nav("/vendor")} onApprove={doReapproveVendor} onReject={rejectVendor} onDelete={delVendor} canDoDelete={delOk} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Vendor Code", "Firm", "Approved By"]} rowRender={(v) => [v.vendorCode, v.firmName, v.approvedByName || "-"]} />
       </DeptGroup>
       <DeptGroup index={2} title="Purchase — BOQ & Work Orders" tone="#0ea5e9">
-        <InboxSection testid="reap-boq" title="BOQ approved" tone="#0ea5e9" icon={ClipboardList} items={stats.boqsApproved} onOpen={() => nav("/purchase")} onApprove={doReapproveBOQ} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["BOQ No.", "Approved By", "Date"]} rowRender={(b) => [b.boqNo, b.approvedByName || "-", b.approvalDate || "-"]} />
-        <InboxSection testid="reap-wo" title="Work Orders approved" tone="#15803d" icon={FileText} items={stats.wosApproved} onOpen={() => nav("/purchase")} onApprove={doReapproveWO} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["WO No.", "Vendor", "Approved By"]} rowRender={(w) => [w.woNo || "—", w.vendorName || w.vendorCode || "—", w.approvedByName || "-"]} />
+        <InboxSection testid="reap-boq" title="BOQ approved" tone="#0ea5e9" icon={ClipboardList} items={stats.boqsApproved} onOpen={() => nav("/purchase")} onApprove={doReapproveBOQ} onReject={rejectBOQ} onDelete={delBOQ} canDoDelete={delOk} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["BOQ No.", "Approved By", "Date"]} rowRender={(b) => [b.boqNo, b.approvedByName || "-", b.approvalDate || "-"]} />
+        <InboxSection testid="reap-wo" title="Work Orders approved" tone="#15803d" icon={FileText} items={stats.wosApproved} onOpen={() => nav("/purchase")} onApprove={doReapproveWO} onReject={rejectWO} onDelete={delWO} canDoDelete={delOk} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["WO No.", "Vendor", "Approved By"]} rowRender={(w) => [w.woNo || "—", w.vendorName || w.vendorCode || "—", w.approvedByName || "-"]} />
       </DeptGroup>
       <DeptGroup index={3} title="Accounts — Bills" tone="#16a34a">
-        <InboxSection testid="reap-bills" title="Bills approved" tone="#16a34a" icon={Receipt} items={stats.billsApproved} onOpen={() => nav("/bill")} onApprove={doReapproveBill} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Bill No.", "Vendor", "Approved By"]} rowRender={(b) => [b.permanentBillNo || b.refNo, b.vendorSnapshot?.firmName || b.vendorCode, b.approverName || "-"]} />
+        <InboxSection testid="reap-bills" title="Bills approved" tone="#16a34a" icon={Receipt} items={stats.billsApproved} onOpen={() => nav("/bill")} onApprove={doReapproveBill} onReject={rejectBill} onDelete={delBill} canDoDelete={delOk} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Bill No.", "Vendor", "Approved By"]} rowRender={(b) => [b.permanentBillNo || b.refNo, b.vendorSnapshot?.firmName || b.vendorCode, b.approverName || "-"]} />
       </DeptGroup>
       <DeptGroup index={4} title="Expenses" tone="#f59e0b">
-        <InboxSection testid="reap-expenses" title="Expenses approved" tone="#f59e0b" icon={Wallet} items={stats.expensesApproved} onOpen={() => nav("/expense")} onApprove={doReapproveExpense} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Ref No.", "Paid To", "Approved By"]} rowRender={(x) => [x.permanentExpenseNo || x.refNo, x.paidToName || "-", x.approvedByName || "-"]} />
+        <InboxSection testid="reap-expenses" title="Expenses approved" tone="#f59e0b" icon={Wallet} items={stats.expensesApproved} onOpen={() => nav("/expense")} onApprove={doReapproveExpense} onReject={rejectExpense} onDelete={delExpense} canDoDelete={delOk} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["Ref No.", "Paid To", "Approved By"]} rowRender={(x) => [x.permanentExpenseNo || x.refNo, x.paidToName || "-", x.approvedByName || "-"]} />
       </DeptGroup>
       <DeptGroup index={5} title="Payment Vouchers" tone="#7c3aed">
-        <InboxSection testid="reap-vouchers" title="Payment Vouchers approved" tone="#7c3aed" icon={CreditCard} items={stats.vouchersApproved} onOpen={() => nav("/final")} onApprove={doReapproveVoucher} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["PV No.", "Amount", "Approved By"]} rowRender={(p) => [p.pvNo, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`, p.approvedByName || "-"]} />
+        <InboxSection testid="reap-vouchers" title="Payment Vouchers approved" tone="#7c3aed" icon={CreditCard} items={stats.vouchersApproved} onOpen={() => nav("/final")} onApprove={doReapproveVoucher} onReject={rejectVoucher} onDelete={delVoucher} canDoDelete={delOk} actionLabel="Re-Approve" actionIcon="refresh" colLabels={["PV No.", "Amount", "Approved By"]} rowRender={(p) => [p.pvNo, `₹ ${Number(p.amount || 0).toLocaleString("en-IN")}`, p.approvedByName || "-"]} />
       </DeptGroup>
     </div>
   );

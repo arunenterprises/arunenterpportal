@@ -429,6 +429,26 @@ async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_
     return {"count": count}
 
 
+@api_router.delete("/payments/{pvNo:path}")
+async def delete_payment(pvNo: str, admin: Dict = Depends(require_admin)):
+    """DELETE a payment voucher by pvNo. Admin / SuperAdmin only.
+    Prevents the 'zombie resurrection' bug where deleted vouchers were only
+    removed client-side and resurfaced on next cross-device cloud sync."""
+    # pvNo contains slashes (e.g. GPV/2627/0001) so use :path converter.
+    r = await db.payments.delete_many({"pvNo": pvNo})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
+@api_router.post("/payments/delete_bulk")
+async def delete_payments_bulk(body: Dict = Body(...), admin: Dict = Depends(require_admin)):
+    """Bulk DELETE payment vouchers by pvNo list. Used for GPV→PN rename cleanup."""
+    pv_nos = body.get("pvNos") or []
+    if not pv_nos:
+        return {"ok": True, "deleted": 0}
+    r = await db.payments.delete_many({"pvNo": {"$in": pv_nos}})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
 # ==================== COUNTERS ====================
 @api_router.get("/counters")
 async def get_counters(user: Dict = Depends(get_current_user)):

@@ -1,5 +1,5 @@
 import {
-  apiUpsertVendor, apiUpsertBill, apiDeleteBill, apiUpsertExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments,
+  apiUpsertVendor, apiDeleteVendor, apiUpsertBill, apiDeleteBill, apiUpsertExpense, apiDeleteExpense, apiUpsertBOQ, apiUpsertWO, apiPushPayments, apiDeletePayment, apiDeletePaymentsBulk,
   apiDeleteBOQ, apiDeleteWO,
   apiUpsertEmployee, apiDeleteEmployee, apiUpsertAttendance,
   apiUpsertPayBill, apiDeletePayBill, apiUpsertLoan, apiDeleteLoan,
@@ -748,8 +748,30 @@ export const advanceBillStep = (b) => {
 // ---- Payment vouchers ----
 export const getPayments = () => read(KEYS.PAYMENTS, []);
 export const savePayments = (list) => {
+  // ZOMBIE RESURRECTION FIX — reconcile deletes before upserting:
+  // compare old vs new pvNo set and send DELETE for records that disappeared.
+  // Without this, a client-side delete / GPV→PN rename only upserted survivors;
+  // the obsolete record remained in the cloud and reappeared on next sync.
+  try {
+    const prev = read(KEYS.PAYMENTS, []);
+    const nextIds = new Set(list.map((x) => x.pvNo).filter(Boolean));
+    const removed = prev.map((x) => x.pvNo).filter((p) => p && !nextIds.has(p));
+    if (removed.length && getToken()) {
+      apiDeletePaymentsBulk(removed).catch(() => {});
+    }
+  } catch (_e) { /* non-fatal */ }
   write(KEYS.PAYMENTS, list);
   if (getToken()) apiPushPayments(list).catch(() => {});
+};
+
+// Explicit single-voucher delete with cloud reconciliation.
+// Prefer this over `savePayments(filtered)` for deletes — guarantees backend removal.
+export const deletePaymentCloud = (pvNo) => {
+  const list = read(KEYS.PAYMENTS, []).filter((x) => x.pvNo !== pvNo);
+  write(KEYS.PAYMENTS, list);
+  if (getToken()) apiDeletePayment(pvNo).catch(() => {});
+  if (getToken()) apiPushPayments(list).catch(() => {});
+  return list;
 };
 
 // GPV = Generated Payment Voucher (draft prefix shown in Section D "Generate Register").
@@ -1525,6 +1547,22 @@ export const advancePayBillStep = (pb) => {
 };
 
 export const deletePayBill = (id) => { savePayBills(getPayBills().filter((x) => x.id !== id)); if (getToken()) apiDeletePayBill(id).catch(() => {}); };
+
+// --- Core entity cloud-reconciled deletes (vendor / bill / expense) ---
+// Added for GM Dashboard delete buttons · ensures backend DELETE is called so
+// the record doesn't resurrect on next cross-device cloud sync.
+export const deleteVendor = (id) => {
+  write(KEYS.VENDORS, getVendors().filter((v) => v.id !== id));
+  if (getToken()) apiDeleteVendor(id).catch(() => {});
+};
+export const deleteBill = (id) => {
+  write(KEYS.BILLS, getBills().filter((b) => b.id !== id));
+  if (getToken()) apiDeleteBill(id).catch(() => {});
+};
+export const deleteExpense = (id) => {
+  write(KEYS.EXPENSES, getExpenses().filter((e) => e.id !== id));
+  if (getToken()) apiDeleteExpense(id).catch(() => {});
+};
 
 // --- Advance Register (per-employee aggregated across all pay bills + paid on-demand advance requests) ---
 export const getAdvanceRegister = () => {
