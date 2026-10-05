@@ -38,6 +38,10 @@
 - **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
+## Attendance Widget Relocated (Feb 2026)
+- Removed `AttendancePunchWidget` component + its render + imports (`Clock`, `CheckCircle2`, `toast`, `apiAttendancePunch`, `apiAttendanceToday`) from `Home.jsx`.
+- Added new `AttendancePunchBar` component inside `HRManagement.jsx` → appears at the top of HR → Attendance tab only. Same functionality (window 09:10-09:30 IST, one-per-day, color-coded status).
+
 ## Three Critical Updates (Feb 2026 · Preview Ready · NOT Published)
 
 ### 1. Project Management hidden from Home

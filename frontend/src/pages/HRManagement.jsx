@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import {
   UserPlus, Users2, Calendar, IndianRupee, FileText, LogOut,
-  UserCheck, Sparkles, Construction, Trash2, Save, Send, CheckCircle2, RefreshCw, Printer, Download,
+  UserCheck, Sparkles, Construction, Trash2, Save, Send, CheckCircle2, RefreshCw, Printer, Download, Clock,
   ArrowRight, Cake, Trophy, PartyPopper, Briefcase, Landmark, X, Receipt, Plus, Edit3, Wallet, ShieldCheck,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
@@ -27,6 +27,7 @@ import {
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, exportPayBillPDF, printAdvanceReceipt } from "../lib/hrLetters";
 import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTransfer";
+import { apiAttendancePunch, apiAttendanceToday } from "../lib/api";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
@@ -570,6 +571,49 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
   );
 };
 
+// -------------- Attendance Punch Widget (daily self-punch · window 09:10-09:30 IST) --------------
+const AttendancePunchBar = () => {
+  const [state, setState] = useState({ loading: true, myPunch: null, totalToday: 0, inWindow: false, nowIst: "" });
+  const [busy, setBusy] = useState(false);
+  const refresh = async () => {
+    try {
+      const r = await apiAttendanceToday();
+      const nowUtc = new Date();
+      const nowIst = new Date(nowUtc.getTime() + (5 * 60 + 30) * 60 * 1000);
+      const mod = nowIst.getUTCHours() * 60 + nowIst.getUTCMinutes();
+      const inWindow = mod >= 9 * 60 + 10 && mod <= 9 * 60 + 30;
+      setState({ loading: false, myPunch: r.my_punch, totalToday: (r.all || []).length, inWindow, nowIst: `${String(nowIst.getUTCHours()).padStart(2, "0")}:${String(nowIst.getUTCMinutes()).padStart(2, "0")}` });
+    } catch { setState((s) => ({ ...s, loading: false })); }
+  };
+  useEffect(() => { refresh(); const t = setInterval(refresh, 30000); return () => clearInterval(t); }, []);
+  const punch = async () => {
+    setBusy(true);
+    try { const r = await apiAttendancePunch(); toast.success(`Punched at ${r.punch?.punch_time_ist} IST ✓`); await refresh(); }
+    catch (ex) { toast.error(ex.message || "Punch failed"); }
+    finally { setBusy(false); }
+  };
+  const punched = !!state.myPunch;
+  const bgGrad = punched ? "linear-gradient(135deg,#15803d,#166534)" : state.inWindow ? "linear-gradient(135deg,#f59e0b,#d97706)" : "linear-gradient(135deg,#334155,#1e293b)";
+  return (
+    <div data-testid="hr-attendance-punch" style={{ background: bgGrad, color: "#fff", borderRadius: 8, padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, boxShadow: "0 3px 10px rgba(15,23,42,.2)", marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Clock size={24} />
+        <div>
+          <div style={{ fontSize: 9, letterSpacing: 2, fontWeight: 800, textTransform: "uppercase", opacity: 0.85 }}>My Daily Punch</div>
+          <div style={{ fontSize: 14, fontWeight: 900 }}>{punched ? `✓ Punched at ${state.myPunch.punch_time_ist} IST` : state.inWindow ? "Punch window OPEN · 09:10 – 09:30 IST" : "Punch window: 09:10 – 09:30 IST"}</div>
+          <div style={{ fontSize: 10.5, opacity: 0.85 }}>Current IST: <b>{state.nowIst}</b> · Today's punches: <b>{state.totalToday}</b></div>
+        </div>
+      </div>
+      {!punched && (
+        <button data-testid="hr-attendance-punch-btn" onClick={punch} disabled={busy || !state.inWindow} style={{ padding: "9px 20px", background: state.inWindow ? "#fff" : "rgba(255,255,255,.2)", color: state.inWindow ? "#d97706" : "#fff", border: state.inWindow ? "none" : "1px solid rgba(255,255,255,.4)", borderRadius: 6, cursor: state.inWindow && !busy ? "pointer" : "not-allowed", fontWeight: 900, fontSize: 13, letterSpacing: 0.5, textTransform: "uppercase", boxShadow: state.inWindow ? "0 2px 8px rgba(0,0,0,.3)" : "none" }}>
+          {busy ? "Punching..." : state.inWindow ? "👉 Punch In Now" : "⏳ Window Closed"}
+        </button>
+      )}
+      {punched && <CheckCircle2 size={26} />}
+    </div>
+  );
+};
+
 // -------------- Attendance grid --------------
 const AttendanceGrid = () => {
   const [emps] = useState(() => getEmployees().filter((e) => Number(e.step) === 5));
@@ -605,6 +649,7 @@ const AttendanceGrid = () => {
 
   return (
     <div style={{ padding: 14 }}>
+      <AttendancePunchBar />
       <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Month:</label>
         <select value={month} onChange={(e) => setMonth(+e.target.value)} style={{ padding: 5 }}>
