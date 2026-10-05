@@ -38,6 +38,11 @@
 - **Vendor Voucher duplicate**: `generateVoucher` in Reports.jsx already blocks on `billId` match + fallback `vendorCode + billNo`. Error message now: "Duplicate · voucher REF already exists for this bill. Open existing voucher instead."
 - **PayBill duplicate**: Already idempotent via `monthKey` check in `createPayBillDraft` (store.js line 1395) — if approved paybill exists for month+year, returns existing unchanged.
 
+## Role Change Permission (Feb 2026 · Implemented)
+- **Backend**: Added `PATCH /api/users/{email}/role` endpoint (`require_super_admin`). Accepts `{role: "User|Admin|Accounts|GM|HR|Viewer"}`. Resets permissions to new role defaults. Primary ADMIN_EMAIL locked.
+- **Frontend `api.js`**: Exported `apiUpdateUserRole(email, role)`.
+- **UsersAdmin.jsx**: Replaced static role pill with inline `<select>` dropdown (SuperAdmin only) for non-primary users. Confirms + calls API + reloads list on change. Non-SuperAdmin viewers still see the static pill.
+
 ## HRManagement UI Polish (Feb 2026)
 - Advance Request section action toolbar moved from top header to bottom with navy gradient background + prominent gradient-colored buttons (New / Save / Edit / Submit to Accounts / Adjust in Pay Bill / Accounts Approve / Reject / Delete).
 - Inner form action bar (duplicated buttons under form card) removed entirely — all actions now consolidated in the single bottom bar. Approved status pill + Reject reason inline input retained.

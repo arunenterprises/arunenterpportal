@@ -339,6 +339,30 @@ async def update_user_permissions(email: str, body: PermsBody, admin: Dict = Dep
     return {"ok": True, "email": email, "permissions": current}
 
 
+class RoleBody(BaseModel):
+    role: str
+
+
+@api_router.patch("/users/{email}/role")
+async def update_user_role(email: str, body: RoleBody, admin: Dict = Depends(require_super_admin)):
+    """Change a user's role. SuperAdmin only. Primary ADMIN_EMAIL role is locked."""
+    email = email.lower().strip()
+    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    if email == primary:
+        raise HTTPException(status_code=400, detail="Primary SuperAdmin role is locked")
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer"]
+    new_role = (body.role or "").strip()
+    if new_role not in allowed_roles:
+        raise HTTPException(status_code=400, detail=f"Role must be one of {allowed_roles}")
+    target = await db.users.find_one({"email": email})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Reset perms to role defaults when role changes so stale per-user overrides don't persist
+    new_perms = _role_default_perms(new_role)
+    await db.users.update_one({"email": email}, {"$set": {"role": new_role, "permissions": new_perms}})
+    return {"ok": True, "email": email, "role": new_role, "permissions": new_perms}
+
+
 @api_router.get("/auth/me")
 async def me(user: Dict = Depends(get_current_user)):
     return user

@@ -131,6 +131,8 @@ export const apiChangeMyPassword = (old_password, new_password) =>
   req("/users/change-password", { method: "POST", body: JSON.stringify({ old_password, new_password }) });
 export const apiUpdateUserPermissions = (email, permissions) =>
   req(`/users/${encodeURIComponent(email)}/permissions`, { method: "PATCH", body: JSON.stringify(permissions) });
+export const apiUpdateUserRole = (email, role) =>
+  req(`/users/${encodeURIComponent(email)}/role`, { method: "PATCH", body: JSON.stringify({ role }) });
 
 export const apiGetCounters = () => req("/counters");
 export const apiSetCounters = (c) =>

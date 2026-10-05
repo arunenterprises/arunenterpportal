@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 import AuthSplash from "../components/AuthSplash";
 
@@ -428,6 +428,27 @@ export default function UsersAdmin() {
                       >
                         SUPERADMIN
                       </span>
+                    ) : isSuperAdmin(me?.user) ? (
+                      <select
+                        data-testid={`user-role-${u.email}`}
+                        value={u.role || "User"}
+                        onChange={async (e) => {
+                          const newRole = e.target.value;
+                          if (newRole === (u.role || "User")) return;
+                          if (!window.confirm(`Change role for ${u.name} (${u.email}) from ${(u.role || "User")} → ${newRole}?\n\nNote: Permissions will be reset to the new role's defaults.`)) return;
+                          try {
+                            await apiUpdateUserRole(u.email, newRole);
+                            toast.success(`${u.name} is now ${newRole}`);
+                            await load();
+                          } catch (ex) { toast.error(ex.message); }
+                        }}
+                        style={{ padding: "3px 8px", fontSize: 10.5, fontWeight: 700, borderRadius: 999, background: u.role === "Admin" ? "#dbeafe" : "#e2e8f0", color: u.role === "Admin" ? "#1e40af" : "#334155", border: "1px solid #cbd5e1", cursor: "pointer", textTransform: "uppercase" }}
+                        title="Change user role · SuperAdmin only"
+                      >
+                        {["User", "Admin", "Accounts", "GM", "HR", "Viewer"].map((r) => (
+                          <option key={r} value={r}>{r.toUpperCase()}</option>
+                        ))}
+                      </select>
                     ) : (
                       <span
                         data-testid={`user-role-${u.email}`}
