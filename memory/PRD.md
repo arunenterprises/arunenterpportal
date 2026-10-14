@@ -7,6 +7,15 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 3 — Reports Hub Full Biodata Print)
+- **Reports Hub Print A4/PDF upgraded** with 4 print modes:
+  1. **Summary + Full Biodata** (default) — Page 1 summary table (landscape), then one A4 portrait page per record with letterhead + all fields + line-items table + signatures.
+  2. **Summary Only** — classic landscape register.
+  3. **Full Biodata (1 per page)** — portrait, one record = one A4, with company letterhead on every page.
+  4. **Compact (2 per page)** — portrait, 2 records per A4 with mini-biodata cards.
+- Universal biodata builder dynamically introspects any record: pretty-labels camelCase keys, auto-detects amount/date fields, renders nested line-items (bills items, boq items, wo items, pay bill lines, fooding lines) as a bordered table with running totals.
+- Print mode selector added next to Print/PDF/Excel buttons (`data-testid="rh-print-mode"`).
+
 ## Feb-2026 Session Changes (round 2)
 1. ✅ **Reports Hub** (`/reports-hub`) · 12 department tabs + Weekly Fooding · FY/Month/Date filters · Print/PDF/Excel.
 2. ✅ **Financial Year** card in `/users` admin page · SuperAdmin/Admin only · cloud synced.

@@ -279,6 +279,159 @@ const getCellValue = (row, col, cfg) => {
   return row[col.key] ?? "";
 };
 
+// Universal helpers for biodata rendering
+const prettifyKey = (k) => k
+  .replace(/([A-Z])/g, " $1")
+  .replace(/[_-]/g, " ")
+  .replace(/^./, (s) => s.toUpperCase())
+  .replace(/\bNo\b/, "No.")
+  .replace(/\bId\b/, "ID")
+  .replace(/\bGst\b/, "GST")
+  .replace(/\bPan\b/, "PAN")
+  .replace(/\bPv\b/, "PV")
+  .replace(/\bWo\b/, "WO")
+  .replace(/\bBoq\b/, "BOQ")
+  .replace(/\bHr\b/, "HR")
+  .replace(/\bUtr\b/, "UTR")
+  .replace(/\bEmp\b/, "Emp")
+  .replace(/\bFy\b/, "FY")
+  .replace(/\bFnf\b/, "F&F")
+  .replace(/\bIfsc\b/, "IFSC")
+  .replace(/\bDoj\b/, "DOJ")
+  .replace(/\bDob\b/, "DOB")
+  .replace(/\bLwd\b/, "LWD")
+  .replace(/\bEmi\b/, "EMI")
+  .replace(/\bPf\b/, "PF")
+  .replace(/\bEsi\b/, "ESI")
+  .trim();
+
+const isAmountKey = (k) => /amount|total|gross|net|basic|subtotal|amt|gstAmt|tds|cgst|sgst|igst|deduction|advance|balance|emi|salary|wage|fnf|rate|cost|price|hra|allowance|bonus|overtime|penalty/i.test(k);
+const isSkipKey = (k) => /^(id|_id|__v|password|photo|signature|logo|avatar|attachment|docs)$/i.test(k) || k.startsWith("_");
+const isLineKey = (v) => Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null;
+const formatValue = (k, v) => {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (isAmountKey(k) && (typeof v === "number" || !isNaN(Number(v)))) return "₹ " + inrN(v);
+  return String(v);
+};
+
+// Letterhead + title band (shared across summary + biodata pages)
+const buildLetterhead = (co, logo, refNo, nowStr, cfg, selFlag = "") => `
+  <div class="lh">
+    <div class="lh-logo"><img src="${logo}" onerror="this.style.display='none'" alt="logo" /></div>
+    <div class="lh-center">
+      <div class="lh-name">${co.name}</div>
+      ${co.tagline ? `<div class="lh-tag">${co.tagline}</div>` : ""}
+      ${co.pillLine ? `<div class="lh-pill">${co.pillLine}</div>` : ""}
+      ${co.address ? `<div class="lh-addr">${co.address}</div>` : ""}
+      <div class="lh-contact">
+        ${co.tollFree ? `<b>Phone:</b> ${co.tollFree} &nbsp;` : ""}
+        ${co.email ? `&nbsp;•&nbsp; <b>Email:</b> ${co.email} &nbsp;` : ""}
+        ${co.website ? `&nbsp;•&nbsp; <b>Web:</b> ${co.website}` : ""}
+        ${(co.gst || co.pan) ? `<br><b>GST:</b> ${co.gst || "—"} &nbsp;•&nbsp; <b>PAN:</b> ${co.pan || "—"}${co.cin ? ` &nbsp;•&nbsp; <b>CIN:</b> ${co.cin}` : ""}` : ""}
+      </div>
+    </div>
+    <div class="lh-right">
+      <div style="font-weight:800;color:#0f172a;font-size:9.5px;letter-spacing:.4px;text-transform:uppercase">Ref No.</div>
+      <div style="font-family:monospace;font-weight:800;color:#0f172a;font-size:10px;margin-top:2px;word-break:break-all">${refNo}</div>
+      <div style="margin-top:6px;color:#64748b;font-size:9px">${new Date().toLocaleDateString("en-IN")}</div>
+    </div>
+  </div>
+  <div class="red-rule"></div>
+  <div class="title-bar">
+    <h2>${cfg.icon} ${cfg.title}${selFlag}</h2>
+    <div class="meta">Generated: ${nowStr}</div>
+  </div>
+`;
+
+const buildSignaturePanel = () => `
+  <div class="sigs">
+    <div class="sig-box"><div class="role">Prepared By</div><div class="name">Name &amp; Signature</div></div>
+    <div class="sig-box"><div class="role">Checked By</div><div class="name">Accounts Manager</div></div>
+    <div class="sig-box"><div class="role">Approved By</div><div class="name">General Manager</div></div>
+    <div class="sig-box"><div class="role">Director</div><div class="name">Ashish Srivastava</div></div>
+  </div>
+`;
+
+// Compact card (2-per-page biodata)
+const buildCompactCard = (row, idx, total, cfg) => {
+  const refNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `#${idx + 1}`;
+  const statusLabel = cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "";
+  const fieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
+  const cells = fieldEntries.map(([k, v]) => {
+    const isAmt = isAmountKey(k) && (typeof v === "number" || !isNaN(Number(v)));
+    const val = formatValue(k, v);
+    return `<div class="cc-f"><div class="cc-l">${prettifyKey(k)}</div><div class="cc-v${isAmt ? " amt" : ""}">${val}</div></div>`;
+  }).join("");
+  return `<div class="compact-card">
+    <div class="cc-head"><b>${refNo}</b><span>${idx + 1} / ${total} · ${statusLabel}</span></div>
+    <div class="cc-grid">${cells}</div>
+  </div>`;
+};
+
+// Build the per-record biodata card HTML (letterhead + title + fields + line items + signatures)
+const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = true) => {
+  const bioRefNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `${cfg.id.toUpperCase()}-${idx+1}`;
+  // Filter fields: skip internal, skip object/line-items (will render separately)
+  const fieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
+  // Status derived label as first chip
+  const statusLabel = cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "";
+  // Partition: amount/date/status fields come first (header strip), rest in grid
+  const headerFields = [];
+  if (cfg.amountKey && row[cfg.amountKey] != null) headerFields.push([cfg.amountKey, row[cfg.amountKey], true]);
+  if (cfg.dateKey && row[cfg.dateKey]) headerFields.push([cfg.dateKey, row[cfg.dateKey], false]);
+  const headerChips = headerFields.map(([k, v, isAmt]) => `
+    <div class="hc ${isAmt ? "hc-amt" : ""}">
+      <div class="hc-l">${prettifyKey(k)}</div>
+      <div class="hc-v">${formatValue(k, v)}</div>
+    </div>`).join("");
+  const statusChip = statusLabel ? `<div class="hc hc-status"><div class="hc-l">Status</div><div class="hc-v">${statusLabel}</div></div>` : "";
+
+  const fieldHTML = fieldEntries.map(([k, v]) => {
+    const isAmt = isAmountKey(k) && (typeof v === "number" || !isNaN(Number(v)));
+    const val = formatValue(k, v);
+    return `<div class="fld"><div class="fld-l">${prettifyKey(k)}</div><div class="fld-v${isAmt ? " amt" : ""}">${val}</div></div>`;
+  }).join("");
+
+  // Line-items rendering (dynamic — any array of objects on the row)
+  const lineEntries = Object.entries(row).filter(([k, v]) => isLineKey(v));
+  const linesHTML = lineEntries.map(([lk, lines]) => {
+    const cols = Object.keys(lines[0]).filter((c) => !isSkipKey(c));
+    const header = cols.map((c) => `<th>${prettifyKey(c)}</th>`).join("");
+    let runningTotal = 0;
+    const body = lines.map((ln, i) => {
+      const tds = cols.map((c) => {
+        const v = ln[c];
+        const isAmt = isAmountKey(c) && (typeof v === "number" || !isNaN(Number(v)));
+        if (isAmt && v != null && v !== "") runningTotal += Number(v || 0);
+        const txt = formatValue(c, v);
+        return `<td style="${isAmt ? "text-align:right;font-family:monospace;font-weight:700;color:#166534" : ""}">${txt}</td>`;
+      }).join("");
+      return `<tr style="background:${i % 2 ? "#f8fafc" : "#fff"}">${tds}</tr>`;
+    }).join("");
+    // Attempt to find the first "amount-like" column for grand-total of the line section
+    const amtCol = cols.find((c) => isAmountKey(c));
+    const totalRow = amtCol ? `<tr><td colspan="${cols.length - 1}" style="text-align:right;background:#fef3c7;font-weight:900">LINE TOTAL (${lines.length})</td><td style="text-align:right;background:#fef3c7;font-weight:900;color:#166534;font-family:monospace">₹ ${inrN(runningTotal)}</td></tr>` : "";
+    return `<div class="lines-section">
+      <div class="lines-title">▸ ${prettifyKey(lk)} <span class="lc-badge">${lines.length}</span></div>
+      <table class="lines-tbl"><thead><tr>${header}</tr></thead><tbody>${body}${totalRow}</tbody></table>
+    </div>`;
+  }).join("");
+
+  return `<div class="bio-page" style="${pageBreak ? "page-break-after:always;" : ""}">
+    ${buildLetterhead(co, logo, bioRefNo, nowStr, cfg, ` · Full Record Detail (${idx + 1}/${total})`)}
+    <div class="bio-header-chips">${statusChip}${headerChips}</div>
+    <div class="bio-sec-title">RECORD DETAILS</div>
+    <div class="fld-grid">${fieldHTML}</div>
+    ${linesHTML}
+    ${buildSignaturePanel()}
+    <div class="footer-note">
+      <span>System-generated detail record · ${co.name}</span>
+      <span>Record ${idx + 1} of ${total} · ${nowStr}</span>
+    </div>
+  </div>`;
+};
+
 const ReportsHub = () => {
   const nav = useNavigate();
   const [activeDept, setActiveDept] = useState("vendors");
@@ -290,6 +443,7 @@ const ReportsHub = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [printMode, setPrintMode] = useState("both"); // summary | full | compact | both
 
   // Row-key resolver — stable identity for selection + React key
   const rowKey = (r, i) => r.id || r.pvNo || r.refNo || r.boqNo || r.empCode || r.permanentBillNo || `idx-${i}`;
@@ -389,7 +543,8 @@ const ReportsHub = () => {
     toast.success(`Excel exported · ${rowsToUse.length} rows${selectedIds.size ? " (selected)" : ""}`);
   };
 
-  const printReport = () => {
+  const printReport = (modeOverride) => {
+    const mode = modeOverride || printMode;
     const rowsToUse = exportRows;
     const win = window.open("", "_blank", "width=1200,height=900");
     if (!win) { toast.error("Pop-up blocked — please allow pop-ups"); return; }
@@ -423,12 +578,72 @@ const ReportsHub = () => {
     const nowStr = new Date().toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" });
     const refNo = `RPT/${cfg.id.toUpperCase()}/${new Date().toISOString().slice(0,10).replace(/-/g,'')}/${Date.now().toString(36).slice(-4).toUpperCase()}`;
 
+    // Build the Summary Table HTML (page 1 of combined-mode / sole page for summary-mode)
+    const summaryHTML = `
+      <div class="sum-page" ${mode === "both" ? 'style="page-break-after:always"' : ""}>
+        ${buildLetterhead(co, logo, refNo, nowStr, cfg, " · Register (Summary)")}
+        <div class="filter-block">
+          <table class="filter-table">${filterSummary}</table>
+          <div class="ref-box">
+            <div class="lbl">Total Rows</div>
+            <div class="val" style="font-size:14px">${rowsToUse.length}${selectedIds.size ? ` of ${filteredRows.length}` : ""}</div>
+            ${cfg.amountKey ? `<div class="lbl" style="margin-top:4px">Grand Total</div><div class="val" style="color:#166534;font-size:13px">₹ ${inrN(exportTotal)}</div>` : ""}
+          </div>
+        </div>
+        <table class="data"><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>
+        ${buildSignaturePanel()}
+        <div class="footer-note">
+          <span>System-generated register from ${co.name} · For internal filing &amp; audit records only.</span>
+          <span>Printed: ${nowStr}</span>
+        </div>
+      </div>
+    `;
+
+    // Build full biodata pages (one record per A4)
+    const fullBiodataHTML = rowsToUse.map((r, i) =>
+      buildBiodataCard(r, i, rowsToUse.length, cfg, co, logo, nowStr, true)
+    ).join("");
+
+    // Build compact biodata (2 cards per A4 page — group pairs)
+    const compactPagesHTML = (() => {
+      const pages = [];
+      for (let i = 0; i < rowsToUse.length; i += 2) {
+        const r1 = rowsToUse[i];
+        const r2 = rowsToUse[i + 1];
+        const isLast = i + 2 >= rowsToUse.length;
+        pages.push(`<div class="compact-page" ${!isLast ? 'style="page-break-after:always"' : ""}>
+          ${buildLetterhead(co, logo, refNo, nowStr, cfg, ` · Compact Biodata (Page ${Math.floor(i / 2) + 1})`)}
+          <div class="compact-grid">
+            ${buildCompactCard(r1, i, rowsToUse.length, cfg)}
+            ${r2 ? buildCompactCard(r2, i + 1, rowsToUse.length, cfg) : '<div class="compact-card compact-empty"></div>'}
+          </div>
+          ${buildSignaturePanel()}
+          <div class="footer-note">
+            <span>Compact biodata · ${co.name}</span>
+            <span>Printed: ${nowStr}</span>
+          </div>
+        </div>`);
+      }
+      return pages.join("");
+    })();
+
+    // Decide what to render based on mode
+    let bodyContent = "";
+    if (mode === "summary") bodyContent = summaryHTML;
+    else if (mode === "full") bodyContent = fullBiodataHTML || summaryHTML;
+    else if (mode === "compact") bodyContent = compactPagesHTML || summaryHTML;
+    else { // both — Summary first, then full biodata pages
+      bodyContent = summaryHTML + fullBiodataHTML;
+    }
+
+    const isPortrait = mode === "full" || mode === "compact";
+
     win.document.write(`<!doctype html><html><head><title>${co.name} · ${cfg.title}</title>
       <style>
-        @page { size: A4 landscape; margin: 10mm 10mm 14mm 10mm; }
+        @page { size: A4 ${isPortrait ? "portrait" : "landscape"}; margin: 10mm 10mm 14mm 10mm; }
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #0f172a; }
-        .wrap { padding: 2mm; }
+        .sum-page, .bio-page, .compact-page { padding: 2mm; }
         /* ---- Letterhead ---- */
         .lh { border: 2px solid #0f172a; padding: 10px 14px; display: flex; align-items: center; gap: 14px; background: #fff; }
         .lh-logo { width: 80px; height: 80px; flex-shrink: 0; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; display:flex; align-items:center; justify-content:center; background:#fff }
@@ -449,12 +664,46 @@ const ReportsHub = () => {
         /* ---- Filter summary ---- */
         .filter-block { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 6px; }
         .filter-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+        .filter-table td { padding: 3px 8px; border: 1px solid #cbd5e1; }
         .ref-box { border: 1.5px solid #0f172a; padding: 5px 8px; font-size: 10px; }
         .ref-box .lbl { color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; font-size: 9px; }
         .ref-box .val { font-family: monospace; font-weight: 800; color: #0f172a; }
         /* ---- Data table ---- */
         table.data { width: 100%; border-collapse: collapse; margin-top: 2px; }
         table.data th, table.data td { border: 1px solid #000; }
+        /* ---- Biodata card (Full detail) ---- */
+        .bio-header-chips { display: flex; gap: 8px; margin: 6px 0 10px; flex-wrap: wrap; }
+        .hc { border: 1.5px solid #0f172a; border-radius: 4px; padding: 5px 10px; min-width: 150px; background: #fff; }
+        .hc-l { font-size: 8.5px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; }
+        .hc-v { font-size: 13px; font-weight: 900; color: #0f172a; margin-top: 1px; font-family: monospace; }
+        .hc-amt .hc-v { color: #166534; }
+        .hc-status { background: #fef3c7; border-color: #d97706; }
+        .hc-status .hc-v { color: #78350f; font-size: 11.5px; letter-spacing: .3px; }
+        .bio-sec-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0f172a; background: #e0e7ff; padding: 4px 10px; border-left: 4px solid #4f46e5; margin: 10px 0 6px; }
+        .fld-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; }
+        .fld { background: #fff; padding: 5px 8px; display: flex; flex-direction: column; min-height: 32px; }
+        .fld-l { font-size: 8.5px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+        .fld-v { font-size: 10.5px; color: #0f172a; font-weight: 600; margin-top: 1px; word-break: break-word; }
+        .fld-v.amt { color: #166534; font-family: monospace; font-weight: 800; text-align: right; }
+        /* ---- Line items table inside biodata ---- */
+        .lines-section { margin-top: 8px; }
+        .lines-title { font-size: 10.5px; font-weight: 900; color: #0f172a; margin-bottom: 3px; letter-spacing: .5px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+        .lc-badge { background: #4f46e5; color: #fff; padding: 1px 7px; border-radius: 8px; font-size: 9px; font-weight: 800; }
+        .lines-tbl { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+        .lines-tbl th { background: #1e293b; color: #fff; padding: 4px 6px; font-size: 9px; text-transform: uppercase; letter-spacing: .3px; border: 1px solid #000; font-weight: 800; text-align: left; }
+        .lines-tbl td { padding: 3px 6px; border: 1px solid #000; font-size: 9.5px; color: #0f172a; }
+        /* ---- Compact (2-per-page) ---- */
+        .compact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+        .compact-card { border: 1.5px solid #0f172a; border-radius: 4px; padding: 8px; background: #fff; }
+        .compact-card .cc-head { background: linear-gradient(135deg,#4f46e5,#3730a3); color: #fff; padding: 4px 8px; border-radius: 3px; margin: -8px -8px 6px; display: flex; justify-content: space-between; align-items: center; }
+        .compact-card .cc-head b { font-size: 11px; letter-spacing: .5px; font-family: monospace; }
+        .compact-card .cc-head span { font-size: 9px; opacity: .9; }
+        .compact-card .cc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e2e8f0; border: 1px solid #e2e8f0; }
+        .compact-card .cc-f { background: #fff; padding: 3px 6px; }
+        .compact-card .cc-l { font-size: 7.5px; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .compact-card .cc-v { font-size: 9.5px; color: #0f172a; font-weight: 600; }
+        .compact-card .cc-v.amt { color: #166534; font-family: monospace; font-weight: 800; }
+        .compact-empty { border: 1.5px dashed #cbd5e1; background: #f8fafc; }
         /* ---- Signatures / Footer ---- */
         .sigs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-top: 18px; page-break-inside: avoid; }
         .sig-box { border-top: 1.5px solid #0f172a; padding-top: 4px; text-align: center; font-size: 10px; }
@@ -465,64 +714,9 @@ const ReportsHub = () => {
         tr { page-break-inside: avoid; }
         thead { display: table-header-group; }
         tfoot { display: table-footer-group; }
+        .bio-page, .compact-page { page-break-inside: avoid; }
       </style></head><body>
-      <div class="wrap">
-        <!-- COMPANY LETTERHEAD -->
-        <div class="lh">
-          <div class="lh-logo"><img src="${logo}" onerror="this.style.display='none'" alt="logo" /></div>
-          <div class="lh-center">
-            <div class="lh-name">${co.name}</div>
-            ${co.tagline ? `<div class="lh-tag">${co.tagline}</div>` : ""}
-            ${co.pillLine ? `<div class="lh-pill">${co.pillLine}</div>` : ""}
-            ${co.address ? `<div class="lh-addr">${co.address}</div>` : ""}
-            <div class="lh-contact">
-              ${co.tollFree ? `<b>Phone:</b> ${co.tollFree} &nbsp;` : ""}
-              ${co.email ? `&nbsp;•&nbsp; <b>Email:</b> ${co.email} &nbsp;` : ""}
-              ${co.website ? `&nbsp;•&nbsp; <b>Web:</b> ${co.website}` : ""}
-              ${(co.gst || co.pan) ? `<br><b>GST:</b> ${co.gst || "—"} &nbsp;•&nbsp; <b>PAN:</b> ${co.pan || "—"}${co.cin ? ` &nbsp;•&nbsp; <b>CIN:</b> ${co.cin}` : ""}` : ""}
-            </div>
-          </div>
-          <div class="lh-right">
-            <div style="font-weight:800;color:#0f172a;font-size:9.5px;letter-spacing:.4px;text-transform:uppercase">Report Ref</div>
-            <div style="font-family:monospace;font-weight:800;color:#0f172a;font-size:10px;margin-top:2px;word-break:break-all">${refNo}</div>
-            <div style="margin-top:6px;color:#64748b">${new Date().toLocaleDateString("en-IN")}</div>
-          </div>
-        </div>
-        <div class="red-rule"></div>
-
-        <!-- TITLE BAR -->
-        <div class="title-bar">
-          <h2>${cfg.icon} ${cfg.title} · Register</h2>
-          <div class="meta">Generated: ${nowStr}</div>
-        </div>
-
-        <!-- FILTER & REF SUMMARY -->
-        <div class="filter-block">
-          <table class="filter-table">${filterSummary}</table>
-          <div class="ref-box">
-            <div class="lbl">Total Rows</div>
-            <div class="val" style="font-size:14px">${rowsToUse.length}${selectedIds.size ? ` of ${filteredRows.length}` : ""}</div>
-            ${cfg.amountKey ? `<div class="lbl" style="margin-top:4px">Grand Total</div><div class="val" style="color:#166534;font-size:13px">₹ ${inrN(exportTotal)}</div>` : ""}
-          </div>
-        </div>
-
-        <!-- DATA TABLE -->
-        <table class="data"><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>
-
-        <!-- SIGNATURE PANEL -->
-        <div class="sigs">
-          <div class="sig-box"><div class="role">Prepared By</div><div class="name">Name &amp; Signature</div></div>
-          <div class="sig-box"><div class="role">Checked By</div><div class="name">Accounts Manager</div></div>
-          <div class="sig-box"><div class="role">Approved By</div><div class="name">General Manager</div></div>
-          <div class="sig-box"><div class="role">Director</div><div class="name">Ashish Srivastava</div></div>
-        </div>
-
-        <!-- FOOTER -->
-        <div class="footer-note">
-          <span>This is a system-generated report from ${co.name} · For internal filing &amp; audit records only.</span>
-          <span>Printed: ${nowStr}</span>
-        </div>
-      </div>
+      ${bodyContent}
       <script>setTimeout(()=>{window.print();},400);</script>
     </body></html>`);
     win.document.close();
@@ -531,8 +725,9 @@ const ReportsHub = () => {
   const exportPDF = () => {
     // Use the same print window flow — users can "Save as PDF" from the print dialog.
     // Keeps bundle lean (no jspdf dep needed for landscape tables).
-    printReport();
-    toast.info("Print dialog opened · choose 'Save as PDF' from destination");
+    printReport(printMode);
+    const label = { summary: "Summary Only", full: "Full Biodata (1/page)", compact: "Compact (2/page)", both: "Summary + Full Biodata" }[printMode] || "Report";
+    toast.info(`Print dialog opened · ${label} · choose 'Save as PDF'`);
   };
 
   const fyOpts = listFYOptions();
@@ -630,8 +825,17 @@ const ReportsHub = () => {
               </>
             )}
           </div>
-          <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
-            <button data-testid="rh-print" onClick={printReport} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#64748b,#334155)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "#f1f5f9", border: "1.5px solid #c7d2fe", borderRadius: 5 }}>
+              <label style={{ fontSize: 10, color: "#4338ca", fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase" }}>Print Mode</label>
+              <select data-testid="rh-print-mode" value={printMode} onChange={(e) => setPrintMode(e.target.value)} style={{ padding: "5px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#fff", color: "#0f172a" }}>
+                <option value="both">Summary + Full Biodata</option>
+                <option value="summary">Summary Only</option>
+                <option value="full">Full Biodata (1 per page)</option>
+                <option value="compact">Compact (2 per page)</option>
+              </select>
+            </div>
+            <button data-testid="rh-print" onClick={() => printReport()} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#64748b,#334155)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
               <Printer size={13} /> Print A4
             </button>
             <button data-testid="rh-pdf" onClick={exportPDF} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#dc2626,#991b1b)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
