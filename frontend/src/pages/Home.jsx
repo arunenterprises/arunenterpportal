@@ -336,12 +336,6 @@ export default function Home() {
               );
             })}
           </nav>
-
-          {/* Footer */}
-          <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,.08)", fontSize: 9.5, color: "#64748b", lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 700, color: "#94a3b8" }}>DRAFT LAYOUT · v2</div>
-            <div>Left-sidebar nav · Feb 2026</div>
-          </div>
         </aside>
 
         {/* ============== RIGHT MAIN CONTENT ============== */}
