@@ -218,6 +218,12 @@ export default function Home() {
   const me = currentUserProfile();
   const superAdmin = isSuperAdmin(me?.user);
   const role = currentRole();
+  // Display name for the currently-logged-in user ONLY. SuperAdmin ko fixed
+  // 'Ashish Srivastava' dikhao, baaki har user ke liye uska own registered name
+  // (ya email prefix as last-resort). Never fall back to generic 'User' label.
+  const displayName = superAdmin
+    ? "Ashish Srivastava"
+    : (me?.name || me?.user?.split("@")[0] || "");
 
   // REAL-TIME CROSS-USER SYNC: re-render badges when App.js dispatches ae-sync-done.
   const [, setSyncTick] = useState(0);
@@ -286,10 +292,10 @@ export default function Home() {
           {/* User info */}
           <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 18, background: "linear-gradient(135deg,#f59e0b,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 14 }}>
-              {(me?.name || me?.user || "?").slice(0, 1).toUpperCase()}
+              {(displayName || me?.user || "?").slice(0, 1).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{me?.name || "User"}</div>
+              <div data-testid="sidebar-user-name" style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName || me?.user}</div>
               <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>{superAdmin ? "SUPERADMIN" : (role || "USER")}</div>
             </div>
           </div>
@@ -356,7 +362,7 @@ export default function Home() {
             <div style={{ background: "linear-gradient(135deg,#1e3a8a 0%,#5b21b6 50%,#be185d 100%)", color: "#fff", borderRadius: 10, padding: "16px 22px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, boxShadow: "0 4px 12px rgba(91,33,182,.22)" }}>
               <div>
                 <div style={{ fontSize: 10, letterSpacing: 2.5, color: "#e9d5ff", fontWeight: 800, textTransform: "uppercase" }}>Welcome back</div>
-                <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 0.3 }}>Namaste, {me?.name || "User"} 👋</div>
+                <div data-testid="welcome-user-name" style={{ fontSize: 22, fontWeight: 900, letterSpacing: 0.3 }}>Namaste, {displayName || me?.user || "User"} 👋</div>
                 <div style={{ fontSize: 11, color: "#fde68a", marginTop: 2 }}>Aaj ke pending approvals · live KPI · recent activity niche hai</div>
               </div>
               <div style={{ textAlign: "right" }}>
