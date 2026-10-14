@@ -227,6 +227,28 @@ const DEPT_CONFIG = [
     ],
   },
   {
+    id: "fooding", title: "Weekly Fooding", icon: "🍽️",
+    fetch: () => { try { return JSON.parse(localStorage.getItem("ae_vm_fooding") || "[]"); } catch { return []; } },
+    dateKey: "fromDate",
+    amountKey: null,
+    statusKey: "status",
+    statusMap: { Draft: "Draft", Submitted: "Submitted", Approved: "Approved" },
+    columns: [
+      { key: "refNo", label: "Ref No.", width: 140 },
+      { key: "month", label: "Month", width: 100 },
+      { key: "year", label: "Year", width: 70, right: true },
+      { key: "circle", label: "Circle", width: 110 },
+      { key: "projectRef", label: "Project Ref", width: 150 },
+      { key: "fromDate", label: "From", width: 100 },
+      { key: "toDate", label: "To", width: 100 },
+      { key: "fy", label: "FY", width: 70 },
+      { key: "_lineCount", label: "Lines", width: 70, right: true },
+      { key: "_totalAmt", label: "Total (₹)", width: 110, right: true },
+      { key: "approvedBy", label: "Approver", width: 140 },
+      { key: "_status", label: "Status", width: 110 },
+    ],
+  },
+  {
     id: "recruitments", title: "Recruitment", icon: "🎯",
     fetch: getRecruitments,
     dateKey: "appliedDate",
@@ -248,6 +270,8 @@ const getCellValue = (row, col, cfg) => {
   if (col.key === "_amount") return Number(row[cfg.amountKey] || 0);
   if (col.key === "_status") return cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "—";
   if (col.key === "_empCount") return Array.isArray(row.lines) ? row.lines.filter((l) => !l.excluded).length : 0;
+  if (col.key === "_lineCount") return Array.isArray(row.lines) ? row.lines.length : 0;
+  if (col.key === "_totalAmt") return Array.isArray(row.lines) ? row.lines.reduce((s, l) => s + Number(l.amount || 0), 0) : 0;
   if (col.key === "_period" && row.month && row.year) {
     return `${new Date(row.year, row.month - 1).toLocaleString("en", { month: "long" })} ${row.year}`;
   }
@@ -387,7 +411,7 @@ const ReportsHub = () => {
       <Toaster position="top-right" richColors />
       <main style={{ padding: 18, maxWidth: 1500, margin: "0 auto" }}>
         <ModuleHero
-          tag="Reports Hub · V1"
+          tag="Reports Hub"
           title="All Departments · Dept-wise Reports"
           subtitle="FY / Month / Date-range filters · Print A4 · PDF · Excel · 12 modules"
           icon={BarChart3}

@@ -238,7 +238,7 @@ export default function ProjectManagement() {
 
           {/* Banner + KPIs */}
           <ModuleHero
-            tag="Project Management · V1"
+            tag="Project Management"
             title="Projects · Milestones · Teams · Budget"
             subtitle={`${stats.total} total · ${stats.inProgress} in-progress · ${stats.completed} completed · ₹${Number(stats.totalBudget).toLocaleString("en-IN")} budget · ${stats.utilizationPct}% spent`}
             icon={FolderKanban}

@@ -225,7 +225,7 @@ export default function ExpenseProcess() {
       <div className="a4" data-testid="expense-page">
         <div className="module-doc-header"><Header formTitle={`Expense Process · ${expense.permanentExpenseNo || expense.refNo}`} /></div>
         <ModuleHero
-          tag="Expense Process · V1"
+          tag="Expense Process"
           title="Petty Cash · Reimbursements · Approvals"
           subtitle="4-step approval · Auto Expense No · GM final sign-off · Direct to PV"
           icon={ReceiptIcon}

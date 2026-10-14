@@ -246,9 +246,9 @@ export default function VendorRegistration() {
         <div className="a4" data-testid="vendor-page">
           <div className="module-doc-header"><Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" /></div>
           <ModuleHero
-            tag="Vendor Management · V1"
+            tag="Vendor Management"
             title="Registration · KYC · Approval"
-            subtitle="3-step workflow · Auto Vendor Code AE####JV{FY} · Razorpay IFSC auto-fill"
+            subtitle="3-step workflow · Auto Vendor Code AE####JV{FY}"
             icon={UsersIcon}
             gradient="linear-gradient(135deg,#075985 0%,#0369a1 45%,#06b6d4 100%)"
             shadowRgba="3,105,161,.28"

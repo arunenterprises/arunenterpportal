@@ -615,7 +615,7 @@ export default function Reports() {
         <div className="a4" data-testid="reports-page">
           <div className="module-doc-header"><Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" /></div>
           <ModuleHero
-            tag="Vouchers & Payables · V1"
+            tag="Vouchers & Payables"
             title="Payment Vouchers · UTR · Due List"
             subtitle="PV generation (GPV → PN) · UTR capture · Due list aging · Bank advice · Excel"
             icon={FileBarChartIcon}

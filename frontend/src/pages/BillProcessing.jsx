@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { CheckCircle2, Search, Plus, X, FilePlus2, Save, Pencil, Send, Printer, Download, FileSearch, Wallet, Receipt, LogOut, IndianRupee, FileText } from "lucide-react";
+import { CheckCircle2, Search, Plus, X, FilePlus2, Save, Pencil, Send, Printer, Download, FileSearch, Wallet, Receipt, LogOut, IndianRupee, FileText, Utensils } from "lucide-react";
 import Header from "../components/Header";
 import ModuleHero from "../components/ModuleHero";
+import WeeklyFoodingTab from "../components/WeeklyFoodingTab";
 import { Landmark as LandmarkIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
@@ -465,7 +466,7 @@ export default function BillProcessing() {
         <div className="a4" data-testid="bill-page">
           <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
           <ModuleHero
-            tag="Accounts · V1"
+            tag="Accounts"
             title="Vendor Bills · Advance · Pay Bill · Exit F&F"
             subtitle="5-step bill flow · GST / TDS auto-compute · PV generation · UTR tracking"
             icon={LandmarkIcon}
@@ -479,6 +480,7 @@ export default function BillProcessing() {
               { id: "vendor", label: "Vendor Bills", tone: "#0369a1", icon: Receipt },
               { id: "advance", label: "Advance Reg.", tone: "#f59e0b", icon: Wallet },
               { id: "paybill", label: "Pay Bills Process", tone: "#be185d", icon: IndianRupee },
+              { id: "fooding", label: "Weekly Fooding", tone: "#15803d", icon: Utensils },
               { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
             ].map((t) => {
               const Icon = t.icon; const active = activeView === t.id;
@@ -1234,6 +1236,7 @@ export default function BillProcessing() {
 
           {activeView === "advance" && <AccountsAdvanceView rev={rev} bumpRev={bumpRev} />}
           {activeView === "paybill" && <AccountsPayBillView rev={rev} bumpRev={bumpRev} />}
+          {activeView === "fooding" && <WeeklyFoodingTab writeAllowed={canCreate()} approveAllowed={canApprove()} />}
           {activeView === "exit" && <AccountsExitView rev={rev} bumpRev={bumpRev} />}
         </div>
       </div>

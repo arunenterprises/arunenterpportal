@@ -22,6 +22,7 @@ const KEYS = {
   PAYBILLS: "ae_vm_paybills",
   LOANS: "ae_vm_loans",
   ADVANCE_REQS: "ae_vm_advance_requests",
+  FOODING: "ae_vm_fooding",
   COUNTERS: "ae_vm_counters",
   AUTH: "ae_vm_auth",
   LOGO: "ae_vm_logo",
