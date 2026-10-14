@@ -205,6 +205,29 @@ export default function BillProcessing() {
     toast.success("Invoice file removed");
   };
 
+  // ---- JMC & Abstract (Summary of Item Schedules) uploads (max 500 KB each) ----
+  const handleScheduleFile = (fileKey, labelName) => (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 500 * 1024) {
+      toast.error(`File size ${Math.round(f.size / 1024)} KB exceeds 500 KB limit`);
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBill({ ...bill, [fileKey]: { name: f.name, size: f.size, type: f.type, dataUrl: reader.result } });
+      toast.success(`${labelName} uploaded (${Math.round(f.size / 1024)} KB)`);
+    };
+    reader.onerror = () => toast.error("Failed to read file");
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+  const removeScheduleFile = (fileKey, labelName) => () => {
+    setBill({ ...bill, [fileKey]: null });
+    toast.success(`${labelName} removed`);
+  };
+
   // ---- Force-download any file stored as data URL ----
   const downloadDataUrl = (dataUrl, name) => {
     if (!dataUrl) { toast.error("No file to download"); return; }
@@ -1044,6 +1067,86 @@ export default function BillProcessing() {
                     )}
                   </div>
                 </F>
+              </div>
+            </div>
+          </div>
+
+          {/* 3B. JMC & ABSTRACT (Summary of Item Schedules) */}
+          <div className="section">
+            <div className="sec-head">3B. JMC &amp; Abstract (Summary of Item Schedules) · Max 500 KB each</div>
+            <div className="sec-body">
+              <div className="row cols-2">
+                {[
+                  { key: "jmcFile", label: "JMC (Joint Measurement Certificate)", icon: "📏", theme: { bg: "#eff6ff", border: "#60a5fa", pill: "#2563eb", text: "#1e3a8a" } },
+                  { key: "abstractFile", label: "Abstract (Summary of Item Schedules)", icon: "📑", theme: { bg: "#f0fdf4", border: "#4ade80", pill: "#16a34a", text: "#14532d" } },
+                ].map(({ key, label, icon, theme }) => (
+                  <F key={key} label={`${label} (PDF / Image · Max 500 KB)`}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      {!bill[key] ? (
+                        <label
+                          data-testid={`${key}-label`}
+                          style={{
+                            flex: 1,
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "10px 14px",
+                            background: theme.bg,
+                            border: `1.5px dashed ${theme.border}`,
+                            borderRadius: 6,
+                            cursor: locked ? "not-allowed" : "pointer",
+                            opacity: locked ? 0.55 : 1,
+                            fontWeight: 600, fontSize: 12, color: theme.text,
+                            letterSpacing: .3,
+                            minWidth: 0,
+                          }}
+                        >
+                          <span style={{ fontSize: 20 }}>{icon}</span>
+                          <span style={{ flex: 1 }}>Click to attach {label}</span>
+                          <span style={{ padding: "4px 10px", background: theme.pill, color: "#fff", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>Choose file</span>
+                          <input
+                            type="file"
+                            accept="application/pdf,image/*"
+                            onChange={handleScheduleFile(key, label)}
+                            disabled={locked}
+                            data-testid={`${key}-input`}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      ) : (
+                        <>
+                          <a
+                            href={bill[key].dataUrl} target="_blank" rel="noreferrer"
+                            data-testid={`${key}-link`}
+                            style={{ flex: 1, padding: "10px 14px", background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 6, fontWeight: 700, fontSize: 12, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}
+                            title={`${bill[key].name} · ${Math.round(bill[key].size / 1024)}KB`}
+                          >
+                            <span style={{ fontSize: 16 }}>{icon}</span>
+                            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{bill[key].name}</span>
+                            <span style={{ fontSize: 10, color: theme.pill, fontWeight: 500 }}>{Math.round(bill[key].size / 1024)} KB</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => downloadDataUrl(bill[key].dataUrl, bill[key].name)}
+                            data-testid={`${key}-download`}
+                            title={`Download ${label}`}
+                            style={{ padding: "8px 14px", fontSize: 11, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 5, cursor: "pointer", fontWeight: 700, flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 4 }}
+                          >
+                            ⬇ Download
+                          </button>
+                          {!locked && (
+                            <button
+                              type="button"
+                              onClick={removeScheduleFile(key, label)}
+                              data-testid={`${key}-remove`}
+                              style={{ padding: "8px 12px", fontSize: 11, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 5, cursor: "pointer", fontWeight: 700, flex: "0 0 auto" }}
+                            >
+                              ✕ Remove
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </F>
+                ))}
               </div>
             </div>
           </div>
