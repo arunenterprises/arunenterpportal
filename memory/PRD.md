@@ -7,7 +7,32 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
-## Feb-2026 Session Changes (round 15 — Pay Bill tab runtime fix)
+## Feb-2026 Session Changes (round 17 — Reports Hub Inline View + Fallback IDs + Lint fix)
+- **CRITICAL BLOCKER FIX**: `oxlint` was failing on `/app/frontend/src/lib/bankTransfer.js` lines 130-133 — `printBulkBankAdvice()` referenced an undefined `pb` variable in the signature block (function parameter is `items`, no single pay-bill context). Replaced the dynamic names with static "— to be signed —" placeholders (handwritten on the paper copy).
+- **"—" / missing-data issue in Reports Hub**: added `fallbackKey` to primary ID columns so drafts show their temp-ref instead of em-dash:
+  - Bills: `permanentBillNo` → fallback `refNo`
+  - Expenses: `permanentExpenseNo` → fallback `refNo`
+  - BOQ: `boqNo` → fallback `tempRefId`
+  - Work Orders: `woNo` → fallback `tempRefId`
+  Updated `getCellValue()` to resolve the fallback and the UI cell renderer to properly distinguish empty vs. zero (`v === null || v === undefined || v === ""`).
+- **"View" + "View All" inline buttons** (agentic edit directive): added two separate buttons with distinct behaviour, both render the full biodata directly inside the datasheet (no new tab):
+  - **View**: renders only the checkbox-selected rows below the table (requires at least 1 selection).
+  - **View All**: toggles rendering of every filtered row below the table.
+  - Each table row also has a per-row eye icon that expands that single record's biodata inline directly below its row.
+- Extracted the biodata CSS into a namespaced `BIODATA_CSS` constant (classes prefixed with `.rh-ibi`) that both the print-window and the in-page `dangerouslySetInnerHTML` panel reuse — no duplication, no leakage into the rest of the React tree.
+- **Filter-bar layout fix** (agentic edit directive "layout proper set kijiye"): split the previously-overflowing single-row grid into two rows — row 1 holds the 6 filter inputs (`repeat(6, minmax(120px, 1fr))`), row 2 holds the Sync / View / View All / Clear buttons with proper breathing room and a dashed separator.
+- **Verified**: Login → `/reports-hub` → Bills tab shows BILL00202627 correctly, "View All (3)" opens inline biodata panel ("INLINE BIODATA · ALL 3 RECORD(S)"), "Hide All" toggles back cleanly. Lint = 0 errors.
+
+## Feb-2026 Session Changes (round 16 — Reports Hub Column Schema Alignment)
+- **CRITICAL FIX**: Reports Hub tabs were showing "—" / 0 / numeric status for most fields because the DEPT_CONFIG column keys didn't match the actual data schema in store.js. 5 tabs (Bills, Payments, Expenses, BOQ, Work Orders) had incorrect field names and status maps.
+- Fixed per-tab:
+  - **Bills Register**: `tempRef→refNo`, `vendorFirmName→vendorSnapshot.firmName` (via new `_vendorFirm` computed), `invoiceNo→billNo`, amount computed via basic+gst-tds, 6-step status map
+  - **Payment Vouchers**: `date→pvDate`, removed non-existent `billRef`+`mode`, added `source` + `paidAt`
+  - **Expense Register**: `expenseNo→permanentExpenseNo` + `refNo`, `expenseDate→date`, `paidTo→paidToName`, computed `netPayable` amount, 4-step status (EXPENSE_STEP_LABEL)
+  - **BOQ Register**: `boqDate→date`, `projectCode→projectSite`, `siteName→clientName`, `totalAmount→total`, 4-step status
+  - **Work Orders**: `projectCode→tempRefId`, `totalAmount→total`, added `expiryDate`, 5-step status, fixed `getWorkOrders→getWOs` import
+- Added new `getCellValue` computed branches: `_vendorFirm`, `_billAmount`, `_expenseAmount`, enhanced `_lineCount` to handle `items[]` too (for BOQ/WO).
+- Added **Sync button** (RefreshCw spinner) in filter row that pulls fresh snapshot from backend on-demand + auto-silent sync on tab change.
 - Bug: `createBalanceDraft is not defined` runtime error prevented the Pay Bill tab from opening after the "+ Balance Pay Bill" feature was added. The earlier search_replace that defined the helper function had failed silently; only the UI button and store-level function had been added.
 - Fix: Added the missing `createBalanceDraft()` wrapper inside PayBillsManager calling `createSupplementaryPayBillDraft(year, month)` → `upsertPayBill` → toast confirms count + net.
 - Verified: Pay Bill tab now opens, "+ Balance Pay Bill · Oct 2026" button visible in Pay Bill History header, no console errors.

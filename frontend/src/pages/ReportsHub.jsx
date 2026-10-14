@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, Printer, FileSpreadsheet, Download, Filter, BarChart3 } from "lucide-react";
+import { ArrowLeft, Printer, FileSpreadsheet, Download, Filter, BarChart3, RefreshCw, Eye } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import {
@@ -10,7 +10,7 @@ import {
   getEmployees, getPayBills, getLoans, getAdvanceRequests,
   getExits, getRecruitments,
   listFYOptions, getActiveFYOverride, PAYBILL_STATUS, ADVANCE_REQ_STATUS, LOAN_STATUS,
-  getCompany, getLogo, DEFAULT_COMPANY, currentUser,
+  getCompany, getLogo, DEFAULT_COMPANY, currentUser, syncFromCloud,
 } from "../lib/store";
 
 // Alias — WO getter is exported as getWOs in store.js
@@ -27,6 +27,58 @@ const fyFromDate = (d) => {
   return `${String(s).padStart(2, "0")}${String((s + 1) % 100).padStart(2, "0")}`;
 };
 const prettyFY = (fy) => (fy && fy.length === 4) ? `FY 20${fy.slice(0, 2)}-${fy.slice(2, 4)}` : fy;
+
+// Shared CSS used by both the print window AND the in-page inline biodata panel.
+// Classes are namespace-prefixed (.rh-ibi …) to avoid colliding with the rest of
+// the React tree when rendered inline via dangerouslySetInnerHTML.
+const BIODATA_CSS = `
+  .rh-ibi * { box-sizing: border-box; }
+  .rh-ibi { font-family: Arial, Helvetica, sans-serif; color: #0f172a; }
+  .rh-ibi .bio-page { padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 10px; }
+  .rh-ibi .lh { border: 2px solid #0f172a; padding: 10px 14px; display: flex; align-items: center; gap: 14px; background: #fff; }
+  .rh-ibi .lh-logo { width: 70px; height: 70px; flex-shrink: 0; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; display:flex; align-items:center; justify-content:center; background:#fff }
+  .rh-ibi .lh-logo img { max-width: 100%; max-height: 100%; object-fit: contain }
+  .rh-ibi .lh-center { flex: 1; text-align: center; }
+  .rh-ibi .lh-name { font-size: 20px; font-weight: 900; letter-spacing: 1.5px; color: #0f172a; text-transform: uppercase; margin: 0; }
+  .rh-ibi .lh-tag { font-size: 10.5px; font-style: italic; color: #475569; margin-top: 2px; }
+  .rh-ibi .lh-pill { display: inline-block; background: #0f172a; color: #fff; font-size: 9.5px; font-weight: 700; padding: 2px 10px; border-radius: 10px; margin-top: 5px; text-transform: uppercase; }
+  .rh-ibi .lh-addr { font-size: 10px; color: #334155; margin-top: 5px; }
+  .rh-ibi .lh-contact { font-size: 9.5px; color: #0f172a; margin-top: 3px; }
+  .rh-ibi .lh-right { width: 80px; text-align: right; font-size: 9px; color: #475569; flex-shrink: 0; }
+  .rh-ibi .red-rule { height: 2px; background: #dc2626; margin: 2px 0 6px; }
+  .rh-ibi .title-bar { background: linear-gradient(135deg,#1e293b,#4f46e5); color: #fff; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; margin: 4px 0 4px; border-radius: 3px; }
+  .rh-ibi .title-bar h2 { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+  .rh-ibi .title-bar .meta { font-size: 9.5px; opacity: .9; }
+  .rh-ibi .bio-header-chips { display: flex; gap: 8px; margin: 6px 0 10px; flex-wrap: wrap; }
+  .rh-ibi .hc { border: 1.5px solid #0f172a; border-radius: 4px; padding: 5px 10px; min-width: 150px; background: #fff; }
+  .rh-ibi .hc-l { font-size: 8.5px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; }
+  .rh-ibi .hc-v { font-size: 13px; font-weight: 900; color: #0f172a; margin-top: 1px; font-family: monospace; }
+  .rh-ibi .hc-amt .hc-v { color: #166534; }
+  .rh-ibi .hc-status { background: #fef3c7; border-color: #d97706; }
+  .rh-ibi .hc-status .hc-v { color: #78350f; font-size: 11.5px; }
+  .rh-ibi .bio-sec-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0f172a; background: #e0e7ff; padding: 4px 10px; border-left: 4px solid #4f46e5; margin: 10px 0 6px; }
+  .rh-ibi .img-strip { display: flex; gap: 14px; margin: 4px 0 10px; flex-wrap: wrap; }
+  .rh-ibi .img-tile { border: 1.5px solid #0f172a; border-radius: 4px; padding: 4px 6px 6px; background: #fff; display: flex; flex-direction: column; align-items: center; }
+  .rh-ibi .img-tile-l { font-size: 8.5px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+  .rh-ibi .img-tile-box { width: 85px; height: 100px; background: #f8fafc; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .rh-ibi .img-tile-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .rh-ibi .fld-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; }
+  .rh-ibi .fld { background: #fff; padding: 5px 8px; display: flex; flex-direction: column; min-height: 32px; }
+  .rh-ibi .fld-l { font-size: 8.5px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+  .rh-ibi .fld-v { font-size: 10.5px; color: #0f172a; font-weight: 600; margin-top: 1px; word-break: break-word; }
+  .rh-ibi .fld-v.amt { color: #166534; font-family: monospace; font-weight: 800; text-align: right; }
+  .rh-ibi .lines-section { margin-top: 8px; }
+  .rh-ibi .lines-title { font-size: 10.5px; font-weight: 900; color: #0f172a; margin-bottom: 3px; letter-spacing: .5px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+  .rh-ibi .lc-badge { background: #4f46e5; color: #fff; padding: 1px 7px; border-radius: 8px; font-size: 9px; font-weight: 800; }
+  .rh-ibi .lines-tbl { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  .rh-ibi .lines-tbl th { background: #1e293b; color: #fff; padding: 4px 6px; font-size: 9px; text-transform: uppercase; border: 1px solid #000; font-weight: 800; text-align: left; }
+  .rh-ibi .lines-tbl td { padding: 3px 6px; border: 1px solid #000; font-size: 9.5px; color: #0f172a; }
+  .rh-ibi .sigs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-top: 18px; }
+  .rh-ibi .sig-box { text-align: center; font-size: 10px; }
+  .rh-ibi .sig-box .name { font-size: 11px; color: #0f172a; font-weight: 700; padding: 0 4px 5px; border-bottom: 1.5px solid #0f172a; margin-bottom: 5px; min-height: 16px; }
+  .rh-ibi .sig-box .role { font-weight: 900; letter-spacing: .6px; text-transform: uppercase; color: #0f172a; font-size: 10.5px; }
+  .rh-ibi .footer-note { margin-top: 10px; padding-top: 6px; border-top: 1px dashed #94a3b8; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+`;
 
 // Per-department config: how to extract date, amount, status; which columns to show
 const DEPT_CONFIG = [
@@ -54,84 +106,87 @@ const DEPT_CONFIG = [
     id: "bills", title: "Bills Register", icon: "📄",
     fetch: getBills,
     dateKey: "billDate",
-    amountKey: "grandTotal",
+    amountKey: "_billAmount",
     statusKey: "step",
-    statusMap: { 1: "Draft", 2: "Submitted", 3: "Approved", 4: "Rejected" },
+    statusMap: { 1: "Draft", 2: "Measurement/Site", 3: "Purchase/WO Verify", 4: "Accounts Verify", 5: "Approved", 6: "Rejected" },
     columns: [
-      { key: "permanentBillNo", label: "Bill No.", width: 140 },
-      { key: "tempRef", label: "Temp Ref", width: 110 },
-      { key: "vendorCode", label: "Vendor", width: 130 },
-      { key: "vendorFirmName", label: "Firm Name", width: 180 },
+      { key: "permanentBillNo", fallbackKey: "refNo", label: "Bill No.", width: 140 },
+      { key: "refNo", label: "Temp Ref", width: 110 },
+      { key: "vendorCode", label: "Vendor Code", width: 130 },
+      { key: "_vendorFirm", label: "Firm Name", width: 180 },
       { key: "billDate", label: "Bill Date", width: 100 },
-      { key: "invoiceNo", label: "Invoice No.", width: 120 },
+      { key: "billNo", label: "Invoice No.", width: 120 },
       { key: "_amount", label: "Amount (₹)", width: 120, right: true },
-      { key: "_status", label: "Status", width: 90 },
+      { key: "_status", label: "Status", width: 150 },
     ],
   },
   {
     id: "payments", title: "Payment Vouchers", icon: "💰",
     fetch: getPayments,
-    dateKey: "date",
+    dateKey: "pvDate",
     amountKey: "amount",
     statusKey: "status",
     statusMap: { Draft: "Draft", Submitted: "Submitted", Approved: "Approved" },
     columns: [
       { key: "pvNo", label: "PV No.", width: 140 },
-      { key: "date", label: "Date", width: 100 },
+      { key: "pvDate", label: "Date", width: 100 },
       { key: "vendorCode", label: "Vendor", width: 130 },
-      { key: "vendorName", label: "Vendor Name", width: 180 },
-      { key: "billRef", label: "Bill Ref", width: 130 },
+      { key: "_vendorFirm", label: "Vendor Name", width: 180 },
+      { key: "source", label: "Source", width: 130 },
       { key: "_amount", label: "Amount (₹)", width: 120, right: true },
-      { key: "mode", label: "Mode", width: 100 },
       { key: "utrNo", label: "UTR", width: 140 },
+      { key: "paidAt", label: "Paid On", width: 100 },
       { key: "status", label: "Status", width: 100 },
     ],
   },
   {
     id: "expenses", title: "Expense Register", icon: "🧾",
     fetch: getExpenses,
-    dateKey: "expenseDate",
-    amountKey: "amount",
+    dateKey: "date",
+    amountKey: "_expenseAmount",
     statusKey: "step",
-    statusMap: { 1: "Draft", 2: "Submitted", 3: "Approved" },
+    statusMap: { 1: "Draft", 2: "Prepared", 3: "Checked", 4: "Approved & Paid" },
     columns: [
-      { key: "expenseNo", label: "Exp. No.", width: 140 },
-      { key: "expenseDate", label: "Date", width: 100 },
+      { key: "permanentExpenseNo", fallbackKey: "refNo", label: "Exp. No.", width: 130 },
+      { key: "refNo", label: "Temp Ref", width: 120 },
+      { key: "date", label: "Date", width: 100 },
       { key: "category", label: "Category", width: 140 },
-      { key: "paidTo", label: "Paid To", width: 160 },
-      { key: "project", label: "Project", width: 120 },
-      { key: "_amount", label: "Amount (₹)", width: 120, right: true },
-      { key: "_status", label: "Status", width: 100 },
+      { key: "paidToName", label: "Paid To", width: 160 },
+      { key: "paymentMode", label: "Mode", width: 100 },
+      { key: "_amount", label: "Net (₹)", width: 120, right: true },
+      { key: "_status", label: "Status", width: 130 },
     ],
   },
   {
     id: "boqs", title: "BOQ Register", icon: "📐",
     fetch: getBOQs,
-    dateKey: "boqDate",
-    amountKey: "totalAmount",
+    dateKey: "date",
+    amountKey: "total",
     statusKey: "step",
-    statusMap: { 1: "Draft", 2: "Submitted", 3: "Approved" },
+    statusMap: { 1: "Draft", 2: "Submitted", 3: "GM Reviewed", 4: "Approved" },
     columns: [
-      { key: "boqNo", label: "BOQ No.", width: 140 },
-      { key: "boqDate", label: "Date", width: 100 },
-      { key: "projectCode", label: "Project", width: 120 },
-      { key: "siteName", label: "Site", width: 140 },
-      { key: "vendorCode", label: "Vendor", width: 130 },
-      { key: "_amount", label: "Amount (₹)", width: 120, right: true },
-      { key: "_status", label: "Status", width: 100 },
+      { key: "boqNo", fallbackKey: "tempRefId", label: "BOQ No.", width: 140 },
+      { key: "tempRefId", label: "Temp Ref", width: 130 },
+      { key: "date", label: "Date", width: 100 },
+      { key: "projectSite", label: "Project / Site", width: 160 },
+      { key: "clientName", label: "Client", width: 140 },
+      { key: "_lineCount", label: "Items", width: 70, right: true },
+      { key: "_amount", label: "Total (₹)", width: 120, right: true },
+      { key: "_status", label: "Status", width: 110 },
     ],
   },
   {
     id: "work_orders", title: "Work Orders", icon: "📋",
-    fetch: getWorkOrders,
+    fetch: getWOs,
     dateKey: "woDate",
-    amountKey: "totalAmount",
+    amountKey: "total",
     statusKey: "step",
-    statusMap: { 1: "Draft", 2: "Submitted", 3: "Approved", 4: "Vendor Accepted" },
+    statusMap: { 1: "Draft", 2: "Submitted", 3: "GM Reviewed", 4: "Approved", 5: "Vendor Accepted" },
     columns: [
-      { key: "woNo", label: "WO No.", width: 140 },
+      { key: "woNo", fallbackKey: "tempRefId", label: "WO No.", width: 140 },
+      { key: "tempRefId", label: "Temp Ref", width: 120 },
       { key: "woDate", label: "Date", width: 100 },
-      { key: "projectCode", label: "Project", width: 120 },
+      { key: "expiryDate", label: "Expiry", width: 100 },
       { key: "vendorCode", label: "Vendor", width: 130 },
       { key: "scopeOfWork", label: "Scope", width: 220 },
       { key: "_amount", label: "Amount (₹)", width: 120, right: true },
@@ -270,15 +325,47 @@ const DEPT_CONFIG = [
 ];
 
 const getCellValue = (row, col, cfg) => {
-  if (col.key === "_amount") return Number(row[cfg.amountKey] || 0);
+  // Computed columns
+  if (col.key === "_amount") {
+    // Specific per-dept computed amount fallbacks
+    if (cfg.amountKey === "_billAmount") {
+      // Bills: use grandTotal if present, else basic+gst-tds
+      const basic = Number(row.basicAmount) || 0;
+      const gst = +(basic * (Number(row.gstSlab) || 0) / 100).toFixed(2);
+      const tds = +(basic * (Number(row.tdsRate) || 0) / 100).toFixed(2);
+      const other = Number(row.otherDeductions) || 0;
+      return Number(row.grandTotal) || Number(row.netPayable) || +(basic + gst - tds - other).toFixed(2);
+    }
+    if (cfg.amountKey === "_expenseAmount") {
+      const basic = Number(row.basicAmount) || 0;
+      const gst = +(basic * (Number(row.gstSlab) || 0) / 100).toFixed(2);
+      const tds = +(basic * (Number(row.tdsRate) || 0) / 100).toFixed(2);
+      const other = Number(row.otherDeductions) || 0;
+      return Number(row.netPayable) || +(basic + gst - tds - other).toFixed(2);
+    }
+    return Number(row[cfg.amountKey] || 0);
+  }
   if (col.key === "_status") return cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "—";
   if (col.key === "_empCount") return Array.isArray(row.lines) ? row.lines.filter((l) => !l.excluded).length : 0;
-  if (col.key === "_lineCount") return Array.isArray(row.lines) ? row.lines.length : 0;
+  if (col.key === "_lineCount") return Array.isArray(row.lines) ? row.lines.length : (Array.isArray(row.items) ? row.items.length : 0);
   if (col.key === "_totalAmt") return Array.isArray(row.lines) ? row.lines.reduce((s, l) => s + Number(l.amount || 0), 0) : 0;
   if (col.key === "_period" && row.month && row.year) {
     return `${new Date(row.year, row.month - 1).toLocaleString("en", { month: "long" })} ${row.year}`;
   }
-  return row[col.key] ?? "";
+  if (col.key === "_vendorFirm") return row.vendorFirmName || row.vendorName || row.vendorSnapshot?.firmName || "";
+  // Direct key — try fallbackKey when the primary value is empty/null.
+  // Used for Bills (permanentBillNo → refNo), Expenses, BOQ, WO where the
+  // permanent number is issued only on approval. Prevents the entire column
+  // from rendering "—" for drafts.
+  const primary = row[col.key];
+  if (primary === null || primary === undefined || primary === "") {
+    if (col.fallbackKey) {
+      const fb = row[col.fallbackKey];
+      if (fb !== null && fb !== undefined && fb !== "") return fb;
+    }
+    return "";
+  }
+  return primary;
 };
 
 // Universal helpers for biodata rendering
@@ -486,6 +573,36 @@ const ReportsHub = () => {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [printMode, setPrintMode] = useState("summary"); // summary | full | compact | both  (summary = ek process ek bar; "both" bar bar duplicate dikhata tha)
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState(null);
+  // Inline biodata view (shown directly inside the datasheet, no new tab).
+  // `inlineAll` renders every filtered row as a card below the table.
+  //   false       → nothing
+  //   "selected"  → only checkbox-selected rows (requires selection)
+  //   "all"       → every filtered row
+  // `expandedKey` renders a single row's biodata as a details row below it.
+  const [inlineAll, setInlineAll] = useState(false);
+  const [expandedKey, setExpandedKey] = useState(null);
+
+  // Pull fresh snapshot from backend — surfaces data created by other users
+  // (cross-user sync). Also triggered automatically on tab change (silent).
+  const doSync = async (silent = false) => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      await syncFromCloud();
+      setRefresh((v) => v + 1);
+      setLastSyncAt(new Date());
+      if (!silent) toast.success("✓ Latest data pulled from server");
+    } catch (e) {
+      if (!silent) toast.error("Sync failed · check network");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // Silent background sync on first mount + every tab switch so data never looks stale.
+  useEffect(() => { doSync(true); /* eslint-disable-next-line */ }, [activeDept]);
 
   // Row-key resolver — stable identity for selection + React key
   const rowKey = (r, i) => r.id || r.pvNo || r.refNo || r.boqNo || r.empCode || r.permanentBillNo || `idx-${i}`;
@@ -561,7 +678,14 @@ const ReportsHub = () => {
     return Array.from(vals);
   }, [rawRows, cfg]);
 
-  const clearFilters = () => { setFy(""); setMonth(""); setFromDate(""); setToDate(""); setStatusFilter(""); setSearch(""); setSelectedIds(new Set()); };
+  const clearFilters = () => { setFy(""); setMonth(""); setFromDate(""); setToDate(""); setStatusFilter(""); setSearch(""); setSelectedIds(new Set()); setInlineAll(false); setExpandedKey(null); };
+
+  // Shared values used by both the print window and the inline biodata renders.
+  // Memoised so the inline-view HTML doesn't rebuild on every keystroke.
+  const co = useMemo(() => ({ ...DEFAULT_COMPANY, ...(getCompany() || {}) }), []);
+  const logo = useMemo(() => getLogo() || "/arun-logo.jpg", []);
+  const me = useMemo(() => currentUser() || "", []);
+  const nowStr = useMemo(() => new Date().toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" }), [refresh]);
 
   // Rows that will actually be exported — if any selection is active use those,
   // otherwise fall back to the full filtered set.
@@ -609,9 +733,9 @@ const ReportsHub = () => {
     toast.success(`Excel exported · ${rowsToUse.length} rows${selectedIds.size ? " (selected)" : ""}`);
   };
 
-  const printReport = (modeOverride) => {
+  const printReport = (modeOverride, customRows, viewOnly = false) => {
     const mode = modeOverride || printMode;
-    const rowsToUse = exportRows;
+    const rowsToUse = customRows || exportRows;
     const win = window.open("", "_blank", "width=1200,height=900");
     if (!win) { toast.error("Pop-up blocked — please allow pop-ups"); return; }
     const co = { ...DEFAULT_COMPANY, ...(getCompany() || {}) };
@@ -809,7 +933,7 @@ const ReportsHub = () => {
         .bio-page, .compact-page { page-break-inside: avoid; }
       </style></head><body>
       ${bodyContent}
-      <script>setTimeout(()=>{window.print();},400);</script>
+      <script>${viewOnly ? "" : "setTimeout(()=>{window.print();},400);"}</script>
     </body></html>`);
     win.document.close();
   };
@@ -866,7 +990,7 @@ const ReportsHub = () => {
 
         {/* Filter bar */}
         <div style={{ background: "#fff", border: "1.5px solid #c7d2fe", borderRadius: 6, padding: 12, marginBottom: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr) auto auto", gap: 8, alignItems: "end" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(120px, 1fr))", gap: 8, alignItems: "end", marginBottom: 10 }}>
             <div>
               <label style={{ fontSize: 10, color: "#4338ca", fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase" }}>Financial Year</label>
               <select data-testid="rh-fy" value={fy} onChange={(e) => setFy(e.target.value)} style={{ marginTop: 3, width: "100%", padding: "6px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11.5, fontWeight: 700, background: "#fff" }}>
@@ -897,7 +1021,30 @@ const ReportsHub = () => {
               <label style={{ fontSize: 10, color: "#4338ca", fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase" }}>Search</label>
               <input data-testid="rh-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Any text…" style={{ marginTop: 3, width: "100%", padding: "6px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11.5 }} />
             </div>
-            <button data-testid="rh-clear" onClick={clearFilters} title="Clear all filters" style={{ padding: "7px 12px", background: "#fff", color: "#4338ca", border: "1.5px solid #c7d2fe", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 4, height: 32 }}>
+          </div>
+          {/* Action buttons on their own row — proper breathing room */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", paddingTop: 10, borderTop: "1px dashed #e0e7ff" }}>
+            <button data-testid="rh-sync" onClick={() => doSync(false)} disabled={syncing} title={lastSyncAt ? `Last sync: ${lastSyncAt.toLocaleTimeString("en-IN")}` : "Pull latest data from server"} style={{ padding: "7px 14px", background: syncing ? "#94a3b8" : "linear-gradient(135deg,#0ea5e9,#0369a1)", color: "#fff", border: "none", borderRadius: 4, cursor: syncing ? "wait" : "pointer", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 5, height: 32 }}>
+              <RefreshCw size={12} style={{ animation: syncing ? "spin 1s linear infinite" : "none" }} /> {syncing ? "Syncing…" : "Sync"}
+            </button>
+            <button data-testid="rh-view-selected" onClick={() => {
+              if (selectedIds.size === 0) { toast.error("Select at least one row (checkbox) to View"); return; }
+              setInlineAll("selected");
+              setExpandedKey(null);
+              toast.success(`▸ Showing ${exportRows.length} selected record(s) inline — scroll below the table`);
+            }} title="View only the checkbox-selected row(s) inline (below the table)" style={{ padding: "7px 14px", background: inlineAll === "selected" ? "linear-gradient(135deg,#dc2626,#991b1b)" : "linear-gradient(135deg,#4f46e5,#3730a3)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 5, height: 32 }}>
+              <Eye size={12} /> View {selectedIds.size > 0 ? `(${selectedIds.size})` : ""}
+            </button>
+            <button data-testid="rh-view-all" onClick={() => {
+              if (!filteredRows.length) { toast.error("No records to view"); return; }
+              const next = inlineAll === "all" ? false : "all";
+              setInlineAll(next);
+              setExpandedKey(null);
+              if (next === "all") toast.success(`▸ Showing all ${filteredRows.length} record(s) inline — scroll below the table`);
+            }} title={inlineAll === "all" ? "Hide inline View All" : "View ALL filtered records inline (below the table)"} style={{ padding: "7px 14px", background: inlineAll === "all" ? "linear-gradient(135deg,#dc2626,#991b1b)" : "linear-gradient(135deg,#0ea5e9,#0369a1)", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 5, height: 32 }}>
+              <Eye size={12} /> {inlineAll === "all" ? "Hide All" : `View All (${filteredRows.length})`}
+            </button>
+            <button data-testid="rh-clear" onClick={clearFilters} title="Clear all filters & inline views" style={{ padding: "7px 14px", background: "#fff", color: "#4338ca", border: "1.5px solid #c7d2fe", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 5, height: 32, marginLeft: "auto" }}>
               <Filter size={12} /> Clear
             </button>
           </div>
@@ -967,20 +1114,30 @@ const ReportsHub = () => {
                 const k = rowKey(r, i);
                 const isSel = selectedIds.has(k);
                 return (
-                <tr key={k} data-testid={`rh-row-${i}`} style={{ background: isSel ? "#eef2ff" : (i % 2 ? "#f8fafc" : "#fff"), borderBottom: "1px solid #e2e8f0", borderLeft: isSel ? "3px solid #4f46e5" : "3px solid transparent" }}>
-                  <td style={{ padding: "6px 8px", textAlign: "center", width: 40 }}>
+                <React.Fragment key={k}>
+                <tr data-testid={`rh-row-${i}`} style={{ background: isSel ? "#eef2ff" : (i % 2 ? "#f8fafc" : "#fff"), borderBottom: "1px solid #e2e8f0", borderLeft: isSel ? "3px solid #4f46e5" : "3px solid transparent" }}>
+                  <td style={{ padding: "6px 4px", textAlign: "center", width: 60, whiteSpace: "nowrap" }}>
                     <input
                       type="checkbox"
                       data-testid={`rh-check-row-${i}`}
                       checked={isSel}
                       onChange={() => toggleRow(k)}
                       title={isSel ? "Unselect this row" : "Select this row for export"}
-                      style={{ cursor: "pointer", width: 14, height: 14, accentColor: "#4f46e5" }}
+                      style={{ cursor: "pointer", width: 14, height: 14, accentColor: "#4f46e5", verticalAlign: "middle" }}
                     />
+                    <button
+                      data-testid={`rh-view-row-${i}`}
+                      onClick={() => { setExpandedKey((k2) => k2 === k ? null : k); setInlineAll(false); }}
+                      title={expandedKey === k ? "Hide this record" : "View full record inline"}
+                      style={{ marginLeft: 6, padding: "2px 4px", background: expandedKey === k ? "#4f46e5" : "transparent", border: "none", color: expandedKey === k ? "#fff" : "#4f46e5", cursor: "pointer", verticalAlign: "middle", borderRadius: 3 }}
+                    >
+                      <Eye size={14} />
+                    </button>
                   </td>
                   {cfg.columns.map((c) => {
                     const v = getCellValue(r, c, cfg);
-                    const txt = c.key === "_amount" ? inrN(v) : String(v || "—");
+                    const empty = v === null || v === undefined || v === "";
+                    const txt = c.key === "_amount" ? inrN(v) : (empty ? "—" : String(v));
                     const isAmt = c.key === "_amount";
                     const isStatus = c.key === "_status" || c.key === "status";
                     // IMAGE columns (photoUrl / signatureUrl) — render thumbnail, not URL text
@@ -1011,6 +1168,14 @@ const ReportsHub = () => {
                     );
                   })}
                 </tr>
+                {expandedKey === k && (
+                  <tr data-testid={`rh-expanded-${i}`}>
+                    <td colSpan={cfg.columns.length + 1} style={{ padding: 0, background: "#f1f5f9", borderBottom: "3px solid #4f46e5" }}>
+                      <div className="rh-ibi" style={{ padding: 12 }} dangerouslySetInnerHTML={{ __html: `<style>${BIODATA_CSS}</style>${buildBiodataCard(r, 0, 1, cfg, co, logo, nowStr, false, me)}` }} />
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
                 );
               })}
             </tbody>
@@ -1024,6 +1189,23 @@ const ReportsHub = () => {
             )}
           </table>
         </div>
+
+        {/* Inline biodata panel — shown directly inside the datasheet when the
+            user clicks "View" (selected rows) or "View All" (all filtered). */}
+        {inlineAll && (() => {
+          const rows = inlineAll === "selected" ? exportRows : filteredRows;
+          if (!rows.length) return null;
+          const html = rows.map((r, i) => buildBiodataCard(r, i, rows.length, cfg, co, logo, nowStr, false, me)).join("");
+          return (
+            <div data-testid="rh-inline-biodata" style={{ marginTop: 14, border: "2px solid #4f46e5", borderRadius: 6, overflow: "hidden", background: "#fff" }}>
+              <div style={{ padding: "8px 14px", background: "linear-gradient(135deg,#4f46e5,#3730a3)", color: "#fff", fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>▸ Inline Biodata · {inlineAll === "selected" ? `${rows.length} Selected Record(s)` : `All ${rows.length} Record(s)`}</span>
+                <button data-testid="rh-inline-close" onClick={() => setInlineAll(false)} style={{ padding: "3px 10px", background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: 0.3 }}>Close ✗</button>
+              </div>
+              <div className="rh-ibi" style={{ padding: 14, background: "#f8fafc", maxHeight: "80vh", overflow: "auto" }} dangerouslySetInnerHTML={{ __html: `<style>${BIODATA_CSS}</style>${html}` }} />
+            </div>
+          );
+        })()}
       </main>
     </>
   );
