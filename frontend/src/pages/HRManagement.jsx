@@ -1379,6 +1379,38 @@ const ComplianceTab = () => {
   );
 };
 
+// Inline UTR input + explicit Save button (used inside PayBill rows)
+const UtrSaveInput = ({ pvNo, refNo, onSave }) => {
+  const [val, setVal] = useState("");
+  const commit = () => {
+    const v = val.trim();
+    if (!v) { toast.error("UTR / Ref No khali nahi ho sakta"); return; }
+    if (!pvNo) { toast.error("Linked PV missing"); return; }
+    onSave(v.toUpperCase().slice(0, 32));
+    setVal("");
+  };
+  return (
+    <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+      <input
+        type="text"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="Enter UTR / Ref No"
+        data-testid={`pb-hr-utr-input-${refNo}`}
+        onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+        title={`Enter UTR for ${pvNo || "linked PV"} and click Save`}
+        style={{ padding: "3px 7px", fontSize: 10, fontFamily: "monospace", fontWeight: 700, border: "1.5px solid #fca5a5", background: "#fff7ed", color: "#991b1b", borderRadius: 3, width: 140 }}
+      />
+      <button
+        data-testid={`pb-hr-utr-save-${refNo}`}
+        onClick={commit}
+        title="Save UTR to linked Payment Voucher"
+        style={{ padding: "3px 8px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 3 }}
+      ><Save size={10} /> Save UTR</button>
+    </div>
+  );
+};
+
 // -------------- Pay Bill (Monthly Salary Bill with Advance Adjustment) --------------
 const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   const now = new Date();
@@ -1468,6 +1500,27 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   const locked = cur && Number(cur.step) >= 2;
   const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
 
+  // Previous month pay bill (reference for current editor + visible history card)
+  const prevMonthRef = (() => {
+    if (!cur) return null;
+    const py = cur.month === 1 ? cur.year - 1 : cur.year;
+    const pm = cur.month === 1 ? 12 : cur.month - 1;
+    const key = `${py}-${String(pm).padStart(2, "0")}`;
+    return list.find((p) => p.monthKey === key) || list.find((p) => p.year === py && p.month === pm) || null;
+  })();
+  const prevNetByCode = {};
+  const prevGrossByCode = {};
+  const prevAdvByCode = {};
+  if (prevMonthRef && Array.isArray(prevMonthRef.lines)) {
+    prevMonthRef.lines.forEach((l) => {
+      if (l.excluded) return;
+      const n = Math.max(0, (Number(l.gross)||0) - (Number(l.pf)||0) - (Number(l.esic)||0) - (Number(l.proftax)||0) - (Number(l.tds)||0) - (Number(l.advance)||0) - (Number(l.otherDeductions)||0));
+      prevNetByCode[l.empCode] = n;
+      prevGrossByCode[l.empCode] = Number(l.gross)||0;
+      prevAdvByCode[l.empCode] = Number(l.advance)||0;
+    });
+  }
+
   return (
     <div style={{ padding: 14 }}>
       {/* Create section */}
@@ -1506,6 +1559,19 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1 }}>{cur.refNo} · {new Date(cur.year, cur.month - 1).toLocaleString("en", { month: "long" })} {cur.year} · <span style={{ background: "#fbbf24", color: "#78350f", padding: "1px 8px", borderRadius: 3, marginLeft: 6, fontSize: 10 }}>{PAYBILL_STATUS[cur.step]}</span></div>
             <div style={{ fontSize: 11 }}>Gross <b>₹{inrN(cur.totalGross)}</b> · Ded <b>₹{inrN(cur.totalDeductions)}</b> · Adv <b>₹{inrN(cur.totalAdvance)}</b> · <span style={{ color: "#86efac" }}>NET <b style={{ fontSize: 13 }}>₹{inrN(cur.totalNet)}</b></span></div>
           </div>
+          {prevMonthRef && (
+            <div data-testid="pb-prev-month-ref" style={{ padding: "8px 14px", background: "#fef9c3", borderBottom: "1px solid #fde047", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: 11, color: "#78350f" }}>
+              <span style={{ fontWeight: 800, letterSpacing: 0.3, textTransform: "uppercase", fontSize: 10 }}>📎 Previous Month Ref:</span>
+              <span style={{ fontWeight: 800 }}>{prevMonthRef.refNo}</span>
+              <span>· {new Date(prevMonthRef.year, prevMonthRef.month - 1).toLocaleString("en", { month: "long" })} {prevMonthRef.year}</span>
+              <span>· Employees <b>{(prevMonthRef.lines || []).filter((l) => !l.excluded).length}</b></span>
+              <span>· Gross <b>₹{inrN(prevMonthRef.totalGross)}</b></span>
+              <span>· Adv <b>₹{inrN(prevMonthRef.totalAdvance)}</b></span>
+              <span>· <span style={{ color: "#166534", fontWeight: 800 }}>NET ₹{inrN(prevMonthRef.totalNet)}</span></span>
+              <span style={{ padding: "2px 6px", background: "#fff", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 3, fontSize: 9.5, fontWeight: 800, textTransform: "uppercase" }}>{PAYBILL_STATUS[prevMonthRef.step] || "Draft"}</span>
+              <button data-testid="pb-prev-open" onClick={() => setCur(prevMonthRef)} title="Open previous month bill" style={{ marginLeft: "auto", padding: "3px 10px", background: "#78350f", color: "#fff", border: "none", borderRadius: 3, cursor: "pointer", fontSize: 10, fontWeight: 800 }}>Open Prev →</button>
+            </div>
+          )}
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
@@ -1513,7 +1579,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                   <th style={{ padding: "6px 4px", border: "1px solid #e2e8f0", fontSize: 10, textAlign: "center", width: 30 }}>
                     <input type="checkbox" data-testid="pb-select-all" checked={cur.lines.every((l) => !l.excluded)} onChange={(e) => toggleAll(e.target.checked)} disabled={locked} style={{ cursor: locked ? "not-allowed" : "pointer" }} title="Select / Deselect all" />
                   </th>
-                  {["#", "EMP Code", "Name", "Designation", "Days P/T", "Gross", "PF", "ESIC", "P.Tax", "TDS", "Advance", "Other Ded.", "NET"].map((h) => <th key={h} style={{ padding: "6px 8px", border: "1px solid #e2e8f0", fontSize: 10, textAlign: "center" }}>{h}</th>)}
+                  {["#", "EMP Code", "Name", "Designation", "Days P/T", "Gross", "PF", "ESIC", "P.Tax", "TDS", "Advance", "Other Ded.", "NET", "Prev NET"].map((h) => <th key={h} style={{ padding: "6px 8px", border: "1px solid #e2e8f0", fontSize: 10, textAlign: "center" }}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -1547,6 +1613,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                       <input type="number" value={l.otherDeductions || 0} onChange={(e) => setLine(i, "otherDeductions", e.target.value)} disabled={locked} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #cbd5e1", borderRadius: 3, textAlign: "right" }} />
                     </td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 800, background: "#0f172a", color: "#fff" }}>₹{inrN(Math.max(0, (Number(l.gross)||0) - (Number(l.pf)||0) - (Number(l.esic)||0) - (Number(l.proftax)||0) - (Number(l.tds)||0) - (Number(l.advance) || 0) - (Number(l.otherDeductions) || 0)))}</td>
+                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 700, background: "#fef9c3", color: "#78350f", fontSize: 10.5 }} title={prevMonthRef ? `${prevMonthRef.refNo} · ${new Date(prevMonthRef.year, prevMonthRef.month - 1).toLocaleString("en", { month: "short" })} ${prevMonthRef.year}` : "No previous month bill found"}>{prevNetByCode[l.empCode] !== undefined ? `₹${inrN(prevNetByCode[l.empCode])}` : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1599,21 +1666,14 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                       </div>
                     ) : (
                       canApprove() ? (
-                        <input
-                          type="text"
-                          defaultValue=""
-                          placeholder="Enter UTR / Ref No"
-                          data-testid={`pb-hr-utr-input-${p.id}`}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (!v || !p.linkedPvNo) return;
-                            const payments = getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? { ...pp, utrNo: v.toUpperCase().slice(0, 32), paidAt: new Date().toISOString() } : pp);
+                        <UtrSaveInput
+                          pvNo={p.linkedPvNo}
+                          refNo={p.id}
+                          onSave={(v) => {
+                            const payments = getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? { ...pp, utrNo: v, paidAt: new Date().toISOString() } : pp);
                             savePayments(payments); refresh();
                             toast.success(`UTR saved · ${p.refNo}`);
                           }}
-                          onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
-                          title={`Enter UTR for ${p.linkedPvNo || "linked PV"} · auto-saves on blur / Enter`}
-                          style={{ padding: "3px 7px", fontSize: 10, fontFamily: "monospace", fontWeight: 700, border: "1.5px solid #fca5a5", background: "#fff7ed", color: "#991b1b", borderRadius: 3, width: 160 }}
                         />
                       ) : (
                         <span style={{ padding: "2px 6px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", borderRadius: 3, fontWeight: 800 }}>⚠ AWAITING UTR {p.linkedPvNo ? `· ${p.linkedPvNo}` : ""}</span>
