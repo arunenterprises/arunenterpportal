@@ -200,6 +200,10 @@ class RegisterBody(BaseModel):
     mobile: str = ""
     employee_id: str = ""
     designation: str = ""
+    # Fine-grained access powers assigned by SuperAdmin at registration time (Feb-2026)
+    permissions: Optional[Dict[str, bool]] = None   # {create, edit, submit, approve}
+    is_accounts_approver: bool = False              # weekly fooding / advance approver
+    is_full_access: bool = False                    # all perms = true
 
 
 class LoginBody(BaseModel):
@@ -219,7 +223,19 @@ async def register(body: RegisterBody, admin: Dict = Depends(require_admin)):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    role = "Admin" if body.role.lower() == "admin" else "User"
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "Purchase"]
+    role_in = (body.role or "User").strip()
+    role = role_in if role_in in allowed_roles else "User"
+    # Resolve effective permissions:
+    #   SuperAdmin can either (a) pass an explicit permissions dict, (b) flip is_full_access,
+    #   or (c) rely on role defaults.
+    perms = _role_default_perms(role)
+    if body.permissions and isinstance(body.permissions, dict):
+        for k in ("create", "edit", "submit", "approve"):
+            if k in body.permissions:
+                perms[k] = bool(body.permissions[k])
+    if body.is_full_access:
+        perms = {"create": True, "edit": True, "submit": True, "approve": True}
     doc = {
         "email": email,
         "name": name,
@@ -228,6 +244,9 @@ async def register(body: RegisterBody, admin: Dict = Depends(require_admin)):
         "employee_id": (body.employee_id or "").strip(),
         "designation": (body.designation or "").strip(),
         "password_hash": hash_password(password),
+        "permissions": perms,
+        "is_accounts_approver": bool(body.is_accounts_approver),
+        "is_full_access": bool(body.is_full_access),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "created_by": admin.get("email"),
     }
@@ -236,6 +255,9 @@ async def register(body: RegisterBody, admin: Dict = Depends(require_admin)):
         "user": {
             "email": email, "name": name, "role": role,
             "mobile": doc["mobile"], "employee_id": doc["employee_id"], "designation": doc["designation"],
+            "permissions": perms,
+            "is_accounts_approver": doc["is_accounts_approver"],
+            "is_full_access": doc["is_full_access"],
         },
     }
 
@@ -338,13 +360,17 @@ async def login(body: LoginBody, request: Request):
 
     token = create_access_token(user["email"], user["email"])
     perms = user.get("permissions") or _role_default_perms(user.get("role"))
-    if is_super:
+    if is_super or user.get("is_full_access"):
         perms = {"create": True, "edit": True, "submit": True, "approve": True}
     return {
         "token": token,
         "user": {
             "email": user["email"], "name": user["name"], "role": user["role"],
             "permissions": perms, "designation": user.get("designation", ""),
+            "is_accounts_approver": bool(user.get("is_accounts_approver", False)) or is_super,
+            "is_full_access": bool(user.get("is_full_access", False)) or is_super,
+            "employee_id": user.get("employee_id", ""),
+            "mobile": user.get("mobile", ""),
         },
     }
 

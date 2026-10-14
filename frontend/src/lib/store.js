@@ -1172,19 +1172,29 @@ export const canDelete = () => {
 export const canApproveAccounts = () => canApprove();
 export const canApproveGM = () => canApprove();
 
-// Advance Request / Weekly Fooding approval policy (Feb 2026 · user request):
-// Allowed approvers:
+// Approver policy — any ONE of the following grants Accounts Manager / Approver powers
+// (used by Weekly Fooding, HR Advance Requests, PV re-approve, etc.):
 //   1. SuperAdmin (always)
-//   2. Any user whose stored profile designation === "Accounts Manager" (case-insensitive)
-//   3. Specific whitelisted emails in ACCOUNTS_MANAGER_EMAILS (e.g. Komal Srivastava)
+//   2. Profile flag `is_accounts_approver` set by SuperAdmin via Register New Employee form
+//   3. Profile flag `is_full_access` (grants ALL powers)
+//   4. Stored profile designation === "Accounts Manager" (legacy / designation-driven)
+//   5. Specific whitelisted emails in ACCOUNTS_MANAGER_EMAILS (hard-coded fallback)
 export const isAccountsManager = () => {
   const p = currentUserProfile();
   if (!p) return false;
   const email = (p.user || "").toLowerCase().trim();
   if (isSuperAdmin(email)) return true;
+  if (p.is_full_access === true) return true;
+  if (p.is_accounts_approver === true) return true;
   if (ACCOUNTS_MANAGER_EMAILS.map((x) => x.toLowerCase().trim()).includes(email)) return true;
   const d = String(p.designation || "").toLowerCase().trim();
   return d === "accounts manager" || d === "account manager" || d === "accountsmanager" || d === "accounts-manager";
+};
+export const isFullAccess = () => {
+  const p = currentUserProfile();
+  if (!p) return false;
+  if (isSuperAdmin((p.user || "").toLowerCase().trim())) return true;
+  return p.is_full_access === true;
 };
 export const isReadOnly = () => currentRole() === "Viewer";
 

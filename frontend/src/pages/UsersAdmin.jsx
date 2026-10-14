@@ -296,8 +296,15 @@ export default function UsersAdmin() {
   const [users, setUsers] = useState([]);
   const [busy, setBusy] = useState(false);
   const [goodbye, setGoodbye] = useState(null);
-  // Create user form
-  const [f, setF] = useState({ name: "", email: "", mobile: "", employee_id: "", designation: "", role: "User", password: "", password2: "" });
+  // Create user form (incl. per-user access powers assigned by SuperAdmin at registration)
+  const [f, setF] = useState({
+    name: "", email: "", mobile: "", employee_id: "", designation: "", role: "User",
+    password: "", password2: "",
+    // Access powers (Feb-2026 — "superadmin deside karega …power" directive)
+    is_full_access: false,     // all permissions = true
+    is_accounts_approver: false, // can approve Weekly Fooding / Advance Request / etc.
+    perm_create: true, perm_edit: true, perm_submit: true, perm_approve: false,
+  });
   // Self change-password form
   const [pw, setPw] = useState({ old_password: "", new_password: "", confirm: "" });
   const [pwBusy, setPwBusy] = useState(false);
@@ -366,9 +373,17 @@ export default function UsersAdmin() {
         mobile: f.mobile.trim(),
         employee_id: f.employee_id.trim(),
         designation: f.designation.trim(),
+        is_full_access: !!f.is_full_access,
+        is_accounts_approver: !!f.is_accounts_approver,
+        permissions: {
+          create: !!f.perm_create,
+          edit: !!f.perm_edit,
+          submit: !!f.perm_submit,
+          approve: !!f.perm_approve,
+        },
       });
-      toast.success(`Employee "${f.name}" created`);
-      setF({ name: "", email: "", mobile: "", employee_id: "", designation: "", role: "User", password: "", password2: "" });
+      toast.success(`Employee "${f.name}" created · ${f.is_full_access ? "FULL ACCESS" : f.role}${f.is_accounts_approver ? " · Approver" : ""}`);
+      setF({ name: "", email: "", mobile: "", employee_id: "", designation: "", role: "User", password: "", password2: "", is_full_access: false, is_accounts_approver: false, perm_create: true, perm_edit: true, perm_submit: true, perm_approve: false });
       await load();
     } catch (ex) {
       toast.error(ex.message);
@@ -623,6 +638,47 @@ export default function UsersAdmin() {
                     </>
                   );
                 })()}
+              </div>
+            </div>
+            {/* ---- ACCESS POWERS — assigned by SuperAdmin at registration time ---- */}
+            <div style={{ gridColumn: "1 / -1", marginTop: 8, padding: 10, background: "#fff7ed", border: "1.5px solid #fdba74", borderRadius: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: .6, color: "#9a3412", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <Key size={13} /> Access Powers · SuperAdmin assigns at registration time
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {/* LEFT · High-level power toggles */}
+                <div style={{ padding: 8, background: "#fff", border: "1px solid #fdba74", borderRadius: 5 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9a3412", marginBottom: 6 }}>⚡ High-level power</div>
+                  <label data-testid="power-full-access" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
+                    <input type="checkbox" checked={f.is_full_access} onChange={(e) => {
+                      const on = e.target.checked;
+                      setF((p) => ({ ...p, is_full_access: on, perm_create: on || p.perm_create, perm_edit: on || p.perm_edit, perm_submit: on || p.perm_submit, perm_approve: on ? true : p.perm_approve }));
+                    }} style={{ width: 15, height: 15 }} />
+                    <span style={{ display: "inline-block", padding: "2px 8px", background: "#fef2f2", color: "#991b1b", borderRadius: 10, fontSize: 10, fontWeight: 800, letterSpacing: .3 }}>FULL ACCESS</span>
+                    <span style={{ color: "#64748b", fontSize: 11, fontWeight: 500 }}>— all powers (create · edit · submit · approve)</span>
+                  </label>
+                  <label data-testid="power-approver" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
+                    <input type="checkbox" checked={f.is_accounts_approver} onChange={(e) => setF((p) => ({ ...p, is_accounts_approver: e.target.checked, perm_approve: e.target.checked ? true : p.perm_approve }))} style={{ width: 15, height: 15 }} />
+                    <span style={{ display: "inline-block", padding: "2px 8px", background: "#ecfdf5", color: "#065f46", borderRadius: 10, fontSize: 10, fontWeight: 800, letterSpacing: .3 }}>APPROVER</span>
+                    <span style={{ color: "#64748b", fontSize: 11, fontWeight: 500 }}>— Weekly Fooding · Advance Request · PV re-approve</span>
+                  </label>
+                  <div style={{ fontSize: 10.5, color: "#64748b", fontStyle: "italic", marginTop: 4 }}>Admin role (from dropdown above) separately grants Users-Admin screen access.</div>
+                </div>
+                {/* RIGHT · Fine-grained CRUD toggles */}
+                <div style={{ padding: 8, background: "#fff", border: "1px solid #fdba74", borderRadius: 5 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9a3412", marginBottom: 6 }}>🔧 Fine-grained permissions</div>
+                  {[
+                    ["perm_create", "Create (new records)"],
+                    ["perm_edit", "Edit (existing records)"],
+                    ["perm_submit", "Submit (send under-approval)"],
+                    ["perm_approve", "Approve / Final Approve"],
+                  ].map(([k, lbl]) => (
+                    <label key={k} data-testid={`perm-${k}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 2px", cursor: "pointer", fontSize: 12, color: "#0f172a" }}>
+                      <input type="checkbox" checked={f[k]} disabled={f.is_full_access} onChange={(e) => setField(k, e.target.checked)} style={{ width: 14, height: 14 }} />
+                      <span style={{ fontWeight: 600 }}>{lbl}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
             <div style={{ gridColumn: "1 / -1", textAlign: "right" }}>

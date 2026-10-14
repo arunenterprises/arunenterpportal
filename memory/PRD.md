@@ -7,6 +7,15 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 11 — SuperAdmin-Assigned Access Powers)
+Per directive "SuperAdmin deside karega …power ye system REGISTER NEW EMPLOYEE main kijiye":
+- **Backend `RegisterBody`** extended with `permissions` dict + `is_accounts_approver` + `is_full_access` flags. Saved on user doc at `/api/auth/register` and surfaced in `/api/auth/login` payload.
+- **Register New Employee form** (UsersAdmin.jsx) now shows an **ACCESS POWERS** panel with:
+  - High-level toggles: **FULL ACCESS** (red pill — grants all CRUD + approve) and **APPROVER** (green pill — grants Weekly Fooding / Advance Request / PV re-approve sign-off power).
+  - Fine-grained CRUD toggles: Create / Edit / Submit / Approve (auto-locked ON when FULL ACCESS is checked).
+- **`isAccountsManager()`** now honors `profile.is_accounts_approver` OR `profile.is_full_access` dynamically — SuperAdmin can grant/revoke approver power at any user without hard-coding emails. Previous whitelist still works as fallback.
+- Verified end-to-end: Divya Srivastava registered with `is_accounts_approver=true` — login payload returns the flag, and signatures will stamp "Divya Srivastava".
+
 ## Feb-2026 Session Changes (round 10 — Komal Account Verified)
 - Komal Srivastava account registered via admin API: email `komal.srivastava@arunenterprises.online`, password `Komal2026@12`, role Admin, designation "Accounts Manager", name "Komal Srivastava".
 - Login verified in-browser: landing shows "Namaste, Komal Srivastava 👋".
