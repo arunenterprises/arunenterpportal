@@ -358,34 +358,6 @@ export default function Home() {
               <Kpi title="Approved ₹" value={`₹${Math.round(totalApprovedAmount / 100000)}L`} subtitle={`of ₹${Math.round((totalApprovedAmount + pendingAmount) / 100000)}L`} color="#059669" />
             </div>
 
-            {/* Quick open grid — compact version of previous dept cards */}
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 }}>
-              <div style={{ fontSize: 10, letterSpacing: 2, color: "#64748b", fontWeight: 800, textTransform: "uppercase", marginBottom: 10 }}>Quick Access</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }} data-testid="dept-grid">
-                {visibleDepts.map((d) => {
-                  const allowed = d.roles.includes(role) || superAdmin;
-                  const Icon = d.icon;
-                  const badge = badges[d.id];
-                  return (
-                    <button
-                      key={d.id}
-                      data-testid={`dept-card-${d.id}`}
-                      onClick={() => allowed && nav(d.to)}
-                      disabled={!allowed}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: allowed ? `linear-gradient(135deg,${d.color},${d.dark})` : "#cbd5e1", border: "none", borderRadius: 8, cursor: allowed ? "pointer" : "not-allowed", color: "#fff", textAlign: "left", opacity: allowed ? 1 : 0.6, boxShadow: allowed ? "0 2px 6px rgba(0,0,0,.1)" : "none" }}
-                    >
-                      <Icon size={22} strokeWidth={1.8} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 900, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.title}</div>
-                        <div style={{ fontSize: 10, opacity: 0.85 }}>{d.subtitle}</div>
-                      </div>
-                      {badge && <div style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", background: "rgba(255,255,255,.22)", borderRadius: 999 }}>{badge.text}</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div style={{ fontSize: 10.5, color: "#64748b", textAlign: "center", padding: 6 }}>
               💡 DRAFT · Left sidebar menu + dashboard layout · agar approve karo toh is design ko lock kar dunga. Rollback bhi ek line change me ho jayega.
             </div>
