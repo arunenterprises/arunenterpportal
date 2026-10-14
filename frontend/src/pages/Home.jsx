@@ -239,60 +239,168 @@ export default function Home() {
     users: null,
   };
 
-  // Fresh flat alignment per user request (Feb 2026):
-  // GM → HR → VENDOR → PURCHASE → ACCOUNTS → REPORTS & VOUCHERS → USER MANAGEMENT
-  // Project Management hidden until user approves the layout — route still works
-  // for preview but card removed from home grid per user request (Feb 2026).
+  // Draft left-sidebar layout (Feb 2026 · user request): menu on left, dashboard on right.
+  // Previous flat grid preserved commented inside render for easy rollback.
   const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "users"];
   const visibleDepts = ORDER
     .map((id) => DEPARTMENTS.find((d) => d.id === id))
     .filter((d) => d && (d.id !== "users" || superAdmin || role === "Admin"));
+
+  const totalApprovedAmount = payments.filter((p) => p.status === "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
+  const pendingAmount = payments.filter((p) => p.status !== "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
+
+  const sidebarBg = "linear-gradient(180deg,#0f172a 0%,#1e293b 50%,#0f172a 100%)";
 
   return (
     <>
       <Toaster position="top-center" richColors />
       <HomeNavBar />
 
-      <div className="home-fit" style={{ minHeight: "calc(100vh - 56px)", background: "#f1f5f9", padding: "14px 20px 24px" }}>
-        <div style={{ maxWidth: 1600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }} data-testid="home-page">
+      <div data-testid="home-page" style={{ display: "flex", minHeight: "calc(100vh - 56px)", background: "#f1f5f9" }}>
 
-          {/* Centered Letterhead */}
-          <div style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
-            <Header formTitle="" compact />
+        {/* ============== LEFT SIDEBAR ============== */}
+        <aside data-testid="home-sidebar" style={{ width: 260, flexShrink: 0, background: sidebarBg, color: "#fff", padding: "14px 0", display: "flex", flexDirection: "column", boxShadow: "2px 0 8px rgba(15,23,42,.1)" }}>
+          {/* Brand */}
+          <div style={{ padding: "0 18px 14px", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
+            <div style={{ fontSize: 9, letterSpacing: 2.5, color: "#fbbf24", fontWeight: 800, textTransform: "uppercase" }}>Arun Enterprises</div>
+            <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: 0.5, color: "#fff", marginTop: 2 }}>ERP · Workspace</div>
           </div>
 
-          {/* Organisation banner */}
-          <div style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #5b21b6 50%, #be185d 100%)", color: "#fff", borderRadius: 8, padding: "12px 20px", textAlign: "center", boxShadow: "0 3px 10px rgba(91,33,182,.22)" }}>
-            <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" }}>Department</div>
+          {/* User info */}
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 18, background: "linear-gradient(135deg,#f59e0b,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 14 }}>
+              {(me?.name || me?.user || "?").slice(0, 1).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{me?.name || "User"}</div>
+              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>{superAdmin ? "SUPERADMIN" : (role || "USER")}</div>
+            </div>
           </div>
 
-          {/* Flat department grid in user-specified order */}
-          <div
-            data-testid="dept-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(auto-fit, minmax(240px, 1fr))`,
-              gap: 14,
-              alignItems: "stretch",
-            }}
-          >
+          {/* Menu label */}
+          <div style={{ padding: "12px 18px 6px", fontSize: 9, letterSpacing: 2, color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Departments</div>
+
+          {/* Menu items */}
+          <nav style={{ flex: 1, overflowY: "auto", padding: "0 10px" }}>
             {visibleDepts.map((d) => {
               const allowed = d.roles.includes(role) || superAdmin;
+              const Icon = d.icon;
+              const badge = badges[d.id];
               return (
-                <div key={d.id} style={{ display: "flex", flexDirection: "column" }}>
-                  <DepartmentCard dept={d} badge={badges[d.id]} allowed={allowed} onClick={() => { if (allowed) nav(d.to); }} />
-                </div>
+                <button
+                  key={d.id}
+                  data-testid={`sidebar-${d.id}`}
+                  onClick={() => allowed && nav(d.to)}
+                  disabled={!allowed}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 11,
+                    padding: "10px 12px", marginBottom: 3,
+                    background: "transparent", color: allowed ? "#e2e8f0" : "#475569",
+                    border: "1px solid transparent", borderRadius: 7,
+                    cursor: allowed ? "pointer" : "not-allowed",
+                    textAlign: "left", fontSize: 12.5, fontWeight: 700,
+                    transition: "all .15s",
+                  }}
+                  onMouseEnter={(e) => { if (allowed) { e.currentTarget.style.background = "rgba(255,255,255,.07)"; e.currentTarget.style.borderColor = d.color; } }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}
+                >
+                  <div style={{ width: 32, height: 32, borderRadius: 6, background: `linear-gradient(135deg,${d.color},${d.dark})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon size={16} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textTransform: "uppercase", letterSpacing: 0.3 }}>{d.title}</div>
+                    <div style={{ fontSize: 9.5, color: "#94a3b8", fontWeight: 500, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.subtitle}</div>
+                  </div>
+                  {badge && allowed && (
+                    <div style={{ fontSize: 9, fontWeight: 800, padding: "2px 7px", background: d.color, color: "#fff", borderRadius: 999, flexShrink: 0 }} title={badge.title}>{badge.text}</div>
+                  )}
+                </button>
               );
             })}
-          </div>
+          </nav>
 
-          {superAdmin && (
-            <div style={{ marginTop: 2, padding: "8px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11, color: "#64748b", textAlign: "center" }}>
-              💡 <b>SuperAdmin view</b> · aapke paas sabhi 7 modules ka access hai · User Management last card hai.
+          {/* Footer */}
+          <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,.08)", fontSize: 9.5, color: "#64748b", lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700, color: "#94a3b8" }}>DRAFT LAYOUT · v2</div>
+            <div>Left-sidebar nav · Feb 2026</div>
+          </div>
+        </aside>
+
+        {/* ============== RIGHT MAIN CONTENT ============== */}
+        <main style={{ flex: 1, padding: "18px 24px 28px", overflow: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 1400, margin: "0 auto" }}>
+
+            {/* Letterhead */}
+            <div style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
+              <Header formTitle="" compact />
             </div>
-          )}
-        </div>
+
+            {/* Welcome banner */}
+            <div style={{ background: "linear-gradient(135deg,#1e3a8a 0%,#5b21b6 50%,#be185d 100%)", color: "#fff", borderRadius: 10, padding: "16px 22px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, boxShadow: "0 4px 12px rgba(91,33,182,.22)" }}>
+              <div>
+                <div style={{ fontSize: 10, letterSpacing: 2.5, color: "#e9d5ff", fontWeight: 800, textTransform: "uppercase" }}>Welcome back</div>
+                <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 0.3 }}>Namaste, {me?.name || "User"} 👋</div>
+                <div style={{ fontSize: 11, color: "#fde68a", marginTop: 2 }}>Aaj ke pending approvals · live KPI · recent activity niche hai</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, color: "#e9d5ff", fontWeight: 800, textTransform: "uppercase" }}>Pending Approvals</div>
+                <div style={{ fontSize: 32, fontWeight: 900, lineHeight: 1 }}>{pendingApprovals}</div>
+                <div style={{ fontSize: 10.5, color: "#fde68a" }}>across all departments</div>
+              </div>
+            </div>
+
+            {/* KPI tiles */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }} data-testid="home-kpis">
+              <Kpi title="Approved Vendors" value={approvedVendors} total={vendors.length} color="#0369a1" />
+              <Kpi title="Approved Bills" value={approvedBills} total={bills.length} color="#16a34a" />
+              <Kpi title="Approved Vouchers" value={paidVouchers} total={payments.length} color="#7c3aed" />
+              <Kpi title="HR Finalized" value={hrFinalized} total={hrEmps} color="#db2777" />
+              <Kpi title="Approved ₹" value={`₹${Math.round(totalApprovedAmount / 100000)}L`} subtitle={`of ₹${Math.round((totalApprovedAmount + pendingAmount) / 100000)}L`} color="#059669" />
+            </div>
+
+            {/* Quick open grid — compact version of previous dept cards */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, color: "#64748b", fontWeight: 800, textTransform: "uppercase", marginBottom: 10 }}>Quick Access</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }} data-testid="dept-grid">
+                {visibleDepts.map((d) => {
+                  const allowed = d.roles.includes(role) || superAdmin;
+                  const Icon = d.icon;
+                  const badge = badges[d.id];
+                  return (
+                    <button
+                      key={d.id}
+                      data-testid={`dept-card-${d.id}`}
+                      onClick={() => allowed && nav(d.to)}
+                      disabled={!allowed}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: allowed ? `linear-gradient(135deg,${d.color},${d.dark})` : "#cbd5e1", border: "none", borderRadius: 8, cursor: allowed ? "pointer" : "not-allowed", color: "#fff", textAlign: "left", opacity: allowed ? 1 : 0.6, boxShadow: allowed ? "0 2px 6px rgba(0,0,0,.1)" : "none" }}
+                    >
+                      <Icon size={22} strokeWidth={1.8} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 900, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.title}</div>
+                        <div style={{ fontSize: 10, opacity: 0.85 }}>{d.subtitle}</div>
+                      </div>
+                      {badge && <div style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", background: "rgba(255,255,255,.22)", borderRadius: 999 }}>{badge.text}</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ fontSize: 10.5, color: "#64748b", textAlign: "center", padding: 6 }}>
+              💡 DRAFT · Left sidebar menu + dashboard layout · agar approve karo toh is design ko lock kar dunga. Rollback bhi ek line change me ho jayega.
+            </div>
+          </div>
+        </main>
       </div>
     </>
   );
 }
+
+// KPI tile for home dashboard
+const Kpi = ({ title, value, total, subtitle, color }) => (
+  <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `4px solid ${color}`, borderRadius: 8, padding: "10px 14px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
+    <div style={{ fontSize: 9.5, letterSpacing: 1.5, color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>{title}</div>
+    <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1.1, marginTop: 2 }}>{value}{total !== undefined && <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700 }}> / {total}</span>}</div>
+    {subtitle && <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{subtitle}</div>}
+  </div>
+);
