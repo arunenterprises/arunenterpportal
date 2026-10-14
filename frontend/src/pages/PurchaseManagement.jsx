@@ -98,6 +98,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
   const [vendors, setVendors] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [boqSearch, setBoqSearch] = useState("");
 
   const refresh = () => { setList(getBOQs()); setVendors(getVendors().filter((v) => v.step === 3)); };
   useEffect(() => { refresh(); }, []);
@@ -177,7 +178,28 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
     toast.success(`BOQ ${next.boqNo} approved by ${next.approvedByName || "Admin"}`);
   };
   const handlePrint = () => window.print();
-  const loadBOQ = (b) => { setBoq(b); setSaved(true); setLocked(b.step >= 3); setSearchOpen(false); };
+  const loadBOQ = (b) => { setBoq(b); setSaved(true); setLocked(b.step >= 3); setSearchOpen(false); setBoqSearch(""); };
+
+  // Lookup existing BOQ by boqNo / tempRefId / refNo and auto-load its full data
+  const lookupBoqByCode = () => {
+    const q = (boqSearch || "").trim();
+    if (!q) { toast.error("Enter a BOQ No. to search"); return; }
+    const low = q.toLowerCase();
+    const match = list.find((b) =>
+      (b.boqNo || "").toLowerCase() === low ||
+      (b.tempRefId || "").toLowerCase() === low ||
+      (b.refNo || "").toLowerCase() === low
+    ) || list.find((b) =>
+      (b.boqNo || "").toLowerCase().includes(low) ||
+      (b.tempRefId || "").toLowerCase().includes(low) ||
+      (b.refNo || "").toLowerCase().includes(low) ||
+      (b.projectSite || "").toLowerCase().includes(low) ||
+      (b.clientName || "").toLowerCase().includes(low)
+    );
+    if (!match) { toast.error(`No BOQ found matching "${q}"`); return; }
+    loadBOQ(match);
+    toast.success(`✓ Loaded ${match.boqNo || match.tempRefId} · ${match.projectSite || "—"}`);
+  };
 
   const filteredSearchList = () => {
     const q = (searchQuery || "").trim().toLowerCase();
@@ -200,18 +222,35 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
         <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px 10px" }}>
           {/* Row 1 — Identifiers */}
           <div className="field-b">
-            <label>BOQ No. {Number(boq.step) >= 4 && <span style={{ color: "#16a34a", fontSize: 10, marginLeft: 4 }}>✓ auto-issued</span>}</label>
-            <input
-              data-testid="boq-no"
-              value={boq.boqNo || boq.tempRefId || ""}
-              readOnly
-              placeholder="Will auto-generate on approval"
-              style={
-                Number(boq.step) >= 4 && boq.boqNo
-                  ? { background: "#dcfce7", fontWeight: 800, color: "#166534", border: "1.5px solid #16a34a" }
-                  : { background: "#fef9c3", fontWeight: 700, color: "#78716c", fontStyle: boq.boqNo ? "normal" : "italic" }
-              }
-            />
+            <label>BOQ No. · Type &amp; Enter to Load {Number(boq.step) >= 4 && <span style={{ color: "#16a34a", fontSize: 10, marginLeft: 4 }}>✓ auto-issued</span>}</label>
+            <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
+              <input
+                data-testid="boq-no"
+                list="boq-lookup-list"
+                value={boqSearch !== "" ? boqSearch : (boq.boqNo || boq.tempRefId || "")}
+                onChange={(e) => setBoqSearch(e.target.value)}
+                placeholder="Type BOQ no. / project / client & Enter to load"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); lookupBoqByCode(); } }}
+                onFocus={() => { if (boqSearch === "" && (boq.boqNo || boq.tempRefId)) setBoqSearch(boq.boqNo || boq.tempRefId); }}
+                onBlur={() => setTimeout(() => setBoqSearch(""), 150)}
+                title="Type an existing BOQ No. / Temp Ref / project / client and press Enter (or 🔍) to auto-load that BOQ's full data"
+                style={
+                  Number(boq.step) >= 4 && boq.boqNo
+                    ? { background: "#dcfce7", fontWeight: 800, color: "#166534", border: "1.5px solid #16a34a", flex: 1 }
+                    : { background: "#fef9c3", fontWeight: 700, color: "#78716c", flex: 1 }
+                }
+              />
+              <button
+                type="button"
+                data-testid="boq-lookup"
+                onClick={lookupBoqByCode}
+                title="Lookup BOQ by code / project / client"
+                style={{ padding: "6px 10px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 800, fontSize: 12 }}
+              >🔍</button>
+            </div>
+            <datalist id="boq-lookup-list">
+              {list.map((b) => <option key={b.id} value={b.boqNo || b.tempRefId}>{`${b.projectSite || "—"} · ${b.clientName || ""} · ₹${Number(b.total || 0).toLocaleString("en-IN")}`}</option>)}
+            </datalist>
           </div>
           <div className="field-b">
             <label>Date</label>
@@ -633,6 +672,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
   const [list, setList] = useState([]);
   const [boqs, setBoqs] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [woSearch, setWoSearch] = useState("");
 
   const refresh = () => { setList(getWOs()); setBoqs(getBOQs()); setVendors(getVendors().filter((v) => v.step === 3)); };
   useEffect(() => { refresh(); }, []);
@@ -778,7 +818,26 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
     XLSX.writeFile(wb, fname);
     toast.success(`Downloaded ${fname}`);
   };
-  const loadWO = (w) => { setWo(w); setSaved(true); setLocked(w.step >= 3); };
+  const loadWO = (w) => { setWo(w); setSaved(true); setLocked(w.step >= 3); setWoSearch(""); };
+
+  // Lookup existing Work Order by woNo / boqRefNo / vendor / project and auto-load full data
+  const lookupWoByCode = () => {
+    const q = (woSearch || "").trim();
+    if (!q) { toast.error("Enter a WO No. to search"); return; }
+    const low = q.toLowerCase();
+    const match = list.find((w) =>
+      (w.woNo || "").toLowerCase() === low
+    ) || list.find((w) =>
+      (w.woNo || "").toLowerCase().includes(low) ||
+      (w.boqRefNo || "").toLowerCase().includes(low) ||
+      (w.vendorCode || "").toLowerCase().includes(low) ||
+      (w.vendorName || "").toLowerCase().includes(low) ||
+      (w.projectSite || "").toLowerCase().includes(low)
+    );
+    if (!match) { toast.error(`No Work Order found matching "${q}"`); return; }
+    loadWO(match);
+    toast.success(`✓ Loaded ${match.woNo || "draft"} · ${match.vendorName || match.projectSite || "—"}`);
+  };
 
   if (!wo) return null;
 
@@ -788,7 +847,33 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
       <div className="section">
         <div className="sec-head">A. Work Order Details</div>
         <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px 14px" }}>
-          <div><label>WO No. (auto on approval)</label><input data-testid="wo-no" value={wo.woNo || "— will be issued on approval —"} readOnly style={{ background: "#eef2ff", fontWeight: 700, color: wo.woNo ? "#166534" : "#64748b" }} /></div>
+          <div>
+            <label>WO No. · Type &amp; Enter to Load</label>
+            <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
+              <input
+                data-testid="wo-no"
+                list="wo-lookup-list"
+                value={woSearch !== "" ? woSearch : (wo.woNo || "")}
+                onChange={(e) => setWoSearch(e.target.value)}
+                placeholder="Type WO no / vendor / project & Enter"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); lookupWoByCode(); } }}
+                onFocus={() => { if (woSearch === "" && wo.woNo) setWoSearch(wo.woNo); }}
+                onBlur={() => setTimeout(() => setWoSearch(""), 150)}
+                title="Type an existing WO no / vendor / project and press Enter (or 🔍) to auto-load that Work Order's full data"
+                style={{ background: "#eef2ff", fontWeight: 700, color: wo.woNo ? "#166534" : "#64748b", flex: 1 }}
+              />
+              <button
+                type="button"
+                data-testid="wo-lookup"
+                onClick={lookupWoByCode}
+                title="Lookup WO by code / vendor / project"
+                style={{ padding: "6px 10px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 800, fontSize: 12 }}
+              >🔍</button>
+            </div>
+            <datalist id="wo-lookup-list">
+              {list.map((w) => <option key={w.id} value={w.woNo || w.id}>{`${w.vendorName || "—"} · ${w.projectSite || ""} · ₹${Number(w.total || 0).toLocaleString("en-IN")}`}</option>)}
+            </datalist>
+          </div>
           <div><label>WO Date</label><input data-testid="wo-date" type="date" value={wo.woDate} onChange={(e) => set("woDate", e.target.value)} disabled={locked} /></div>
           <div><label>Expiry Date {wo.woNo ? "(locked)" : "*"}</label><input data-testid="wo-expiry" type="date" value={wo.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} disabled={locked || wo.step >= 4} min={wo.woDate || undefined} /></div>
           <div><label>Status</label><input data-testid="wo-status" value={WO_STEP_LABEL[wo.step] || "-"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>

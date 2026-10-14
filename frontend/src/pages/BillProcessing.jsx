@@ -51,6 +51,7 @@ const F = ({ label, req, children }) => (
 export default function BillProcessing() {
   const nav = useNavigate();
   const [bill, setBill] = useState(() => createBillDraft());
+  const [billSearch, setBillSearch] = useState("");
   const [locked, setLocked] = useState(false);
   const [vendorInput, setVendorInput] = useState("");
   const [queryOpen, setQueryOpen] = useState(false);
@@ -517,9 +518,74 @@ export default function BillProcessing() {
                 <F label="Bill Ref No (Active till Approval)">
                   <input className="pill" value={bill.refNo} readOnly data-testid="field-refNo" />
                 </F>
-                <F label="Permanent Bill No">
-                  <input className="pill-generated" data-testid="field-permanentBillNo"
-                    value={bill.permanentBillNo || "Generated on Final Approval"} readOnly />
+                <F label="Permanent Bill No · Type &amp; Enter to Load">
+                  <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
+                    <input
+                      className="pill-generated"
+                      data-testid="field-permanentBillNo"
+                      list="bill-lookup-list"
+                      value={billSearch !== "" ? billSearch : (bill.permanentBillNo || bill.refNo || "")}
+                      onChange={(e) => setBillSearch(e.target.value)}
+                      placeholder="Type Bill No / Vendor / Invoice & Enter"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const q = (billSearch || "").trim();
+                          if (!q) { toast.error("Enter a Bill No / Ref / Invoice to search"); return; }
+                          const low = q.toLowerCase();
+                          const pool = allBills || [];
+                          const match = pool.find((b) =>
+                            (b.permanentBillNo || "").toLowerCase() === low ||
+                            (b.refNo || "").toLowerCase() === low ||
+                            (b.invoiceNo || "").toLowerCase() === low
+                          ) || pool.find((b) =>
+                            (b.permanentBillNo || "").toLowerCase().includes(low) ||
+                            (b.refNo || "").toLowerCase().includes(low) ||
+                            (b.invoiceNo || "").toLowerCase().includes(low) ||
+                            (b.vendorCode || "").toLowerCase().includes(low) ||
+                            ((b.vendorSnapshot?.firmName) || "").toLowerCase().includes(low)
+                          );
+                          if (!match) { toast.error(`No bill found matching "${q}"`); return; }
+                          loadBill(match);
+                          setBillSearch("");
+                          toast.success(`✓ Loaded ${match.permanentBillNo || match.refNo} · ${(match.vendorSnapshot?.firmName) || match.vendorCode || "—"}`);
+                        }
+                      }}
+                      onFocus={() => { if (billSearch === "" && (bill.permanentBillNo || bill.refNo)) setBillSearch(bill.permanentBillNo || bill.refNo); }}
+                      onBlur={() => setTimeout(() => setBillSearch(""), 150)}
+                      title="Type an existing Bill No / Ref / Invoice No / Vendor and press Enter to auto-load full bill data"
+                    />
+                    <button
+                      type="button"
+                      data-testid="bill-lookup"
+                      onClick={() => {
+                        const q = (billSearch || "").trim();
+                        if (!q) { toast.error("Enter a Bill No / Ref / Invoice to search"); return; }
+                        const low = q.toLowerCase();
+                        const pool = allBills || [];
+                        const match = pool.find((b) =>
+                          (b.permanentBillNo || "").toLowerCase() === low ||
+                          (b.refNo || "").toLowerCase() === low ||
+                          (b.invoiceNo || "").toLowerCase() === low
+                        ) || pool.find((b) =>
+                          (b.permanentBillNo || "").toLowerCase().includes(low) ||
+                          (b.refNo || "").toLowerCase().includes(low) ||
+                          (b.invoiceNo || "").toLowerCase().includes(low) ||
+                          (b.vendorCode || "").toLowerCase().includes(low) ||
+                          ((b.vendorSnapshot?.firmName) || "").toLowerCase().includes(low)
+                        );
+                        if (!match) { toast.error(`No bill found matching "${q}"`); return; }
+                        loadBill(match);
+                        setBillSearch("");
+                        toast.success(`✓ Loaded ${match.permanentBillNo || match.refNo}`);
+                      }}
+                      title="Lookup bill by number / ref / vendor"
+                      style={{ padding: "6px 10px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 800, fontSize: 12 }}
+                    >🔍</button>
+                  </div>
+                  <datalist id="bill-lookup-list">
+                    {(allBills || []).map((b) => <option key={b.id} value={b.permanentBillNo || b.refNo}>{`${(b.vendorSnapshot?.firmName) || b.vendorCode || "—"} · ₹${Number(b.basicAmount || 0).toLocaleString("en-IN")} · ${b.invoiceNo || ""}`}</option>)}
+                  </datalist>
                 </F>
                 <F label="Process Date">
                   <input type="date" {...bind("processDate")} />
