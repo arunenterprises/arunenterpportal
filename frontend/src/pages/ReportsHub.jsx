@@ -10,6 +10,7 @@ import {
   getEmployees, getPayBills, getLoans, getAdvanceRequests,
   getExits, getRecruitments,
   listFYOptions, getActiveFYOverride, PAYBILL_STATUS, ADVANCE_REQ_STATUS, LOAN_STATUS,
+  getCompany, getLogo, DEFAULT_COMPANY,
 } from "../lib/store";
 
 // Alias — WO getter is exported as getWOs in store.js
@@ -390,41 +391,139 @@ const ReportsHub = () => {
 
   const printReport = () => {
     const rowsToUse = exportRows;
-    const win = window.open("", "_blank", "width=1100,height=800");
+    const win = window.open("", "_blank", "width=1200,height=900");
     if (!win) { toast.error("Pop-up blocked — please allow pop-ups"); return; }
-    const headerCells = cfg.columns.map((c) => `<th style="padding:6px 8px;background:#1e293b;color:#fff;font-size:10px;text-align:${c.right?'right':'left'};border:1px solid #334155;letter-spacing:.3px">${c.label}</th>`).join("");
+    const co = { ...DEFAULT_COMPANY, ...(getCompany() || {}) };
+    const logo = getLogo() || "/arun-logo.jpg";
+    const headerCells = cfg.columns.map((c) => `<th style="padding:5px 7px;background:#1e293b;color:#fff;font-size:9.5px;text-align:${c.right?'right':'left'};border:1px solid #000;letter-spacing:.3px;font-weight:800;text-transform:uppercase">${c.label}</th>`).join("");
     const bodyRows = rowsToUse.map((r, i) => {
       const tds = cfg.columns.map((c) => {
         const v = getCellValue(r, c, cfg);
         const txt = c.key === "_amount" ? inrN(v) : String(v || "—");
-        return `<td style="padding:5px 8px;border:1px solid #e2e8f0;font-size:10.5px;text-align:${c.right?'right':'left'};background:${i%2?'#f8fafc':'#fff'}">${txt}</td>`;
+        return `<td style="padding:4px 7px;border:1px solid #000;font-size:10px;text-align:${c.right?'right':'left'};background:${i%2?'#f8fafc':'#fff'};${c.key==='_amount'?'font-weight:700;color:#166534;font-family:monospace':''}">${txt}</td>`;
       }).join("");
       return `<tr>${tds}</tr>`;
     }).join("");
-    const totalRow = cfg.amountKey ? `<tr><td colspan="${cfg.columns.length - 1}" style="padding:8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #e2e8f0">TOTAL (${rowsToUse.length} rows${selectedIds.size ? " · selected" : ""})</td><td style="padding:8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #e2e8f0">₹ ${inrN(exportTotal)}</td></tr>` : "";
-    const filterSummary = [
-      selectedIds.size && `Selected: ${selectedIds.size}`,
-      fy && `FY: ${prettyFY(fy)}`,
-      month && `Month: ${month}`,
-      fromDate && `From: ${fromDate}`,
-      toDate && `To: ${toDate}`,
-      statusFilter && `Status: ${statusFilter}`,
-      search && `Search: "${search}"`,
-    ].filter(Boolean).join(" · ") || "All records";
-    win.document.write(`<!doctype html><html><head><title>${cfg.title}</title>
+    const totalRow = cfg.amountKey ? `<tr>
+      <td colspan="${cfg.columns.length - 1}" style="padding:6px 8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #000;font-size:11px">GRAND TOTAL (${rowsToUse.length} rows${selectedIds.size ? " · SELECTED" : ""}):</td>
+      <td style="padding:6px 8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #000;font-size:11.5px;color:#166534;font-family:monospace">₹ ${inrN(exportTotal)}</td>
+    </tr>` : "";
+    const filterRows = [
+      selectedIds.size && ["Selected Rows", `${selectedIds.size} of ${filteredRows.length}`],
+      fy && ["Financial Year", prettyFY(fy)],
+      month && ["Month", month],
+      fromDate && ["From Date", fromDate],
+      toDate && ["To Date", toDate],
+      statusFilter && ["Status", statusFilter],
+      search && ["Search", `"${search}"`],
+    ].filter(Boolean);
+    const filterSummary = filterRows.length
+      ? filterRows.map(([k, v]) => `<tr><td style="padding:3px 8px;border:1px solid #cbd5e1;font-weight:700;background:#f1f5f9;width:140px;font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:#334155">${k}</td><td style="padding:3px 8px;border:1px solid #cbd5e1;font-size:11px">${v}</td></tr>`).join("")
+      : `<tr><td style="padding:3px 8px;border:1px solid #cbd5e1;font-size:10.5px;color:#64748b" colspan="2">All records — no filters applied</td></tr>`;
+    const nowStr = new Date().toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" });
+    const refNo = `RPT/${cfg.id.toUpperCase()}/${new Date().toISOString().slice(0,10).replace(/-/g,'')}/${Date.now().toString(36).slice(-4).toUpperCase()}`;
+
+    win.document.write(`<!doctype html><html><head><title>${co.name} · ${cfg.title}</title>
       <style>
-        @page{size:A4 landscape;margin:12mm}
-        body{font-family:Arial,sans-serif;margin:0;padding:0;color:#0f172a}
-        h1{font-size:16px;margin:0;color:#0f172a;letter-spacing:.5px}
-        .meta{font-size:10px;color:#64748b;margin-top:3px}
-        .filter{font-size:10.5px;color:#78350f;background:#fef3c7;padding:5px 10px;border:1px solid #fcd34d;border-radius:3px;margin:8px 0}
-        table{width:100%;border-collapse:collapse;margin-top:6px}
+        @page { size: A4 landscape; margin: 10mm 10mm 14mm 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #0f172a; }
+        .wrap { padding: 2mm; }
+        /* ---- Letterhead ---- */
+        .lh { border: 2px solid #0f172a; padding: 10px 14px; display: flex; align-items: center; gap: 14px; background: #fff; }
+        .lh-logo { width: 80px; height: 80px; flex-shrink: 0; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; display:flex; align-items:center; justify-content:center; background:#fff }
+        .lh-logo img { max-width: 100%; max-height: 100%; object-fit: contain }
+        .lh-center { flex: 1; text-align: center; }
+        .lh-name { font-size: 22px; font-weight: 900; letter-spacing: 1.5px; color: #0f172a; text-transform: uppercase; margin: 0; }
+        .lh-tag { font-size: 10.5px; font-style: italic; color: #475569; margin-top: 2px; letter-spacing: .3px; }
+        .lh-pill { display: inline-block; background: #0f172a; color: #fff; font-size: 9.5px; font-weight: 700; letter-spacing: .5px; padding: 2px 10px; border-radius: 10px; margin-top: 5px; text-transform: uppercase; }
+        .lh-addr { font-size: 10px; color: #334155; margin-top: 5px; }
+        .lh-contact { font-size: 9.5px; color: #0f172a; margin-top: 3px; }
+        .lh-contact b { color: #0f172a; }
+        .lh-right { width: 80px; text-align: right; font-size: 9px; color: #475569; flex-shrink: 0; }
+        .red-rule { height: 2px; background: #dc2626; margin: 2px 0 6px; }
+        /* ---- Title bar ---- */
+        .title-bar { background: linear-gradient(135deg,#1e293b,#4f46e5); color: #fff; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; margin: 4px 0 4px; border-radius: 3px; }
+        .title-bar h2 { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+        .title-bar .meta { font-size: 9.5px; letter-spacing: .5px; opacity: .9; }
+        /* ---- Filter summary ---- */
+        .filter-block { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 6px; }
+        .filter-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+        .ref-box { border: 1.5px solid #0f172a; padding: 5px 8px; font-size: 10px; }
+        .ref-box .lbl { color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; font-size: 9px; }
+        .ref-box .val { font-family: monospace; font-weight: 800; color: #0f172a; }
+        /* ---- Data table ---- */
+        table.data { width: 100%; border-collapse: collapse; margin-top: 2px; }
+        table.data th, table.data td { border: 1px solid #000; }
+        /* ---- Signatures / Footer ---- */
+        .sigs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-top: 18px; page-break-inside: avoid; }
+        .sig-box { border-top: 1.5px solid #0f172a; padding-top: 4px; text-align: center; font-size: 10px; }
+        .sig-box .role { font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: #0f172a; }
+        .sig-box .name { font-size: 9.5px; color: #475569; margin-top: 2px; }
+        .footer-note { margin-top: 10px; padding-top: 6px; border-top: 1px dashed #94a3b8; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+        /* Avoid breaking rows across pages */
+        tr { page-break-inside: avoid; }
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
       </style></head><body>
-      <h1>${cfg.icon} Arun Enterprises · ${cfg.title}</h1>
-      <div class="meta">Generated: ${new Date().toLocaleString("en-IN")}</div>
-      <div class="filter"><b>Filters:</b> ${filterSummary}</div>
-      <table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>
-      <script>setTimeout(()=>{window.print();},300);</script>
+      <div class="wrap">
+        <!-- COMPANY LETTERHEAD -->
+        <div class="lh">
+          <div class="lh-logo"><img src="${logo}" onerror="this.style.display='none'" alt="logo" /></div>
+          <div class="lh-center">
+            <div class="lh-name">${co.name}</div>
+            ${co.tagline ? `<div class="lh-tag">${co.tagline}</div>` : ""}
+            ${co.pillLine ? `<div class="lh-pill">${co.pillLine}</div>` : ""}
+            ${co.address ? `<div class="lh-addr">${co.address}</div>` : ""}
+            <div class="lh-contact">
+              ${co.tollFree ? `<b>Phone:</b> ${co.tollFree} &nbsp;` : ""}
+              ${co.email ? `&nbsp;•&nbsp; <b>Email:</b> ${co.email} &nbsp;` : ""}
+              ${co.website ? `&nbsp;•&nbsp; <b>Web:</b> ${co.website}` : ""}
+              ${(co.gst || co.pan) ? `<br><b>GST:</b> ${co.gst || "—"} &nbsp;•&nbsp; <b>PAN:</b> ${co.pan || "—"}${co.cin ? ` &nbsp;•&nbsp; <b>CIN:</b> ${co.cin}` : ""}` : ""}
+            </div>
+          </div>
+          <div class="lh-right">
+            <div style="font-weight:800;color:#0f172a;font-size:9.5px;letter-spacing:.4px;text-transform:uppercase">Report Ref</div>
+            <div style="font-family:monospace;font-weight:800;color:#0f172a;font-size:10px;margin-top:2px;word-break:break-all">${refNo}</div>
+            <div style="margin-top:6px;color:#64748b">${new Date().toLocaleDateString("en-IN")}</div>
+          </div>
+        </div>
+        <div class="red-rule"></div>
+
+        <!-- TITLE BAR -->
+        <div class="title-bar">
+          <h2>${cfg.icon} ${cfg.title} · Register</h2>
+          <div class="meta">Generated: ${nowStr}</div>
+        </div>
+
+        <!-- FILTER & REF SUMMARY -->
+        <div class="filter-block">
+          <table class="filter-table">${filterSummary}</table>
+          <div class="ref-box">
+            <div class="lbl">Total Rows</div>
+            <div class="val" style="font-size:14px">${rowsToUse.length}${selectedIds.size ? ` of ${filteredRows.length}` : ""}</div>
+            ${cfg.amountKey ? `<div class="lbl" style="margin-top:4px">Grand Total</div><div class="val" style="color:#166534;font-size:13px">₹ ${inrN(exportTotal)}</div>` : ""}
+          </div>
+        </div>
+
+        <!-- DATA TABLE -->
+        <table class="data"><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>
+
+        <!-- SIGNATURE PANEL -->
+        <div class="sigs">
+          <div class="sig-box"><div class="role">Prepared By</div><div class="name">Name &amp; Signature</div></div>
+          <div class="sig-box"><div class="role">Checked By</div><div class="name">Accounts Manager</div></div>
+          <div class="sig-box"><div class="role">Approved By</div><div class="name">General Manager</div></div>
+          <div class="sig-box"><div class="role">Director</div><div class="name">Ashish Srivastava</div></div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer-note">
+          <span>This is a system-generated report from ${co.name} · For internal filing &amp; audit records only.</span>
+          <span>Printed: ${nowStr}</span>
+        </div>
+      </div>
+      <script>setTimeout(()=>{window.print();},400);</script>
     </body></html>`);
     win.document.close();
   };
