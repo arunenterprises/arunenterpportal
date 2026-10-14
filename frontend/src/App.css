@@ -378,12 +378,36 @@ body {
 .row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
 .row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 
-.field-b { display: flex; flex-direction: column; gap: 2px; }
+.field-b { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field-b label {
-  font-size: 11px; color: #334155; font-weight: 600;
-  line-height: 1.2;
+  font-size: 10px;
+  color: #475569;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 1px;
 }
-.field-b label .req { color: var(--danger); }
+.field-b label .label-text { color: #334155; }
+.field-b label .req {
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0 1px;
+}
+.field-b label .label-hint {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: none;
+  letter-spacing: 0.2px;
+  font-style: italic;
+}
 .field-b input,
 .field-b select,
 .field-b textarea {

@@ -44,9 +44,13 @@ const PRIORITY_OPTIONS = ["High Priority (Immediate)", "Normal", "Low"];
 const PAY_MODES = ["RTGS / NEFT Bank Transfer", "IMPS", "UPI", "Cheque", "Cash"];
 const RELEASE_OPTIONS = ["Added to Due List (Unpaid)", "Paid", "On Hold"];
 
-const F = ({ label, req, children }) => (
+const F = ({ label, req, children, hint }) => (
   <div className="field-b">
-    <label>{label}{req && <span className="req"> *</span>}</label>
+    <label>
+      <span className="label-text">{label}</span>
+      {req && <span className="req" title="Required">*</span>}
+      {hint && <span className="label-hint">{hint}</span>}
+    </label>
     {children}
   </div>
 );
