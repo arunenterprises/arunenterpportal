@@ -878,7 +878,7 @@ export const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 // to perform Final Approval / Re-Approval on Vendors, Bills and Payment Vouchers.
 export const APPROVER_EMAIL = "kl.srivastava@arunenterprises.online";
 // Canonical display name used everywhere Final Approval / Re-Approval signs off
-export const APPROVER_NAME = "K L Srivastava";
+export const APPROVER_NAME = "Ashish Srivastava";
 
 // All roles supported in the app. SuperAdmin is not assignable — it is fixed to
 // the SUPER_ADMIN_EMAIL constant above.
@@ -1643,9 +1643,21 @@ export const createAdvanceRequestDraft = (empId = "") => {
 };
 export const upsertAdvanceRequest = (r) => {
   const list = getAdvanceRequests();
-  // Duplicate guard REMOVED per user request (Feb 2026):
-  // Advance Register me same amount ka kai bar request allow hai — refNo + id unique
-  // hote hain, date bhi different ho sakti hai. So we only do a per-id upsert.
+  // Duplicate rule (Feb 2026 · user request):
+  // Same employee + same requestDate + same amount combination => BLOCK (prevents accidental double entry on same day).
+  // Different date OR different amount => ALLOWED (even if other field matches).
+  const isNew = !list.find((x) => x.id === r.id);
+  if (isNew) {
+    const dup = list.find((x) =>
+      x.empId === r.empId &&
+      String(x.requestDate) === String(r.requestDate) &&
+      Number(x.amount) === Number(r.amount) &&
+      Number(x.status) !== 5 /* ignore rejected */
+    );
+    if (dup) {
+      throw new Error(`Duplicate advance request · Same employee ko ${r.requestDate} par ₹${Number(r.amount).toLocaleString("en-IN")} ka advance already exist hai (${dup.refNo}). Date ya amount change karein.`);
+    }
+  }
   const updated = { ...r, updatedAt: new Date().toISOString() };
   const idx = list.findIndex((x) => x.id === updated.id);
   if (idx >= 0) list[idx] = updated; else list.push(updated);

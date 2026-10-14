@@ -1714,7 +1714,7 @@ const printBankTransferAdvice = (pb) => {
   <div class="foot">
     <div class="sig-box"><div class="line"></div><div class="name">Prepared By · HR Department</div><div class="desig">${esc(pb.submittedByName || "")}</div></div>
     <div class="sig-box"><div class="line"></div><div class="name">Verified By · Accounts</div><div class="desig">${esc(pb.settledByName || "")}</div></div>
-    <div class="sig-box"><div class="line"></div><div class="name">Authorized Signatory</div><div class="desig">K.L. Srivastava · Director</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Authorized Signatory</div><div class="desig">Ashish Srivastava · Director</div></div>
   </div>
 </div>
 <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>

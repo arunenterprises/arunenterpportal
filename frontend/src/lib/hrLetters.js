@@ -13,7 +13,7 @@ const COMPANY = {
   gstin: "09ABWFM0611J1ZY",
   pan: "ABWFM0611J",
 };
-const SIGNATORY = { name: "K.L. Srivastava", designation: "Director" };
+const SIGNATORY = { name: "Ashish Srivastava", designation: "Director" };
 
 const fmtDMY = (iso) => {
   if (!iso) return "—";

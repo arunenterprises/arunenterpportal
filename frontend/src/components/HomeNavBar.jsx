@@ -12,7 +12,7 @@ const HomeNavBar = () => {
   const superAdmin = isSuperAdmin(me?.user);
   const [goodbye, setGoodbye] = useState(null);
   const doLogout = () => {
-    const nm = me?.name || me?.user?.split("@")[0] || "User";
+    const nm = superAdmin ? "Ashish Srivastava" : (me?.name || me?.user?.split("@")[0] || "User");
     setGoodbye({ name: nm });
   };
 
@@ -102,7 +102,7 @@ const HomeNavBar = () => {
 
       <div className="hn-right">
         <span className="hn-user" title={me?.user}>
-          <b>{me?.name || currentUser()}</b>
+          <b>{superAdmin ? "Ashish Srivastava" : (me?.name || currentUser())}</b>
           <span className={"hn-role " + (superAdmin ? "sa" : "usr")}>
             {superAdmin ? "SUPERADMIN" : (me?.role || "User").toUpperCase()}
           </span>

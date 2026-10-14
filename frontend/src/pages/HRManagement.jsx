@@ -1759,15 +1759,22 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed: approveAllowedProp }
     if (!Number(cur.amount) || Number(cur.amount) <= 0) return toast.error("Enter advance amount");
     if (!cur.reason?.trim()) return toast.error("Enter reason for advance");
     const emp = emps.find((e) => e.id === cur.empId);
-    const n = upsertAdvanceRequest({ ...cur, empCode: emp?.empCode, empName: emp?.fullName, department: emp?.department, designation: emp?.designation });
-    setCur(n); refresh();
-    toast.success(`Draft saved · ${n.refNo}`);
+    try {
+      const n = upsertAdvanceRequest({ ...cur, empCode: emp?.empCode, empName: emp?.fullName, department: emp?.department, designation: emp?.designation });
+      setCur(n); refresh();
+      toast.success(`Draft saved · ${n.refNo}`);
+      return n;
+    } catch (err) {
+      toast.error(err.message || "Save failed");
+      return null;
+    }
   };
   const submit = () => {
     if (!writeAllowed) return toast.error("Not permitted");
     if (!cur.id || !cur.empId) return toast.error("Save draft first");
-    save();
-    const n = advanceAdvanceRequestStep(cur);
+    const saved = save();
+    if (!saved) return; // duplicate blocked
+    const n = advanceAdvanceRequestStep(saved);
     setCur(n); refresh();
     toast.success(`Submitted to Accounts for approval`);
   };

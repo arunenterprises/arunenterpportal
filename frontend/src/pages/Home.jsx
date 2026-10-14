@@ -103,7 +103,7 @@ const DEPARTMENTS = [
   },
   {
     id: "reports",
-    title: "Reports & Vouchers",
+    title: "Vouchers",
     subtitle: "Payment Vouchers · UTR · Excel",
     to: "/final",
     icon: FileBarChart,
