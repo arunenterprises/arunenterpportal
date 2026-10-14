@@ -242,7 +242,7 @@ export default function VendorRegistration() {
         />
 
         <div className="a4" data-testid="vendor-page">
-          <Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" />
+          <div className="module-doc-header"><Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" /></div>
           <StepTabs step={vendor.step} />
 
           {vendor.step === 3 && vendor.vendorCode && (

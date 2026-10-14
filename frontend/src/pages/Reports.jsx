@@ -611,7 +611,7 @@ export default function Reports() {
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="final" />
 
         <div className="a4" data-testid="reports-page">
-          <Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" />
+          <div className="module-doc-header"><Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" /></div>
 
           {/* Reports Tabs */}
           <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="reports-tabs">

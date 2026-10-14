@@ -461,7 +461,7 @@ export default function BillProcessing() {
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 
         <div className="a4" data-testid="bill-page">
-          <Header formTitle="ACCOUNTS DEPARTMENT" />
+          <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
 
           {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
           <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">

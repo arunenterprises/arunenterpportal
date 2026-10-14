@@ -162,6 +162,16 @@ body {
 }
 .a4 + .a4 { margin-top: 20px; }
 
+/* ---- Module Doc-Header hide on screen, show only in A4 portrait print ---- */
+/* Per user request (Feb 2026): the company letterhead should NOT clutter the
+   module screens. It is now visible ONLY on the Home page and when the user
+   prints an A4 portrait PDF report. */
+.module-doc-header { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  .module-doc-header { display: block !important; }
+}
+
 /* ---- Document letterhead (styled like printed letterhead) ---- */
 .doc-header { padding: 0; position: relative; }
 .doc-header .dh-banner {

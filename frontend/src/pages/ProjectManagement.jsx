@@ -230,7 +230,7 @@ export default function ProjectManagement() {
       <div style={{ minHeight: "calc(100vh - 56px)", background: "#f1f5f9", padding: "14px 20px 24px" }}>
         <div style={{ maxWidth: 1600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }} data-testid="project-mgmt-page">
 
-          <div style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
+          <div className="module-doc-header" style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
             <Header formTitle="Project Management Department" compact />
           </div>
 

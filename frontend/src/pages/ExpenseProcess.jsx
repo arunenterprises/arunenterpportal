@@ -221,7 +221,7 @@ export default function ExpenseProcess() {
         nextLabel="Reports" nextTo="/final"
       />
       <div className="a4" data-testid="expense-page">
-        <Header formTitle={`Expense Process · ${expense.permanentExpenseNo || expense.refNo}`} />
+        <div className="module-doc-header"><Header formTitle={`Expense Process · ${expense.permanentExpenseNo || expense.refNo}`} /></div>
         <StepTabs step={Number(expense.step) || 1} labels={[EXPENSE_STEP_LABEL[1], EXPENSE_STEP_LABEL[2], EXPENSE_STEP_LABEL[3], EXPENSE_STEP_LABEL[4]]} />
 
         {/* 1. Expense Details */}
