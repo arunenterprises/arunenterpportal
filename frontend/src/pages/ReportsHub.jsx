@@ -348,8 +348,8 @@ const buildSignaturePanel = () => `
   <div class="sigs">
     <div class="sig-box"><div class="role">Prepared By</div><div class="name">Name &amp; Signature</div></div>
     <div class="sig-box"><div class="role">Checked By</div><div class="name">Accounts Manager</div></div>
-    <div class="sig-box"><div class="role">Approved By</div><div class="name">General Manager</div></div>
-    <div class="sig-box"><div class="role">Director</div><div class="name">Ashish Srivastava</div></div>
+    <div class="sig-box"><div class="role">General Manager</div><div class="name">K L Srivastava</div></div>
+    <div class="sig-box"><div class="role">Sr. Operation Manager</div><div class="name">Ashish Srivastava</div></div>
   </div>
 `;
 

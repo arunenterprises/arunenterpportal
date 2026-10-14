@@ -23,6 +23,7 @@ import {
   getEmployees,
   getPayments,
   purgeLegacyPayrollBills,
+  deleteBill, currentRole,
 } from "../lib/store";
 import { exportBankTransferXLSX as _sharedXlsx, printBankTransferAdvice as _sharedAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
@@ -323,6 +324,23 @@ export default function BillProcessing() {
     setBill({ ...createBillDraft(), createdByName: currentUser() });
     setLocked(false); setVendorInput("");
     toast.success("New bill draft");
+  };
+
+  const handleDelete = () => {
+    if (!bill.id) { toast.error("Save the bill first before deleting"); return; }
+    const role = currentRole();
+    const isApproved = Number(bill.step) === 5 || !!bill.permanentBillNo;
+    if (isApproved && role !== "SuperAdmin") {
+      toast.error("Approved bills can only be deleted by SuperAdmin");
+      return;
+    }
+    const label = bill.permanentBillNo || bill.refNo || "this bill";
+    if (!window.confirm(`Delete ${label}?\n\nThis cannot be undone. If a Payment Voucher is already linked, it will remain in Payments.`)) return;
+    deleteBill(bill.id);
+    setBill({ ...createBillDraft(), createdByName: currentUser() });
+    setLocked(false); setVendorInput("");
+    setRefresh((n) => n + 1);
+    toast.success(`${label} deleted`);
   };
 
   const validate = () => {
@@ -1333,6 +1351,13 @@ export default function BillProcessing() {
             <button data-testid="bill-btn-save" onClick={handleSave} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Save size={13} /> Save Bill</button>
             <button data-testid="bill-btn-submit" onClick={handleSubmit} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Send size={13} /> Submit</button>
             <button data-testid="bill-btn-approve" onClick={handleApprove} disabled={!canApprove() || bill.step !== 4} style={{ padding: "7px 12px", height: 32, background: canApprove() && bill.step === 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() && bill.step === 4 ? "pointer" : "not-allowed", opacity: canApprove() && bill.step === 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><CheckCircle2 size={13} /> Final Approval</button>
+            <button
+              data-testid="bill-btn-delete"
+              onClick={handleDelete}
+              disabled={!bill.id || (Number(bill.step) === 5 && currentRole() !== "SuperAdmin")}
+              title={!bill.id ? "Save bill first before delete" : (Number(bill.step) === 5 && currentRole() !== "SuperAdmin" ? "Approved bills can only be deleted by SuperAdmin" : "Delete this bill (requires confirmation)")}
+              style={{ padding: "7px 12px", height: 32, background: !bill.id ? "#94a3b8" : "#b91c1c", color: "#fff", border: "none", borderRadius: 5, cursor: bill.id ? "pointer" : "not-allowed", opacity: bill.id ? 1 : .55, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}
+            ><X size={13} /> Delete</button>
             <span style={{ width: 1, height: 24, background: "#cbd5e1", margin: "4px 6px", alignSelf: "center" }} />
             <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", letterSpacing: 1, textTransform: "uppercase", padding: "7px 12px", height: 32, background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", borderRadius: 5, boxShadow: "0 1px 3px rgba(79,70,229,.35)", display: "inline-flex", alignItems: "center", lineHeight: 1, boxSizing: "border-box" }}>Export</span>
             <button data-testid="bill-btn-export-json" onClick={handleExportJSON} style={{ padding: "7px 12px", height: 32, background: "#2563eb", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(37,99,235,.3)", lineHeight: 1 }}><Download size={13} /> JSON</button>
@@ -1900,7 +1925,7 @@ const printBankTransferAdvice = (pb) => {
   <div class="foot">
     <div class="sig-box"><div class="line"></div><div class="name">Prepared By · HR Department</div><div class="desig">${esc(pb.submittedByName || "")}</div></div>
     <div class="sig-box"><div class="line"></div><div class="name">Verified By · Accounts</div><div class="desig">${esc(pb.settledByName || "")}</div></div>
-    <div class="sig-box"><div class="line"></div><div class="name">Authorized Signatory</div><div class="desig">Ashish Srivastava · Director</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Authorized Signatory</div><div class="desig">Ashish Srivastava · Sr. Operation Manager</div></div>
   </div>
 </div>
 <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>

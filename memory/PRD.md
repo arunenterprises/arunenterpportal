@@ -7,6 +7,14 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 4 — Printable Designations & Bill Delete)
+- **Printable Signatories (role-free policy):** ROLES (`SuperAdmin` / `Admin`) are no longer printed anywhere. Only DESIGNATIONS appear on paper.
+  - **Ashish Srivastava** → `Sr. Operation Manager` (was `Director`) — SuperAdmin on-screen only.
+  - **K L Srivastava** → `General Manager` (Admin role, on-screen only).
+- Files updated: `hrLetters.js` (SIGNATORY designation + authority line), `bankTransfer.js` (both NEFT advice signatures now show K L Srivastava · GM + Ashish Srivastava · Sr. Operation Manager), `ReportsHub.jsx` (4-column signature panel: Prepared/Checked/GM/Sr. Operation Manager), `BillProcessing.jsx` bank-advice footer.
+- **Bill Processing — Delete button** added to action row (`data-testid="bill-btn-delete"`). Rule: can delete own draft/submitted bills; approved bills (step=5) deletion restricted to SuperAdmin only. Confirmation + toast + state reset included.
+- **Bill Processing — JMC & Abstract upload** section (3B) added between Invoice and Multi-Stage Approval. Max 500 KB each, PDF/Image, blue (JMC) + green (Abstract) themed upload tiles with download/remove parity.
+
 ## Feb-2026 Session Changes (round 3 — Reports Hub Full Biodata Print)
 - **Reports Hub Print A4/PDF upgraded** with 4 print modes:
   1. **Summary + Full Biodata** (default) — Page 1 summary table (landscape), then one A4 portrait page per record with letterhead + all fields + line-items table + signatures.
