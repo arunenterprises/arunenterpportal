@@ -13,7 +13,7 @@ import {
   getEmployees, createEmployeeDraft, upsertEmployee, advanceEmployeeStep, deleteEmployee,
   reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary,
   getMonthAttendance, upsertAttendance, sendPayrollToAccounts,
-  getPayBills, createPayBillDraft, upsertPayBill, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
+  getPayBills, createPayBillDraft, createSupplementaryPayBillDraft, upsertPayBill, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
   getAdvanceRequests, createAdvanceRequestDraft, upsertAdvanceRequest, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
   getLoans, createLoanDraft, upsertLoan, advanceLoanStep, deleteLoan, computeLoanEMI, LOAN_STATUS,
@@ -22,7 +22,7 @@ import {
   getExits, createExitDraft, upsertExit, deleteExit, finalizeExit, advanceExitStep, EXIT_STATUS,
   getComplianceSnapshot,
   getPayments, savePayments,
-  currentRole, canCreate, canApprove, canDelete, isAccountsManager, currentUser, fmtDMY, amountToWords,
+  currentRole, canCreate, canApprove, canDelete, isAccountsManager, isSuperAdmin, currentUser, currentUserEmail, fmtDMY, amountToWords,
   autoSyncFromCloud,
 } from "../lib/store";
 import { printOfferLetter, printExperienceLetter, printRelievingLetter, printFnFStatement, printEmployeeApplication, printAttendanceSheet, printLeaveApplication, printPayrollSlipLetter, printPayBillSheet, printAdvertisementNotice, exportPayBillPDF, printAdvanceReceipt } from "../lib/hrLetters";
@@ -1673,7 +1673,19 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
       {/* History */}
       {list.length > 0 && (
         <div style={{ marginTop: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-          <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>Pay Bill History ({list.length})</div>
+          <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>Pay Bill History ({list.length})</span>
+            {writeAllowed && (
+              <button
+                data-testid="pb-create-balance"
+                onClick={createBalanceDraft}
+                title="Create a Balance Pay Bill for employees excluded or newly-joined in the primary month bill. Multiple balance bills per month allowed."
+                style={{ padding: "5px 12px", background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 5 }}
+              >
+                <Plus size={13} /> Balance Pay Bill · {new Date(Number(year), Number(month) - 1).toLocaleString("en", { month: "short" })} {year}
+              </button>
+            )}
+          </div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
             <thead><tr style={{ background: "#f8fafc" }}>{["Ref No.", "Period", "Employees", "Gross", "Advance", "Net Payable", "Status", "Payment / UTR", "Action"].map((h) => <th key={h} style={{ padding: 7, border: "1px solid #e2e8f0", fontSize: 10, textAlign: "left" }}>{h}</th>)}</tr></thead>
             <tbody>
@@ -1697,13 +1709,13 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                     ) : hasUtr ? (
                       <div style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
                         <span style={{ padding: "2px 6px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 3, fontWeight: 700, fontFamily: "monospace" }}>✓ {pv.utrNo}</span>
-                        {canApprove() && <button data-testid={`pb-hr-utr-edit-${p.id}`} onClick={() => {
-                          const next = window.prompt(`Edit UTR for ${p.linkedPvNo}`, pv.utrNo || "");
+                        {isSuperAdmin(currentUserEmail()) && <button data-testid={`pb-hr-utr-edit-${p.id}`} onClick={() => {
+                          const next = window.prompt(`SuperAdmin override · Edit UTR for ${p.linkedPvNo}\n\n⚠ Normal flow: UTR save ke baad re-fill nahi hota. Yeh SuperAdmin ka exceptional override hai (galat UTR correct karne ke liye).`, pv.utrNo || "");
                           if (next === null) return;
                           const payments = getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? { ...pp, utrNo: next.toUpperCase().slice(0, 32), paidAt: next ? new Date().toISOString() : pp.paidAt } : pp);
                           savePayments(payments); refresh();
-                          toast.success(next ? `UTR updated` : `UTR cleared`);
-                        }} style={{ padding: "2px 6px", background: "#fff", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: 3, cursor: "pointer", fontSize: 9, fontWeight: 700 }} title="Edit UTR">✎</button>}
+                          toast.success(next ? `UTR updated (SuperAdmin override)` : `UTR cleared (SuperAdmin override)`);
+                        }} style={{ padding: "2px 6px", background: "#fff", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: 3, cursor: "pointer", fontSize: 9, fontWeight: 700 }} title="SuperAdmin override · Edit UTR">✎</button>}
                       </div>
                     ) : (
                       canApprove() ? (

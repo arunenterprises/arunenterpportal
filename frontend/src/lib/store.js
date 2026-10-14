@@ -930,7 +930,7 @@ export const dedupeAllStores = () => {
   total += dedupeByKey(KEYS.EXPENSES,  (e) => e?.expenseNo || e?.refNo,                                 "expenses");
   total += dedupeByKey(KEYS.BOQS,      (b) => b?.boqNo || b?.refNo,                                     "boqs");
   total += dedupeByKey(KEYS.WOS,       (w) => w?.woNo || w?.refNo,                                      "wos");
-  total += dedupeByKey(KEYS.PAYBILLS,  (p) => p?.monthKey || p?.refNo,                                  "paybills");
+  total += dedupeByKey(KEYS.PAYBILLS,  (p) => p?.refNo || p?.monthKey,                                  "paybills");
   total += dedupeByKey(KEYS.EMPLOYEES, (e) => e?.empCode,                                               "employees");
   total += dedupeByKey(KEYS.ADVANCE_REQS, (r) => r?.refNo,                                              "advance-requests");
   total += dedupeByKey(KEYS.LOANS,     (l) => l?.id,                                                    "loans");
@@ -1644,10 +1644,10 @@ export const createPayBillDraft = (year, month) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");
   const daysInMonth = new Date(year, month, 0).getDate();
   const monthKey = `${year}${String(month).padStart(2, "0")}`;
-  // IDEMPOTENT: if a PayBill already exists for this month, respect its stage.
-  // - If approved/settled (step >= 2): return it unchanged — do NOT auto-overwrite data user already processed.
-  // - If still Draft (step === 1): keep same id + refNo + createdAt, just refresh lines from latest attendance/salary.
-  const existing = getPayBills().find((p) => p.monthKey === monthKey);
+  // IDEMPOTENT: if the PRIMARY PayBill already exists for this month, respect its stage.
+  // (Supplementary / "Balance" pay bills for the same month have refNo suffix /BAL-N and
+  //  live alongside the primary — they are NOT handled by this draft creator.)
+  const existing = getPayBills().find((p) => p.monthKey === monthKey && !p.isSupplementary);
   if (existing && Number(existing.step) >= 2) return existing;
   // Sum Accounts-approved advance requests for this month per employee (auto-adjust in Pay Bill)
   const advReqs = getAdvanceRequests();
@@ -1692,9 +1692,69 @@ export const createPayBillDraft = (year, month) => {
     totalAdvance: 0,
     totalNet: lines.reduce((a, l) => a + (l.net || 0), 0),
     step: 1,
+    isSupplementary: false,
     createdByName: existing?.createdByName || _me() || "",
     createdAt: existing?.createdAt || new Date().toISOString(),
     history: existing?.history || [{ action: "Draft created", at: new Date().toISOString(), by: _me() }],
+  };
+};
+
+// SUPPLEMENTARY / BALANCE pay bill — multiple can exist per month alongside the primary.
+// Scope: employees who were EXCLUDED (or newly joined) in the primary month pay bill —
+// i.e., anyone active for the month who hasn't yet been counted in a non-excluded line
+// of an approved/settled bill. refNo gets /BAL-N suffix (N = next supplementary count+1).
+export const createSupplementaryPayBillDraft = (year, month) => {
+  const monthKey = `${year}${String(month).padStart(2, "0")}`;
+  const monthBills = getPayBills().filter((p) => p.monthKey === monthKey);
+  const existingSupps = monthBills.filter((p) => p.isSupplementary);
+  const nextSeq = existingSupps.length + 1;
+  // Collect empIds who have been included (non-excluded) in any existing month bill
+  const alreadyIncluded = new Set();
+  monthBills.forEach((b) => (b.lines || []).forEach((l) => { if (!l.excluded) alreadyIncluded.add(l.empId); }));
+  // Candidate pool: active finalized employees NOT yet included in this month
+  const emps = getEmployees().filter((e) =>
+    Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active" && !alreadyIncluded.has(e.id)
+  );
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const advReqs = getAdvanceRequests();
+  const approvedAdvFor = (empId) => advReqs
+    .filter((r) => Number(r.status) === 3 && r.empId === empId && Number(r.targetYear) === Number(year) && Number(r.targetMonth) === Number(month))
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const lines = emps.map((e) => {
+    const att = getMonthAttendance(e.id, year, month);
+    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const s = computeSalary(e, { daysInMonth, daysPresent });
+    const autoAdv = approvedAdvFor(e.id);
+    return {
+      _id: `l_${e.id}`,
+      empId: e.id, empCode: e.empCode, name: e.fullName,
+      department: e.department, designation: e.designation,
+      daysInMonth, daysPresent,
+      basic: s.basic || 0, hra: s.hra || 0, da: s.da || 0, special: s.special || 0, bonus: s.bonus || 0,
+      gross: s.earned || 0,
+      pf: s.pf || 0, esic: s.esic || 0, proftax: s.proftax || 0, tds: s.tds || 0,
+      advance: autoAdv, autoAdvance: autoAdv,
+      otherDeductions: 0, net: s.net || 0,
+      excluded: false,
+    };
+  });
+  const totGross = lines.reduce((a, l) => a + (l.gross || 0), 0);
+  const totDed = lines.reduce((a, l) => a + (l.pf || 0) + (l.esic || 0) + (l.proftax || 0) + (l.tds || 0) + (l.otherDeductions || 0), 0);
+  const totAdv = lines.reduce((a, l) => a + (l.advance || 0), 0);
+  return {
+    id: `pb_${monthKey}_bal${nextSeq}_${Date.now()}`,
+    year, month, monthKey,
+    refNo: `AE/HR/PB/${year}-${String(month).padStart(2, "0")}/BAL-${nextSeq}`,
+    isSupplementary: true,
+    supplementarySeq: nextSeq,
+    lines,
+    totalGross: totGross, totalDeductions: totDed, totalAdvance: totAdv,
+    totalNet: totGross - totDed - totAdv,
+    includedCount: lines.length,
+    step: 1,
+    createdByName: _me() || "",
+    createdAt: new Date().toISOString(),
+    history: [{ action: `Supplementary (Balance) draft created · BAL-${nextSeq} · ${lines.length} employee(s)`, at: new Date().toISOString(), by: _me() }],
   };
 };
 

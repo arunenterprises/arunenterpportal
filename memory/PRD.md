@@ -7,6 +7,21 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 14 — Full Access auto-elevates to Admin role)
+- Toggling **FULL ACCESS** in the Register New Employee form now auto-sets role to **Admin** (and reverts to User on uncheck if the dropdown is still at Admin). An inline "+ ADMIN" pill was added next to the FULL ACCESS pill to make the behavior visible.
+- Prevents SuperAdmin from forgetting to pick Admin role when granting full powers.
+
+## Feb-2026 Session Changes (round 13 — Multiple Pay Bills per Month)
+- **Balance / Supplementary Pay Bill** support — `createSupplementaryPayBillDraft(year, month)` creates a 2nd/3rd/Nth pay bill in the same month with refNo suffix `AE/HR/PB/YYYY-MM/BAL-N` + `isSupplementary: true` + `supplementarySeq: N`.
+- **Candidate pool** auto-filters: employees who are NOT yet included (non-excluded) in any prior bill for the same month — covers "excluded from primary" + "newly joined after primary ran".
+- UI: new amber "+ Balance Pay Bill · {Month} {Year}" button in Pay Bill History header. Toast confirms count + net.
+- `dedupeAllStores` key for PAYBILLS switched to `refNo` (unique per supplementary) from `monthKey` — supplementary bills no longer collapse into primary during de-dup migration.
+
+## Feb-2026 Session Changes (round 12 — UTR Lock after Save)
+- HR Pay Bills register: **UTR save hone ke baad re-fill nahi hoga**. The pencil-edit button next to each saved UTR is now gated to **SuperAdmin override only** (previously any approver could edit).
+- Confirmation prompt now reads: "SuperAdmin override · Edit UTR for … Normal flow: UTR save ke baad re-fill nahi hota. Yeh SuperAdmin ka exceptional override hai (galat UTR correct karne ke liye)."
+- Added `isSuperAdmin, currentUserEmail` imports to HRManagement.jsx.
+
 ## Feb-2026 Session Changes (round 11 — SuperAdmin-Assigned Access Powers)
 Per directive "SuperAdmin deside karega …power ye system REGISTER NEW EMPLOYEE main kijiye":
 - **Backend `RegisterBody`** extended with `permissions` dict + `is_accounts_approver` + `is_full_access` flags. Saved on user doc at `/api/auth/register` and surfaced in `/api/auth/login` payload.

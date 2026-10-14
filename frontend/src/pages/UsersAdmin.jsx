@@ -652,10 +652,21 @@ export default function UsersAdmin() {
                   <label data-testid="power-full-access" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
                     <input type="checkbox" checked={f.is_full_access} onChange={(e) => {
                       const on = e.target.checked;
-                      setF((p) => ({ ...p, is_full_access: on, perm_create: on || p.perm_create, perm_edit: on || p.perm_edit, perm_submit: on || p.perm_submit, perm_approve: on ? true : p.perm_approve }));
+                      // FULL ACCESS also elevates ROLE to Admin automatically (user request 14-Oct-26).
+                      // Downgrade role back to "User" when toggled off ONLY if the dropdown is still at Admin.
+                      setF((p) => ({
+                        ...p,
+                        is_full_access: on,
+                        role: on ? "Admin" : (p.role === "Admin" ? "User" : p.role),
+                        perm_create: on || p.perm_create,
+                        perm_edit: on || p.perm_edit,
+                        perm_submit: on || p.perm_submit,
+                        perm_approve: on ? true : p.perm_approve,
+                      }));
                     }} style={{ width: 15, height: 15 }} />
                     <span style={{ display: "inline-block", padding: "2px 8px", background: "#fef2f2", color: "#991b1b", borderRadius: 10, fontSize: 10, fontWeight: 800, letterSpacing: .3 }}>FULL ACCESS</span>
-                    <span style={{ color: "#64748b", fontSize: 11, fontWeight: 500 }}>— all powers (create · edit · submit · approve)</span>
+                    <span style={{ display: "inline-block", padding: "2px 8px", background: "#eef2ff", color: "#3730a3", borderRadius: 10, fontSize: 10, fontWeight: 800, letterSpacing: .3, marginLeft: 2 }}>+ ADMIN</span>
+                    <span style={{ color: "#64748b", fontSize: 11, fontWeight: 500 }}>— all powers (create · edit · submit · approve) + Admin role</span>
                   </label>
                   <label data-testid="power-approver" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
                     <input type="checkbox" checked={f.is_accounts_approver} onChange={(e) => setF((p) => ({ ...p, is_accounts_approver: e.target.checked, perm_approve: e.target.checked ? true : p.perm_approve }))} style={{ width: 15, height: 15 }} />
