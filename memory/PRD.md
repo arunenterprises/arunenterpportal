@@ -7,6 +7,16 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 7 — Komal Srivastava as Accounts Manager Approver)
+- Added `ACCOUNTS_MANAGER_EMAILS` whitelist in `store.js` seeded with `komal.srivastava@arunenterprises.online`.
+- `isAccountsManager()` now returns `true` for:
+  1. SuperAdmin (always)
+  2. Any user whose stored profile designation is "Accounts Manager" (case-insensitive)
+  3. Any email in `ACCOUNTS_MANAGER_EMAILS` (whitelist)
+- Downstream approvers that automatically got the new power via `isAccountsManager()`:
+  - **Weekly Fooding Tab** (`WeeklyFoodingTab.jsx`) — Approve button
+  - **HR Management · Advance Request approval** (`HRManagement.jsx` line 1778)
+
 ## Feb-2026 Session Changes (round 6 — Employee Photo & Signature as Images in Reports Hub)
 - **Reports Hub · Employee Master** on-screen table now shows **Photo (40px)** and **Signature (28px contain)** as real `<img>` thumbnails, not raw data-URL text.
 - Full Biodata print pages render a dedicated **"PHOTO & SIGNATURE"** strip above record details — displays each image at 85×100 (photo) / 150×60 (signature) with "Image not available" fallback.

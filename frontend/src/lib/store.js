@@ -1071,6 +1071,13 @@ export const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 export const APPROVER_EMAIL = "kl.srivastava@arunenterprises.online";
 // Canonical display name used everywhere Final Approval / Re-Approval signs off
 export const APPROVER_NAME = "Ashish Srivastava";
+// Dedicated Accounts Manager — Komal Srivastava (Admin role). Approves Weekly Fooding,
+// Advance Requests, and other Accounts-flow approvals even if her stored profile
+// designation ever drifts.  Case-insensitive email match (Feb-2026 user request).
+export const ACCOUNTS_MANAGER_EMAILS = [
+  "komal.srivastava@arunenterprises.online",
+];
+export const ACCOUNTS_MANAGER_NAME = "Komal Srivastava";
 
 // All roles supported in the app. SuperAdmin is not assignable — it is fixed to
 // the SUPER_ADMIN_EMAIL constant above.
@@ -1147,14 +1154,17 @@ export const canDelete = () => {
 export const canApproveAccounts = () => canApprove();
 export const canApproveGM = () => canApprove();
 
-// Advance Request approval policy (Feb 2026 · user request):
-// Only SuperAdmin OR a user whose profile designation is "Accounts Manager"
-// (case-insensitive, allows minor variants) can approve advance requests.
+// Advance Request / Weekly Fooding approval policy (Feb 2026 · user request):
+// Allowed approvers:
+//   1. SuperAdmin (always)
+//   2. Any user whose stored profile designation === "Accounts Manager" (case-insensitive)
+//   3. Specific whitelisted emails in ACCOUNTS_MANAGER_EMAILS (e.g. Komal Srivastava)
 export const isAccountsManager = () => {
   const p = currentUserProfile();
   if (!p) return false;
   const email = (p.user || "").toLowerCase().trim();
   if (isSuperAdmin(email)) return true;
+  if (ACCOUNTS_MANAGER_EMAILS.map((x) => x.toLowerCase().trim()).includes(email)) return true;
   const d = String(p.designation || "").toLowerCase().trim();
   return d === "accounts manager" || d === "account manager" || d === "accountsmanager" || d === "accounts-manager";
 };
