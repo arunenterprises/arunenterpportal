@@ -1977,6 +1977,24 @@ export default function Reports() {
                   placeholder={pv && pv.status === "Approved" ? "Enter UTR / Ref No" : "Approve first"}
                   style={{ width: 150, padding: "5px 8px", fontSize: 11.5, fontFamily: "monospace", letterSpacing: ".3px", background: pv && pv.status === "Approved" ? "#fffbeb" : "#1e293b", color: pv && pv.status === "Approved" ? "#0f172a" : "#94a3b8", border: `1px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#475569"}`, borderRadius: 4, fontWeight: pv?.utrNo ? 800 : 500 }}
                 />
+                <button
+                  data-testid="pv-mark-paid"
+                  onClick={() => {
+                    if (!pv) { toast.error("Generate voucher first"); return; }
+                    if (pv.status !== "Approved") { toast.error("Pehle voucher Approve karein, phir UTR fill karke Paid karein"); return; }
+                    const utr = (pv.utrNo || "").trim();
+                    if (!utr) { toast.error("UTR / Ref No enter karein"); return; }
+                    const next = { ...pv, utrNo: utr.toUpperCase().slice(0, 32), paidAt: new Date().toISOString() };
+                    setPv(next);
+                    const list = getPayments().map((x) => x.pvNo === next.pvNo ? next : x);
+                    savePayments(list);
+                    setRefresh((v) => v + 1);
+                    toast.success(`✓ Paid · UTR ${next.utrNo} saved for ${next.pvNo}`);
+                  }}
+                  disabled={!pv || pv.status !== "Approved" || !(pv?.utrNo || "").trim()}
+                  title={!pv ? "Generate voucher first" : pv.status !== "Approved" ? "Approve voucher first" : !(pv?.utrNo || "").trim() ? "Enter UTR first" : "Save UTR and mark voucher as Paid"}
+                  style={{ padding: "6px 12px", background: pv && pv.status === "Approved" && (pv?.utrNo || "").trim() ? "linear-gradient(135deg,#16a34a,#14532d)" : "#475569", color: "#fff", border: "none", borderRadius: 4, cursor: pv && pv.status === "Approved" && (pv?.utrNo || "").trim() ? "pointer" : "not-allowed", fontWeight: 900, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", boxShadow: pv && pv.status === "Approved" && (pv?.utrNo || "").trim() ? "0 2px 6px rgba(22,163,74,.5)" : "none" }}
+                >✓ Paid</button>
               </div>
 
               {/* 8. Status · Dynamic pill */}
