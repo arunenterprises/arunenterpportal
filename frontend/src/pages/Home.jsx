@@ -13,6 +13,7 @@ import {
   getPayments,
   getExpenses,
   getEmployees,
+  dedupeAllStores,
 } from "../lib/store";
 
 const ALL_ROLES = ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
@@ -229,6 +230,17 @@ export default function Home() {
   const [, setSyncTick] = useState(0);
   useEffect(() => {
     const onSync = () => setSyncTick((v) => v + 1);
+    window.addEventListener("ae-sync-done", onSync);
+    return () => window.removeEventListener("ae-sync-done", onSync);
+  }, []);
+
+  // ONE-SHOT universal de-dup on landing — removes repeated process numbers
+  // across every module (bills, PV, vendors, expenses, BOQ, WO, pay-bills,
+  // employees, advance requests, loans). Also runs after every cross-user sync
+  // so dupes imported from the cloud snapshot get collapsed too.
+  useEffect(() => {
+    try { dedupeAllStores(); } catch {}
+    const onSync = () => { try { dedupeAllStores(); setSyncTick((v) => v + 1); } catch {} };
     window.addEventListener("ae-sync-done", onSync);
     return () => window.removeEventListener("ae-sync-done", onSync);
   }, []);

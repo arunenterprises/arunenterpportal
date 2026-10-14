@@ -856,7 +856,90 @@ export const advanceBillStep = (b) => {
 };
 
 // ---- Payment vouchers ----
-export const getPayments = () => read(KEYS.PAYMENTS, []);
+// Returns payments with DUPLICATE pvNo rows collapsed to the first occurrence.
+// Defensive against legacy data where the auto-PV generator previously inserted
+// the same voucher multiple times (e.g. repeated step-4 transitions on Pay Bills).
+export const getPayments = () => {
+  const raw = read(KEYS.PAYMENTS, []);
+  const seen = new Set();
+  const deduped = [];
+  for (const p of raw) {
+    const key = p?.pvNo || p?.id;
+    if (!key) { deduped.push(p); continue; }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(p);
+  }
+  return deduped;
+};
+// Permanently removes any duplicate pvNo entries in the backing store.
+// Called once on app boot (see migration below) to clean legacy duplicates.
+export const dedupePaymentsStore = () => {
+  const raw = read(KEYS.PAYMENTS, []);
+  const seen = new Set();
+  const clean = [];
+  let removed = 0;
+  for (const p of raw) {
+    const key = p?.pvNo;
+    if (!key) { clean.push(p); continue; }
+    if (seen.has(key)) { removed++; continue; }
+    seen.add(key);
+    clean.push(p);
+  }
+  if (removed > 0) {
+    write(KEYS.PAYMENTS, clean);
+    if (getToken()) apiPushPayments(clean).catch(() => {});
+    try { console.info(`[payments] Removed ${removed} duplicate voucher(s)`); } catch {}
+  }
+  return removed;
+};
+
+// ---------------------------------------------------------------------------
+// UNIVERSAL de-dup migration — one process number appears once (per module).
+// Scans every major collection and keeps the FIRST occurrence of each unique
+// identifier (vendorCode / permanentBillNo / refNo / expenseNo / boqNo /
+// woNo / monthKey / empCode / pvNo). Called on app boot to clean legacy data.
+// Returns total number of rows removed.
+// ---------------------------------------------------------------------------
+export const dedupeAllStores = () => {
+  const dedupeByKey = (storeKey, keyFn, label) => {
+    try {
+      const raw = read(storeKey, []);
+      if (!Array.isArray(raw) || raw.length === 0) return 0;
+      const seen = new Set();
+      const clean = [];
+      let removed = 0;
+      for (const row of raw) {
+        const k = keyFn(row);
+        if (!k) { clean.push(row); continue; }
+        if (seen.has(k)) { removed++; continue; }
+        seen.add(k);
+        clean.push(row);
+      }
+      if (removed > 0) {
+        write(storeKey, clean);
+        try { console.info(`[${label}] removed ${removed} duplicate row(s)`); } catch {}
+      }
+      return removed;
+    } catch { return 0; }
+  };
+  let total = 0;
+  total += dedupeByKey(KEYS.PAYMENTS,  (p) => p?.pvNo,                                                  "payments");
+  total += dedupeByKey(KEYS.BILLS,     (b) => b?.permanentBillNo || b?.refNo,                           "bills");
+  total += dedupeByKey(KEYS.VENDORS,   (v) => v?.vendorCode || v?.tempRefId,                            "vendors");
+  total += dedupeByKey(KEYS.EXPENSES,  (e) => e?.expenseNo || e?.refNo,                                 "expenses");
+  total += dedupeByKey(KEYS.BOQS,      (b) => b?.boqNo || b?.refNo,                                     "boqs");
+  total += dedupeByKey(KEYS.WOS,       (w) => w?.woNo || w?.refNo,                                      "wos");
+  total += dedupeByKey(KEYS.PAYBILLS,  (p) => p?.monthKey || p?.refNo,                                  "paybills");
+  total += dedupeByKey(KEYS.EMPLOYEES, (e) => e?.empCode,                                               "employees");
+  total += dedupeByKey(KEYS.ADVANCE_REQS, (r) => r?.refNo,                                              "advance-requests");
+  total += dedupeByKey(KEYS.LOANS,     (l) => l?.id,                                                    "loans");
+  if (total > 0 && getToken()) {
+    // Push cleaned snapshot so backend reflects reality (prevents re-sync of dupes)
+    _schedulePush();
+  }
+  return total;
+};
 export const savePayments = (list) => {
   // ZOMBIE RESURRECTION FIX — reconcile deletes before upserting:
   // compare old vs new pvNo set and send DELETE for records that disappeared.
@@ -1430,28 +1513,36 @@ export const advanceExitStep = (x) => {
   if (next.status === 4) {
     next.settledByName = me; next.settledAt = now;
     next.history.push({ action: "Settled & Paid by Accounts", at: now, by: me });
-    // Auto-generate Payment Voucher for F&F payout
+    // Auto-generate Payment Voucher for F&F payout (IDEMPOTENT — never duplicates)
     try {
       const payments = getPayments();
-      const pvNo = `GPV/HR-FNF/${new Date().getFullYear()}/${payments.length + 1}`;
-      const pv = {
-        id: `pv_fnf_${next.id}`,
-        pvNo,
-        pvDate: now.slice(0, 10),
-        source: "HR Exit F&F",
-        sourceRef: next.id,
-        vendorCode: "AE-HR-FNF",
-        vendorSnapshot: { firmName: `F&F Payout · ${next.empName || next.empCode || "Employee"}` },
-        amount: Number(next.fnfNet) || 0,
-        remarks: `Auto-generated from Exit F&F · ${next.empCode || ""} ${next.empName || ""} · LWD ${next.lastWorkingDay || "—"}`,
-        status: "Submitted",
-        createdByName: me,
-        createdAt: now,
-      };
-      payments.push(pv);
-      savePayments(payments);
-      next.linkedPvNo = pvNo;
-      next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
+      const pvId = `pv_fnf_${next.id}`;
+      const existing = payments.find((p) => p.id === pvId || p.sourceRef === next.id);
+      if (existing) {
+        // Already created — reuse the existing PV and skip insert
+        next.linkedPvNo = existing.pvNo;
+        next.history.push({ action: `Payment Voucher ${existing.pvNo} already exists · reused`, at: now, by: me });
+      } else {
+        const pvNo = `GPV/HR-FNF/${new Date().getFullYear()}/${payments.length + 1}`;
+        const pv = {
+          id: pvId,
+          pvNo,
+          pvDate: now.slice(0, 10),
+          source: "HR Exit F&F",
+          sourceRef: next.id,
+          vendorCode: "AE-HR-FNF",
+          vendorSnapshot: { firmName: `F&F Payout · ${next.empName || next.empCode || "Employee"}` },
+          amount: Number(next.fnfNet) || 0,
+          remarks: `Auto-generated from Exit F&F · ${next.empCode || ""} ${next.empName || ""} · LWD ${next.lastWorkingDay || "—"}`,
+          status: "Submitted",
+          createdByName: me,
+          createdAt: now,
+        };
+        payments.push(pv);
+        savePayments(payments);
+        next.linkedPvNo = pvNo;
+        next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
+      }
     } catch (e) { /* ignore */ }
     // Mark employee as Exited
     const emps = getEmployees();
@@ -1640,29 +1731,41 @@ export const advancePayBillStep = (pb) => {
   if (next.step === 4) {
     next.settledByName = me; next.settledAt = now;
     next.history = [...(pb.history || []), { action: "Settled & paid", at: now, by: me }];
-    // ---- Auto-generate Payment Voucher for the net salary payout ----
+    // ---- Auto-generate Payment Voucher for the net salary payout (IDEMPOTENT) ----
     try {
       const payments = getPayments();
-      const pvNo = `GPV/HR/${pb.year}-${String(pb.month).padStart(2, "0")}/${payments.length + 1}`;
-      const monthName = new Date(pb.year, pb.month - 1).toLocaleString("en-IN", { month: "long" });
-      const pv = {
-        id: `pv_pb_${pb.id}`,
-        pvNo,
-        pvDate: now.slice(0, 10),
-        source: "HR Pay Bill",
-        sourceRef: pb.refNo,
-        vendorCode: "AE-HR-PAYROLL",
-        vendorSnapshot: { firmName: `Payroll Payout · ${monthName} ${pb.year}` },
-        amount: pb.totalNet || 0,
-        remarks: `Auto-generated from Pay Bill ${pb.refNo} · ${pb.lines?.length || 0} employees · Net ₹${(pb.totalNet || 0).toLocaleString("en-IN")}`,
-        status: "Submitted",
-        createdByName: me,
-        createdAt: now,
-      };
-      payments.push(pv);
-      savePayments(payments);
-      next.linkedPvNo = pvNo;
-      next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
+      const pvId = `pv_pb_${pb.id}`;
+      const existing = payments.find((p) => p.id === pvId || p.sourceRef === pb.refNo);
+      if (existing) {
+        // PV already exists for this pay bill — reuse and skip insert to prevent duplicates
+        next.linkedPvNo = existing.pvNo;
+        next.history.push({ action: `Payment Voucher ${existing.pvNo} already exists · reused`, at: now, by: me });
+      } else {
+        const monthName = new Date(pb.year, pb.month - 1).toLocaleString("en-IN", { month: "long" });
+        // Use PV counter (not payments.length — that collides if other PVs were inserted meanwhile)
+        const c = getCounters();
+        c.pvSerial = (c.pvSerial || 0) + 1;
+        saveCounters(c);
+        const pvNo = `GPV/HR/${pb.year}-${String(pb.month).padStart(2, "0")}/${c.pvSerial}`;
+        const pv = {
+          id: pvId,
+          pvNo,
+          pvDate: now.slice(0, 10),
+          source: "HR Pay Bill",
+          sourceRef: pb.refNo,
+          vendorCode: "AE-HR-PAYROLL",
+          vendorSnapshot: { firmName: `Payroll Payout · ${monthName} ${pb.year}` },
+          amount: pb.totalNet || 0,
+          remarks: `Auto-generated from Pay Bill ${pb.refNo} · ${pb.lines?.length || 0} employees · Net ₹${(pb.totalNet || 0).toLocaleString("en-IN")}`,
+          status: "Submitted",
+          createdByName: me,
+          createdAt: now,
+        };
+        payments.push(pv);
+        savePayments(payments);
+        next.linkedPvNo = pvNo;
+        next.history.push({ action: `Auto-created Payment Voucher ${pvNo}`, at: now, by: me });
+      }
     } catch (e) { /* ignore */ }
   }
   const list = getPayBills().map((x) => x.id === next.id ? next : x);

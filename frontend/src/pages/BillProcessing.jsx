@@ -22,7 +22,7 @@ import {
   getExits, advanceExitStep, deleteExit, EXIT_STATUS,
   getEmployees,
   getPayments,
-  purgeLegacyPayrollBills,
+  purgeLegacyPayrollBills, dedupeAllStores,
   deleteBill, currentRole,
 } from "../lib/store";
 import { exportBankTransferXLSX as _sharedXlsx, printBankTransferAdvice as _sharedAdvice } from "../lib/bankTransfer";
@@ -78,12 +78,17 @@ export default function BillProcessing() {
 
   // Auto-cleanup legacy HR-INTERNAL / isPayrollBill rows from Bills table on first mount.
   // These were created by the old sendPayrollToAccounts flow and now live in `paybills` collection.
+  // Also run universal de-dup migration so no module shows repeated process numbers (user bug fix Feb-2026).
   useEffect(() => {
     const removed = purgeLegacyPayrollBills();
+    const dupRemoved = dedupeAllStores();
     if (removed > 0) {
       setRefresh((r) => r + 1);
-      // toast is defined later via sonner — safe no-op if window.sonnerQueue is not yet set
       try { toast.success(`Legacy HR-INTERNAL bills cleaned up (${removed} rows). HR Pay Bills ab sirf 'Pay Bills Process' tab mein hain.`); } catch (_e) {}
+    }
+    if (dupRemoved > 0) {
+      setRefresh((r) => r + 1);
+      try { toast.success(`Duplicate process numbers removed (${dupRemoved} rows across all modules).`); } catch (_e) {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -7,6 +7,16 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 5 — Duplicate Process Numbers Fixed)
+- **CRITICAL BUG FIX**: Same PV/HR/... number was appearing 5× in Payment Vouchers register. Root cause: `advancePayBillStep` + `advanceExitStep` pushed a new PV every time step 4 transition fired (no idempotency check), and `payments.length+1` suffix produced different serials each push.
+- **Fixes applied**:
+  1. `advancePayBillStep` + `advanceExitStep` now check for existing PV (by `id` or `sourceRef`) before inserting — reuse existing PV number on repeat transitions.
+  2. PV serial switched from `payments.length+1` to central `pvSerial` counter (`getCounters()`) to prevent collisions.
+  3. `getPayments()` now returns de-duplicated list (collapses rows with same pvNo).
+  4. **Universal de-dup migration `dedupeAllStores()`** — scans every major collection (payments, bills, vendors, expenses, BOQs, WOs, paybills, employees, advance-requests, loans) and keeps the first occurrence of each unique process number. Runs on Home mount + after every cross-user sync.
+  5. Reports Hub `rawRows` performs defensive display-time de-dup as last line of defense.
+- **ProjectManagement**: Removed duplicate `.module-dept-banner` row (ModuleHero already shows the dept header).
+
 ## Feb-2026 Session Changes (round 4 — Printable Designations & Bill Delete)
 - **Printable Signatories (role-free policy):** ROLES (`SuperAdmin` / `Admin`) are no longer printed anywhere. Only DESIGNATIONS appear on paper.
   - **Ashish Srivastava** → `Sr. Operation Manager` (was `Director`) — SuperAdmin on-screen only.

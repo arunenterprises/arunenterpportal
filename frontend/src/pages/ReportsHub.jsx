@@ -458,7 +458,24 @@ const ReportsHub = () => {
   }, []);
 
   const cfg = useMemo(() => DEPT_CONFIG.find((d) => d.id === activeDept), [activeDept]);
-  const rawRows = useMemo(() => { try { return cfg.fetch() || []; } catch { return []; } }, [cfg, refresh]);
+  const rawRows = useMemo(() => {
+    try {
+      const raw = cfg.fetch() || [];
+      // Defensive de-dup — collapse rows that share the same unique process key.
+      // Prevents the "same PV / Bill / BOQ showing 5× in a row" display bug.
+      const seen = new Set();
+      const out = [];
+      for (let i = 0; i < raw.length; i++) {
+        const r = raw[i];
+        const key = r?.pvNo || r?.permanentBillNo || r?.refNo || r?.boqNo || r?.woNo || r?.expenseNo || r?.vendorCode || r?.empCode || r?.id;
+        if (!key) { out.push(r); continue; }
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(r);
+      }
+      return out;
+    } catch { return []; }
+  }, [cfg, refresh]);
 
   const filteredRows = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
