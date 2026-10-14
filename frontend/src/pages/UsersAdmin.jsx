@@ -2,13 +2,75 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
-import { currentUserProfile, logout, resetLocalCache, resetHrFinancials } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout } from "../lib/api";
+import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride } from "../lib/store";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 import AuthSplash from "../components/AuthSplash";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
+
+// ---- Financial Year management card (SuperAdmin / Admin only) ----
+const FinancialYearCard = ({ isAdmin }) => {
+  const [current, setCurrent] = useState(getActiveFYOverride() || "");
+  const [draft, setDraft] = useState(getActiveFYOverride() || "");
+  const [busy, setBusy] = useState(false);
+  const options = listFYOptions();
+  const prettyFY = (fy) => (fy && fy.length === 4) ? `20${fy.slice(0, 2)} - 20${fy.slice(2, 4)}` : fy || "—";
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await apiGetActiveFY();
+        const v = (r.active_fy || "").trim();
+        if (v) { setActiveFYOverride(v); setCurrent(v); setDraft(v); }
+      } catch (e) { /* ignore */ }
+    })();
+    const onFy = () => { const v = getActiveFYOverride(); setCurrent(v); setDraft(v); };
+    window.addEventListener("ae-fy-changed", onFy);
+    return () => window.removeEventListener("ae-fy-changed", onFy);
+  }, []);
+
+  const save = async () => {
+    if (!isAdmin) return toast.error("Only SuperAdmin / Admin can change FY");
+    setBusy(true);
+    try {
+      await apiSetActiveFY(draft);
+      setActiveFYOverride(draft);
+      setCurrent(draft);
+      toast.success(draft ? `Active Financial Year set to FY ${prettyFY(draft)} · All new codes will use this` : "FY override cleared · will auto-compute from date");
+    } catch (ex) {
+      toast.error(ex.message || "FY save failed");
+    } finally { setBusy(false); }
+  };
+
+  if (!isAdmin) return null;
+  return (
+    <div data-testid="fy-card" style={{ marginTop: 18, border: "1.5px solid #a5b4fc", borderRadius: 6, background: "#eef2ff" }}>
+      <div style={{ background: "#c7d2fe", padding: "6px 12px", fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "#3730a3", display: "flex", alignItems: "center", gap: 6, textTransform: "uppercase" }}>
+        📅 Financial Year · SuperAdmin / Admin
+      </div>
+      <div style={{ padding: 12, display: "grid", gridTemplateColumns: "1.4fr 1.4fr auto auto", gap: 10, alignItems: "end" }}>
+        <div>
+          <label style={{ fontSize: 10.5, color: "#3730a3", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>Current Active FY</label>
+          <div data-testid="fy-current" style={{ marginTop: 4, padding: "8px 10px", background: "#fff", border: "1.5px solid #a5b4fc", borderRadius: 5, fontWeight: 900, color: "#3730a3", fontSize: 13 }}>{current ? `FY ${prettyFY(current)}` : "Auto (current date)"}</div>
+        </div>
+        <div>
+          <label style={{ fontSize: 10.5, color: "#3730a3", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>Set Active FY *</label>
+          <select data-testid="fy-select" value={draft} onChange={(e) => setDraft(e.target.value)} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: "1.5px solid #a5b4fc", borderRadius: 5, fontSize: 12, fontWeight: 700, background: "#fff" }}>
+            <option value="">— Auto (current date) —</option>
+            {options.map((fy) => <option key={fy} value={fy}>FY {prettyFY(fy)}</option>)}
+          </select>
+        </div>
+        <button data-testid="fy-save" onClick={save} disabled={busy || draft === current} style={{ padding: "9px 16px", background: busy || draft === current ? "#94a3b8" : "linear-gradient(135deg,#4f46e5,#3730a3)", color: "#fff", border: "none", borderRadius: 5, cursor: busy || draft === current ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 12, letterSpacing: 0.3, textTransform: "uppercase", boxShadow: busy || draft === current ? "none" : "0 2px 6px rgba(79,70,229,.4)" }}>{busy ? "Saving…" : "Save FY"}</button>
+        <button data-testid="fy-clear" onClick={() => setDraft("")} disabled={!draft} style={{ padding: "9px 14px", background: !draft ? "#cbd5e1" : "#fff", color: !draft ? "#64748b" : "#3730a3", border: `1.5px solid ${!draft ? "#cbd5e1" : "#a5b4fc"}`, borderRadius: 5, cursor: !draft ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 11 }}>Reset</button>
+      </div>
+      <div style={{ padding: "0 12px 10px", fontSize: 10.5, color: "#4338ca", fontStyle: "italic" }}>
+        💡 Changing FY affects all new Vendor Codes, Bill Nos, Payment Vouchers, Advance Refs, Employee Codes. Existing records keep their original FY. Setting syncs to all users within ~8 seconds.
+      </div>
+    </div>
+  );
+};
 
 // ---- Active Sessions Section (Feb 2026 · user request) ----
 // Shows every user's current login state with IP, user-agent, and login time.
@@ -350,6 +412,7 @@ export default function UsersAdmin() {
         </div>
 
         {/* Change My Password */}
+        <FinancialYearCard isAdmin={isSuperAdmin(me?.user) || (me?.role || "").toLowerCase() === "admin"} />
         <div style={{ marginTop: 18, border: "1px solid #cbd5e1", borderRadius: 6 }}>
           <div style={{ background: "#fef9c3", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#854d0e", display: "flex", alignItems: "center", gap: 6 }}>
             <Lock size={12} /> CHANGE MY PASSWORD ({me?.user})

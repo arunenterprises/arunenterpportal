@@ -52,7 +52,31 @@ const read = (k, fallback) => {
 const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
 // ---- Financial Year (e.g. 2526) ----
+// SuperAdmin / Admin can override via User Management → Financial Year card.
+// The override is stored in localStorage key `ae_vm_active_fy` and synced via
+// settings endpoint. If no override, auto-compute from current date.
+const ACTIVE_FY_KEY = "ae_vm_active_fy";
+export const getActiveFYOverride = () => {
+  try { return (localStorage.getItem(ACTIVE_FY_KEY) || "").trim(); } catch { return ""; }
+};
+export const setActiveFYOverride = (fy) => {
+  const v = (fy || "").trim();
+  if (v) localStorage.setItem(ACTIVE_FY_KEY, v);
+  else localStorage.removeItem(ACTIVE_FY_KEY);
+  try { window.dispatchEvent(new CustomEvent("ae-fy-changed", { detail: { fy: v } })); } catch {}
+};
+// Normalize any supported FY string (2526 / 25-26 / 2025-2026) → 4-digit `2526`
+const _normalizeFY = (s) => {
+  const t = String(s || "").trim();
+  if (!t) return "";
+  if (/^\d{4}$/.test(t)) return t;
+  if (/^\d{2}-\d{2}$/.test(t)) return t.replace("-", "");
+  if (/^\d{4}-\d{4}$/.test(t)) return `${t.slice(2, 4)}${t.slice(7, 9)}`;
+  return "";
+};
 export const getFY = (date = new Date()) => {
+  const override = _normalizeFY(getActiveFYOverride());
+  if (override) return override;
   const y = date.getFullYear();
   const m = date.getMonth();
   const startYY = m >= 3 ? y % 100 : (y - 1) % 100;
@@ -61,11 +85,27 @@ export const getFY = (date = new Date()) => {
 };
 // Hyphenated FY (e.g. 25-26) — used for human-readable EMP codes
 export const getFYHyphen = (date = new Date()) => {
+  const override = _normalizeFY(getActiveFYOverride());
+  if (override) return `${override.slice(0, 2)}-${override.slice(2, 4)}`;
   const y = date.getFullYear();
   const m = date.getMonth();
   const startYY = m >= 3 ? y % 100 : (y - 1) % 100;
   const endYY = (startYY + 1) % 100;
   return `${String(startYY).padStart(2, "0")}-${String(endYY).padStart(2, "0")}`;
+};
+// FY options list for dropdown (last 3 → current → next 2 fiscal years)
+export const listFYOptions = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const startYY = m >= 3 ? y % 100 : (y - 1) % 100;
+  const opts = [];
+  for (let d = -3; d <= 2; d++) {
+    const s = (startYY + d + 100) % 100;
+    const e = (s + 1) % 100;
+    opts.push(`${String(s).padStart(2, "0")}${String(e).padStart(2, "0")}`);
+  }
+  return opts;
 };
 
 // ---- Counters ----
@@ -1819,6 +1859,12 @@ export const syncFromCloud = async () => {
     adsSerial: snap.counters.adsSerial || 0,
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
+  // Sync Active FY override from cloud (admin-set)
+  if (typeof snap.active_fy === "string") {
+    const norm = _normalizeFY(snap.active_fy);
+    if (norm) localStorage.setItem(ACTIVE_FY_KEY, norm);
+    else localStorage.removeItem(ACTIVE_FY_KEY);
+  }
   // Fire window event so React components can refresh their useMemo state
   try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch {}
   return snap;

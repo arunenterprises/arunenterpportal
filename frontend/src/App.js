@@ -13,6 +13,7 @@ import PurchaseManagement from "./pages/PurchaseManagement";
 import GeneralManager from "./pages/GeneralManager";
 import HRManagement from "./pages/HRManagement";
 import ProjectManagement from "./pages/ProjectManagement";
+import ReportsHub from "./pages/ReportsHub";
 import VendorPortalWO from "./pages/VendorPortalWO";
 import AdvertisementPortal from "./pages/AdvertisementPortal";
 import SplashScreen from "./components/SplashScreen";
@@ -90,6 +91,7 @@ function App() {
           <Route path="/reports" element={<Navigate to="/final" replace />} />
           <Route path="/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
           <Route path="/project" element={<RequireAuth><ProjectManagement /></RequireAuth>} />
+          <Route path="/reports-hub" element={<RequireAuth><ReportsHub /></RequireAuth>} />
           <Route path="/vendor-portal/wo/:id" element={<VendorPortalWO />} />
           <Route path="/careers" element={<AdvertisementPortal />} />
           <Route path="/jobs" element={<Navigate to="/careers" replace />} />

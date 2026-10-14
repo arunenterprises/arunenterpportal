@@ -26,6 +26,8 @@ const req = async (path, opts = {}) => {
 export const apiLogin = (identifier, password) =>
   req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
 export const apiLogout = () => req("/auth/logout", { method: "POST" });
+export const apiGetActiveFY = () => req("/settings/fy");
+export const apiSetActiveFY = (fy) => req("/settings/fy", { method: "POST", body: JSON.stringify({ active_fy: fy }) });
 export const apiListSessions = () => req("/users/sessions");
 export const apiForceLogout = (email) => req(`/users/${encodeURIComponent(email)}/force_logout`, { method: "POST" });
 export const apiAttendancePunch = () => req("/attendance/punch", { method: "POST" });

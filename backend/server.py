@@ -88,14 +88,27 @@ def _is_super_admin(user: Dict) -> bool:
 
 
 def _can_create(user: Dict) -> bool:
+    """CROSS-USER DATA FIX (Feb 2026):
+    Previously required explicit permissions.create/edit/submit/approve — any user
+    created without a permissions map (role-only) got 403 on every write endpoint,
+    so their save silently failed on the backend and their data never reached the
+    cloud. Other devices never saw it. Now: role-based default — every role
+    except Viewer can create; explicit perms override."""
     if _is_super_admin(user):
+        return True
+    role = (user.get("role") or "User").strip().lower()
+    if role in ("admin", "gm", "purchase", "accounts", "user", "hr", "store"):
         return True
     perms = user.get("permissions") or {}
     return bool(perms.get("create") or perms.get("edit") or perms.get("submit") or perms.get("approve"))
 
 
 def _can_approve(user: Dict) -> bool:
+    """Approver tier: SuperAdmin + Admin role + explicit approve perm."""
     if _is_super_admin(user):
+        return True
+    role = (user.get("role") or "").strip().lower()
+    if role == "admin":
         return True
     perms = user.get("permissions") or {}
     return bool(perms.get("approve"))
@@ -565,9 +578,11 @@ async def list_payments(user: Dict = Depends(get_current_user)):
 
 
 @api_router.post("/payments/bulk")
-async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_approver)):
-    """SEC-002 FIX: per-id upsert (approver only). The old blanket delete-and-
-    insert flow allowed any logged-in user to wipe the full payments ledger."""
+async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_write)):
+    """SEC-002 FIX: per-id upsert (any writer). The old blanket delete-and-
+    insert flow allowed any logged-in user to wipe the full payments ledger.
+    Feb 2026 fix: switched from require_approver → require_write so creator-tier
+    users can save their own voucher drafts and sync them cross-device."""
     items = body.get("items") or []
     count = 0
     for p in items:
@@ -684,13 +699,35 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "exits": await _list_collection("exits"),
         "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0, "empSerial": 0, "adsSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
+        "active_fy": ((await db.settings.find_one({"key": "active_fy"}, {"_id": 0})) or {}).get("value", ""),
     }
 
 
+# ==================== FINANCIAL YEAR (admin-managed active FY) ====================
+@api_router.get("/settings/fy")
+async def get_active_fy(user: Dict = Depends(get_current_user)):
+    doc = await db.settings.find_one({"key": "active_fy"}, {"_id": 0})
+    return {"active_fy": (doc or {}).get("value", "")}
+
+
+@api_router.post("/settings/fy")
+async def set_active_fy(body: Dict = Body(...), admin: Dict = Depends(require_admin)):
+    """SuperAdmin / Admin only — set the active Financial Year used by all
+    serial / code generation (vendor codes, bill nos, PV nos, EMP codes, ADV)."""
+    fy = (body.get("active_fy") or "").strip()
+    # Accept 4-digit (2526) or hyphen (25-26) or full (2025-2026) formats
+    if fy and not (len(fy) == 4 and fy.isdigit()) and not (len(fy) == 5 and fy[2] == "-") and not (len(fy) == 9 and fy[4] == "-"):
+        raise HTTPException(status_code=400, detail="FY must be 2526, 25-26, or 2025-2026 format")
+    await db.settings.update_one({"key": "active_fy"}, {"$set": {"value": fy, "updated_by": admin.get("email"), "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    return {"ok": True, "active_fy": fy}
+
+
 @api_router.post("/snapshot")
-async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_approver)):
+async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_write)):
     """One-shot migration/push of the client's full state to the cloud.
-    SEC-002 FIX: Approver-only + per-id upsert for payments (no blanket replace)."""
+    Feb 2026 fix: switched from require_approver → require_write so creator-tier
+    users (Purchase, Accounts, HR, User) can also push their saved drafts and
+    data syncs cross-device. Approval-gated transitions still enforced per-field."""
     vendors = body.get("vendors", [])
     bills = body.get("bills", [])
     payments = body.get("payments", [])

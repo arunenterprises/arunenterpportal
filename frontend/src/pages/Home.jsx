@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban } from "lucide-react";
+import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, BarChart3 } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import {
@@ -132,6 +132,23 @@ const DEPARTMENTS = [
       "Budget vs spent · progress %",
     ],
     roles: ALL_ROLES,
+  },
+  {
+    id: "reports_hub",
+    title: "Reports Hub",
+    subtitle: "Dept-wise · FY · Month · Print · Excel · PDF",
+    to: "/reports-hub",
+    icon: BarChart3,
+    color: "#4f46e5",
+    dark: "#3730a3",
+    lines: [
+      "Vendor · Bill · PV · Expense · BOQ · WO",
+      "HR Pay Bill · Advance · Loan · Exits",
+      "FY / Month / Date-range filters",
+      "Print A4 · Excel · PDF export",
+    ],
+    roles: ALL_ROLES,
+    badge: "NEW",
   },
   {
     id: "users",
