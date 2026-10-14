@@ -152,7 +152,7 @@ const DEPARTMENTS = [
   },
   {
     id: "users",
-    title: "User Management",
+    title: "Administrator",
     subtitle: "Employees · Roles · Passwords",
     to: "/users",
     icon: UserCog,
