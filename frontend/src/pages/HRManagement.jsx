@@ -111,6 +111,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
   const [locked, setLocked] = useState(false);
   const [ifscBusy, setIfscBusy] = useState(false);
   const [ifscOk, setIfscOk] = useState(false);
+  const [codeSearch, setCodeSearch] = useState("");
 
   useEffect(() => { setList(getEmployees()); if (!emp) setEmp(createEmployeeDraft()); }, []);
   const refresh = () => setList(getEmployees());
@@ -148,8 +149,24 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
     }
   }, [emp?.sameAsPresent, emp?.presentLine, emp?.presentCity, emp?.presentState, emp?.presentPincode]);
 
-  const startNew = () => { const d = createEmployeeDraft(); setEmp(d); setLocked(false); toast.info(`Draft ${d.tempCode}`); };
-  const load = (e) => { setEmp({ ...e }); setLocked(Number(e.step) >= 5); };
+  const startNew = () => { const d = createEmployeeDraft(); setEmp(d); setLocked(false); setCodeSearch(""); toast.info(`Draft ${d.tempCode}`); };
+  const load = (e) => { setEmp({ ...e }); setLocked(Number(e.step) >= 5); setCodeSearch(""); };
+
+  // Lookup an existing employee by permanent EMP code or temp code and load full data into the form
+  const lookupByCode = () => {
+    const q = codeSearch.trim();
+    if (!q) { toast.error("Enter an EMP Code to search"); return; }
+    const match = list.find((x) =>
+      (x.empCode || "").toLowerCase() === q.toLowerCase() ||
+      (x.tempCode || "").toLowerCase() === q.toLowerCase()
+    ) || list.find((x) =>
+      (x.empCode || "").toLowerCase().includes(q.toLowerCase()) ||
+      (x.tempCode || "").toLowerCase().includes(q.toLowerCase())
+    );
+    if (!match) { toast.error(`No employee found matching "${q}"`); return; }
+    load(match);
+    toast.success(`✓ Loaded ${match.empCode || match.tempCode} · ${match.fullName}`);
+  };
 
   const validate = () => {
     if (!emp.fullName.trim()) { toast.error("Full name required"); return false; }
@@ -203,7 +220,32 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       {/* Header codes */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 12 }}>
         <F label="Temp Code (Alpha-Num)"><input value={emp.tempCode} readOnly style={{ ...inputStyle, background: "#fef9c3", fontWeight: 700, color: "#78716c" }} data-testid="emp-temp-code" /></F>
-        <F label="Permanent EMP Code"><input value={emp.empCode} readOnly placeholder="AE/EMP/XXXXXX/FY — on Final Approval" style={{ ...inputStyle, background: emp.empCode ? "#dcfce7" : "#f1f5f9", fontWeight: 800, color: emp.empCode ? "#166534" : "#94a3b8", border: emp.empCode ? "1.5px solid #16a34a" : "1px solid #cbd5e1" }} data-testid="emp-perm-code" /></F>
+        <F label="Permanent EMP Code · Type & Enter to Load">
+          <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
+            <input
+              list="hr-emp-code-lookup-list"
+              value={codeSearch !== "" ? codeSearch : (emp.empCode || "")}
+              onChange={(e) => setCodeSearch(e.target.value)}
+              placeholder="AE/EMP/XXXXXX/FY — type to search & Enter"
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); lookupByCode(); } }}
+              onFocus={() => { if (codeSearch === "" && emp.empCode) setCodeSearch(emp.empCode); }}
+              onBlur={() => setTimeout(() => setCodeSearch(""), 150)}
+              style={{ ...inputStyle, flex: 1, background: emp.empCode ? "#dcfce7" : "#f1f5f9", fontWeight: 800, color: emp.empCode ? "#166534" : "#0f172a", border: emp.empCode ? "1.5px solid #16a34a" : "1px solid #cbd5e1" }}
+              data-testid="emp-perm-code"
+              title="Type an existing EMP / Temp code and press Enter (or click 🔍) to auto-load that employee's full data"
+            />
+            <button
+              type="button"
+              onClick={lookupByCode}
+              data-testid="emp-code-lookup"
+              title="Lookup employee by code"
+              style={{ padding: "6px 10px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 800, fontSize: 12 }}
+            >🔍</button>
+          </div>
+          <datalist id="hr-emp-code-lookup-list">
+            {list.map((e) => <option key={e.id} value={e.empCode || e.tempCode}>{`${e.fullName} · ${e.designation || ""}`}</option>)}
+          </datalist>
+        </F>
         <F label="Status / Step"><input value={EMPLOYEE_STEP_LABEL[emp.step] || "-"} readOnly style={{ ...inputStyle, background: "#eef2ff", fontWeight: 700, color: "#1e3a8a" }} /></F>
         <F label="Revision"><input value={emp.revision || 0} readOnly style={{ ...inputStyle, background: "#f8fafc", textAlign: "center" }} /></F>
       </div>
