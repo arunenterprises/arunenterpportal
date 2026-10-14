@@ -2,8 +2,9 @@ import * as XLSX from "xlsx";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
-import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash2, Save, Send, FilePlus2, Paperclip, Printer } from "lucide-react";
+import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash2, Save, Send, FilePlus2, Paperclip, Printer, ShoppingCart } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
+import ModuleHero from "../components/ModuleHero";
 import { printWorkOrder } from "../lib/woPrint";
 import {
   currentRole, canCreate, canApprove, canDelete, canDeleteApproved, currentUserProfile, currentUser,
@@ -1184,7 +1185,14 @@ export default function PurchaseManagement() {
       <HomeNavBar />
       <div className="app-shell">
         <div className="a4" data-testid="purchase-page">
-          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Purchase Management</span><span className="mdb-sub">BOQ · Work Orders · Vendor Procurement</span></div>
+          <ModuleHero
+            tag="Purchase Management · V1"
+            title="BOQ · Work Orders · Procurement"
+            subtitle="Line-item BOQs · Vendor WO · Auto-fill from BOQ · GST + Retention · GM approval"
+            icon={ShoppingCart}
+            gradient="linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)"
+            shadowRgba="22,101,52,.28"
+          />
           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }} data-testid="purchase-tabs">
             {TABS.map((t) => {
               const Icon = t.icon;

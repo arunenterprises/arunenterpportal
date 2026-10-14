@@ -4,6 +4,8 @@ import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
 import { CheckCircle2, Search, Plus, X, FilePlus2, Save, Pencil, Send, Printer, Download, FileSearch, Wallet, Receipt, LogOut, IndianRupee, FileText } from "lucide-react";
 import Header from "../components/Header";
+import ModuleHero from "../components/ModuleHero";
+import { Landmark as LandmarkIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
@@ -462,7 +464,14 @@ export default function BillProcessing() {
 
         <div className="a4" data-testid="bill-page">
           <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
-          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Accounts</span><span className="mdb-sub">Vendor Bills · Advance · Pay Bill · Exit F&amp;F</span></div>
+          <ModuleHero
+            tag="Accounts · V1"
+            title="Vendor Bills · Advance · Pay Bill · Exit F&F"
+            subtitle="5-step bill flow · GST / TDS auto-compute · PV generation · UTR tracking"
+            icon={LandmarkIcon}
+            gradient="linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"
+            shadowRgba="6,78,59,.28"
+          />
 
           {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
           <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">

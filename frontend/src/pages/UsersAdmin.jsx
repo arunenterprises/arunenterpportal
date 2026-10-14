@@ -5,6 +5,7 @@ import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
+import ModuleHero from "../components/ModuleHero";
 import AuthSplash from "../components/AuthSplash";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
@@ -392,7 +393,14 @@ export default function UsersAdmin() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div style={{ maxWidth: 1200, margin: "0 auto", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 20 }}>
-        <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">User Management</span><span className="mdb-sub">Employees · Roles · Permissions · Passwords · FY</span></div>
+        <ModuleHero
+          tag={isSuperAdmin(me?.user) ? "User Management · SuperAdmin" : "User Management · Admin"}
+          title="Employees · Roles · Permissions · FY"
+          subtitle="Create users · Reset passwords · Active sessions · Backup / Restore · Financial Year"
+          icon={Shield}
+          gradient="linear-gradient(135deg,#7f1d1d 0%,#991b1b 45%,#e11d48 100%)"
+          shadowRgba="153,27,27,.28"
+        />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #0b3d91", paddingBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#0b3d91" }}>
             <Shield />

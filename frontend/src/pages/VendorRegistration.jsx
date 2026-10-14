@@ -4,6 +4,8 @@ import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
 import { ArrowRight, CheckCircle2, FilePlus2, Save, Pencil, Send, Printer, Download, FileSearch } from "lucide-react";
 import Header from "../components/Header";
+import ModuleHero from "../components/ModuleHero";
+import { Users as UsersIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
@@ -243,7 +245,14 @@ export default function VendorRegistration() {
 
         <div className="a4" data-testid="vendor-page">
           <div className="module-doc-header"><Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" /></div>
-          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Vendor Management</span><span className="mdb-sub">Registration · KYC · Approval</span></div>
+          <ModuleHero
+            tag="Vendor Management · V1"
+            title="Registration · KYC · Approval"
+            subtitle="3-step workflow · Auto Vendor Code AE####JV{FY} · Razorpay IFSC auto-fill"
+            icon={UsersIcon}
+            gradient="linear-gradient(135deg,#075985 0%,#0369a1 45%,#06b6d4 100%)"
+            shadowRgba="3,105,161,.28"
+          />
           <StepTabs step={vendor.step} />
 
           {vendor.step === 3 && vendor.vendorCode && (

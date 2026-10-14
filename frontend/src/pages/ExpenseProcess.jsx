@@ -3,6 +3,8 @@ import { toast, Toaster } from "sonner";
 import * as XLSX from "xlsx";
 import { Wallet, Search, FilePlus2, Save, Pencil, Send, Printer, Download, CheckCircle2 } from "lucide-react";
 import Header from "../components/Header";
+import ModuleHero from "../components/ModuleHero";
+import { Receipt as ReceiptIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
@@ -222,7 +224,14 @@ export default function ExpenseProcess() {
       />
       <div className="a4" data-testid="expense-page">
         <div className="module-doc-header"><Header formTitle={`Expense Process · ${expense.permanentExpenseNo || expense.refNo}`} /></div>
-        <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Expense Process</span><span className="mdb-sub">Petty Cash · Reimbursements · Approvals</span></div>
+        <ModuleHero
+          tag="Expense Process · V1"
+          title="Petty Cash · Reimbursements · Approvals"
+          subtitle="4-step approval · Auto Expense No · GM final sign-off · Direct to PV"
+          icon={ReceiptIcon}
+          gradient="linear-gradient(135deg,#78350f 0%,#b45309 45%,#f59e0b 100%)"
+          shadowRgba="180,83,9,.28"
+        />
         <StepTabs step={Number(expense.step) || 1} labels={[EXPENSE_STEP_LABEL[1], EXPENSE_STEP_LABEL[2], EXPENSE_STEP_LABEL[3], EXPENSE_STEP_LABEL[4]]} />
 
         {/* 1. Expense Details */}

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
 import Header from "../components/Header";
+import ModuleHero from "../components/ModuleHero";
+import { FileBarChart as FileBarChartIcon } from "lucide-react";
 import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
@@ -612,7 +614,14 @@ export default function Reports() {
 
         <div className="a4" data-testid="reports-page">
           <div className="module-doc-header"><Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" /></div>
-          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Vouchers &amp; Payables</span><span className="mdb-sub">Payment Vouchers · UTR · Due List · Aging</span></div>
+          <ModuleHero
+            tag="Vouchers & Payables · V1"
+            title="Payment Vouchers · UTR · Due List"
+            subtitle="PV generation (GPV → PN) · UTR capture · Due list aging · Bank advice · Excel"
+            icon={FileBarChartIcon}
+            gradient="linear-gradient(135deg,#581c87 0%,#7c3aed 45%,#0d9488 100%)"
+            shadowRgba="124,58,237,.28"
+          />
 
           {/* Reports Tabs */}
           <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="reports-tabs">

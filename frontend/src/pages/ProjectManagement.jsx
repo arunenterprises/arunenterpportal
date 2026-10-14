@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
+import ModuleHero from "../components/ModuleHero";
 import { currentUserProfile, currentRole, canApprove, canDelete, isSuperAdmin } from "../lib/store";
 
 // ---------- Local persistence (Project Management is a draft layout for now) ----------
@@ -236,6 +237,22 @@ export default function ProjectManagement() {
           <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Project Management</span><span className="mdb-sub">Projects · Milestones · Teams · Budget</span></div>
 
           {/* Banner + KPIs */}
+          <ModuleHero
+            tag="Project Management · V1"
+            title="Projects · Milestones · Teams · Budget"
+            subtitle={`${stats.total} total · ${stats.inProgress} in-progress · ${stats.completed} completed · ₹${Number(stats.totalBudget).toLocaleString("en-IN")} budget · ${stats.utilizationPct}% spent`}
+            icon={FolderKanban}
+            gradient="linear-gradient(135deg,#064e3b 0%,#0f766e 45%,#14b8a6 100%)"
+            shadowRgba="6,78,59,.28"
+            rightSlot={
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <KpiTile color="#99f6e4" label="Total" value={stats.total} />
+                <KpiTile color="#60a5fa" label="In Progress" value={stats.inProgress} />
+                <KpiTile color="#86efac" label="Completed" value={stats.completed} />
+              </div>
+            }
+          />
+          {false && (
           <div style={{ background: "linear-gradient(135deg,#0f766e 0%,#115e59 60%,#064e3b 100%)", color: "#fff", borderRadius: 10, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, boxShadow: "0 4px 12px rgba(6,78,59,.25)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <FolderKanban size={32} />
@@ -253,6 +270,7 @@ export default function ProjectManagement() {
               <KpiTile color="#fca5a5" label="Spent" value={`₹ ${Number(stats.totalSpent).toLocaleString("en-IN")} · ${stats.utilizationPct}%`} />
             </div>
           </div>
+          )}
 
           {/* Toolbar */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", padding: "10px 14px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
