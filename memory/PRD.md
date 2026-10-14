@@ -7,6 +7,12 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 18 — Dept KPI Dashboards + Advance Dup verified)
+- **Reports Hub KPI tiles**: added a live-filtered mini-dashboard above every department's data table — Total Records, Grand Total (when `amountKey` exists), Draft, Pending, Approved, Rejected buckets. Counts react to FY / Month / Date-range / Status / Search filters in real time. Non-zero tiles only (keeps the strip clean for empty states).
+  - Classification uses `cfg.statusMap` entry order: first key → Draft, last key → Approved; anything matching `/reject/i` → Rejected; everything else → Pending.
+  - All tiles carry `data-testid="rh-kpi-*"` for QA automation.
+- **Advance Duplicate Rule verified** (already correctly implemented in `store.js:upsertAdvanceRequest`): throws when `empId + requestDate + amount` all three match on a non-rejected row. Different date OR different amount → allowed. No code change needed; functional spec matched.
+
 ## Feb-2026 Session Changes (round 17 — Reports Hub Inline View + Fallback IDs + Lint fix)
 - **CRITICAL BLOCKER FIX**: `oxlint` was failing on `/app/frontend/src/lib/bankTransfer.js` lines 130-133 — `printBulkBankAdvice()` referenced an undefined `pb` variable in the signature block (function parameter is `items`, no single pay-bill context). Replaced the dynamic names with static "— to be signed —" placeholders (handwritten on the paper copy).
 - **"—" / missing-data issue in Reports Hub**: added `fallbackKey` to primary ID columns so drafts show their temp-ref instead of em-dash:

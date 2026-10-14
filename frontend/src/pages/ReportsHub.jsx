@@ -678,6 +678,31 @@ const ReportsHub = () => {
     return Array.from(vals);
   }, [rawRows, cfg]);
 
+  // KPI dashboard tiles — computed from the currently-filtered rows so numbers
+  // react live to FY/Month/Date-range/Status/Search filters. Classifies rows
+  // into {draft, pending, approved} buckets using cfg.statusMap and renders
+  // one tile per non-empty bucket plus a Count + optional Total-Amount tile.
+  const kpis = useMemo(() => {
+    const map = cfg.statusMap || {};
+    const entries = Object.entries(map); // [[key, label], ...] in schema order
+    const finalKey = entries.length ? entries[entries.length - 1][0] : null;
+    const draftKey = entries.length ? entries[0][0] : null;
+    // Count rows per status LABEL (so numeric-step and string-status both work)
+    const perLabel = {};
+    let draftCount = 0, approvedCount = 0, pendingCount = 0, rejectedCount = 0;
+    for (const r of filteredRows) {
+      const rawStatus = r[cfg.statusKey];
+      const label = map[rawStatus] || rawStatus || "Unknown";
+      perLabel[label] = (perLabel[label] || 0) + 1;
+      const rs = String(rawStatus);
+      if (finalKey != null && rs === String(finalKey)) approvedCount += 1;
+      else if (draftKey != null && rs === String(draftKey)) draftCount += 1;
+      else if (/reject/i.test(label)) rejectedCount += 1;
+      else pendingCount += 1;
+    }
+    return { total: filteredRows.length, perLabel, draftCount, pendingCount, approvedCount, rejectedCount };
+  }, [filteredRows, cfg]);
+
   const clearFilters = () => { setFy(""); setMonth(""); setFromDate(""); setToDate(""); setStatusFilter(""); setSearch(""); setSelectedIds(new Set()); setInlineAll(false); setExpandedKey(null); };
 
   // Shared values used by both the print window and the inline biodata renders.
@@ -1048,6 +1073,50 @@ const ReportsHub = () => {
               <Filter size={12} /> Clear
             </button>
           </div>
+        </div>
+
+        {/* KPI tiles — live counts for the active department / filters */}
+        <div data-testid="rh-kpi-row" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8, marginBottom: 12 }}>
+          <div data-testid="rh-kpi-total" style={{ background: "linear-gradient(135deg,#1e293b,#334155)", color: "#fff", padding: "10px 14px", borderRadius: 6, borderLeft: "4px solid #4f46e5" }}>
+            <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.75, fontWeight: 800 }}>Total Records</div>
+            <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "monospace", marginTop: 2 }}>{kpis.total}</div>
+            <div style={{ fontSize: 9, opacity: 0.65, marginTop: 1 }}>{cfg.icon} {cfg.title}</div>
+          </div>
+          {cfg.amountKey && (
+            <div data-testid="rh-kpi-amount" style={{ background: "linear-gradient(135deg,#064e3b,#065f46)", color: "#fff", padding: "10px 14px", borderRadius: 6, borderLeft: "4px solid #10b981" }}>
+              <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.75, fontWeight: 800 }}>Grand Total</div>
+              <div style={{ fontSize: 18, fontWeight: 900, fontFamily: "monospace", marginTop: 2 }}>₹ {inrN(totalAmount)}</div>
+              <div style={{ fontSize: 9, opacity: 0.65, marginTop: 1 }}>Sum of {kpis.total} record(s)</div>
+            </div>
+          )}
+          {kpis.draftCount > 0 && (
+            <div data-testid="rh-kpi-draft" style={{ background: "#fff", color: "#334155", padding: "10px 14px", borderRadius: 6, border: "1.5px solid #cbd5e1", borderLeft: "4px solid #94a3b8" }}>
+              <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: "uppercase", color: "#64748b", fontWeight: 800 }}>Draft</div>
+              <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "monospace", marginTop: 2, color: "#475569" }}>{kpis.draftCount}</div>
+              <div style={{ fontSize: 9, color: "#94a3b8", marginTop: 1 }}>Not yet submitted</div>
+            </div>
+          )}
+          {kpis.pendingCount > 0 && (
+            <div data-testid="rh-kpi-pending" style={{ background: "#fff", color: "#78350f", padding: "10px 14px", borderRadius: 6, border: "1.5px solid #fde68a", borderLeft: "4px solid #d97706" }}>
+              <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: "uppercase", color: "#92400e", fontWeight: 800 }}>Pending</div>
+              <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "monospace", marginTop: 2, color: "#b45309" }}>{kpis.pendingCount}</div>
+              <div style={{ fontSize: 9, color: "#a16207", marginTop: 1 }}>In workflow (mid-stage)</div>
+            </div>
+          )}
+          {kpis.approvedCount > 0 && (
+            <div data-testid="rh-kpi-approved" style={{ background: "#fff", color: "#166534", padding: "10px 14px", borderRadius: 6, border: "1.5px solid #86efac", borderLeft: "4px solid #16a34a" }}>
+              <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: "uppercase", color: "#166534", fontWeight: 800 }}>Approved</div>
+              <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "monospace", marginTop: 2, color: "#15803d" }}>{kpis.approvedCount}</div>
+              <div style={{ fontSize: 9, color: "#4d7c0f", marginTop: 1 }}>Final-stage records</div>
+            </div>
+          )}
+          {kpis.rejectedCount > 0 && (
+            <div data-testid="rh-kpi-rejected" style={{ background: "#fff", color: "#991b1b", padding: "10px 14px", borderRadius: 6, border: "1.5px solid #fecaca", borderLeft: "4px solid #dc2626" }}>
+              <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: "uppercase", color: "#991b1b", fontWeight: 800 }}>Rejected</div>
+              <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "monospace", marginTop: 2, color: "#b91c1c" }}>{kpis.rejectedCount}</div>
+              <div style={{ fontSize: 9, color: "#dc2626", marginTop: 1 }}>Returned / rejected</div>
+            </div>
+          )}
         </div>
 
         {/* Summary & actions */}
