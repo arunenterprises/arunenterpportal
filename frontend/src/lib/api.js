@@ -28,6 +28,8 @@ export const apiLogin = (identifier, password) =>
 export const apiLogout = () => req("/auth/logout", { method: "POST" });
 export const apiGetActiveFY = () => req("/settings/fy");
 export const apiSetActiveFY = (fy) => req("/settings/fy", { method: "POST", body: JSON.stringify({ active_fy: fy }) });
+export const apiGetCompany = () => req("/settings/company");
+export const apiSetCompany = (company) => req("/settings/company", { method: "POST", body: JSON.stringify({ company }) });
 export const apiListSessions = () => req("/users/sessions");
 export const apiForceLogout = (email) => req(`/users/${encodeURIComponent(email)}/force_logout`, { method: "POST" });
 export const apiAttendancePunch = () => req("/attendance/punch", { method: "POST" });

@@ -700,6 +700,7 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0, "empSerial": 0, "adsSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
         "active_fy": ((await db.settings.find_one({"key": "active_fy"}, {"_id": 0})) or {}).get("value", ""),
+        "company": ((await db.settings.find_one({"key": "company"}, {"_id": 0})) or {}).get("value", {}),
     }
 
 
@@ -720,6 +721,54 @@ async def set_active_fy(body: Dict = Body(...), admin: Dict = Depends(require_ad
         raise HTTPException(status_code=400, detail="FY must be 2526, 25-26, or 2025-2026 format")
     await db.settings.update_one({"key": "active_fy"}, {"$set": {"value": fy, "updated_by": admin.get("email"), "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
     return {"ok": True, "active_fy": fy}
+
+
+# ==================== COMPANY DETAILS (SuperAdmin-managed letterhead data) ====================
+_COMPANY_DEFAULTS = {
+    "name": "M/s ARUN ENTERPRISES",
+    "tagline": "OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY",
+    "pillLine": "Govt. Civil Work Contractor & General Order Supplier",
+    "address": "209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011",
+    "tollFree": "9429694552",
+    "email": "info@arunenterprises.online",
+    "website": "www.arunenterprises.com.in",
+    "gst": "",
+    "pan": "",
+    "cin": "",
+    "state": "Uttar Pradesh",
+    "bankName": "",
+    "bankAccountNo": "",
+    "bankIfsc": "",
+    "bankBranch": "",
+}
+
+
+@api_router.get("/settings/company")
+async def get_company_details(user: Dict = Depends(get_current_user)):
+    doc = await db.settings.find_one({"key": "company"}, {"_id": 0})
+    value = (doc or {}).get("value") or {}
+    merged = {**_COMPANY_DEFAULTS, **value}
+    return {"company": merged}
+
+
+@api_router.post("/settings/company")
+async def set_company_details(body: Dict = Body(...), admin: Dict = Depends(get_current_user)):
+    """SuperAdmin ONLY — update the full company master used across the app
+    (letterhead, PV footer, print formats, bank-advice slips, etc.)."""
+    if not _is_super_admin(admin):
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can edit company details")
+    details = body.get("company") or {}
+    if not isinstance(details, dict):
+        raise HTTPException(status_code=400, detail="`company` must be an object")
+    # Whitelist keys and strip to strings
+    clean = {k: (str(v) if v is not None else "") for k, v in details.items() if k in _COMPANY_DEFAULTS}
+    merged = {**_COMPANY_DEFAULTS, **clean}
+    await db.settings.update_one(
+        {"key": "company"},
+        {"$set": {"value": merged, "updated_by": admin.get("email"), "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"ok": True, "company": merged}
 
 
 @api_router.post("/snapshot")

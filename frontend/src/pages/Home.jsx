@@ -284,9 +284,8 @@ export default function Home() {
         {/* ============== LEFT SIDEBAR ============== */}
         <aside data-testid="home-sidebar" style={{ width: 260, flexShrink: 0, background: sidebarBg, color: "#fff", padding: "14px 0", display: "flex", flexDirection: "column", boxShadow: "2px 0 8px rgba(15,23,42,.1)" }}>
           {/* Brand */}
-          <div style={{ padding: "0 18px 14px", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
-            <div style={{ fontSize: 9, letterSpacing: 2.5, color: "#fbbf24", fontWeight: 800, textTransform: "uppercase" }}>Arun Enterprises</div>
-            <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: 0.5, color: "#fff", marginTop: 2 }}>ERP · Workspace</div>
+          <div style={{ padding: "0 18px 14px", borderBottom: "1px solid rgba(255,255,255,.08)", textAlign: "center" }}>
+            <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: 0.5, color: "#fff", textAlign: "center" }}>ERP · Workspace</div>
           </div>
 
           {/* User info */}

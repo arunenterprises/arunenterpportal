@@ -52,6 +52,39 @@ const read = (k, fallback) => {
 };
 const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
+// ---- Company Details master (SuperAdmin-managed · used across letterhead / PV / prints) ----
+export const DEFAULT_COMPANY = {
+  name: "M/s ARUN ENTERPRISES",
+  tagline: "OUR QUALITY ORIENTED SERVICE'S IS FIRST PRIORITY",
+  pillLine: "Govt. Civil Work Contractor & General Order Supplier",
+  address: "209H/1F/1, O.P.S. Nagar Kalindipuram, Prayagraj (U.P.) - 211011",
+  tollFree: "9429694552",
+  email: "info@arunenterprises.online",
+  website: "www.arunenterprises.com.in",
+  gst: "",
+  pan: "",
+  cin: "",
+  state: "Uttar Pradesh",
+  bankName: "",
+  bankAccountNo: "",
+  bankIfsc: "",
+  bankBranch: "",
+};
+const COMPANY_KEY = "ae_vm_company";
+export const getCompany = () => {
+  try {
+    const raw = localStorage.getItem(COMPANY_KEY);
+    const stored = raw ? JSON.parse(raw) : {};
+    return { ...DEFAULT_COMPANY, ...stored };
+  } catch {
+    return DEFAULT_COMPANY;
+  }
+};
+export const setCompanyLocal = (data) => {
+  try { localStorage.setItem(COMPANY_KEY, JSON.stringify(data)); } catch {}
+  try { window.dispatchEvent(new CustomEvent("ae-company-changed", { detail: data })); } catch {}
+};
+
 // ---- Financial Year (e.g. 2526) ----
 // SuperAdmin / Admin can override via User Management → Financial Year card.
 // The override is stored in localStorage key `ae_vm_active_fy` and synced via
@@ -1860,6 +1893,9 @@ export const syncFromCloud = async () => {
     adsSerial: snap.counters.adsSerial || 0,
   });
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
+  if (snap.company && typeof snap.company === "object") {
+    try { localStorage.setItem(COMPANY_KEY, JSON.stringify(snap.company)); window.dispatchEvent(new CustomEvent("ae-company-changed", { detail: snap.company })); } catch {}
+  }
   // Sync Active FY override from cloud (admin-set)
   if (typeof snap.active_fy === "string") {
     const norm = _normalizeFY(snap.active_fy);

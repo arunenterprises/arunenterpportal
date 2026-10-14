@@ -2,14 +2,108 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
-import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY } from "../lib/api";
+import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import AuthSplash from "../components/AuthSplash";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
+
+// ---- Company Master card (SuperAdmin ONLY) ----
+const COMPANY_FIELDS = [
+  { key: "name", label: "Company Name *", span: 2, required: true },
+  { key: "tagline", label: "Tagline", span: 2 },
+  { key: "pillLine", label: "Business Line", span: 2 },
+  { key: "address", label: "Registered Address", span: 3 },
+  { key: "state", label: "State" },
+  { key: "tollFree", label: "Toll-Free / Phone" },
+  { key: "email", label: "Email" },
+  { key: "website", label: "Website" },
+  { key: "gst", label: "GST No." },
+  { key: "pan", label: "PAN No." },
+  { key: "cin", label: "CIN / Reg. No." },
+  { key: "bankName", label: "Bank Name" },
+  { key: "bankAccountNo", label: "Bank Account No." },
+  { key: "bankIfsc", label: "Bank IFSC" },
+  { key: "bankBranch", label: "Bank Branch" },
+];
+const CompanyMasterCard = ({ isSuper }) => {
+  const [draft, setDraft] = useState(() => ({ ...DEFAULT_COMPANY, ...getCompany() }));
+  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await apiGetCompany();
+        if (r.company) {
+          setCompanyLocal(r.company);
+          setDraft({ ...DEFAULT_COMPANY, ...r.company });
+          setDirty(false);
+        }
+      } catch { /* ignore */ }
+    })();
+    const onSync = () => { setDraft({ ...DEFAULT_COMPANY, ...getCompany() }); };
+    window.addEventListener("ae-company-changed", onSync);
+    return () => window.removeEventListener("ae-company-changed", onSync);
+  }, []);
+
+  const set = (k, v) => { setDraft((d) => ({ ...d, [k]: v })); setDirty(true); };
+
+  const save = async () => {
+    if (!isSuper) return toast.error("Only SuperAdmin can update Company Master");
+    if (!draft.name?.trim()) return toast.error("Company name is required");
+    setBusy(true);
+    try {
+      const r = await apiSetCompany(draft);
+      setCompanyLocal(r.company || draft);
+      setDraft({ ...DEFAULT_COMPANY, ...(r.company || draft) });
+      setDirty(false);
+      toast.success("✓ Company Master updated · letterhead sync across all devices");
+    } catch (ex) {
+      toast.error(ex.message || "Save failed");
+    } finally { setBusy(false); }
+  };
+
+  const resetForm = () => { setDraft({ ...DEFAULT_COMPANY, ...getCompany() }); setDirty(false); };
+  const resetDefaults = () => {
+    if (!window.confirm("Reset all fields to original defaults? Click Save to persist.")) return;
+    setDraft({ ...DEFAULT_COMPANY }); setDirty(true);
+  };
+
+  if (!isSuper) return null;
+  return (
+    <div data-testid="company-master-card" style={{ marginTop: 18, border: "1.5px solid #86efac", borderRadius: 6, background: "#f0fdf4" }}>
+      <div style={{ background: "#bbf7d0", padding: "7px 12px", fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "#166534", display: "flex", alignItems: "center", gap: 6, textTransform: "uppercase", justifyContent: "space-between" }}>
+        <span>🏢 Company Master · SuperAdmin</span>
+        {dirty && <span style={{ padding: "1px 8px", background: "#fef3c7", color: "#92400e", borderRadius: 10, fontSize: 10, fontWeight: 800 }}>UNSAVED CHANGES</span>}
+      </div>
+      <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        {COMPANY_FIELDS.map((f) => (
+          <div key={f.key} style={{ gridColumn: `span ${f.span || 1}` }}>
+            <label style={{ fontSize: 10, color: "#166534", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.4, display: "block", marginBottom: 3 }}>{f.label}</label>
+            <input
+              data-testid={`cm-${f.key}`}
+              value={draft[f.key] || ""}
+              onChange={(e) => set(f.key, e.target.value)}
+              placeholder={DEFAULT_COMPANY[f.key] || f.label}
+              style={{ width: "100%", padding: "7px 10px", border: `1.5px solid ${dirty ? "#fcd34d" : "#86efac"}`, borderRadius: 4, fontSize: 11.5, fontWeight: 600, background: "#fff", color: "#0f172a", fontFamily: ["gst", "pan", "bankAccountNo", "bankIfsc", "cin"].includes(f.key) ? "monospace" : "inherit" }}
+            />
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: "10px 14px", borderTop: "1px solid #86efac", background: "#dcfce7", display: "flex", gap: 8, alignItems: "center" }}>
+        <button data-testid="cm-save" onClick={save} disabled={busy || !dirty} style={{ padding: "9px 18px", background: busy || !dirty ? "#94a3b8" : "linear-gradient(135deg,#16a34a,#14532d)", color: "#fff", border: "none", borderRadius: 5, cursor: busy || !dirty ? "not-allowed" : "pointer", fontWeight: 900, fontSize: 12, letterSpacing: 0.4, textTransform: "uppercase", boxShadow: busy || !dirty ? "none" : "0 2px 6px rgba(22,163,74,.4)" }}>{busy ? "Saving…" : "💾 Save Company Master"}</button>
+        <button data-testid="cm-reset" onClick={resetForm} disabled={!dirty} style={{ padding: "9px 14px", background: !dirty ? "#cbd5e1" : "#fff", color: !dirty ? "#64748b" : "#166534", border: `1.5px solid ${!dirty ? "#cbd5e1" : "#86efac"}`, borderRadius: 5, cursor: !dirty ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 11 }}>↶ Revert Changes</button>
+        <button data-testid="cm-defaults" onClick={resetDefaults} style={{ padding: "9px 14px", background: "#fff", color: "#78350f", border: "1.5px solid #fcd34d", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11 }}>⌂ Reset to Defaults</button>
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 10.5, color: "#166534", fontStyle: "italic" }}>💡 Saved changes appear on company letterhead, PV footer, bank advice & printed reports across all devices.</div>
+      </div>
+    </div>
+  );
+};
 
 // ---- Financial Year management card (SuperAdmin / Admin only) ----
 const FinancialYearCard = ({ isAdmin }) => {
@@ -422,6 +516,7 @@ export default function UsersAdmin() {
 
         {/* Change My Password */}
         <FinancialYearCard isAdmin={isSuperAdmin(me?.user) || (me?.role || "").toLowerCase() === "admin"} />
+        <CompanyMasterCard isSuper={isSuperAdmin(me?.user)} />
         <div style={{ marginTop: 18, border: "1px solid #cbd5e1", borderRadius: 6 }}>
           <div style={{ background: "#fef9c3", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#854d0e", display: "flex", alignItems: "center", gap: 6 }}>
             <Lock size={12} /> CHANGE MY PASSWORD ({me?.user})
