@@ -332,9 +332,6 @@ export default function Home() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textTransform: "uppercase", letterSpacing: 0.3 }}>{d.title}</div>
                   </div>
-                  {badge && allowed && (
-                    <div style={{ fontSize: 9, fontWeight: 800, padding: "2px 7px", background: d.color, color: "#fff", borderRadius: 999, flexShrink: 0 }} title={badge.title}>{badge.text}</div>
-                  )}
                 </button>
               );
             })}
