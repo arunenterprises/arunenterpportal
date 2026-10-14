@@ -1,0 +1,46 @@
+{
+  "summary": "Full backend + frontend regression on 6 Feb-2026 changes. Backend: 17/17 pytest cases PASS including the critical Point-3 cross-user data visibility fix (regular 'User' role can POST /vendors, /bills, /payments/bulk and /snapshot without perms map and admin sees the data). Frontend: Points 1 (Reports Hub), 2 (FY selection), 4 (Vouchers label), 5 (Ashish Srivastava rename) and 6 (Advance duplicate rule) all working as per spec. Only one small UX miss: Reports Hub card is defined in Home.jsx DEPARTMENTS but NOT included in the sidebar ORDER array, so SuperAdmin cannot reach /reports-hub via the sidebar card — only via direct URL.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Home sidebar", "issue": "'reports_hub' is in DEPARTMENTS array (Home.jsx line 137) but missing from the ORDER list at line 261 — so the Reports Hub entry (with NEW badge) is never rendered in the sidebar. User's spec said '/home pe Reports Hub card click karo' — currently user must type /reports-hub manually.", "selector": "[data-testid=sidebar-reports_hub] (missing)", "priority": "MEDIUM"},
+      {"component": "ReportsHub FY/Status select", "issue": "React hydration warning: '<span> cannot be a child of <option>'. One of the native <select> options contains a <span> wrapper. Harmless visually but produces a console error on every page load.", "selector": "[data-testid=rh-fy] / [data-testid=rh-status] options", "priority": "LOW"},
+      {"component": "ReportsHub list rendering", "issue": "React console warning 'Encountered two children with the same key' — some key= on a mapped list is non-unique (likely tabs or options).", "selector": "ReportsHub tab/option map", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": {
+    "point_1_reports_hub": "GET /reports-hub loads page, title 'Reports Hub' visible, rh-dept-tabs renders 12 tabs (vendors, bills, payments, expenses, boqs, work_orders, paybills, advances, loans, employees, exits, recruitments). All filter testids present (rh-fy, rh-month, rh-from, rh-to, rh-status, rh-search, rh-clear), export buttons present (rh-print, rh-pdf, rh-xlsx), table + summary render. Tab switch Vendors→Payments works.",
+    "point_2_fy_selection": "On /users FinancialYearCard renders with testids fy-card/fy-select/fy-save/fy-current/fy-clear. Selecting '2526' and clicking Save → fy-current updates to 'FY 2025 - 2026'. Backend GET/POST /api/settings/fy verified: persisted value='2526', validation rejects bad format with 400, non-admin user gets 403.",
+    "point_3_cross_user": "Backend verified via pytest: regular 'User' role (role-only, no perms map) now gets 200 on POST /vendors, /bills, /payments/bulk, /snapshot. Vendor created by regular user visible to SuperAdmin via GET /vendors — cross-device data visibility bug is FIXED at the API layer.",
+    "point_4_vouchers_label": "sidebar-reports text now reads 'Vouchers · Payment Vouchers · UTR · Excel' — no 'Reports &' prefix.",
+    "point_5_name_rename": "Namaste banner shows 'Ashish Srivastava', HomeNavBar top-right shows 'Ashish Srivastava', nowhere does 'K L Srivastava' appear. SUPERADMIN badge still rendered.",
+    "point_6_advance_duplicate": "Verified 4 scenarios in order on same emp (EMP00192627 Rahul Sharma):\n  (a) 2026-02-10 / ₹5000 / Test1 → SUCCESS toast 'Draft saved · ADV/2526/0001'\n  (b) 2026-02-10 / ₹5000 / Test2 → DUPLICATE error toast 'Duplicate advance request · Same employee ko 2026-02-10 par ₹5,000 ka advance already exist hai (ADV/2526/0001). Date ya amount change karein.'\n  (c) 2026-02-10 / ₹6000 → ALLOWED, saved as ADV/2526/0002\n  (d) 2026-02-11 / ₹5000 → ALLOWED, saved as ADV/2526/0003\n  Business rule works exactly per spec."
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Add 'reports_hub' to the ORDER array in /app/frontend/src/pages/Home.jsx line 261 (e.g. between 'reports' and 'users') so the Reports Hub card renders in the sidebar with its NEW badge. Currently defined but orphaned.",
+    "Fix the ReportsHub <select> options so that no option contains a <span> child — move any formatting out of <option> (hydration warning).",
+    "Audit the duplicate-key warning in ReportsHub (likely tab or filter option .map key)."
+  ],
+  "critical_code_review_comments": [
+    "Point-3 backend fix is clean: _can_create defaults to true for all non-Viewer roles AND still honours explicit perms map. require_write replaced require_approver on /payments/bulk and /snapshot — exactly what was needed.",
+    "Advance duplicate guard in store.js correctly keys on (empId + requestDate + amount) and throws a descriptive Error; the HRManagement save catches it and surfaces as toast.error. Good UX.",
+    "Home.jsx has an unreachable DEPARTMENTS card (reports_hub) because ORDER omits it — small refactor would be to render all DEPARTMENTS by default and filter via ORDER only if ORDER is non-empty.",
+    "FinancialYearCard calls apiSetActiveFY which hits the admin-only endpoint — correctly 403s for non-admin (verified)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (rewritten for Feb-2026 iteration — new fixtures regular_user, admin_token; added FY and cross-user tests)"
+  ],
+  "success_rate": {"backend": "100% (17/17 pytest)", "frontend": "95% (6/6 flows functional; 1 sidebar card missing from ORDER + 2 minor React warnings)"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (ADMIN_PASSWORD env). Login via /api/auth/login POST {identifier, password}.",
+  "seed_data_creation": "Created 3 advance request drafts (ADV/2526/0001 ₹5000 on 2026-02-10, ADV/2526/0002 ₹6000 on 2026-02-10, ADV/2526/0003 ₹5000 on 2026-02-11) for Rahul Sharma (EMP00192627). Also created temporary 'User' role account testuserx_*@arunenterprises.online (deleted on teardown).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 6 Feb-2026 user asks are functionally correct. Only follow-up is the Home.jsx ORDER array edit to surface Reports Hub in sidebar (single-line fix). FY card data-testid group on /users is: fy-card, fy-select (native <select>), fy-save, fy-current, fy-clear. Reports Hub page at /reports-hub uses rh-tab-{id} for 12 depts and rh-{fy|month|from|to|status|search|clear|print|pdf|xlsx|table|summary} filter/export testids. Advance Register duplicate error is a toast with text starting 'Duplicate advance request'.",
+  "rca of the issue": "The Point-3 'data only on SuperAdmin' bug was caused by _can_create requiring an explicit permissions map (create/edit/submit/approve = true). Users created with role='User' and no map got 403 silently on every POST /vendors, /bills, /payments/bulk, /snapshot. The frontend fire-and-forget .catch(() => {}) swallowed the 403, local save succeeded, but cloud sync never happened — so data existed only on that user's device/localStorage. The fix now allows every role except Viewer to create by default while still honouring explicit perms. Verified by backend pytest."
+}
