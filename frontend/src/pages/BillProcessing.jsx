@@ -462,6 +462,7 @@ export default function BillProcessing() {
 
         <div className="a4" data-testid="bill-page">
           <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
+          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Accounts</span><span className="mdb-sub">Vendor Bills · Advance · Pay Bill · Exit F&amp;F</span></div>
 
           {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
           <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">

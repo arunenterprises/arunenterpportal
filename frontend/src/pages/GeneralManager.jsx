@@ -485,6 +485,7 @@ export default function GeneralManager() {
       <HomeNavBar />
       <div style={{ minHeight: "100vh", background: "#f1f5f9", paddingBottom: 40 }}>
         <div style={{ maxWidth: "100%", margin: "0 auto", padding: "18px 24px" }} data-testid="gm-page">
+          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">General Manager · Approvals</span><span className="mdb-sub">Centralised Approval Hub · 11 Modules</span></div>
           {/* Hero header */}
           <HeroHeader gmName={gmName} canDo={canDo} totalPending={totalPending} totalApproved={totalApproved} />
 

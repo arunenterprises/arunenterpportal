@@ -222,6 +222,7 @@ export default function ExpenseProcess() {
       />
       <div className="a4" data-testid="expense-page">
         <div className="module-doc-header"><Header formTitle={`Expense Process · ${expense.permanentExpenseNo || expense.refNo}`} /></div>
+        <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Expense Process</span><span className="mdb-sub">Petty Cash · Reimbursements · Approvals</span></div>
         <StepTabs step={Number(expense.step) || 1} labels={[EXPENSE_STEP_LABEL[1], EXPENSE_STEP_LABEL[2], EXPENSE_STEP_LABEL[3], EXPENSE_STEP_LABEL[4]]} />
 
         {/* 1. Expense Details */}

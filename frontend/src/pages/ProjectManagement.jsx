@@ -233,6 +233,7 @@ export default function ProjectManagement() {
           <div className="module-doc-header" style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
             <Header formTitle="Project Management Department" compact />
           </div>
+          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Project Management</span><span className="mdb-sub">Projects · Milestones · Teams · Budget</span></div>
 
           {/* Banner + KPIs */}
           <div style={{ background: "linear-gradient(135deg,#0f766e 0%,#115e59 60%,#064e3b 100%)", color: "#fff", borderRadius: 10, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, boxShadow: "0 4px 12px rgba(6,78,59,.25)" }}>

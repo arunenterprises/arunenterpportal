@@ -243,6 +243,7 @@ export default function VendorRegistration() {
 
         <div className="a4" data-testid="vendor-page">
           <div className="module-doc-header"><Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" /></div>
+          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Vendor Management</span><span className="mdb-sub">Registration · KYC · Approval</span></div>
           <StepTabs step={vendor.step} />
 
           {vendor.step === 3 && vendor.vendorCode && (

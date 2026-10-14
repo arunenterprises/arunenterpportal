@@ -2716,6 +2716,8 @@ export default function HRManagement() {
       <div style={{ minHeight: "100vh", background: "#f1f5f9", paddingBottom: 40 }}>
         <div style={{ maxWidth: "100%", margin: "0 auto", padding: "18px 24px" }} data-testid="hr-page">
 
+          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">HR Management</span><span className="mdb-sub">Employees · Attendance · Payroll · Advances · Loans · F&amp;F</span></div>
+
           {/* Hero */}
           <div style={{ background: "linear-gradient(135deg, #4c1d95 0%, #5b21b6 45%, #db2777 100%)", color: "#fff", borderRadius: 14, padding: 22, boxShadow: "0 10px 40px rgba(76,29,149,.28)", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", right: -30, top: -30, opacity: .08 }}><Users2 size={220} /></div>

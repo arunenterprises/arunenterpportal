@@ -1184,6 +1184,7 @@ export default function PurchaseManagement() {
       <HomeNavBar />
       <div className="app-shell">
         <div className="a4" data-testid="purchase-page">
+          <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Purchase Management</span><span className="mdb-sub">BOQ · Work Orders · Vendor Procurement</span></div>
           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }} data-testid="purchase-tabs">
             {TABS.map((t) => {
               const Icon = t.icon;

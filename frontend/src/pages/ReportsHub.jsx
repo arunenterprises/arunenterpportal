@@ -385,6 +385,7 @@ const ReportsHub = () => {
       <HomeNavBar />
       <Toaster position="top-right" richColors />
       <main style={{ padding: 18, maxWidth: 1500, margin: "0 auto" }}>
+        <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">Reports Hub</span><span className="mdb-sub">All Departments · FY · Print · Excel · PDF</span></div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
           <div>
             <div style={{ fontSize: 10, letterSpacing: 2.5, color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Dashboard · Department Reports</div>

@@ -392,6 +392,7 @@ export default function UsersAdmin() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div style={{ maxWidth: 1200, margin: "0 auto", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 20 }}>
+        <div className="module-dept-banner" data-testid="dept-banner"><span className="mdb-tag">Department</span><span className="mdb-sep" /><span className="mdb-title">User Management</span><span className="mdb-sub">Employees · Roles · Permissions · Passwords · FY</span></div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #0b3d91", paddingBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#0b3d91" }}>
             <Shield />
