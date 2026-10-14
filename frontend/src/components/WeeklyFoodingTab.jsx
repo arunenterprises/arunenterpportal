@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Plus, Trash2, Save, Send, Printer, Download, CheckCircle2, Utensils } from "lucide-react";
-import { getEmployees, getFY, getActiveFYOverride, APPROVER_NAME, canApprove } from "../lib/store";
+import { getEmployees, getFY, getActiveFYOverride, APPROVER_NAME, canApprove, isAccountsManager } from "../lib/store";
 
 // -------- Local storage CRUD for Weekly Fooding records --------
 const KEY = "ae_vm_fooding";
@@ -57,11 +57,13 @@ const emptyDraft = () => {
 
 const inrN = (n) => Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const WeeklyFoodingTab = ({ writeAllowed, approveAllowed }) => {
+const WeeklyFoodingTab = ({ writeAllowed }) => {
   const [list, setList] = useState([]);
   const [cur, setCur] = useState(() => emptyDraft());
   const [emps, setEmps] = useState([]);
   const [refresh, setRefresh] = useState(0);
+  // ONLY users whose profile designation == "Accounts Manager" (or SuperAdmin) can approve.
+  const canApproveFooding = isAccountsManager();
 
   useEffect(() => {
     setList(getFoodingList());
@@ -110,25 +112,22 @@ const WeeklyFoodingTab = ({ writeAllowed, approveAllowed }) => {
   };
 
   const submit = () => {
-    if (!writeAllowed) return toast.error("Not permitted");
-    saveDraft();
-    const rec = { ...cur, status: "Submitted", updatedAt: new Date().toISOString() };
-    upsertFooding(rec);
-    setCur(rec);
-    setList(getFoodingList());
-    toast.success(`Submitted for GM approval · ${rec.refNo}`);
+    // Deprecated: direct Approve by Accounts Manager replaces this flow.
+    return approve();
   };
 
   const approve = () => {
-    if (!approveAllowed) return toast.error("Only GM / Admin can approve");
-    if (cur.status !== "Submitted") return toast.error("Submit the record first");
-    // Auto-set approver name on each line that doesn't have one
-    const lines = (cur.lines || []).map((l) => ({ ...l, approver: l.approver === "NIL" || !l.approver ? APPROVER_NAME : l.approver }));
-    const rec = { ...cur, lines, status: "Approved", approvedAt: new Date().toISOString(), approvedBy: APPROVER_NAME };
+    if (!canApproveFooding) return toast.error("Only Accounts Manager can approve this fooding register");
+    if (cur.status === "Approved") return toast.error("Already approved");
+    if (!cur.lines || cur.lines.length === 0) return toast.error("Add at least one line");
+    if (!cur.circle?.trim()) return toast.error("Circle enter karein");
+    // Auto-fill approver on each line that still shows NIL
+    const lines = (cur.lines || []).map((l) => ({ ...l, approver: !l.approver || l.approver === "NIL" ? APPROVER_NAME : l.approver }));
+    const rec = { ...cur, lines, status: "Approved", approvedAt: new Date().toISOString(), approvedBy: APPROVER_NAME, updatedAt: new Date().toISOString() };
     upsertFooding(rec);
     setCur(rec);
     setList(getFoodingList());
-    toast.success(`✓ Approved by ${APPROVER_NAME}`);
+    toast.success(`✓ Approved by Accounts Manager (${APPROVER_NAME})`);
   };
 
   const removeRecord = (id) => {
@@ -220,29 +219,6 @@ const WeeklyFoodingTab = ({ writeAllowed, approveAllowed }) => {
 
   return (
     <div data-testid="wf-tab" style={{ marginTop: 12 }}>
-      {/* Toolbar */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", background: "#fff", padding: 10, border: "1px solid #e2e8f0", borderRadius: 6, marginBottom: 10 }}>
-        <button data-testid="wf-new" onClick={newDraft} style={{ padding: "7px 14px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <Plus size={13} /> New Draft
-        </button>
-        <button data-testid="wf-save" onClick={saveDraft} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#94a3b8" : "#16a34a", color: "#fff", border: "none", borderRadius: 4, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <Save size={13} /> Save Draft
-        </button>
-        <button data-testid="wf-submit" onClick={submit} disabled={locked || !writeAllowed || cur.status === "Submitted"} style={{ padding: "7px 14px", background: locked || cur.status === "Submitted" ? "#94a3b8" : "#be185d", color: "#fff", border: "none", borderRadius: 4, cursor: locked ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <Send size={13} /> Submit to GM
-        </button>
-        <button data-testid="wf-approve" onClick={approve} disabled={cur.status !== "Submitted" || !approveAllowed} style={{ padding: "7px 14px", background: cur.status === "Submitted" && approveAllowed ? "#166534" : "#94a3b8", color: "#fff", border: "none", borderRadius: 4, cursor: cur.status === "Submitted" && approveAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <CheckCircle2 size={13} /> Approve
-        </button>
-        <div style={{ flex: 1 }} />
-        <button data-testid="wf-print" onClick={printReport} style={{ padding: "7px 14px", background: "#334155", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <Printer size={13} /> Print A4
-        </button>
-        <button data-testid="wf-excel" onClick={exportExcel} style={{ padding: "7px 14px", background: "#15803d", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <Download size={13} /> Excel
-        </button>
-      </div>
-
       {/* Header meta */}
       <div style={{ background: "#fef9c3", border: "1.5px solid #fcd34d", borderRadius: 6, padding: 10, marginBottom: 8 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
@@ -357,6 +333,37 @@ const WeeklyFoodingTab = ({ writeAllowed, approveAllowed }) => {
           <button onClick={addLine} data-testid="wf-addrow" style={{ padding: "7px 16px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
             <Plus size={13} /> Add Row
           </button>
+        </div>
+      )}
+
+      {/* === BOTTOM ACTION BAR === (per user request · Feb 2026) */}
+      <div data-testid="wf-bottom-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap", background: "linear-gradient(135deg,#f8fafc,#e2e8f0)", padding: 12, border: "1.5px solid #cbd5e1", borderRadius: 8, marginTop: 14, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>
+        <button data-testid="wf-new" onClick={newDraft} style={{ padding: "8px 16px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Plus size={14} /> New Draft
+        </button>
+        <button data-testid="wf-save" onClick={saveDraft} disabled={locked || !writeAllowed} style={{ padding: "8px 16px", background: locked || !writeAllowed ? "#94a3b8" : "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Save size={14} /> Save Draft
+        </button>
+        <button
+          data-testid="wf-approve"
+          onClick={approve}
+          disabled={locked || !canApproveFooding}
+          title={!canApproveFooding ? "Only Accounts Manager can approve" : locked ? "Already approved" : "Approve this fooding register"}
+          style={{ padding: "8px 20px", background: !canApproveFooding || locked ? "#94a3b8" : "linear-gradient(135deg,#16a34a,#14532d)", color: "#fff", border: "none", borderRadius: 5, cursor: !canApproveFooding || locked ? "not-allowed" : "pointer", fontWeight: 900, fontSize: 12.5, letterSpacing: 0.4, textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: !canApproveFooding || locked ? "none" : "0 2px 6px rgba(22,163,74,.4)" }}
+        >
+          <CheckCircle2 size={15} /> {locked ? "✓ Approved" : "Approve"}
+        </button>
+        <div style={{ flex: 1 }} />
+        <button data-testid="wf-print" onClick={printReport} style={{ padding: "8px 16px", background: "#334155", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Printer size={14} /> Print A4
+        </button>
+        <button data-testid="wf-excel" onClick={exportExcel} style={{ padding: "8px 16px", background: "#15803d", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Download size={14} /> Excel
+        </button>
+      </div>
+      {!canApproveFooding && (
+        <div style={{ marginTop: 6, padding: "6px 12px", background: "#fff7ed", border: "1px solid #fcd34d", borderRadius: 4, fontSize: 10.5, color: "#78350f", fontStyle: "italic" }}>
+          ℹ Approve button sirf <b>Accounts Manager</b> designation wale user ya SuperAdmin ko visible active hoga.
         </div>
       )}
 

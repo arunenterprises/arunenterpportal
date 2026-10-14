@@ -1236,7 +1236,7 @@ export default function BillProcessing() {
 
           {activeView === "advance" && <AccountsAdvanceView rev={rev} bumpRev={bumpRev} />}
           {activeView === "paybill" && <AccountsPayBillView rev={rev} bumpRev={bumpRev} />}
-          {activeView === "fooding" && <WeeklyFoodingTab writeAllowed={canCreate()} approveAllowed={canApprove()} />}
+          {activeView === "fooding" && <WeeklyFoodingTab writeAllowed={canCreate()} />}
           {activeView === "exit" && <AccountsExitView rev={rev} bumpRev={bumpRev} />}
         </div>
       </div>
