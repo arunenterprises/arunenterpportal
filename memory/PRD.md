@@ -7,6 +7,14 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 10 — Komal Account Verified)
+- Komal Srivastava account registered via admin API: email `komal.srivastava@arunenterprises.online`, password `Komal2026@12`, role Admin, designation "Accounts Manager", name "Komal Srivastava".
+- Login verified in-browser: landing shows "Namaste, Komal Srivastava 👋".
+- `isAccountsManager()` returns `true` for Komal (both via `ACCOUNTS_MANAGER_EMAILS` whitelist AND via designation match — belt-and-braces).
+- Weekly Fooding Approve button is reachable for her — only disabled by the status gate ("Pehle Submit karein") not the permission gate.
+- `currentUser()` returns "Komal Srivastava" (profile.name is set, email-check bypassed) → her approvals print under her own name.
+- Credentials saved to `/app/memory/test_credentials.md`.
+
 ## Feb-2026 Session Changes (round 9 — Signature Layout Flip + Email-free Names)
 - **Signature layout flipped** on every print surface (Reports Hub, Bulk NEFT advice, Bank Transfer advice × 2, Weekly Fooding print): **Name on top → signature line → Role below** (per user directive 14-Oct-2026).
 - **Email never prints on signatures** — `currentUser()` now rejects any `name`/`full_name` value containing "@" and falls through to employee_id → canonical "Ashish Srivastava" for super admin → Title-Cased email prefix. Raw email address is never exposed in print output.
