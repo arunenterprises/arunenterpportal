@@ -1390,7 +1390,7 @@ export const convertRecruitToEmployee = (r) => {
 export const EXIT_STATUS = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved · Pending Accounts", 4: "Settled & Paid" };
 const EXITS_KEY = "ae_vm_hr_exits";
 export const getExits = () => read(EXITS_KEY, []);
-export const saveExits = (list) => write(EXITS_KEY, list);
+export const saveExits = (list) => { write(EXITS_KEY, list); _schedulePush(); };
 export const createExitDraft = (empId = "") => ({
   id: `ex_${Date.now()}`,
   empId,

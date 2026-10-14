@@ -1,60 +1,63 @@
 # PRD — Arun Enterprises ERP (Updated Feb 2026)
 
 ## Original Problem Statement
-Multi-page ERP for Vendor Management, Bill Processing, Expense Management, Purchase (BOQ/WO), General Manager approvals, HR Management (Attendance, Payroll, Advances, Loans, Exit F&F), User Management, Reports/Vouchers, and now a Reports Hub. Cross-device data synchronization via FastAPI + MongoDB cloud backend. Hindi/Hinglish UI friendly, Indian company context.
+Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Payroll / Users / Reports Hub. Cross-device data sync via FastAPI + MongoDB. Hindi/Hinglish UI.
 
-## User Personas
-- **SuperAdmin (owner)** — arunenterprises2023@gmail.com — Ashish Srivastava — unrestricted access, FY admin, backup/restore, user management, final approver.
-- **Admin / GM / Accounts / Purchase / HR / User** — role-gated access to respective modules; approvals routed to GM/Accounts/Admin per module.
-- **Viewer** — read-only.
+## Owner / Personas
+- **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
+- **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
-## Core Requirements (Current State · Feb 2026)
-1. **Vendor Register, Bill Processing, Expense Register, BOQ/WO Purchase, HR (Payroll + Advances + Loans + Exits + Recruitment), Payment Vouchers** — all live with 3-step workflows (Draft → Submitted → Approved).
-2. **Cross-user real-time sync** via 8-second polling + ae-sync-done event; backend MongoDB authoritative.
-3. **Single-session enforcement** per user with Active Sessions audit log + Force Logout for admins.
-4. **Attendance Punch** restricted to 09:10-09:30 IST, moved into HR → Attendance tab.
-5. **Advance → Pay Bill auto-adjustment** flow (HR → Accounts Approve → Pay Bill advance column auto-populated).
-6. **GM Dashboard** as centralized approval hub for all 11 module sections.
-
-## Feb-2026 Session Changes (user asks)
-1. ✅ **Reports Hub (NEW)** at `/reports-hub` — 12 department tabs, filters (FY/Month/Date range/Status/Search), Print A4, PDF, Excel. Dashboard tile with NEW badge, in sidebar order.
-2. ✅ **Financial Year selection** card in `/users` (SuperAdmin/Admin only). Sets active FY via `POST /api/settings/fy`; synced via snapshot. Overrides getFY/getFYHyphen for all new code generation.
-3. ✅ **Cross-user data visibility BUG fix** — root cause: backend `_can_create` required explicit permissions map; non-SuperAdmin users without perms got 403 on every write endpoint; saves failed silently. Fix: `_can_create` now defaults to true for all roles except Viewer; `/payments/bulk` + `/snapshot POST` changed from `require_approver` → `require_write`.
-4. ✅ **Rename** "Reports & Vouchers" → "Vouchers" in Home sidebar card.
-5. ✅ **Rename** SuperAdmin display name `K L Srivastava` → `Ashish Srivastava` (store.js APPROVER_NAME, backend .env ADMIN_NAME, HomeNavBar override, hrLetters.js SIGNATORY, BillProcessing print footer).
-6. ✅ **Advance Register duplicate rule** restored: block only when `(empId + requestDate + amount)` triplet already exists; different date OR different amount is allowed. Error surfaced via toast.
-7. ✅ **Save UTR button** in HR Pay Bill rows (UtrSaveInput component).
-8. ✅ **Previous Month Ref** strip + Prev NET column in Pay Bill editor.
-9. ✅ **Paid button** in Reports.jsx bottom action bar (saves UTR + stamps paidAt).
-10. ✅ **HomeNavBar display name** override for SuperAdmin → "Ashish Srivastava".
+## Feb-2026 Session Changes (round 2)
+1. ✅ **Reports Hub** (`/reports-hub`) · 12 department tabs + Weekly Fooding · FY/Month/Date filters · Print/PDF/Excel.
+2. ✅ **Financial Year** card in `/users` admin page · SuperAdmin/Admin only · cloud synced.
+3. ✅ **Company Master** card in `/users` · SuperAdmin only · dynamic letterhead/PV footer.
+4. ✅ **Weekly Fooding** tab in Accounts dept with Submit → Accounts Manager Approve flow (not GM).
+5. ✅ **Lookup / Auto-Load** feature on EMP code, BOQ no, WO no, Permanent Bill no — type + enter / 🔍 button.
+6. ✅ **Module Hero** gradient banner (HR style) on every module (Vendor, Bill, Expense, Purchase, Project, Reports, Admin, Reports Hub, HR).
+7. ✅ **Letterhead hidden on screen** · visible only in A4 portrait print.
+8. ✅ **Dept-banner removed from GM** (duplicate with HeroHeader).
+9. ✅ **Home sidebar overhaul** · Admin tile renamed from "User Management" → "Administrator" · subtitle/badges removed · "ERP · Workspace" centered.
+10. ✅ **"K L Srivastava" → "Ashish Srivastava"** everywhere · "·V1" / "Razorpay IFSC" tags removed.
+11. ✅ **Advance duplicate rule** — same empId + requestDate + amount triplet blocked.
+12. ✅ **UTR save buttons** — "Save UTR" (HR Pay Bill rows) · "✓ Paid" (Reports PV action bar).
+13. ✅ **Cross-user data visibility — ROOT CAUSE FIX (round 2 + 3):**
+    - **Round 1 (backend):** `_can_create` role-based default; `/payments/bulk` + `/snapshot POST` use `require_write` (any writer, not approver).
+    - **Round 2 (frontend):** every `save*` list-level mutator (saveVendors, saveBills, saveEmployees, saveBOQs, saveWOs, saveExpenses, savePayBills, saveLoans, saveAdvanceRequests, saveRecruitments, saveExits) now fires `_schedulePush()` → debounced 1.5s → `apiPushSnapshot` → cloud. Previously these were localStorage-only → non-SuperAdmin bulk mutations never left the device.
+    - **Round 3 (backend gap):** `/snapshot POST` handler now also upserts `employees`, `boqs`, `work_orders`, `attendance` collections — previously silently dropped.
+14. ✅ **Admin role elevated** — `apiUpdateUserRole` + `apiUpdateUserPermissions` endpoints switched from `require_super_admin` → `require_admin`. SuperAdmin ne jisko bhi "Admin" role diya hai woh ab user naam / role / permissions bhi update kar sakta hai (SuperAdmin ki tarah).
+15. ✅ **AttendancePunchBar removed** — line 694 of HRManagement (user reported "function kaam nahi kar raha hai").
 
 ## Code Architecture
 ```
 /app/
 ├── backend/
-│   ├── server.py          · RBAC, Auth, Session tracking, FY settings endpoints
-│   └── tests/backend_test.py
-├── .emergent/crons.yml    · Nightly backup at 2 AM IST
+│   ├── server.py — RBAC + Snapshot push (full-collection upsert) + Company/FY settings
+│   └── tests/backend_test.py — 20 pytest cases including round-2 cross-user tests
+├── .emergent/crons.yml — Nightly backup 2 AM IST
 └── frontend/src/
-    ├── App.js             · Global 8s sync polling
+    ├── App.js — 8s autoSyncFromCloud polling
     ├── lib/
-    │   ├── store.js       · 1960+ lines — getFY (with override), FY helpers, API wrappers
-    │   └── api.js         · apiGetActiveFY, apiSetActiveFY added
+    │   ├── store.js — _schedulePush debounced snapshot push (NEW), FY/Company helpers
+    │   └── api.js — apiGetActiveFY/Set, apiGetCompany/Set
+    ├── components/
+    │   ├── ModuleHero.jsx — Reusable gradient hero
+    │   ├── Header.jsx — Dynamic letterhead reads getCompany()
+    │   └── WeeklyFoodingTab.jsx — Submit → AM Approve flow
     └── pages/
-        ├── Home.jsx       · Left sidebar + Reports Hub tile
-        ├── ReportsHub.jsx · NEW 520 lines — 12 dept tabs + filters + exports
-        ├── UsersAdmin.jsx · FinancialYearCard added
-        ├── HRManagement.jsx · Advance duplicate guard; UtrSaveInput; Prev Month Ref
-        ├── Reports.jsx    · ✓ Paid button in bottom actions
-        ├── BillProcessing.jsx · Signatory updated
-        └── ProjectManagement.jsx · (draft layout)
+        ├── Home.jsx — Centered sidebar · dept list only · Administrator tile
+        ├── ReportsHub.jsx — 12 dept configs including Fooding
+        ├── UsersAdmin.jsx — FinancialYearCard + CompanyMasterCard + user mgmt (Admin can now edit)
+        ├── HRManagement.jsx — Lookup EMP, no AttendancePunchBar
+        ├── PurchaseManagement.jsx — Lookup BOQ + WO
+        ├── BillProcessing.jsx — Lookup Bill No + Weekly Fooding tab + V1 removed
+        └── ReportsHub.jsx, Reports.jsx — Vouchers · Paid btn
 ```
 
 ## Pending / Future
-- P2 — Project Management backend wiring (currently local mocking).
-- P2 — Loan EMI schedule printable PDF.
-- P2 — Refactor store.js (>1900 lines), HRManagement.jsx (>2800 lines), Reports.jsx (>2100 lines).
-- P3 — Fix minor React warnings in ReportsHub (`<span>` in `<option>` hydration; duplicate key in a map).
+- P2 — Mini KPI dashboard inside each dept page (user ask pending — a/b/c option)
+- P2 — Project Management backend wiring
+- P2 — Loan EMI PDF schedule
+- P2 — Store.js / HRManagement.jsx / Reports.jsx refactor (file size)
 
 ## Credentials
 See `/app/memory/test_credentials.md`.

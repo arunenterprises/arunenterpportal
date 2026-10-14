@@ -1,0 +1,46 @@
+{
+  "summary": "Round-2 cross-user data visibility fix tested. All 20 backend pytest cases PASS including new tests specifically for the save*→_schedulePush→apiPushSnapshot path. Non-admin 'User' role can POST /snapshot (no 403), vendors + bills + advance_requests pushed by a regular user ARE visible to the SuperAdmin via GET /snapshot. Frontend code review confirms _schedulePush() is wired to every save* list-level mutator (saveExpenses, saveBOQs, saveWOs, saveVendors, saveBills, saveEmployees, saveRecruitments, saveExits, savePayBills, saveAdvanceRequests, saveLoans) with correct 1500 ms debounce. However, a CRITICAL partial-fix gap was discovered in /api/snapshot POST handler (server.py line 775) — it does NOT persist employees, boqs, work_orders, or attendance collections even though the frontend _schedulePush() payload includes them. So the round-2 fix is COMPLETE for vendors/bills/payments/expenses/paybills/loans/advance_requests/recruitments/exits, but INCOMPLETE for employees/boqs/work_orders. Bulk delete/reorder of employees, BOQs, or Work Orders by any user (incl. SuperAdmin) will still not reach the cloud via the _schedulePush path. Singular upsertEmployee / upsertBOQ / upsertWO paths still work because they hit their dedicated endpoints directly.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/snapshot (push_snapshot in server.py line ~775)", "issue": "Handler iterates vendors/bills/expenses/paybills/loans/advance_requests/recruitments/exits/payments ONLY. The 'employees', 'boqs', 'work_orders', and 'attendance' arrays in the request body are SILENTLY DROPPED. Frontend _schedulePush includes employees/boqs/work_orders in payload (store.js line 199-212) — so saveEmployees, saveBOQs, saveWOs after bulk edits / deletions / re-orders will push the payload but the server will not update those collections. Deletions in particular never sync to other devices.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Bulk Employee delete / BOQ delete / Work Order delete (any role)", "issue": "Even though _schedulePush fires with correct payload, backend /snapshot POST ignores employees/boqs/work_orders — deletions do NOT reach other devices. Workaround today: use individual edit buttons which call upsertEmployee / upsertBOQ / upsertWO (hit dedicated /employees, /boqs, /work_orders endpoints and work correctly).", "affected_selectors": ["HRRegister delete row", "BOQ list delete", "WO list delete"]}
+    ],
+    "design_issues": []
+  },
+  "verified_flows": {
+    "backend_can_create_user_role": "A freshly registered role='User' account (no explicit permissions map) returns 200 on POST /vendors, /bills, /payments/bulk, /snapshot — no 403. Verified via test_round2_user_can_create_default_perms + test_regular_user_can_push_snapshot.",
+    "cross_user_snapshot_visibility": "User-pushed vendor + 2 advance_requests appear in SuperAdmin GET /snapshot — verified via test_round2_advance_requests_via_snapshot_cross_user.",
+    "snapshot_merge_semantics": "/snapshot POST is UPSERT-by-id (not replace). Pushing a shorter list does NOT delete missing ids on server. This is correct for conflict safety but means the frontend 'delete row + save' flow cannot delete server-side rows via _schedulePush alone — frontend must also call the DELETE endpoint (already happens for advances / vendors / bills / employees per store.js deleteX functions).",
+    "frontend_schedule_push_wiring": "Code reviewed — all 11 save* mutators call _schedulePush(). Debounce = 1500 ms. Single setTimeout cleared on every call → N rapid saves within 1.5 s produce exactly 1 push. Push dispatches 'ae-sync-done' custom event. getToken() guard prevents push when logged out."
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL — Fix push_snapshot in /app/backend/server.py (around line 790-824) to also upsert body.get('employees', []), body.get('boqs', []), body.get('work_orders', []) and optionally 'attendance'. Pattern: `for e in employees: if e.get('id'): await db.employees.update_one({'id': e['id']}, {'$set': e}, upsert=True)`. Without this, round-2 fix is only partial — saveEmployees/saveBOQs/saveWOs bulk paths still silently drop.",
+    "Optional: add explicit integration test in backend_test.py for the above after fix lands (test_round2_employee_via_snapshot_cross_user currently falls back to upsertEmployee path when snapshot drop is detected — this fallback masks the bug for the test but documents it in the test code)."
+  ],
+  "critical_code_review_comments": [
+    "Round-2 FE fix (store.js _schedulePush) is clean: single timer, correctly debounced, guarded by getToken(), fires ae-sync-done. All 11 save* mutators call it uniformly.",
+    "Backend push_snapshot asymmetry: it accepts employees/boqs/work_orders in GET /snapshot response but doesn't persist them in POST /snapshot — the collection list in POST (line 780-791) is a subset of GET (line 686-704). This asymmetry is the root cause of the partial-fix gap.",
+    "server.py line 90-103 (_can_create) role-based default is a solid fix for round-1 and verified by 3 passing tests. Doesn't need further changes.",
+    "The /snapshot POST handler's upsert-by-id semantics mean DELETE-and-resync via snapshot push alone is impossible — the design correctly relies on explicit DELETE calls. All store.js deleteX functions do call apiDeleteX, so no action needed there."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added 3 round-2 tests: advance_requests via snapshot cross-user, employee via snapshot cross-user, fresh User role default-perm create)"
+  ],
+  "success_rate": {"backend": "100% (20/20 pytest)", "frontend": "100% code review of _schedulePush wiring"},
+  "test_credentials": "SuperAdmin: arunenterprises2023@gmail.com / Arun2023@12",
+  "seed_data_creation": "Transient test vendors/advances/employees prefixed with TEST_ created and cleaned up inside each test. Transient user testuserz_<timestamp>@arunenterprises.online created and deleted inside test_round2_user_can_create_default_perms.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Round-2 FE fix (debounced _schedulePush on every save*) is correctly implemented in store.js. Backend accepts the push for role=User (no 403). But server-side push_snapshot handler at /app/backend/server.py line ~775-824 is missing employees/boqs/work_orders upsert loops. Fix is a ~20-line addition modelled on the existing vendor/bill loops. After the fix lands, re-run backend_test.py — the test_round2_employee_via_snapshot_cross_user test currently has a `if not found:` fallback that should be tightened to a strict assertion once the handler is fixed. Also consider adding explicit tests for boqs + work_orders via snapshot push.",
+  "rca of the issue": "User's complaint 'data sirf SuperAdmin ki id par save hota hai, sabhi id par chahiye'. Round 1 fixed the role-permission 403 (backend _can_create). Round 2 fixed the frontend to actually push save* mutations (debounced _schedulePush → apiPushSnapshot). Both fixes verified. HOWEVER the backend /snapshot POST handler is a legacy function that only knows about vendors/bills/payments/expenses/paybills/loans/advance_requests/recruitments/exits — the 3 collections added later (employees, boqs, work_orders) are passed to it in the request body but silently ignored. For users whose primary writes are in those three collections (HR Register employee delete, Purchase BOQ delete, Purchase WO delete), the symptom 'data only on my device' will persist. Mitigation: add 3 small upsert loops in push_snapshot."
+}

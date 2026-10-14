@@ -691,7 +691,6 @@ const AttendanceGrid = () => {
 
   return (
     <div style={{ padding: 14 }}>
-      <AttendancePunchBar />
       <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
         <label style={{ fontSize: 12, fontWeight: 700 }}>Month:</label>
         <select value={month} onChange={(e) => setMonth(+e.target.value)} style={{ padding: 5 }}>

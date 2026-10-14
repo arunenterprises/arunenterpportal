@@ -488,7 +488,7 @@ export default function UsersAdmin() {
       <HomeNavBar />
       <div style={{ maxWidth: 1200, margin: "0 auto", background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 20 }}>
         <ModuleHero
-          tag={isSuperAdmin(me?.user) ? "User Management · SuperAdmin" : "User Management · Admin"}
+          tag={isSuperAdmin(me?.user) ? "Administrator · SuperAdmin" : "Administrator · Admin"}
           title="Employees · Roles · Permissions · FY"
           subtitle="Create users · Reset passwords · Active sessions · Backup / Restore · Financial Year"
           icon={Shield}

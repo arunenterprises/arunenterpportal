@@ -462,7 +462,7 @@ def _role_default_perms(role: Optional[str]) -> Dict[str, bool]:
 
 
 @api_router.patch("/users/{email}/permissions")
-async def update_user_permissions(email: str, body: PermsBody, admin: Dict = Depends(require_super_admin)):
+async def update_user_permissions(email: str, body: PermsBody, admin: Dict = Depends(require_admin)):
     email = email.lower().strip()
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
     if email == primary:
@@ -484,7 +484,7 @@ class RoleBody(BaseModel):
 
 
 @api_router.patch("/users/{email}/role")
-async def update_user_role(email: str, body: RoleBody, admin: Dict = Depends(require_super_admin)):
+async def update_user_role(email: str, body: RoleBody, admin: Dict = Depends(require_admin)):
     """Change a user's role. SuperAdmin only. Primary ADMIN_EMAIL role is locked."""
     email = email.lower().strip()
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
@@ -786,6 +786,10 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_wri
     advance_requests = body.get("advance_requests", [])
     recruitments = body.get("recruitments", [])
     exits_ = body.get("exits", [])
+    employees = body.get("employees", [])
+    boqs = body.get("boqs", [])
+    work_orders = body.get("work_orders", [])
+    attendance = body.get("attendance", [])
     counters = body.get("counters", {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0})
     logo = body.get("logo", "")
     # Merge (upsert by id) instead of replace, to avoid data loss across devices
@@ -813,6 +817,19 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_wri
     for ex in exits_:
         if ex.get("id"):
             await db.exits.update_one({"id": ex["id"]}, {"$set": ex}, upsert=True)
+    # ROUND-2 GAP FIX (Feb 2026): employees / boqs / work_orders were silently dropped
+    for e in employees:
+        if e.get("id"):
+            await db.employees.update_one({"id": e["id"]}, {"$set": e}, upsert=True)
+    for bq in boqs:
+        if bq.get("id"):
+            await db.boqs.update_one({"id": bq["id"]}, {"$set": bq}, upsert=True)
+    for wo in work_orders:
+        if wo.get("id"):
+            await db.work_orders.update_one({"id": wo["id"]}, {"$set": wo}, upsert=True)
+    for at in attendance:
+        if at.get("id"):
+            await db.attendance.update_one({"id": at["id"]}, {"$set": at}, upsert=True)
     if payments:
         for p in payments:
             pid = p.get("id") or p.get("pvNo")
