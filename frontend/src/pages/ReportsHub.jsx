@@ -288,6 +288,10 @@ const ReportsHub = () => {
   const [toDate, setToDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  // Row-key resolver — stable identity for selection + React key
+  const rowKey = (r, i) => r.id || r.pvNo || r.refNo || r.boqNo || r.empCode || r.permanentBillNo || `idx-${i}`;
 
   // Cross-user real-time refresh
   useEffect(() => {
@@ -343,25 +347,53 @@ const ReportsHub = () => {
     return Array.from(vals);
   }, [rawRows, cfg]);
 
-  const clearFilters = () => { setFy(""); setMonth(""); setFromDate(""); setToDate(""); setStatusFilter(""); setSearch(""); };
+  const clearFilters = () => { setFy(""); setMonth(""); setFromDate(""); setToDate(""); setStatusFilter(""); setSearch(""); setSelectedIds(new Set()); };
+
+  // Rows that will actually be exported — if any selection is active use those,
+  // otherwise fall back to the full filtered set.
+  const exportRows = useMemo(() => {
+    if (selectedIds.size === 0) return filteredRows;
+    return filteredRows.filter((r, i) => selectedIds.has(rowKey(r, i)));
+  }, [filteredRows, selectedIds]);
+  const exportTotal = useMemo(() => {
+    if (!cfg.amountKey) return 0;
+    return exportRows.reduce((s, r) => s + Number(r[cfg.amountKey] || 0), 0);
+  }, [exportRows, cfg]);
+
+  const allPageIds = useMemo(() => filteredRows.map((r, i) => rowKey(r, i)), [filteredRows]);
+  const allSelected = allPageIds.length > 0 && allPageIds.every((k) => selectedIds.has(k));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+  const toggleAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(allPageIds));
+  };
+  const toggleRow = (key) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const exportExcel = () => {
+    const rowsToUse = exportRows;
     const header = cfg.columns.map((c) => c.label);
-    const rows = filteredRows.map((r) => cfg.columns.map((c) => getCellValue(r, c, cfg)));
+    const rows = rowsToUse.map((r) => cfg.columns.map((c) => getCellValue(r, c, cfg)));
     const data = [header, ...rows];
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, cfg.title.slice(0, 28));
-    const name = `${cfg.id}_${fy || "all"}_${month || "all"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const name = `${cfg.id}_${selectedIds.size ? "selected" : (fy || "all")}_${month || "all"}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(wb, name);
-    toast.success(`Excel exported · ${filteredRows.length} rows`);
+    toast.success(`Excel exported · ${rowsToUse.length} rows${selectedIds.size ? " (selected)" : ""}`);
   };
 
   const printReport = () => {
+    const rowsToUse = exportRows;
     const win = window.open("", "_blank", "width=1100,height=800");
     if (!win) { toast.error("Pop-up blocked — please allow pop-ups"); return; }
     const headerCells = cfg.columns.map((c) => `<th style="padding:6px 8px;background:#1e293b;color:#fff;font-size:10px;text-align:${c.right?'right':'left'};border:1px solid #334155;letter-spacing:.3px">${c.label}</th>`).join("");
-    const bodyRows = filteredRows.map((r, i) => {
+    const bodyRows = rowsToUse.map((r, i) => {
       const tds = cfg.columns.map((c) => {
         const v = getCellValue(r, c, cfg);
         const txt = c.key === "_amount" ? inrN(v) : String(v || "—");
@@ -369,8 +401,9 @@ const ReportsHub = () => {
       }).join("");
       return `<tr>${tds}</tr>`;
     }).join("");
-    const totalRow = cfg.amountKey ? `<tr><td colspan="${cfg.columns.length - 1}" style="padding:8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #e2e8f0">TOTAL (${filteredRows.length} rows)</td><td style="padding:8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #e2e8f0">₹ ${inrN(totalAmount)}</td></tr>` : "";
+    const totalRow = cfg.amountKey ? `<tr><td colspan="${cfg.columns.length - 1}" style="padding:8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #e2e8f0">TOTAL (${rowsToUse.length} rows${selectedIds.size ? " · selected" : ""})</td><td style="padding:8px;background:#fef3c7;font-weight:900;text-align:right;border:1px solid #e2e8f0">₹ ${inrN(exportTotal)}</td></tr>` : "";
     const filterSummary = [
+      selectedIds.size && `Selected: ${selectedIds.size}`,
       fy && `FY: ${prettyFY(fy)}`,
       month && `Month: ${month}`,
       fromDate && `From: ${fromDate}`,
@@ -436,7 +469,7 @@ const ReportsHub = () => {
             <button
               key={d.id}
               data-testid={`rh-tab-${d.id}`}
-              onClick={() => { setActiveDept(d.id); clearFilters(); }}
+              onClick={() => { setActiveDept(d.id); clearFilters(); setSelectedIds(new Set()); }}
               style={{ padding: "7px 12px", background: activeDept === d.id ? "linear-gradient(135deg,#4f46e5,#3730a3)" : "#fff", color: activeDept === d.id ? "#fff" : "#334155", border: `1.5px solid ${activeDept === d.id ? "#4f46e5" : "#cbd5e1"}`, borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: activeDept === d.id ? "0 2px 5px rgba(79,70,229,.4)" : "none" }}
             >
               <span>{d.icon}</span>
@@ -489,6 +522,14 @@ const ReportsHub = () => {
           <div data-testid="rh-summary" style={{ fontSize: 12.5, color: "#0f172a", fontWeight: 700 }}>
             <b style={{ color: "#4f46e5" }}>{cfg.icon} {cfg.title}</b> · {filteredRows.length} row{filteredRows.length !== 1 ? "s" : ""}
             {cfg.amountKey && <> · Total: <b style={{ color: "#166534" }}>{inr(totalAmount)}</b></>}
+            {selectedIds.size > 0 && (
+              <>
+                {" · "}
+                <span data-testid="rh-selected-count" style={{ padding: "2px 10px", background: "linear-gradient(135deg,#4f46e5,#3730a3)", color: "#fff", borderRadius: 10, fontSize: 11, fontWeight: 800, letterSpacing: 0.3 }}>✓ {selectedIds.size} selected</span>
+                {cfg.amountKey && <> · <b style={{ color: "#be185d" }}>Selected Total: {inr(exportTotal)}</b></>}
+                <button data-testid="rh-clear-selection" onClick={() => setSelectedIds(new Set())} title="Clear selection" style={{ marginLeft: 8, padding: "2px 10px", background: "#fff", color: "#be185d", border: "1.5px solid #be185d", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 10.5 }}>Clear ✗</button>
+              </>
+            )}
           </div>
           <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
             <button data-testid="rh-print" onClick={printReport} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#64748b,#334155)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -508,6 +549,17 @@ const ReportsHub = () => {
           <table data-testid="rh-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
             <thead style={{ position: "sticky", top: 0, zIndex: 1 }}>
               <tr>
+                <th style={{ padding: "8px 8px", background: "linear-gradient(135deg,#1e293b,#334155)", color: "#fff", textAlign: "center", width: 40, borderBottom: "2px solid #4f46e5" }}>
+                  <input
+                    type="checkbox"
+                    data-testid="rh-check-all"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    onChange={toggleAll}
+                    title={allSelected ? "Unselect all" : "Select all filtered rows"}
+                    style={{ cursor: "pointer", width: 14, height: 14, accentColor: "#4f46e5" }}
+                  />
+                </th>
                 {cfg.columns.map((c) => (
                   <th key={c.key} style={{ padding: "8px 10px", background: "linear-gradient(135deg,#1e293b,#334155)", color: "#fff", textAlign: c.right ? "right" : "left", fontSize: 10, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", borderBottom: "2px solid #4f46e5", minWidth: c.width || 100, whiteSpace: "nowrap" }}>{c.label}</th>
                 ))}
@@ -515,9 +567,22 @@ const ReportsHub = () => {
             </thead>
             <tbody>
               {filteredRows.length === 0 ? (
-                <tr><td colSpan={cfg.columns.length} style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>No records match the current filters</td></tr>
-              ) : filteredRows.map((r, i) => (
-                <tr key={r.id || r.pvNo || r.refNo || i} data-testid={`rh-row-${i}`} style={{ background: i % 2 ? "#f8fafc" : "#fff", borderBottom: "1px solid #e2e8f0" }}>
+                <tr><td colSpan={cfg.columns.length + 1} style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>No records match the current filters</td></tr>
+              ) : filteredRows.map((r, i) => {
+                const k = rowKey(r, i);
+                const isSel = selectedIds.has(k);
+                return (
+                <tr key={k} data-testid={`rh-row-${i}`} style={{ background: isSel ? "#eef2ff" : (i % 2 ? "#f8fafc" : "#fff"), borderBottom: "1px solid #e2e8f0", borderLeft: isSel ? "3px solid #4f46e5" : "3px solid transparent" }}>
+                  <td style={{ padding: "6px 8px", textAlign: "center", width: 40 }}>
+                    <input
+                      type="checkbox"
+                      data-testid={`rh-check-row-${i}`}
+                      checked={isSel}
+                      onChange={() => toggleRow(k)}
+                      title={isSel ? "Unselect this row" : "Select this row for export"}
+                      style={{ cursor: "pointer", width: 14, height: 14, accentColor: "#4f46e5" }}
+                    />
+                  </td>
                   {cfg.columns.map((c) => {
                     const v = getCellValue(r, c, cfg);
                     const txt = c.key === "_amount" ? inrN(v) : String(v || "—");
@@ -532,13 +597,14 @@ const ReportsHub = () => {
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
             {cfg.amountKey && filteredRows.length > 0 && (
               <tfoot>
                 <tr>
-                  <td colSpan={cfg.columns.length - 1} style={{ padding: "8px 10px", background: "#fef3c7", textAlign: "right", fontWeight: 900, fontSize: 12, color: "#78350f", borderTop: "2px solid #f59e0b" }}>TOTAL ({filteredRows.length} rows):</td>
-                  <td style={{ padding: "8px 10px", background: "#fef3c7", textAlign: "right", fontWeight: 900, fontSize: 12.5, color: "#166534", borderTop: "2px solid #f59e0b", fontFamily: "monospace" }}>₹ {inrN(totalAmount)}</td>
+                  <td colSpan={cfg.columns.length} style={{ padding: "8px 10px", background: "#fef3c7", textAlign: "right", fontWeight: 900, fontSize: 12, color: "#78350f", borderTop: "2px solid #f59e0b" }}>TOTAL ({selectedIds.size > 0 ? `${selectedIds.size} selected of ${filteredRows.length}` : `${filteredRows.length} rows`}):</td>
+                  <td style={{ padding: "8px 10px", background: "#fef3c7", textAlign: "right", fontWeight: 900, fontSize: 12.5, color: "#166534", borderTop: "2px solid #f59e0b", fontFamily: "monospace" }}>₹ {inrN(selectedIds.size > 0 ? exportTotal : totalAmount)}</td>
                 </tr>
               </tfoot>
             )}
