@@ -422,12 +422,16 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
   );
 };
 
-const inp = { padding: "4px 6px", width: "100%", border: "1px solid #cbd5e1", borderRadius: 3, fontSize: 11 };
-const cellInp = { padding: "3px 5px", width: "100%", border: "1px solid #e2e8f0", borderRadius: 2, fontSize: 10.5 };
+const inp = { padding: "6px 10px", width: "100%", border: "1.5px solid #cbd5e1", borderRadius: 4, fontSize: 11.5, fontWeight: 600, background: "#fff", color: "#0f172a", outline: "none", height: 32, transition: "border-color .15s, box-shadow .15s" };
+const cellInp = { padding: "4px 6px", width: "100%", border: "1px solid #e2e8f0", borderRadius: 2, fontSize: 10.5, background: "#fff", color: "#0f172a", outline: "none", height: 24 };
 
-const F = ({ label, children }) => (
-  <div>
-    <label style={{ fontSize: 9.5, letterSpacing: 0.4, fontWeight: 800, textTransform: "uppercase", color: "#78350f", display: "block", marginBottom: 2 }}>{label}</label>
+const F = ({ label, req, hint, children }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+    <label style={{ fontSize: 9.5, letterSpacing: 0.6, fontWeight: 800, textTransform: "uppercase", color: "#78350f", display: "inline-flex", alignItems: "center", gap: 4, lineHeight: 1.25, paddingLeft: 1 }}>
+      <span style={{ color: "#78350f" }}>{label}</span>
+      {req && <span title="Required" style={{ color: "#dc2626", fontSize: 11, fontWeight: 900, lineHeight: 1, padding: "0 1px" }}>*</span>}
+      {hint && <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 600, color: "#92400e", textTransform: "none", letterSpacing: 0.2, fontStyle: "italic" }}>{hint}</span>}
+    </label>
     {children}
   </div>
 );
