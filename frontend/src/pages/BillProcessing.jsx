@@ -1928,9 +1928,10 @@ const printBankTransferAdvice = (pb) => {
     <b>Instructions:</b> Kindly process the above transfers on the same working day. In case of any mismatch or discrepancy in beneficiary details, please contact HR/Accounts department before processing. All transfers to be made via RTGS/NEFT/IMPS as applicable.
   </div>
   <div class="foot">
-    <div class="sig-box"><div class="line"></div><div class="name">Prepared By · HR Department</div><div class="desig">${esc(pb.submittedByName || "")}</div></div>
-    <div class="sig-box"><div class="line"></div><div class="name">Verified By · Accounts</div><div class="desig">${esc(pb.settledByName || "")}</div></div>
-    <div class="sig-box"><div class="line"></div><div class="name">Authorized Signatory</div><div class="desig">Ashish Srivastava · Sr. Operation Manager</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Created By</div><div class="desig">${esc(pb.createdByName || "")}</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Prepared By</div><div class="desig">${esc(pb.submittedByName || "")}</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Checked By</div><div class="desig">${esc(pb.settledByName || pb.verifiedByName || "")}</div></div>
+    <div class="sig-box"><div class="line"></div><div class="name">Approved By</div><div class="desig">${esc(pb.approvedByName || pb.finalApprovedByName || "")}</div></div>
   </div>
 </div>
 <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>

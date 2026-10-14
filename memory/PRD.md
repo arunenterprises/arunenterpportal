@@ -7,6 +7,17 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 8 — Final Sign Panel Redesign + Clean Biodata)
+- **Signature panel** across all Reports Hub prints is now dynamic **Created By · Prepared By · Checked By · Approved By** — each column filled from the record's own metadata (`createdByName`, `preparedByName`/`submittedByName`, `checkedByName`/`verifiedByName`/`settledByName`, `approvedByName`/`finalApprovedByName`/`gmApprovedByName`). Falls back to the printing user when a field is empty.
+- **"Sr. Operation Manager" removed from ALL print surfaces** — bank advices, bulk NEFT advice, HR letters, Reports Hub signature panel. (Will be re-added ONLY to New Bill / New Vendor / New Purchase Order creation prints when those flows are built out separately.)
+- **Default Print Mode** changed from "Summary + Full Biodata" (which showed each record TWICE) to **"Summary Only · 1 row per record"** — ek process = ek bar.
+- **Weekly Fooding approver** now records the ACTUAL logged-in user (`currentUser()`) instead of hardcoded `APPROVER_NAME`. Komal's approvals will print under her own name.
+- **Weekly Fooding print signature block** switched to the new 4-column pattern.
+- **BillProcessing bulk NEFT advice** foot: 4-column pattern (Created / Prepared / Checked / Approved) replacing the old "Authorized Signatory · Ashish · Sr. Operation Manager".
+- **bankTransfer.js** both NEFT advice blocks: 4-column pattern — no "Sr. Operation Manager" / Director references.
+- **currentUser()** now returns a human DISPLAY NAME (profile.name → full_name → employee_id → Title-Cased email prefix → "Ashish Srivastava" for super admin). Prevents raw email appearing on signatures.
+- **Biodata card** always hides image-type fields (`photoUrl`, `signatureUrl`, etc.) from the text grid — only populated images show in the dedicated "Photo & Signature" strip (prevents "Photo URL · —" placeholder rows).
+
 ## Feb-2026 Session Changes (round 7 — Komal Srivastava as Accounts Manager Approver)
 - Added `ACCOUNTS_MANAGER_EMAILS` whitelist in `store.js` seeded with `komal.srivastava@arunenterprises.online`.
 - `isAccountsManager()` now returns `true` for:

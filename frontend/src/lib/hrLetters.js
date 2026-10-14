@@ -13,9 +13,7 @@ const COMPANY = {
   gstin: "09ABWFM0611J1ZY",
   pan: "ABWFM0611J",
 };
-// Printable signatories — ROLE labels (SuperAdmin / Admin) are NEVER printed.
-// Only DESIGNATIONS appear on paper per management directive (Feb 2026).
-const SIGNATORY = { name: "Ashish Srivastava", designation: "Sr. Operation Manager" };
+const SIGNATORY = { name: "Ashish Srivastava", designation: "" };
 const GM_SIGNATORY = { name: "K L Srivastava", designation: "General Manager" };
 
 const fmtDMY = (iso) => {
@@ -218,7 +216,7 @@ export const printAdvertisementNotice = (r) => {
   </div>
   <div class="foot">
     <div class="left">
-      Issued under authority of the Sr. Operation Manager · M/s Arun Enterprises<br/>
+      Issued under authority of M/s Arun Enterprises<br/>
       ${r.gmApprovedByName ? `Approved by: <b>${esc(r.gmApprovedByName)}</b> on ${esc(approvedOn)}` : ""}
     </div>
     <div class="sig">

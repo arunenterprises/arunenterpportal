@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Plus, Trash2, Save, Send, Printer, Download, CheckCircle2, Utensils } from "lucide-react";
-import { getEmployees, getFY, getActiveFYOverride, APPROVER_NAME, canApprove, isAccountsManager } from "../lib/store";
+import { getEmployees, getFY, getActiveFYOverride, APPROVER_NAME, canApprove, isAccountsManager, currentUser } from "../lib/store";
 
 // -------- Local storage CRUD for Weekly Fooding records --------
 const KEY = "ae_vm_fooding";
@@ -127,13 +127,14 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
     if (!canApproveFooding) return toast.error("Only Accounts Manager can approve this fooding register");
     if (cur.status === "Approved") return toast.error("Already approved");
     if (cur.status !== "Submitted") return toast.error("Pehle 'Submit' karein — tabhi Accounts Manager approve kar sakta hai");
-    // Auto-fill approver on each line that still shows NIL
-    const lines = (cur.lines || []).map((l) => ({ ...l, approver: !l.approver || l.approver === "NIL" ? APPROVER_NAME : l.approver }));
-    const rec = { ...cur, lines, status: "Approved", approvedAt: new Date().toISOString(), approvedBy: APPROVER_NAME, updatedAt: new Date().toISOString() };
+    // Auto-fill approver on each line that still shows NIL — uses ACTUAL logged-in user
+    const approverName = currentUser() || APPROVER_NAME;
+    const lines = (cur.lines || []).map((l) => ({ ...l, approver: !l.approver || l.approver === "NIL" ? approverName : l.approver }));
+    const rec = { ...cur, lines, status: "Approved", approvedAt: new Date().toISOString(), approvedBy: approverName, updatedAt: new Date().toISOString() };
     upsertFooding(rec);
     setCur(rec);
     setList(getFoodingList());
-    toast.success(`✓ Approved by Accounts Manager (${APPROVER_NAME})`);
+    toast.success(`✓ Approved by ${approverName}`);
   };
 
   const removeRecord = (id) => {
@@ -211,10 +212,11 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
         <tr><td colspan="6" style="border:1px solid #000;padding:5px;background:#fef3c7;font-weight:900;text-align:right">TOTAL</td><td style="border:1px solid #000;padding:5px;background:#fef3c7;font-weight:900;text-align:right">₹ ${inrN(totals.total)}</td><td colspan="5" style="border:1px solid #000;padding:5px;background:#fef3c7"></td></tr>
         </tbody>
       </table>
-      <div class="signblock">
-        <div>Prepared By: _____________</div>
-        <div>Approver: ${cur.approvedBy || APPROVER_NAME}</div>
-        <div>Status: ${cur.status}</div>
+      <div class="signblock" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:14px">
+        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Created By</b><br/>${cur.createdByName || currentUser() || "—"}</div>
+        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Prepared By</b><br/>${cur.submittedByName || cur.createdByName || "—"}</div>
+        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Checked By</b><br/>${cur.checkedByName || "— to be signed —"}</div>
+        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Approved By</b><br/>${cur.approvedBy || "— to be signed —"}</div>
       </div>
       <script>setTimeout(()=>window.print(),300)</script>
     </body></html>`);

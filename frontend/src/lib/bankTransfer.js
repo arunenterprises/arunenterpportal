@@ -127,9 +127,10 @@ export const printBulkBankAdvice = (items, { monthLabel = "", period = "" } = {}
   <div class="words"><b>Amount in Words:</b> ${esc(wordsFn(total))}</div>
   <div class="instr"><b>Instructions:</b> (1) Verify all A/C numbers and IFSC codes before transfer. (2) Use NEFT/RTGS as applicable per amount. (3) Share consolidated UTR/Ref Nos with Accounts department post-transfer for voucher closure.</div>
   <div class="sign-row">
-    <div class="sign-box"><div class="line">Accounts Dept.</div><div class="sub">Prepared By</div></div>
-    <div class="sign-box"><div class="line">K L Srivastava</div><div class="sub">General Manager · Verified By</div></div>
-    <div class="sign-box"><div class="line">Ashish Srivastava</div><div class="sub">Sr. Operation Manager · M/s Arun Enterprises</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Created By</div><div style="font-weight:800;font-size:9pt">${esc(pb.createdByName || "")}</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Prepared By</div><div style="font-weight:800;font-size:9pt">${esc(pb.submittedByName || pb.preparedByName || "")}</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Checked By</div><div style="font-weight:800;font-size:9pt">${esc(pb.verifiedByName || "")}</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Approved By</div><div style="font-weight:800;font-size:9pt">${esc(pb.approvedByName || pb.finalApprovedByName || "")}</div></div>
   </div>
   <script>window.onload = () => { setTimeout(() => window.print(), 300); };</script>
 </body>
@@ -219,9 +220,10 @@ export const printBankTransferAdvice = (pb) => {
   <div class="words"><b>Amount in Words:</b> ${esc(wordsFn(total))}</div>
   <div class="instr"><b>Instructions:</b> (1) Verify all A/C numbers and IFSC codes before transfer. (2) Use NEFT/RTGS as applicable. (3) Share consolidated UTR/Ref Nos with Accounts department post-transfer for voucher closure.</div>
   <div class="sign-row">
-    <div class="sign-box"><div class="line">HR Dept.</div><div class="sub">Prepared By</div></div>
-    <div class="sign-box"><div class="line">K L Srivastava</div><div class="sub">General Manager · Verified By</div></div>
-    <div class="sign-box"><div class="line">Ashish Srivastava</div><div class="sub">Sr. Operation Manager · M/s Arun Enterprises</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Created By</div><div style="font-weight:800;font-size:9pt">${esc(pb.createdByName || "")}</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Prepared By</div><div style="font-weight:800;font-size:9pt">${esc(pb.submittedByName || "")}</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Checked By</div><div style="font-weight:800;font-size:9pt">${esc(pb.settledByName || pb.verifiedByName || "")}</div></div>
+    <div class="sign-box"><div class="line"></div><div class="sub">Approved By</div><div style="font-weight:800;font-size:9pt">${esc(pb.approvedByName || pb.finalApprovedByName || "")}</div></div>
   </div>
   <script>window.onload = () => { setTimeout(() => window.print(), 300); };</script>
 </body>

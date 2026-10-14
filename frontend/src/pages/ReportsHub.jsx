@@ -10,7 +10,7 @@ import {
   getEmployees, getPayBills, getLoans, getAdvanceRequests,
   getExits, getRecruitments,
   listFYOptions, getActiveFYOverride, PAYBILL_STATUS, ADVANCE_REQ_STATUS, LOAN_STATUS,
-  getCompany, getLogo, DEFAULT_COMPANY,
+  getCompany, getLogo, DEFAULT_COMPANY, currentUser,
 } from "../lib/store";
 
 // Alias — WO getter is exported as getWOs in store.js
@@ -312,6 +312,9 @@ const isSkipKey = (k) => /^(id|_id|__v|password|logo|avatar|attachment|docs)$/i.
 // IMAGE field: either the key name hints at an image/signature, or the value is a data-URL / http(s) image.
 const isImageKey = (k) => /^(photo|signature|photoUrl|signatureUrl|photo_url|signature_url|avatarUrl|avatar_url|idPhoto|idPhotoUrl)$/i.test(k) || /(^|_)(photo|signature|avatar)(_?url)?$/i.test(k);
 const isImageValue = (v) => typeof v === "string" && (/^data:image\//i.test(v) || /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(v));
+// Always hide IMAGE-type fields from the text grid — populated images show in the Photo & Signature strip;
+// empty ones are simply omitted (prevents "Photo Url — —" placeholder rows in the biodata).
+const isImageFieldAlwaysHide = (k) => isImageKey(k);
 const isLineKey = (v) => Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null;
 const formatValue = (k, v) => {
   if (v === null || v === undefined || v === "") return "—";
@@ -349,22 +352,33 @@ const buildLetterhead = (co, logo, refNo, nowStr, cfg, selFlag = "") => `
   </div>
 `;
 
-const buildSignaturePanel = () => `
-  <div class="sigs">
-    <div class="sig-box"><div class="role">Prepared By</div><div class="name">Name &amp; Signature</div></div>
-    <div class="sig-box"><div class="role">Checked By</div><div class="name">Accounts Manager</div></div>
-    <div class="sig-box"><div class="role">General Manager</div><div class="name">K L Srivastava</div></div>
-    <div class="sig-box"><div class="role">Sr. Operation Manager</div><div class="name">Ashish Srivastava</div></div>
-  </div>
-`;
+// 4-column sign panel (Feb-2026 user request):
+// Created By · Prepared By · Checked By · Approved By — each column shows the ACTUAL
+// Login ID name who took that step on the record. Falls back to the user who is
+// printing the report (summary batch) when a per-record field is empty.
+const buildSignaturePanel = (row, me) => {
+  const dash = "— to be signed —";
+  const printer = me || "";
+  const createdBy  = row?.createdByName       || printer || dash;
+  const preparedBy = row?.preparedByName      || row?.submittedByName || printer || dash;
+  const checkedBy  = row?.checkedByName       || row?.verifiedByName  || row?.settledByName || dash;
+  const approvedBy = row?.finalApprovedByName || row?.approvedByName  || row?.approvedBy    || row?.gmApprovedByName || dash;
+  const cell = (role, name) => `<div class="sig-box"><div class="role">${role}</div><div class="name">${name}</div></div>`;
+  return `<div class="sigs">
+    ${cell("Created By",  createdBy)}
+    ${cell("Prepared By", preparedBy)}
+    ${cell("Checked By",  checkedBy)}
+    ${cell("Approved By", approvedBy)}
+  </div>`;
+};
 
 // Compact card (2-per-page biodata)
 const buildCompactCard = (row, idx, total, cfg) => {
   const refNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `#${idx + 1}`;
   const statusLabel = cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "";
-  const allEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
-  const imageEntries = allEntries.filter(([k, v]) => (isImageKey(k) || isImageValue(v)) && typeof v === "string" && v.trim() !== "");
-  const fieldEntries = allEntries.filter(([k, v]) => !imageEntries.find(([ik]) => ik === k));
+  const allEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object" && !isImageFieldAlwaysHide(k));
+  const imageEntries = Object.entries(row).filter(([k, v]) => isImageKey(k) && typeof v === "string" && v.trim() !== "");
+  const fieldEntries = allEntries;
   const cells = fieldEntries.map(([k, v]) => {
     const isAmt = isAmountKey(k) && (typeof v === "number" || !isNaN(Number(v)));
     const val = formatValue(k, v);
@@ -383,13 +397,13 @@ const buildCompactCard = (row, idx, total, cfg) => {
 };
 
 // Build the per-record biodata card HTML (letterhead + title + fields + line items + signatures)
-const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = true) => {
+const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = true, me = "") => {
   const bioRefNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `${cfg.id.toUpperCase()}-${idx+1}`;
   // Filter fields: skip internal, skip object/line-items (will render separately)
-  const allFieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
+  const allFieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object" && !isImageFieldAlwaysHide(k));
   // Separate image fields (photo / signature / avatar) from text fields
-  const imageEntries = allFieldEntries.filter(([k, v]) => (isImageKey(k) || isImageValue(v)) && typeof v === "string" && v.trim() !== "");
-  const fieldEntries = allFieldEntries.filter(([k, v]) => !imageEntries.find(([ik]) => ik === k));
+  const imageEntries = Object.entries(row).filter(([k, v]) => isImageKey(k) && typeof v === "string" && v.trim() !== "");
+  const fieldEntries = allFieldEntries;
   // Build dedicated Photo / Signature strip at top of record details
   const imageStripHTML = imageEntries.length ? `
     <div class="bio-sec-title">PHOTO &amp; SIGNATURE</div>
@@ -452,7 +466,7 @@ const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = tr
     <div class="bio-sec-title">RECORD DETAILS</div>
     <div class="fld-grid">${fieldHTML}</div>
     ${linesHTML}
-    ${buildSignaturePanel()}
+    ${buildSignaturePanel(row, me)}
     <div class="footer-note">
       <span>System-generated detail record · ${co.name}</span>
       <span>Record ${idx + 1} of ${total} · ${nowStr}</span>
@@ -471,7 +485,7 @@ const ReportsHub = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(() => new Set());
-  const [printMode, setPrintMode] = useState("both"); // summary | full | compact | both
+  const [printMode, setPrintMode] = useState("summary"); // summary | full | compact | both  (summary = ek process ek bar; "both" bar bar duplicate dikhata tha)
 
   // Row-key resolver — stable identity for selection + React key
   const rowKey = (r, i) => r.id || r.pvNo || r.refNo || r.boqNo || r.empCode || r.permanentBillNo || `idx-${i}`;
@@ -602,6 +616,7 @@ const ReportsHub = () => {
     if (!win) { toast.error("Pop-up blocked — please allow pop-ups"); return; }
     const co = { ...DEFAULT_COMPANY, ...(getCompany() || {}) };
     const logo = getLogo() || "/arun-logo.jpg";
+    const me = currentUser() || "";
     const headerCells = cfg.columns.map((c) => `<th style="padding:5px 7px;background:#1e293b;color:#fff;font-size:9.5px;text-align:${c.right?'right':'left'};border:1px solid #000;letter-spacing:.3px;font-weight:800;text-transform:uppercase">${c.label}</th>`).join("");
     const bodyRows = rowsToUse.map((r, i) => {
       const tds = cfg.columns.map((c) => {
@@ -653,7 +668,7 @@ const ReportsHub = () => {
           </div>
         </div>
         <table class="data"><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}${totalRow}</tbody></table>
-        ${buildSignaturePanel()}
+        ${buildSignaturePanel(null, me)}
         <div class="footer-note">
           <span>System-generated register from ${co.name} · For internal filing &amp; audit records only.</span>
           <span>Printed: ${nowStr}</span>
@@ -663,7 +678,7 @@ const ReportsHub = () => {
 
     // Build full biodata pages (one record per A4)
     const fullBiodataHTML = rowsToUse.map((r, i) =>
-      buildBiodataCard(r, i, rowsToUse.length, cfg, co, logo, nowStr, true)
+      buildBiodataCard(r, i, rowsToUse.length, cfg, co, logo, nowStr, true, me)
     ).join("");
 
     // Build compact biodata (2 cards per A4 page — group pairs)
@@ -679,7 +694,7 @@ const ReportsHub = () => {
             ${buildCompactCard(r1, i, rowsToUse.length, cfg)}
             ${r2 ? buildCompactCard(r2, i + 1, rowsToUse.length, cfg) : '<div class="compact-card compact-empty"></div>'}
           </div>
-          ${buildSignaturePanel()}
+          ${buildSignaturePanel(null, me)}
           <div class="footer-note">
             <span>Compact biodata · ${co.name}</span>
             <span>Printed: ${nowStr}</span>
@@ -905,10 +920,10 @@ const ReportsHub = () => {
             <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "#f1f5f9", border: "1.5px solid #c7d2fe", borderRadius: 5 }}>
               <label style={{ fontSize: 10, color: "#4338ca", fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase" }}>Print Mode</label>
               <select data-testid="rh-print-mode" value={printMode} onChange={(e) => setPrintMode(e.target.value)} style={{ padding: "5px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#fff", color: "#0f172a" }}>
-                <option value="both">Summary + Full Biodata</option>
-                <option value="summary">Summary Only</option>
-                <option value="full">Full Biodata (1 per page)</option>
-                <option value="compact">Compact (2 per page)</option>
+                <option value="summary">Summary Only · 1 row per record</option>
+                <option value="full">Full Biodata · 1 A4 page per record</option>
+                <option value="compact">Compact · 2 records per A4</option>
+                <option value="both">Summary + Full Biodata (both)</option>
               </select>
             </div>
             <button data-testid="rh-print" onClick={() => printReport()} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#64748b,#334155)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>

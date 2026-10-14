@@ -1060,7 +1060,20 @@ export const logout = async () => {
   clearToken();
 };
 export const isAuthed = () => !!read(KEYS.AUTH, null) && !!getToken();
-export const currentUser = () => read(KEYS.AUTH, null)?.user || "";
+// Returns the logged-in user's display name (never the raw email).
+// Falls back order: profile.name → profile.full_name → profile.employee_id → email prefix → "" .
+export const currentUser = () => {
+  const auth = read(KEYS.AUTH, null);
+  if (!auth) return "";
+  if (auth.name && String(auth.name).trim()) return String(auth.name).trim();
+  if (auth.full_name && String(auth.full_name).trim()) return String(auth.full_name).trim();
+  if (auth.employee_id && String(auth.employee_id).trim()) return String(auth.employee_id).trim();
+  const email = auth.user || "";
+  // Super admin → canonical name
+  if (email && email.toLowerCase().trim() === SUPER_ADMIN_EMAIL) return "Ashish Srivastava";
+  // Return email-prefix (before @) as last-resort display label
+  return email.includes("@") ? email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : email;
+};
 export const currentUserProfile = () => read(KEYS.AUTH, null);
 
 // ---- Permission model ----
