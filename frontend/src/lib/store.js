@@ -1643,21 +1643,9 @@ export const createAdvanceRequestDraft = (empId = "") => {
 };
 export const upsertAdvanceRequest = (r) => {
   const list = getAdvanceRequests();
-  // DUPLICATE PREVENTION (Feb 2026 · user policy): block duplicate advance
-  // request on same emp + request date + amount (ignore when editing same id).
-  if (Number(r.amount) > 0) {
-    const dup = list.find((x) =>
-      x.id !== r.id &&
-      x.empId === r.empId &&
-      String(x.requestDate || "") === String(r.requestDate || "") &&
-      Number(x.amount) === Number(r.amount) &&
-      Number(x.status) !== 5 // ignore rejected
-    );
-    if (dup) {
-      try { _toast.error(`Duplicate · advance ${dup.refNo} already exists for ${r.empName || r.empCode} on ${r.requestDate} with amount ₹${Number(r.amount).toLocaleString("en-IN")}`); } catch (_e) { /* toast unavailable */ }
-      throw new Error(`Duplicate advance request: ${dup.refNo}`);
-    }
-  }
+  // Duplicate guard REMOVED per user request (Feb 2026):
+  // Advance Register me same amount ka kai bar request allow hai — refNo + id unique
+  // hote hain, date bhi different ho sakti hai. So we only do a per-id upsert.
   const updated = { ...r, updatedAt: new Date().toISOString() };
   const idx = list.findIndex((x) => x.id === updated.id);
   if (idx >= 0) list[idx] = updated; else list.push(updated);
