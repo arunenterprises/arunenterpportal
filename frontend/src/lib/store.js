@@ -184,6 +184,40 @@ export const EXPENSE_STEP_LABEL = {
   4: "4. Approved & Paid",
 };
 
+// ---- Cross-user sync: Debounced full-snapshot push ----
+// CROSS-USER DATA FIX (Feb 2026 round 2): All save* list-level mutators now
+// trigger this debounced push so non-SuperAdmin saves actually reach the cloud
+// (previously only singular upsert* functions pushed; bulk save* was local-only
+// → data appeared only on the device that happened to also fire an upsert).
+let _snapPushTimer = null;
+const _schedulePush = () => {
+  try {
+    if (!getToken()) return;
+    clearTimeout(_snapPushTimer);
+    _snapPushTimer = setTimeout(() => {
+      try {
+        const payload = {
+          vendors: JSON.parse(localStorage.getItem(KEYS.VENDORS) || "[]"),
+          bills: JSON.parse(localStorage.getItem(KEYS.BILLS) || "[]"),
+          payments: JSON.parse(localStorage.getItem(KEYS.PAYMENTS) || "[]"),
+          expenses: JSON.parse(localStorage.getItem(KEYS.EXPENSES) || "[]"),
+          boqs: JSON.parse(localStorage.getItem(KEYS.BOQS) || "[]"),
+          work_orders: JSON.parse(localStorage.getItem(KEYS.WOS) || "[]"),
+          employees: JSON.parse(localStorage.getItem(KEYS.EMPLOYEES) || "[]"),
+          paybills: JSON.parse(localStorage.getItem(KEYS.PAYBILLS) || "[]"),
+          loans: JSON.parse(localStorage.getItem(KEYS.LOANS) || "[]"),
+          advance_requests: JSON.parse(localStorage.getItem(KEYS.ADVANCE_REQS) || "[]"),
+          recruitments: JSON.parse(localStorage.getItem("ae_vm_recruitments") || "[]"),
+          exits: JSON.parse(localStorage.getItem("ae_vm_exits") || "[]"),
+        };
+        apiPushSnapshot(payload).then(() => {
+          try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch {}
+        }).catch(() => {});
+      } catch { /* ignore */ }
+    }, 1500);
+  } catch { /* ignore */ }
+};
+
 // ---- Expenses ----
 const buildExpenseTempRef = (serial) => `EXR${String(serial).padStart(4, "0")}${getFY()}`;
 const buildExpensePermNo = (serial) => `EXP${String(serial).padStart(4, "0")}${getFY()}`;
@@ -191,6 +225,7 @@ const buildExpensePermNo = (serial) => `EXP${String(serial).padStart(4, "0")}${g
 export const getExpenses = () => read(KEYS.EXPENSES, []);
 export const saveExpenses = (list) => {
   write(KEYS.EXPENSES, list);
+  _schedulePush();
 };
 
 export const createExpenseDraft = () => {
@@ -278,7 +313,7 @@ export const BOQ_STEP_LABEL = {
 const buildBOQNo = (serial) => `BOQ${String(serial).padStart(4, "0")}${getFY()}`;
 
 export const getBOQs = () => read(KEYS.BOQS, []);
-export const saveBOQs = (list) => write(KEYS.BOQS, list);
+export const saveBOQs = (list) => { write(KEYS.BOQS, list); _schedulePush(); };
 
 export const createBOQDraft = () => {
   const c = getCounters();
@@ -411,7 +446,7 @@ export const UNITS_DEFAULT = [
 ];
 
 export const getWOs = () => read(KEYS.WOS, []);
-export const saveWOs = (list) => write(KEYS.WOS, list);
+export const saveWOs = (list) => { write(KEYS.WOS, list); _schedulePush(); };
 
 export const createWODraft = (fromBoq = null) => {
   const nowIso = new Date().toISOString();
@@ -603,7 +638,7 @@ export const getVendors = () => {
   if (changed) write(KEYS.VENDORS, fixed);
   return fixed;
 };
-export const saveVendors = (list) => write(KEYS.VENDORS, list);
+export const saveVendors = (list) => { write(KEYS.VENDORS, list); _schedulePush(); };
 
 // Generate a Temp Ref ID: TMP-XXXXXXXX (8 hex chars)
 export const generateTempRefId = () => {
@@ -723,7 +758,7 @@ export const advanceVendorStep = (v) => {
 
 // ---- Bills ----
 export const getBills = () => read(KEYS.BILLS, []);
-export const saveBills = (list) => write(KEYS.BILLS, list);
+export const saveBills = (list) => { write(KEYS.BILLS, list); _schedulePush(); };
 
 export const createBillDraft = () => {
   const c = getCounters();
@@ -1055,7 +1090,7 @@ const buildEmpCode = (serial) => `AE/EMP/${String(serial).padStart(6, "0")}/${ge
 const buildEmpTempCode = (serial) => `AE/TMP/${String(serial).padStart(6, "0")}/${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
 export const getEmployees = () => read(KEYS.EMPLOYEES, []);
-export const saveEmployees = (list) => write(KEYS.EMPLOYEES, list);
+export const saveEmployees = (list) => { write(KEYS.EMPLOYEES, list); _schedulePush(); };
 
 export const createEmployeeDraft = () => {
   const c = getCounters();
@@ -1265,7 +1300,7 @@ export const approveLeave = (id, approve = true) => {
 export const RECRUIT_STATUS = { 1: "Draft", 2: "Submitted to GM", 3: "GM Approved · Published", 4: "Offered", 5: "Joined", 6: "Rejected" };
 const RECRUITS_KEY = "ae_vm_hr_recruits";
 export const getRecruitments = () => read(RECRUITS_KEY, []);
-export const saveRecruitments = (list) => write(RECRUITS_KEY, list);
+export const saveRecruitments = (list) => { write(RECRUITS_KEY, list); _schedulePush(); };
 // Advertisement No: ADV + 4-digit serial + FY (e.g., ADV0001-2526)
 const nextAdvertisementNo = () => {
   const c = getCounters();
@@ -1474,7 +1509,7 @@ export const purgeLegacyPayrollBills = () => {
 };
 
 export const getPayBills = () => read(KEYS.PAYBILLS, []);
-export const savePayBills = (list) => write(KEYS.PAYBILLS, list);
+export const savePayBills = (list) => { write(KEYS.PAYBILLS, list); _schedulePush(); };
 
 export const createPayBillDraft = (year, month) => {
   const emps = getEmployees().filter((e) => Number(e.step) === 5 && e.empCode && (e.status || "Active") === "Active");
@@ -1692,7 +1727,7 @@ export const getAdvanceRegister = () => {
 // --- Advance on Demand (HR → Accounts → Paid flow) ---
 export const ADVANCE_REQ_STATUS = { 1: "Draft", 2: "Submitted to Accounts", 3: "Accounts Approved · Auto-adjusted in Pay Bill", 5: "Rejected" };
 export const getAdvanceRequests = () => read(KEYS.ADVANCE_REQS, []);
-export const saveAdvanceRequests = (list) => write(KEYS.ADVANCE_REQS, list);
+export const saveAdvanceRequests = (list) => { write(KEYS.ADVANCE_REQS, list); _schedulePush(); };
 export const createAdvanceRequestDraft = (empId = "") => {
   const emp = getEmployees().find((e) => e.id === empId) || {};
   const seq = getAdvanceRequests().length + 1;
@@ -1768,7 +1803,7 @@ export const deleteAdvanceRequest = (id) => { saveAdvanceRequests(getAdvanceRequ
 // --- Loan Management ---
 export const LOAN_STATUS = { 1: "Draft", 2: "Submitted", 3: "GM Approved", 4: "Disbursed", 5: "Fully Repaid", 6: "Written Off" };
 export const getLoans = () => read(KEYS.LOANS || "ae_vm_loans", []);
-export const saveLoans = (list) => write(KEYS.LOANS || "ae_vm_loans", list);
+export const saveLoans = (list) => { write(KEYS.LOANS || "ae_vm_loans", list); _schedulePush(); };
 export const createLoanDraft = (empId = "") => {
   const emp = getEmployees().find((e) => e.id === empId) || {};
   return {
