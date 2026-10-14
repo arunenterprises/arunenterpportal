@@ -7,6 +7,11 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 9 — Signature Layout Flip + Email-free Names)
+- **Signature layout flipped** on every print surface (Reports Hub, Bulk NEFT advice, Bank Transfer advice × 2, Weekly Fooding print): **Name on top → signature line → Role below** (per user directive 14-Oct-2026).
+- **Email never prints on signatures** — `currentUser()` now rejects any `name`/`full_name` value containing "@" and falls through to employee_id → canonical "Ashish Srivastava" for super admin → Title-Cased email prefix. Raw email address is never exposed in print output.
+- Empty signature slots show "— to be signed —" uniformly.
+
 ## Feb-2026 Session Changes (round 8 — Final Sign Panel Redesign + Clean Biodata)
 - **Signature panel** across all Reports Hub prints is now dynamic **Created By · Prepared By · Checked By · Approved By** — each column filled from the record's own metadata (`createdByName`, `preparedByName`/`submittedByName`, `checkedByName`/`verifiedByName`/`settledByName`, `approvedByName`/`finalApprovedByName`/`gmApprovedByName`). Falls back to the printing user when a field is empty.
 - **"Sr. Operation Manager" removed from ALL print surfaces** — bank advices, bulk NEFT advice, HR letters, Reports Hub signature panel. (Will be re-added ONLY to New Bill / New Vendor / New Purchase Order creation prints when those flows are built out separately.)

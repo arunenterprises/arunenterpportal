@@ -213,10 +213,10 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
         </tbody>
       </table>
       <div class="signblock" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:14px">
-        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Created By</b><br/>${cur.createdByName || currentUser() || "—"}</div>
-        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Prepared By</b><br/>${cur.submittedByName || cur.createdByName || "—"}</div>
-        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Checked By</b><br/>${cur.checkedByName || "— to be signed —"}</div>
-        <div style="text-align:center;border-top:1.2px solid #0f172a;padding-top:4px"><b>Approved By</b><br/>${cur.approvedBy || "— to be signed —"}</div>
+        <div style="text-align:center"><div style="font-weight:800;font-size:11px;color:#0f172a;padding-bottom:4px;border-bottom:1.3px solid #0f172a;margin-bottom:5px;min-height:14px">${cur.createdByName || currentUser() || "— to be signed —"}</div><div style="font-weight:900;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#0f172a">Created By</div></div>
+        <div style="text-align:center"><div style="font-weight:800;font-size:11px;color:#0f172a;padding-bottom:4px;border-bottom:1.3px solid #0f172a;margin-bottom:5px;min-height:14px">${cur.submittedByName || cur.createdByName || "— to be signed —"}</div><div style="font-weight:900;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#0f172a">Prepared By</div></div>
+        <div style="text-align:center"><div style="font-weight:800;font-size:11px;color:#0f172a;padding-bottom:4px;border-bottom:1.3px solid #0f172a;margin-bottom:5px;min-height:14px">${cur.checkedByName || "— to be signed —"}</div><div style="font-weight:900;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#0f172a">Checked By</div></div>
+        <div style="text-align:center"><div style="font-weight:800;font-size:11px;color:#0f172a;padding-bottom:4px;border-bottom:1.3px solid #0f172a;margin-bottom:5px;min-height:14px">${cur.approvedBy || "— to be signed —"}</div><div style="font-weight:900;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#0f172a">Approved By</div></div>
       </div>
       <script>setTimeout(()=>window.print(),300)</script>
     </body></html>`);

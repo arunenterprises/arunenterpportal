@@ -1858,10 +1858,10 @@ const printBankTransferAdvice = (pb) => {
   tfoot td { background: #fef3c7 !important; font-weight: 900; font-size: 10pt; padding: 8px 4px; border-top: 2px solid #0f172a; }
   .words { padding: 8px 12px; background: #ecfdf5; border: 1px dashed #10b981; margin-top: 8px; font-size: 10pt; font-style: italic; }
   .foot { margin-top: 24px; display: flex; justify-content: space-between; }
+  /* Signature block — NAME on top, signature line, ROLE below (Feb-2026 user layout) */
   .sig-box { text-align: center; min-width: 180px; }
-  .sig-box .line { border-top: 1px solid #0f172a; margin-bottom: 3px; height: 45px; }
-  .sig-box .name { font-weight: 800; font-size: 9pt; }
-  .sig-box .desig { font-size: 8pt; color: #64748b; }
+  .sig-box .person { font-weight: 800; font-size: 10pt; color: #0f172a; min-height: 14px; padding-bottom: 4px; border-bottom: 1.3px solid #0f172a; margin-bottom: 5px; }
+  .sig-box .role  { font-weight: 900; font-size: 9.5pt; letter-spacing: .5px; text-transform: uppercase; color: #0f172a; }
   .instr { margin-top: 10px; padding: 8px 12px; background: #fef9c3; border: 1px solid #fde047; font-size: 8pt; color: #713f12; line-height: 1.5; }
 </style>
 </head>
@@ -1928,10 +1928,10 @@ const printBankTransferAdvice = (pb) => {
     <b>Instructions:</b> Kindly process the above transfers on the same working day. In case of any mismatch or discrepancy in beneficiary details, please contact HR/Accounts department before processing. All transfers to be made via RTGS/NEFT/IMPS as applicable.
   </div>
   <div class="foot">
-    <div class="sig-box"><div class="line"></div><div class="name">Created By</div><div class="desig">${esc(pb.createdByName || "")}</div></div>
-    <div class="sig-box"><div class="line"></div><div class="name">Prepared By</div><div class="desig">${esc(pb.submittedByName || "")}</div></div>
-    <div class="sig-box"><div class="line"></div><div class="name">Checked By</div><div class="desig">${esc(pb.settledByName || pb.verifiedByName || "")}</div></div>
-    <div class="sig-box"><div class="line"></div><div class="name">Approved By</div><div class="desig">${esc(pb.approvedByName || pb.finalApprovedByName || "")}</div></div>
+    <div class="sig-box"><div class="person">${esc(pb.createdByName || "— to be signed —")}</div><div class="role">Created By</div></div>
+    <div class="sig-box"><div class="person">${esc(pb.submittedByName || "— to be signed —")}</div><div class="role">Prepared By</div></div>
+    <div class="sig-box"><div class="person">${esc(pb.settledByName || pb.verifiedByName || "— to be signed —")}</div><div class="role">Checked By</div></div>
+    <div class="sig-box"><div class="person">${esc(pb.approvedByName || pb.finalApprovedByName || "— to be signed —")}</div><div class="role">Approved By</div></div>
   </div>
 </div>
 <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>

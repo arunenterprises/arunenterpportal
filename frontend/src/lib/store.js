@@ -1061,17 +1061,22 @@ export const logout = async () => {
 };
 export const isAuthed = () => !!read(KEYS.AUTH, null) && !!getToken();
 // Returns the logged-in user's display name (never the raw email).
-// Falls back order: profile.name → profile.full_name → profile.employee_id → email prefix → "" .
+// Falls back order: profile.name (if NOT email-like) → full_name (if NOT email-like)
+// → employee_id → "Ashish Srivastava" for super admin → Title-Cased email prefix → "".
+const _looksLikeEmail = (s) => typeof s === "string" && s.includes("@");
 export const currentUser = () => {
   const auth = read(KEYS.AUTH, null);
   if (!auth) return "";
-  if (auth.name && String(auth.name).trim()) return String(auth.name).trim();
-  if (auth.full_name && String(auth.full_name).trim()) return String(auth.full_name).trim();
-  if (auth.employee_id && String(auth.employee_id).trim()) return String(auth.employee_id).trim();
+  const name = String(auth.name || "").trim();
+  if (name && !_looksLikeEmail(name)) return name;
+  const fullName = String(auth.full_name || "").trim();
+  if (fullName && !_looksLikeEmail(fullName)) return fullName;
+  const empId = String(auth.employee_id || "").trim();
+  if (empId) return empId;
   const email = auth.user || "";
   // Super admin → canonical name
   if (email && email.toLowerCase().trim() === SUPER_ADMIN_EMAIL) return "Ashish Srivastava";
-  // Return email-prefix (before @) as last-resort display label
+  // Return Title-Cased email-prefix (before @) as last-resort display label — never the full email
   return email.includes("@") ? email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : email;
 };
 export const currentUserProfile = () => read(KEYS.AUTH, null);

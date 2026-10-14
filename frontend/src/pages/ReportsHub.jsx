@@ -363,7 +363,7 @@ const buildSignaturePanel = (row, me) => {
   const preparedBy = row?.preparedByName      || row?.submittedByName || printer || dash;
   const checkedBy  = row?.checkedByName       || row?.verifiedByName  || row?.settledByName || dash;
   const approvedBy = row?.finalApprovedByName || row?.approvedByName  || row?.approvedBy    || row?.gmApprovedByName || dash;
-  const cell = (role, name) => `<div class="sig-box"><div class="role">${role}</div><div class="name">${name}</div></div>`;
+  const cell = (role, name) => `<div class="sig-box"><div class="name">${name}</div><div class="role">${role}</div></div>`;
   return `<div class="sigs">
     ${cell("Created By",  createdBy)}
     ${cell("Prepared By", preparedBy)}
@@ -796,10 +796,11 @@ const ReportsHub = () => {
         .compact-card .cc-v.amt { color: #166534; font-family: monospace; font-weight: 800; }
         .compact-empty { border: 1.5px dashed #cbd5e1; background: #f8fafc; }
         /* ---- Signatures / Footer ---- */
-        .sigs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-top: 18px; page-break-inside: avoid; }
-        .sig-box { border-top: 1.5px solid #0f172a; padding-top: 4px; text-align: center; font-size: 10px; }
-        .sig-box .role { font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: #0f172a; }
-        .sig-box .name { font-size: 9.5px; color: #475569; margin-top: 2px; }
+        /* Flipped layout (Feb-2026 user request): NAME on top → signature line → ROLE below. */
+        .sigs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; margin-top: 22px; page-break-inside: avoid; }
+        .sig-box { text-align: center; font-size: 10px; }
+        .sig-box .name { font-size: 11px; color: #0f172a; font-weight: 700; padding: 0 4px 5px; border-bottom: 1.5px solid #0f172a; margin-bottom: 5px; min-height: 16px; letter-spacing: .2px; }
+        .sig-box .role { font-weight: 900; letter-spacing: .6px; text-transform: uppercase; color: #0f172a; font-size: 10.5px; }
         .footer-note { margin-top: 10px; padding-top: 6px; border-top: 1px dashed #94a3b8; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
         /* Avoid breaking rows across pages */
         tr { page-break-inside: avoid; }
