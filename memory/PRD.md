@@ -7,6 +7,11 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 19 — UTR Save silently-failed fix)
+- **Bug**: User reported "utr no dal kar save kiya fir bhi mang raha hai, utr save nahi ho raha hai". Green toast appeared ("UTR saved · AE/HR/PB/2026-09") but the input field re-appeared blank with the Save UTR button still visible — making the user re-enter the UTR.
+- **Root cause**: `onSave` handler in `HRManagement.jsx` did `getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? {...utrNo} : pp)`. When the linked PV was missing from the local `payments` array (sync race, de-dup migration drop, or any other glitch), `.map` returned the list unchanged — the UTR was never actually persisted anywhere, but the toast still fired. UI then re-rendered using the same (unchanged) payments → `hasUtr` stayed false → blank input re-appeared.
+- **Fix**: Switched to `findIndex` + conditional branch. If PV exists → update utrNo + paidAt + status="Approved". If PV missing → defensively rebuild the PV in-place with the UTR already set (pvNo falls back to a fresh `GPV/HR/YYYY-MM/<rand>` identifier if `linkedPvNo` is also blank). Guarantees the save is never silent.
+
 ## Feb-2026 Session Changes (round 18 — Dept KPI Dashboards + Advance Dup verified)
 - **Reports Hub KPI tiles**: added a live-filtered mini-dashboard above every department's data table — Total Records, Grand Total (when `amountKey` exists), Draft, Pending, Approved, Rejected buckets. Counts react to FY / Month / Date-range / Status / Search filters in real time. Non-zero tiles only (keeps the strip clean for empty states).
   - Classification uses `cfg.statusMap` entry order: first key → Draft, last key → Approved; anything matching `/reject/i` → Rejected; everything else → Pending.

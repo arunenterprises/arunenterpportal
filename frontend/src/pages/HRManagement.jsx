@@ -1736,8 +1736,34 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                           pvNo={p.linkedPvNo}
                           refNo={p.id}
                           onSave={(v) => {
-                            const payments = getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? { ...pp, utrNo: v, paidAt: new Date().toISOString() } : pp);
-                            savePayments(payments); refresh();
+                            const now = new Date().toISOString();
+                            const monthName = new Date(p.year, p.month - 1).toLocaleString("en", { month: "long" });
+                            let payments = getPayments();
+                            const idx = payments.findIndex((pp) => pp.pvNo === p.linkedPvNo);
+                            if (idx >= 0) {
+                              payments[idx] = { ...payments[idx], utrNo: v, paidAt: now, status: "Approved" };
+                            } else {
+                              // Defensive: linked PV missing from local store (sync race /
+                              // de-dup glitch). Rebuild it in-place with the UTR already set
+                              // so the save button never "silently fails" on the user.
+                              payments = [...payments, {
+                                id: `pv_pb_${p.id}`,
+                                pvNo: p.linkedPvNo || `GPV/HR/${p.year}-${String(p.month).padStart(2, "0")}/${Date.now().toString(36).slice(-4).toUpperCase()}`,
+                                pvDate: now.slice(0, 10),
+                                source: "HR Pay Bill",
+                                sourceRef: p.refNo,
+                                vendorCode: "AE-HR-PAYROLL",
+                                vendorSnapshot: { firmName: `Payroll Payout · ${monthName} ${p.year}` },
+                                amount: p.totalNet || 0,
+                                remarks: `Rebuilt during UTR save for ${p.refNo}`,
+                                status: "Approved",
+                                utrNo: v,
+                                paidAt: now,
+                                createdAt: now,
+                              }];
+                            }
+                            savePayments(payments);
+                            refresh();
                             toast.success(`UTR saved · ${p.refNo}`);
                           }}
                         />
