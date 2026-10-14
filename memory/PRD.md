@@ -7,6 +7,14 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 6 — Employee Photo & Signature as Images in Reports Hub)
+- **Reports Hub · Employee Master** on-screen table now shows **Photo (40px)** and **Signature (28px contain)** as real `<img>` thumbnails, not raw data-URL text.
+- Full Biodata print pages render a dedicated **"PHOTO & SIGNATURE"** strip above record details — displays each image at 85×100 (photo) / 150×60 (signature) with "Image not available" fallback.
+- Compact biodata (2-per-page) also displays photo + signature as mini-tiles above the field grid.
+- Summary table print renders `<img>` cells for image columns (never raw URL).
+- Excel export writes `<attached>` placeholder for image columns to keep workbook size sane.
+- Generic image detection: `isImageKey()` + `isImageValue()` so any field named `*photo*` / `*signature*` / `*avatar*` (or any `data:image/...` value) gets rendered as an image anywhere in Reports Hub.
+
 ## Feb-2026 Session Changes (round 5 — Duplicate Process Numbers Fixed)
 - **CRITICAL BUG FIX**: Same PV/HR/... number was appearing 5× in Payment Vouchers register. Root cause: `advancePayBillStep` + `advanceExitStep` pushed a new PV every time step 4 transition fired (no idempotency check), and `payments.length+1` suffix produced different serials each push.
 - **Fixes applied**:

@@ -200,14 +200,16 @@ const DEPT_CONFIG = [
     statusKey: "status",
     statusMap: { Active: "Active", Draft: "Draft", Exited: "Exited" },
     columns: [
+      { key: "photoUrl", label: "Photo", width: 60, image: true },
       { key: "empCode", label: "EMP Code", width: 110 },
-      { key: "fullName", label: "Full Name", width: 180 },
-      { key: "department", label: "Dept", width: 120 },
-      { key: "designation", label: "Designation", width: 140 },
+      { key: "fullName", label: "Full Name", width: 170 },
+      { key: "department", label: "Dept", width: 110 },
+      { key: "designation", label: "Designation", width: 130 },
       { key: "doj", label: "DOJ", width: 100 },
       { key: "mobile", label: "Mobile", width: 110 },
       { key: "_amount", label: "Basic (₹)", width: 110, right: true },
-      { key: "status", label: "Status", width: 100 },
+      { key: "signatureUrl", label: "Signature", width: 90, image: true },
+      { key: "status", label: "Status", width: 90 },
     ],
   },
   {
@@ -306,7 +308,10 @@ const prettifyKey = (k) => k
   .trim();
 
 const isAmountKey = (k) => /amount|total|gross|net|basic|subtotal|amt|gstAmt|tds|cgst|sgst|igst|deduction|advance|balance|emi|salary|wage|fnf|rate|cost|price|hra|allowance|bonus|overtime|penalty/i.test(k);
-const isSkipKey = (k) => /^(id|_id|__v|password|photo|signature|logo|avatar|attachment|docs)$/i.test(k) || k.startsWith("_");
+const isSkipKey = (k) => /^(id|_id|__v|password|logo|avatar|attachment|docs)$/i.test(k) || k.startsWith("_");
+// IMAGE field: either the key name hints at an image/signature, or the value is a data-URL / http(s) image.
+const isImageKey = (k) => /^(photo|signature|photoUrl|signatureUrl|photo_url|signature_url|avatarUrl|avatar_url|idPhoto|idPhotoUrl)$/i.test(k) || /(^|_)(photo|signature|avatar)(_?url)?$/i.test(k);
+const isImageValue = (v) => typeof v === "string" && (/^data:image\//i.test(v) || /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(v));
 const isLineKey = (v) => Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null;
 const formatValue = (k, v) => {
   if (v === null || v === undefined || v === "") return "—";
@@ -357,14 +362,22 @@ const buildSignaturePanel = () => `
 const buildCompactCard = (row, idx, total, cfg) => {
   const refNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `#${idx + 1}`;
   const statusLabel = cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "";
-  const fieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
+  const allEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
+  const imageEntries = allEntries.filter(([k, v]) => (isImageKey(k) || isImageValue(v)) && typeof v === "string" && v.trim() !== "");
+  const fieldEntries = allEntries.filter(([k, v]) => !imageEntries.find(([ik]) => ik === k));
   const cells = fieldEntries.map(([k, v]) => {
     const isAmt = isAmountKey(k) && (typeof v === "number" || !isNaN(Number(v)));
     const val = formatValue(k, v);
     return `<div class="cc-f"><div class="cc-l">${prettifyKey(k)}</div><div class="cc-v${isAmt ? " amt" : ""}">${val}</div></div>`;
   }).join("");
+  const imgHTML = imageEntries.length ? `<div class="cc-img-row">${imageEntries.map(([k, v]) => `
+      <div class="cc-img-tile">
+        <div class="cc-img-l">${prettifyKey(k).replace(/\s*Url$/i, "")}</div>
+        <div class="cc-img-box"><img src="${String(v).replace(/"/g, "&quot;")}" onerror="this.style.display='none'" /></div>
+      </div>`).join("")}</div>` : "";
   return `<div class="compact-card">
     <div class="cc-head"><b>${refNo}</b><span>${idx + 1} / ${total} · ${statusLabel}</span></div>
+    ${imgHTML}
     <div class="cc-grid">${cells}</div>
   </div>`;
 };
@@ -373,7 +386,21 @@ const buildCompactCard = (row, idx, total, cfg) => {
 const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = true) => {
   const bioRefNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `${cfg.id.toUpperCase()}-${idx+1}`;
   // Filter fields: skip internal, skip object/line-items (will render separately)
-  const fieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
+  const allFieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object");
+  // Separate image fields (photo / signature / avatar) from text fields
+  const imageEntries = allFieldEntries.filter(([k, v]) => (isImageKey(k) || isImageValue(v)) && typeof v === "string" && v.trim() !== "");
+  const fieldEntries = allFieldEntries.filter(([k, v]) => !imageEntries.find(([ik]) => ik === k));
+  // Build dedicated Photo / Signature strip at top of record details
+  const imageStripHTML = imageEntries.length ? `
+    <div class="bio-sec-title">PHOTO &amp; SIGNATURE</div>
+    <div class="img-strip">
+      ${imageEntries.map(([k, v]) => `
+        <div class="img-tile">
+          <div class="img-tile-l">${prettifyKey(k).replace(/\s*Url$/i, "")}</div>
+          <div class="img-tile-box"><img src="${String(v).replace(/"/g, "&quot;")}" alt="${prettifyKey(k)}" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'color:#94a3b8;font-size:10px\\'>Image not available</span>'" /></div>
+        </div>`).join("")}
+    </div>
+  ` : "";
   // Status derived label as first chip
   const statusLabel = cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "";
   // Partition: amount/date/status fields come first (header strip), rest in grid
@@ -421,6 +448,7 @@ const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = tr
   return `<div class="bio-page" style="${pageBreak ? "page-break-after:always;" : ""}">
     ${buildLetterhead(co, logo, bioRefNo, nowStr, cfg, ` · Full Record Detail (${idx + 1}/${total})`)}
     <div class="bio-header-chips">${statusChip}${headerChips}</div>
+    ${imageStripHTML}
     <div class="bio-sec-title">RECORD DETAILS</div>
     <div class="fld-grid">${fieldHTML}</div>
     ${linesHTML}
@@ -550,7 +578,14 @@ const ReportsHub = () => {
   const exportExcel = () => {
     const rowsToUse = exportRows;
     const header = cfg.columns.map((c) => c.label);
-    const rows = rowsToUse.map((r) => cfg.columns.map((c) => getCellValue(r, c, cfg)));
+    const rows = rowsToUse.map((r) => cfg.columns.map((c) => {
+      // Avoid dumping multi-KB data-URLs into Excel cells
+      if (c.image) {
+        const v = getCellValue(r, c, cfg);
+        return v && String(v).trim() !== "" ? "<attached>" : "";
+      }
+      return getCellValue(r, c, cfg);
+    }));
     const data = [header, ...rows];
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -571,6 +606,16 @@ const ReportsHub = () => {
     const bodyRows = rowsToUse.map((r, i) => {
       const tds = cfg.columns.map((c) => {
         const v = getCellValue(r, c, cfg);
+        // IMAGE columns — render <img> in print (not raw data-URL text)
+        if (c.image) {
+          const url = v && String(v).trim() !== "" ? String(v).replace(/"/g, "&quot;") : "";
+          const h = c.key === "signatureUrl" ? 22 : 36;
+          const fit = c.key === "signatureUrl" ? "contain" : "cover";
+          const imgCell = url
+            ? `<img src="${url}" style="height:${h}px;max-width:${(c.width || 60) - 10}px;object-fit:${fit};border:1px solid #cbd5e1;border-radius:2px;background:#fff" alt="${c.label}" onerror="this.style.display='none'" />`
+            : `<span style="color:#94a3b8;font-size:9px">—</span>`;
+          return `<td style="padding:3px 5px;border:1px solid #000;text-align:center;background:${i%2?'#f8fafc':'#fff'}">${imgCell}</td>`;
+        }
         const txt = c.key === "_amount" ? inrN(v) : String(v || "—");
         return `<td style="padding:4px 7px;border:1px solid #000;font-size:10px;text-align:${c.right?'right':'left'};background:${i%2?'#f8fafc':'#fff'};${c.key==='_amount'?'font-weight:700;color:#166534;font-family:monospace':''}">${txt}</td>`;
       }).join("");
@@ -697,6 +742,20 @@ const ReportsHub = () => {
         .hc-status { background: #fef3c7; border-color: #d97706; }
         .hc-status .hc-v { color: #78350f; font-size: 11.5px; letter-spacing: .3px; }
         .bio-sec-title { font-size: 11px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #0f172a; background: #e0e7ff; padding: 4px 10px; border-left: 4px solid #4f46e5; margin: 10px 0 6px; }
+        /* ---- Photo & Signature strip ---- */
+        .img-strip { display: flex; gap: 14px; margin: 4px 0 10px; flex-wrap: wrap; }
+        .img-tile { border: 1.5px solid #0f172a; border-radius: 4px; padding: 4px 6px 6px; background: #fff; display: flex; flex-direction: column; align-items: center; }
+        .img-tile-l { font-size: 8.5px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+        .img-tile-box { width: 85px; height: 100px; background: #f8fafc; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .img-tile-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        /* Signature tile is wider / shorter */
+        .img-tile:has(.img-tile-l:is([data-sig])) .img-tile-box { width: 150px; height: 60px; }
+        /* Compact biodata image row */
+        .cc-img-row { display: flex; gap: 8px; margin: 4px 0 6px; justify-content: center; }
+        .cc-img-tile { border: 1px solid #cbd5e1; border-radius: 3px; padding: 3px; display: flex; flex-direction: column; align-items: center; background: #fff; }
+        .cc-img-l { font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
+        .cc-img-box { width: 54px; height: 60px; background: #f8fafc; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .cc-img-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .fld-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #cbd5e1; border: 1px solid #cbd5e1; }
         .fld { background: #fff; padding: 5px 8px; display: flex; flex-direction: column; min-height: 32px; }
         .fld-l { font-size: 8.5px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
@@ -908,6 +967,25 @@ const ReportsHub = () => {
                     const txt = c.key === "_amount" ? inrN(v) : String(v || "—");
                     const isAmt = c.key === "_amount";
                     const isStatus = c.key === "_status" || c.key === "status";
+                    // IMAGE columns (photoUrl / signatureUrl) — render thumbnail, not URL text
+                    if (c.image) {
+                      const url = v && String(v).trim() !== "" ? String(v) : "";
+                      return (
+                        <td key={c.key} style={{ padding: "4px 6px", textAlign: "center" }}>
+                          {url ? (
+                            <img
+                              src={url}
+                              alt={c.label}
+                              data-testid={`rh-img-${c.key}-${i}`}
+                              style={{ height: c.key === "signatureUrl" ? 28 : 40, maxWidth: c.width - 20, border: "1px solid #cbd5e1", borderRadius: 3, objectFit: c.key === "signatureUrl" ? "contain" : "cover", background: "#fff", display: "inline-block" }}
+                              onError={(e) => { e.target.style.display = "none"; }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic" }}>—</span>
+                          )}
+                        </td>
+                      );
+                    }
                     return (
                       <td key={c.key} style={{ padding: "6px 10px", textAlign: c.right ? "right" : "left", fontSize: 11, fontWeight: isAmt ? 700 : 500, color: isAmt ? "#166534" : "#0f172a", fontFamily: (c.key === "pvNo" || c.key === "utrNo" || c.key === "permanentBillNo" || c.key === "vendorCode" || c.key === "empCode") ? "monospace" : "inherit" }}>
                         {isStatus && txt !== "—" ? (
