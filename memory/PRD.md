@@ -7,6 +7,11 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 15 — Pay Bill tab runtime fix)
+- Bug: `createBalanceDraft is not defined` runtime error prevented the Pay Bill tab from opening after the "+ Balance Pay Bill" feature was added. The earlier search_replace that defined the helper function had failed silently; only the UI button and store-level function had been added.
+- Fix: Added the missing `createBalanceDraft()` wrapper inside PayBillsManager calling `createSupplementaryPayBillDraft(year, month)` → `upsertPayBill` → toast confirms count + net.
+- Verified: Pay Bill tab now opens, "+ Balance Pay Bill · Oct 2026" button visible in Pay Bill History header, no console errors.
+
 ## Feb-2026 Session Changes (round 14 — Full Access auto-elevates to Admin role)
 - Toggling **FULL ACCESS** in the Register New Employee form now auto-sets role to **Admin** (and reverts to User on uncheck if the dropdown is still at Admin). An inline "+ ADMIN" pill was added next to the FULL ACCESS pill to make the behavior visible.
 - Prevents SuperAdmin from forgetting to pick Admin role when granting full powers.

@@ -1493,6 +1493,19 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
       : `Draft Pay Bill ready · ${saved.lines.length} employees · Net ₹ ${saved.totalNet.toLocaleString("en-IN")}`);
   };
 
+  // SUPPLEMENTARY / BALANCE pay bill — ek month ke andar more than one pay bill allowed hai
+  // for employees jo primary bill mein excluded the ya newly joined hain.
+  const createBalanceDraft = () => {
+    const d = createSupplementaryPayBillDraft(Number(year), Number(month));
+    if (!d.lines.length) {
+      toast.error("Koi balance employee nahi mila — is month ke sabhi active employees ek bar include ho chuke hain.");
+      return;
+    }
+    const saved = upsertPayBill(d);
+    setCur(saved); refresh();
+    toast.success(`✓ Balance Pay Bill (BAL-${d.supplementarySeq}) ready · ${saved.lines.length} employee(s) · Net ₹${saved.totalNet.toLocaleString("en-IN")}`);
+  };
+
   const toggleRow = (idx) => {
     if (cur && Number(cur.step) >= 2) return;
     const next = { ...cur, lines: cur.lines.map((l, i) => i === idx ? { ...l, excluded: !l.excluded } : l) };
