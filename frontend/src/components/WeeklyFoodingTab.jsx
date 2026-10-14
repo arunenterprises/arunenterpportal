@@ -112,15 +112,21 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
   };
 
   const submit = () => {
-    // Deprecated: direct Approve by Accounts Manager replaces this flow.
-    return approve();
+    if (!writeAllowed) return toast.error("Not permitted");
+    if (cur.status === "Approved") return toast.error("Already approved — cannot resubmit");
+    if (!cur.lines || cur.lines.length === 0) return toast.error("Add at least one line");
+    if (!cur.circle?.trim()) return toast.error("Circle enter karein");
+    const rec = { ...cur, status: "Submitted", submittedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    upsertFooding(rec);
+    setCur(rec);
+    setList(getFoodingList());
+    toast.success(`✓ Submitted · Accounts Manager ko approval ke liye bhej diya gaya (${rec.refNo})`);
   };
 
   const approve = () => {
     if (!canApproveFooding) return toast.error("Only Accounts Manager can approve this fooding register");
     if (cur.status === "Approved") return toast.error("Already approved");
-    if (!cur.lines || cur.lines.length === 0) return toast.error("Add at least one line");
-    if (!cur.circle?.trim()) return toast.error("Circle enter karein");
+    if (cur.status !== "Submitted") return toast.error("Pehle 'Submit' karein — tabhi Accounts Manager approve kar sakta hai");
     // Auto-fill approver on each line that still shows NIL
     const lines = (cur.lines || []).map((l) => ({ ...l, approver: !l.approver || l.approver === "NIL" ? APPROVER_NAME : l.approver }));
     const rec = { ...cur, lines, status: "Approved", approvedAt: new Date().toISOString(), approvedBy: APPROVER_NAME, updatedAt: new Date().toISOString() };
@@ -345,11 +351,20 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
           <Save size={14} /> Save Draft
         </button>
         <button
+          data-testid="wf-submit"
+          onClick={submit}
+          disabled={locked || !writeAllowed || cur.status === "Submitted"}
+          title={locked ? "Already approved" : cur.status === "Submitted" ? "Already submitted — Accounts Manager ki approval pending" : "Submit for Accounts Manager approval"}
+          style={{ padding: "8px 18px", background: locked || cur.status === "Submitted" ? "#94a3b8" : "linear-gradient(135deg,#be185d,#831843)", color: "#fff", border: "none", borderRadius: 5, cursor: locked || cur.status === "Submitted" ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 12, letterSpacing: 0.3, textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: locked || cur.status === "Submitted" ? "none" : "0 2px 6px rgba(190,24,93,.4)" }}
+        >
+          <Send size={14} /> {cur.status === "Submitted" ? "✓ Submitted" : "Submit"}
+        </button>
+        <button
           data-testid="wf-approve"
           onClick={approve}
-          disabled={locked || !canApproveFooding}
-          title={!canApproveFooding ? "Only Accounts Manager can approve" : locked ? "Already approved" : "Approve this fooding register"}
-          style={{ padding: "8px 20px", background: !canApproveFooding || locked ? "#94a3b8" : "linear-gradient(135deg,#16a34a,#14532d)", color: "#fff", border: "none", borderRadius: 5, cursor: !canApproveFooding || locked ? "not-allowed" : "pointer", fontWeight: 900, fontSize: 12.5, letterSpacing: 0.4, textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: !canApproveFooding || locked ? "none" : "0 2px 6px rgba(22,163,74,.4)" }}
+          disabled={locked || !canApproveFooding || cur.status !== "Submitted"}
+          title={!canApproveFooding ? "Only Accounts Manager can approve" : locked ? "Already approved" : cur.status !== "Submitted" ? "Pehle Submit karein" : "Approve this fooding register"}
+          style={{ padding: "8px 20px", background: !canApproveFooding || locked || cur.status !== "Submitted" ? "#94a3b8" : "linear-gradient(135deg,#16a34a,#14532d)", color: "#fff", border: "none", borderRadius: 5, cursor: !canApproveFooding || locked || cur.status !== "Submitted" ? "not-allowed" : "pointer", fontWeight: 900, fontSize: 12.5, letterSpacing: 0.4, textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: !canApproveFooding || locked || cur.status !== "Submitted" ? "none" : "0 2px 6px rgba(22,163,74,.4)" }}
         >
           <CheckCircle2 size={15} /> {locked ? "✓ Approved" : "Approve"}
         </button>
@@ -361,11 +376,9 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
           <Download size={14} /> Excel
         </button>
       </div>
-      {!canApproveFooding && (
-        <div style={{ marginTop: 6, padding: "6px 12px", background: "#fff7ed", border: "1px solid #fcd34d", borderRadius: 4, fontSize: 10.5, color: "#78350f", fontStyle: "italic" }}>
-          ℹ Approve button sirf <b>Accounts Manager</b> designation wale user ya SuperAdmin ko visible active hoga.
-        </div>
-      )}
+      <div style={{ marginTop: 6, padding: "6px 12px", background: "#fff7ed", border: "1px solid #fcd34d", borderRadius: 4, fontSize: 10.5, color: "#78350f", fontStyle: "italic" }}>
+        ℹ Workflow: <b>Save Draft</b> → <b>Submit</b> (any writer) → record Accounts Manager ki pending-approval list me chala jata hai → <b>Approve</b> button sirf <b>Accounts Manager</b> ya SuperAdmin ko active dikhega.
+      </div>
 
       {/* Saved records */}
       <div style={{ marginTop: 16, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
