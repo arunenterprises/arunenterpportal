@@ -20,6 +20,7 @@ import {
   upsertEmployee, saveLeaves, deletePayBill, deleteAdvanceRequest, deleteExit, deleteRecruit,
   deleteBOQ, deleteWO, deleteBill, deleteExpense, deleteVendor, deleteEmployee,
   currentUserProfile,
+  fixVendorCodeCollisions, isSuperAdmin, currentUserEmail,
 } from "../lib/store";
 
 // -----------------------------------------------------------------------------
@@ -504,11 +505,12 @@ export default function GeneralManager() {
           </div>
 
           {/* Segmented tab bar */}
-          <div style={{
-            marginTop: 20, background: "#fff", borderRadius: 10,
-            padding: 5, display: "inline-flex", gap: 3,
-            border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(15,23,42,.05)",
-          }} data-testid="gm-tabs">
+          <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div style={{
+              background: "#fff", borderRadius: 10,
+              padding: 5, display: "inline-flex", gap: 3,
+              border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(15,23,42,.05)",
+            }} data-testid="gm-tabs">
             {[
               { id: "pending", icon: Clock, label: "Pending Approval", count: totalPending, tone: "#ea580c" },
               { id: "approved", icon: CheckCircle2, label: "Approved · Re-Approve", count: totalApproved, tone: "#16a34a" },
@@ -544,6 +546,31 @@ export default function GeneralManager() {
                 </button>
               );
             })}
+            </div>
+            {/* Vendor Code Doctor — SuperAdmin only, fixes legacy collisions */}
+            {isSuperAdmin(currentUserEmail()) && (
+              <button
+                data-testid="vendor-code-doctor"
+                onClick={() => {
+                  if (!window.confirm("Vendor Code Doctor चलाना है?\n\n• Duplicate vendorCode wale records detect karega\n• Har group ka OLDEST record keep karega\n• Baaki ke codes strip karke Step-2 par bhej dega (re-approval par fresh code milega)\n• Counter ko max used + 1 par realign karega\n\nSafe hai — koi record delete nahi hoga, sirf duplicate codes clean honge.")) return;
+                  const r = fixVendorCodeCollisions();
+                  bump();
+                  if (r.collisions === 0 && !r.counterFixed) {
+                    toast.success("✓ Sab clean hai — koi duplicate vendor code nahi mila aur counter already correct hai");
+                  } else {
+                    const msgLines = [];
+                    if (r.collisions > 0) msgLines.push(`${r.collisions} collision group(s) · ${r.stripped.length} record(s) ko Step-2 par wapas bhej diya`);
+                    if (r.counterFixed) msgLines.push(`Counter realigned: ${r.counterBefore} → ${r.counterAfter}`);
+                    toast.success(msgLines.join(" · "), { duration: 7000 });
+                    try { console.table(r.stripped); console.table(r.kept); } catch {}
+                  }
+                }}
+                title="Repair any duplicate vendorCode entries and realign the serial counter"
+                style={{ padding: "8px 14px", background: "linear-gradient(135deg,#dc2626,#991b1b)", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 800, fontSize: 11.5, letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 2px 8px rgba(220,38,38,.3)" }}
+              >
+                <ShieldCheck size={14} /> Vendor Code Doctor
+              </button>
+            )}
           </div>
 
           <div style={{ marginTop: 18 }}>

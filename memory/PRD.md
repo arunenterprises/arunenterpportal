@@ -7,6 +7,17 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 21 — Vendor Code Doctor repair utility)
+- **Follow-up to round 20**: round 20 added prevention for FUTURE collisions, but existing records that had already collided (and been silently overwritten by the de-dup pass) needed a one-click repair. User asked "isko kese sahi kiya jaye" — this round delivers the Doctor.
+- **New utility** `fixVendorCodeCollisions()` in `store.js`:
+  - Groups vendors by `vendorCode`, finds every group with 2+ records.
+  - Keeps the OLDEST record of each group (by `approvalDate → createdAt`).
+  - Strips `vendorCode` from the rest + sets `step = 2` so they drop back into the GM Pending queue; the record also carries a `_codeStrippedReason` audit field for traceability.
+  - Realigns `vendorSerial` counter to `max(current, maxUsedCode)` so no fresh approval can reissue a used serial.
+  - Returns `{ collisions, stripped[], kept[], counterBefore, counterAfter, counterFixed }` for the toast.
+- **New button** in `GeneralManager.jsx` next to the segmented tab bar — "**Vendor Code Doctor**" — gated to SuperAdmin only. One-click dialog with full Hindi explanation of what it does and the safety guarantee (no record deletion, only code strip + bounce-back to Step-2).
+- Lint clean (0 errors). Smoke test confirms the Doctor button renders on GM dashboard for SuperAdmin.
+
 ## Feb-2026 Session Changes (round 20 — Vendor Code Collision & Data-Overwrite Fix)
 - **Bug**: User reported critical data corruption — "humne ek naya vendor code create kiya aur uska new vendor code create kiya jo regular serial base hona chahiye parantu wo fir se new yani phir se starting main ban gaya aur purane vendor ka fitted data overwrite ho gaya". New vendor approval reused an already-issued code (`AE0001JV2627`) and the de-dup pass later deleted the older vendor record carrying the same code → silent data loss.
 - **Root causes**:

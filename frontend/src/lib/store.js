@@ -700,6 +700,78 @@ export const createVendorDraft = () => ({
   updatedAt: new Date().toISOString(),
 });
 
+// ============================================================================
+//  Vendor Code Doctor (Feb 2026) — one-shot utility to repair the "duplicate
+//  vendorCode / data overwrite" bug reported by the user. Scans the local
+//  vendors store, groups by vendorCode, keeps the OLDEST record of every
+//  colliding group (by approvalDate → createdAt), strips the code from the
+//  rest (so they drop back into the Step-2 queue and get a fresh code on
+//  re-approval), and realigns the counter to `max(maxUsed, counter)` so no
+//  future approval can reissue a used serial.
+// ---------------------------------------------------------------------------
+export const fixVendorCodeCollisions = () => {
+  const vendors = getVendors();
+  const groups = {};
+  for (const v of vendors) {
+    const code = v?.vendorCode || "";
+    if (!code) continue;
+    (groups[code] = groups[code] || []).push(v);
+  }
+  const collisions = Object.entries(groups).filter(([, arr]) => arr.length > 1);
+  const strippedIds = [];
+  const keptIds = [];
+  if (collisions.length) {
+    const next = [...vendors];
+    for (const [code, arr] of collisions) {
+      // oldest first (approvalDate preferred, falls back to createdAt / id order)
+      const sorted = [...arr].sort((a, b) => {
+        const ad = a.approvalDate || a.createdAt || "";
+        const bd = b.approvalDate || b.createdAt || "";
+        return ad.localeCompare(bd);
+      });
+      const keeper = sorted[0];
+      keptIds.push({ code, id: keeper.id, firmName: keeper.firmName });
+      for (let i = 1; i < sorted.length; i += 1) {
+        const bad = sorted[i];
+        const idx = next.findIndex((x) => x.id === bad.id);
+        if (idx >= 0) {
+          next[idx] = {
+            ...bad,
+            vendorCode: "",
+            step: 2, // bounce back to Step 2 so re-approval mints a fresh code
+            _codeStrippedReason: `Collision with ${keeper.id} (${code}) — auto-stripped by Doctor at ${new Date().toISOString()}`,
+            updatedAt: new Date().toISOString(),
+          };
+          strippedIds.push({ code, id: bad.id, firmName: bad.firmName });
+        }
+      }
+    }
+    saveVendors(next);
+  }
+  // Realign counter to max(current, maxUsed)
+  const cur = getCounters();
+  const maxUsed = vendors.reduce((max, v) => {
+    const m = /^AE(\d{4})JV/i.exec(v?.vendorCode || "");
+    return m ? Math.max(max, parseInt(m[1], 10)) : max;
+  }, 0);
+  const beforeSerial = Number(cur.vendorSerial) || 0;
+  const nextSerial = Math.max(beforeSerial, maxUsed);
+  let counterFixed = false;
+  if (nextSerial !== beforeSerial) {
+    cur.vendorSerial = nextSerial;
+    saveCounters(cur);
+    counterFixed = true;
+  }
+  return {
+    collisions: collisions.length,
+    stripped: strippedIds,
+    kept: keptIds,
+    counterBefore: beforeSerial,
+    counterAfter: nextSerial,
+    counterFixed,
+  };
+};
+
 export const upsertVendor = (v) => {
   const list = getVendors();
   const idx = list.findIndex((x) => x.id === v.id);
