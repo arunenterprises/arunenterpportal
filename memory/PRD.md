@@ -7,6 +7,19 @@ Multi-page ERP: Vendor / Bill / Expense / Purchase BOQ-WO / GM Approvals / HR Pa
 - **SuperAdmin:** `arunenterprises2023@gmail.com` — Ashish Srivastava — unrestricted.
 - **Admin / GM / HR / Accounts / Purchase / User / Viewer** — role-gated with role-based defaults.
 
+## Feb-2026 Session Changes (round 20 — Vendor Code Collision & Data-Overwrite Fix)
+- **Bug**: User reported critical data corruption — "humne ek naya vendor code create kiya aur uska new vendor code create kiya jo regular serial base hona chahiye parantu wo fir se new yani phir se starting main ban gaya aur purane vendor ka fitted data overwrite ho gaya". New vendor approval reused an already-issued code (`AE0001JV2627`) and the de-dup pass later deleted the older vendor record carrying the same code → silent data loss.
+- **Root causes**:
+  1. `syncFromCloud` wrote the remote counter block **verbatim** on top of local counters. If the remote snapshot carried a smaller `vendorSerial` (older device, lazy upload), the counter walked backwards and the next approval reissued a used code.
+  2. `nextVendorCode()` trusted the counter blindly — never cross-checked against the actual `vendorCode` values already present in `localStorage`.
+  3. `upsertVendor` had no collision guard, so a second vendor landing with the same code happily sat beside the original until the periodic `dedupeByKey(KEYS.VENDORS, v.vendorCode …)` pass dropped one of them.
+- **Fix (3 layers of defence)**:
+  1. **Monotonic counter** on sync — every counter now takes `Math.max(local, remote)` instead of being overwritten (`store.js:2152-2168`). Replay-safe across devices.
+  2. **Serial scan** in `nextVendorCode()` — scans existing vendors for the highest `AE####JV` serial and bumps from `max(counter, maxUsed)+1`. Guarantees uniqueness even if the counter drifted (`store.js:159-173`).
+  3. **Collision guard** in `advanceVendorStep()` — retries code generation up to 50 times if the fresh code already exists on another vendor id. Belt-and-suspenders.
+  4. **Overwrite guard** in `upsertVendor()` — if an incoming vendor carries a `vendorCode` another id already owns, the code is stripped and the record is saved as a fresh un-coded draft (logged to console) instead of silently overwriting the sibling.
+- Lint clean. The fix is defensive and backward-compatible — existing legitimate codes are untouched.
+
 ## Feb-2026 Session Changes (round 19 — UTR Save silently-failed fix)
 - **Bug**: User reported "utr no dal kar save kiya fir bhi mang raha hai, utr save nahi ho raha hai". Green toast appeared ("UTR saved · AE/HR/PB/2026-09") but the input field re-appeared blank with the Save UTR button still visible — making the user re-enter the UTR.
 - **Root cause**: `onSave` handler in `HRManagement.jsx` did `getPayments().map((pp) => pp.pvNo === p.linkedPvNo ? {...utrNo} : pp)`. When the linked PV was missing from the local `payments` array (sync race, de-dup migration drop, or any other glitch), `.map` returned the list unchanged — the UTR was never actually persisted anywhere, but the toast still fired. UI then re-rendered using the same (unchanged) payments → `hasUtr` stayed false → blank input re-appeared.

@@ -156,11 +156,21 @@ const buildTempBillRef = (serial) => `AE${String(serial).padStart(4, "0")}${getF
 const buildPermanentBillNo = (serial) => `BILL${String(serial).padStart(4, "0")}${getFY()}`;
 
 // Vendor Code: AE + 4-digit serial + JV + FY (e.g., AE0001JV2526)
+// IMPORTANT (Feb 2026 fix for "vendor code repeat / data overwrite"):
+// Counter can drift backwards after a cloud-sync pull that carries an older
+// snapshot. Scanning the actual vendorCode values in the local store makes
+// the serial MONOTONIC — a replay-safe guarantee that we never reissue a code.
 const nextVendorCode = () => {
   const c = getCounters();
-  c.vendorSerial = (c.vendorSerial || 0) + 1;
+  const existing = read(KEYS.VENDORS, []);
+  const maxUsed = existing.reduce((max, v) => {
+    const m = /^AE(\d{4})JV/i.exec(v?.vendorCode || "");
+    return m ? Math.max(max, parseInt(m[1], 10)) : max;
+  }, 0);
+  const nextSerial = Math.max(Number(c.vendorSerial) || 0, maxUsed) + 1;
+  c.vendorSerial = nextSerial;
   saveCounters(c);
-  return `AE${String(c.vendorSerial).padStart(4, "0")}JV${getFY()}`;
+  return `AE${String(nextSerial).padStart(4, "0")}JV${getFY()}`;
 };
 
 export const STEP_LABEL = {
@@ -694,6 +704,16 @@ export const upsertVendor = (v) => {
   const list = getVendors();
   const idx = list.findIndex((x) => x.id === v.id);
   v.updatedAt = new Date().toISOString();
+  // GUARD (Feb 2026): if an incoming vendor carries a vendorCode that another
+  // record (different id) already owns, do NOT silently overwrite that record.
+  // Strip the code so a fresh one gets generated on the next approval step.
+  if (v.vendorCode) {
+    const clash = list.find((x) => x.id !== v.id && (x.vendorCode || "") === v.vendorCode);
+    if (clash) {
+      try { console.warn(`[upsertVendor] vendorCode collision for ${v.vendorCode} with ${clash.id} — stripping code to prevent data overwrite`); } catch {}
+      v = { ...v, vendorCode: "", _codeStrippedReason: `Clashed with ${clash.id} on ${new Date().toISOString()}` };
+    }
+  }
   if (idx >= 0) list[idx] = v; else list.push(v);
   saveVendors(list);
   // fire-and-forget cloud sync
@@ -741,7 +761,18 @@ export const advanceVendorStep = (v) => {
     if (approver) next.approvedByName = approver;
     // Preserve existing vendorCode on Re-Approval; only generate a new one for first approval
     if (!next.vendorCode) {
-      next.vendorCode = nextVendorCode();
+      // DOUBLE-SAFE collision check: nextVendorCode() is now monotonic, but we
+      // also verify the generated code is unique among OTHER vendors (ignoring
+      // our own id). If someone sneaked in a code, bump again defensively.
+      let candidate = nextVendorCode();
+      let hop = 0;
+      while (hop < 50) {
+        const clash = getVendors().find((o) => o.id !== next.id && (o.vendorCode || "") === candidate);
+        if (!clash) break;
+        candidate = nextVendorCode();
+        hop += 1;
+      }
+      next.vendorCode = candidate;
       const today = new Date();
       next.approvalDate = today.toISOString().slice(0, 10);
       const exp = new Date(today);
@@ -2118,16 +2149,24 @@ export const syncFromCloud = async () => {
   if (Array.isArray(snap.advance_requests)) write(KEYS.ADVANCE_REQS, snap.advance_requests);
   if (Array.isArray(snap.recruitments)) write(RECRUITS_KEY, snap.recruitments);
   if (Array.isArray(snap.exits)) write(EXITS_KEY, snap.exits);
-  if (snap.counters) write(KEYS.COUNTERS, {
-    vendorSerial: snap.counters.vendorSerial || 0,
-    billSerial: snap.counters.billSerial || 0,
-    pvSerial: snap.counters.pvSerial || 0,
-    expenseSerial: snap.counters.expenseSerial || 0,
-    boqSerial: snap.counters.boqSerial || 0,
-    woSerial: snap.counters.woSerial || 0,
-    empSerial: snap.counters.empSerial || 0,
-    adsSerial: snap.counters.adsSerial || 0,
-  });
+  if (snap.counters) {
+    // MONOTONIC counter merge (Feb 2026 fix): Never let a remote snapshot pull
+    // the counter BACKWARDS. If local already issued serial N, remote cannot
+    // reset us to N-5 (that would recycle vendor/bill/PV codes and silently
+    // overwrite the already-approved records of the same code via de-dup).
+    const cur = read(KEYS.COUNTERS, {});
+    const m = (k) => Math.max(Number(cur[k]) || 0, Number(snap.counters[k]) || 0);
+    write(KEYS.COUNTERS, {
+      vendorSerial: m("vendorSerial"),
+      billSerial: m("billSerial"),
+      pvSerial: m("pvSerial"),
+      expenseSerial: m("expenseSerial"),
+      boqSerial: m("boqSerial"),
+      woSerial: m("woSerial"),
+      empSerial: m("empSerial"),
+      adsSerial: m("adsSerial"),
+    });
+  }
   if (snap.logo) localStorage.setItem(KEYS.LOGO, snap.logo);
   if (snap.company && typeof snap.company === "object") {
     try { localStorage.setItem(COMPANY_KEY, JSON.stringify(snap.company)); window.dispatchEvent(new CustomEvent("ae-company-changed", { detail: snap.company })); } catch {}
