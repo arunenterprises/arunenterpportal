@@ -1,0 +1,150 @@
+import React, { useMemo, useState } from "react";
+import { Save, Send, CheckCircle2, Trash2, Printer, Wand2, Mail, IndianRupee } from "lucide-react";
+import { toast } from "sonner";
+import { canApprove, canDelete, getCompany, amountToWords } from "../../lib/store";
+import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmNextNo, crmSave, crmDelete } from "./crmShared";
+
+export const computeRA = (b) => {
+  const lines = (b.lines || []).map((l) => {
+    const amount = +(num(l.curQty) * num(l.rate)).toFixed(2);
+    return { ...l, amount, gst: +(amount * num(l.gstPct) / 100).toFixed(2) };
+  });
+  const basic = lines.reduce((s, l) => s + l.amount, 0);
+  const gst = lines.reduce((s, l) => s + l.gst, 0);
+  const retention = +(basic * num(b.retentionPct) / 100).toFixed(2);
+  const net = +(basic + gst - retention - num(b.advanceRecovery) - num(b.otherDeduction)).toFixed(2);
+  return { lines, basic: +basic.toFixed(2), gst: +gst.toFixed(2), gross: +(basic + gst).toFixed(2), retention, net };
+};
+
+const blank = () => ({ id: "", raNo: "", type: "RA", contractId: "", billDate: today(), periodFrom: "", periodTo: "", lines: [], mbIds: [], retentionPct: 0, advanceRecovery: 0, otherDeduction: 0, remarks: "", step: 1, receivedAmount: 0, receivedDate: "", receivedRef: "" });
+
+const prevQtyFor = (bills, contractId, itemId, excludeId) =>
+  bills.filter((b) => b.contractId === contractId && b.id !== excludeId).flatMap((b) => b.lines || []).filter((l) => l.itemId === itemId).reduce((s, l) => s + num(l.curQty), 0);
+
+export const RABills = ({ data, save, reload }) => {
+  const [f, setF] = useState(blank());
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const contract = data.contracts.find((c) => c.id === f.contractId);
+  const t = useMemo(() => computeRA(f), [f]);
+  const locked = Number(f.step) >= 3;
+
+  const generate = () => {
+    if (!contract) return alert("Contract select karein");
+    const mbs = data.mb.filter((m) => m.contractId === contract.id && Number(m.step) === 3 && !m.raBillId);
+    if (!mbs.length) return toast.error("Is contract ki koi approved, un-billed MB entry nahi hai");
+    const byItem = {};
+    mbs.forEach((m) => { byItem[m.itemId] = (byItem[m.itemId] || 0) + num(m.qty); });
+    const lines = Object.entries(byItem).map(([itemId, qty]) => {
+      const it = (contract.items || []).find((i) => i.id === itemId) || {};
+      return { itemId, code: it.code || "", description: it.description || "", unit: it.unit || "", rate: num(it.rate), gstPct: num(it.gstPct), prevQty: prevQtyFor(data.ra_bills, contract.id, itemId, f.id), curQty: +qty.toFixed(3) };
+    });
+    const basic = lines.reduce((s, l) => s + l.curQty * l.rate, 0);
+    const recovered = data.ra_bills.filter((b) => b.contractId === contract.id && b.id !== f.id).reduce((s, b) => s + num(b.advanceRecovery), 0);
+    const advRec = Math.max(0, Math.min(basic * num(contract.advanceRecoveryPct) / 100, num(contract.advanceAmount) - recovered));
+    setF({ ...f, lines, mbIds: mbs.map((m) => m.id), retentionPct: num(contract.retentionPct), advanceRecovery: +advRec.toFixed(2) });
+    toast.success(`${mbs.length} MB entries se ${lines.length} items load hue`);
+  };
+
+  const persist = async (rec, msg) => {
+    const r = { ...rec, id: rec.id || uid("ra") };
+    if (!r.raNo) r.raNo = await crmNextNo(`ra_${r.contractId}`, `RA/${(contract || {}).contractNo || "CT"}/`, 2);
+    const c = computeRA(r);
+    Object.assign(r, { basic: c.basic, gstTotal: c.gst, gross: c.gross, retentionAmt: c.retention, net: c.net, clientId: (contract || {}).clientId || r.clientId });
+    const out = await save("ra_bills", r, msg);
+    if (!out) return;
+    const toMark = data.mb.filter((m) => (r.mbIds || []).includes(m.id) && m.raBillId !== r.id);
+    if (toMark.length) { await Promise.all(toMark.map((m) => crmSave("mb", { ...m, raBillId: r.id }))); await reload(); }
+    setF(out);
+  };
+  const onSave = () => {
+    if (!f.contractId || !f.lines.length) return alert("Contract select karke MB se items generate karein");
+    persist(f, "RA Bill saved");
+  };
+  const move = (b, step, extra = {}) => persist({ ...b, ...extra, step }, `${b.raNo} → ${RA_STEPS[step]}`);
+  const del = async (b) => {
+    if (!window.confirm(`Delete ${b.raNo}?`)) return;
+    await Promise.all(data.mb.filter((m) => m.raBillId === b.id).map((m) => crmSave("mb", { ...m, raBillId: "" })));
+    try { await crmDelete("ra_bills", b.id); toast.success("Deleted"); } catch (e) { toast.error(e.message); }
+    await reload(); setF(blank());
+  };
+  const setLine = (i, k, v) => setF({ ...f, lines: f.lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)) });
+
+  const contractOpts = [{ v: "", l: "— Select contract —" }, ...data.contracts.map((c) => ({ v: c.id, l: `${c.contractNo} · ${c.projectName}` }))];
+  return (
+    <>
+      <Card testid="ra-form" title={f.id ? `${f.type === "Milestone" ? "Milestone Bill" : "RA Bill"} · ${f.raNo} · ${RA_STEPS[f.step]}` : "New RA Bill (Running Account)"} right={<Btn tone="ghost" data-testid="ra-new-btn" onClick={() => setF(blank())}>New</Btn>}>
+        <Grid cols={4}>
+          <Field label="Contract *"><Sel data-testid="ra-contract" disabled={!!f.id} value={f.contractId} onChange={(e) => setF({ ...blank(), contractId: e.target.value })} options={contractOpts} /></Field>
+          <Field label="Bill Date"><Inp data-testid="ra-date" type="date" disabled={locked} value={f.billDate} onChange={set("billDate")} /></Field>
+          <Field label="Period From"><Inp data-testid="ra-from" type="date" disabled={locked} value={f.periodFrom} onChange={set("periodFrom")} /></Field>
+          <Field label="Period To"><Inp data-testid="ra-to" type="date" disabled={locked} value={f.periodTo} onChange={set("periodTo")} /></Field>
+        </Grid>
+        {!f.id && f.type === "RA" && <Btn tone="dark" data-testid="ra-generate-btn" style={{ marginTop: 12 }} onClick={generate}><Wand2 size={14} /> Generate from approved MB</Btn>}
+        <div style={{ marginTop: 12 }}>
+          <Table testid="ra-lines-table" empty="MB se items generate karein" cols={["Item", "Unit", "Rate", "Prev Qty", "This Bill Qty", "Upto Date Qty", "GST %", "Amount", "GST"]}
+            rows={t.lines.map((l, i) => [`${l.code ? l.code + " · " : ""}${l.description}`, l.unit, inr(l.rate), l.prevQty, l.curQty, +(num(l.prevQty) + num(l.curQty)).toFixed(3),
+              <Inp data-testid={`ra-line-gst-${i}`} type="number" disabled={locked} value={f.lines[i].gstPct} onChange={(e) => setLine(i, "gstPct", e.target.value)} style={{ width: 70 }} />,
+              inr(l.amount), inr(l.gst)])} />
+        </div>
+        <Grid cols={4}>
+          <Field label="Retention %"><Inp data-testid="ra-retention-pct" type="number" disabled={locked} value={f.retentionPct} onChange={set("retentionPct")} /></Field>
+          <Field label="Advance Recovery (₹)"><Inp data-testid="ra-adv-rec" type="number" disabled={locked} value={f.advanceRecovery} onChange={set("advanceRecovery")} /></Field>
+          <Field label="Other Deduction (₹)"><Inp data-testid="ra-other-ded" type="number" disabled={locked} value={f.otherDeduction} onChange={set("otherDeduction")} /></Field>
+          <Field label="Remarks"><Inp data-testid="ra-remarks" disabled={locked} value={f.remarks} onChange={set("remarks")} /></Field>
+        </Grid>
+        <div data-testid="ra-totals" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 8, background: "#fffbeb", padding: 12, borderRadius: 8, fontSize: 12 }}>
+          <div>Basic: <b>{inr(t.basic)}</b></div><div>GST: <b>{inr(t.gst)}</b></div><div>Gross: <b>{inr(t.gross)}</b></div>
+          <div>Retention: <b>-{inr(t.retention)}</b></div><div>Adv. Recovery: <b>-{inr(f.advanceRecovery)}</b></div>
+          <div data-testid="ra-net" style={{ color: "#78350f" }}>Net Payable: <b>{inr(t.net)}</b></div>
+        </div>
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {!locked && <Btn data-testid="ra-save-btn" onClick={onSave}><Save size={14} /> Save</Btn>}
+          {f.id && Number(f.step) === 1 && <Btn tone="dark" data-testid="ra-submit-btn" onClick={() => move(f, 2)}><Send size={14} /> Submit to GM</Btn>}
+          {f.id && Number(f.step) === 2 && canApprove() && <Btn tone="green" data-testid="ra-approve-btn" onClick={() => move(f, 3)}><CheckCircle2 size={14} /> GM Approve</Btn>}
+          {f.id && Number(f.step) === 3 && canApprove() && <Btn tone="dark" data-testid="ra-sent-btn" onClick={() => move(f, 4)}><Mail size={14} /> Mark Sent to Client</Btn>}
+          {f.id && <Btn tone="ghost" data-testid="ra-print-btn" onClick={() => printRA(f, t, contract, data)}><Printer size={14} /> Print</Btn>}
+          {f.id && canDelete() && Number(f.step) < 3 && <Btn tone="red" data-testid="ra-delete-btn" onClick={() => del(f)}><Trash2 size={14} /> Delete</Btn>}
+        </div>
+        {f.id && Number(f.step) === 4 && canApprove() && (
+          <div style={{ marginTop: 12, padding: 12, border: "1px dashed #86efac", borderRadius: 8 }}>
+            <Grid cols={4}>
+              <Field label="Amount Received (₹)"><Inp data-testid="ra-recv-amt" type="number" value={f.receivedAmount || t.net} onChange={set("receivedAmount")} /></Field>
+              <Field label="Received Date"><Inp data-testid="ra-recv-date" type="date" value={f.receivedDate} onChange={set("receivedDate")} /></Field>
+              <Field label="UTR / Cheque Ref"><Inp data-testid="ra-recv-ref" value={f.receivedRef} onChange={set("receivedRef")} /></Field>
+              <Field label=" "><Btn tone="green" data-testid="ra-received-btn" onClick={() => move(f, 5, { receivedAmount: num(f.receivedAmount) || t.net, receivedDate: f.receivedDate || today() })}><IndianRupee size={14} /> Payment Received</Btn></Field>
+            </Grid>
+          </div>
+        )}
+      </Card>
+      <Card title={`RA / Milestone Bills (${data.ra_bills.length})`}>
+        <Table testid="ra-table" cols={["Bill No", "Type", "Date", "Client", "Contract", "Gross", "Retention", "Net", "Status", ""]}
+          rows={data.ra_bills.slice().reverse().map((b) => [b.raNo, b.type, b.billDate, nameOf(data.clients, b.clientId), (data.contracts.find((c) => c.id === b.contractId) || {}).contractNo || "—",
+            inr(b.gross), inr(b.retentionAmt), inr(b.net), <Badge text={RA_STEPS[b.step]} tone={stepTone(b.step)} />,
+            <Btn tone="ghost" data-testid={`ra-open-${b.id}`} onClick={() => setF({ ...blank(), ...b })}>Open</Btn>])} />
+      </Card>
+    </>
+  );
+};
+
+const printRA = (b, t, contract, data) => {
+  const co = getCompany();
+  const client = data.clients.find((c) => c.id === (contract || {}).clientId) || {};
+  const rows = t.lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.code || ""} ${l.description}</td><td>${l.unit}</td><td class=r>${l.prevQty}</td><td class=r>${l.curQty}</td><td class=r>${+(num(l.prevQty) + num(l.curQty)).toFixed(3)}</td><td class=r>${inr(l.rate)}</td><td class=r>${l.gstPct}%</td><td class=r>${inr(l.amount)}</td></tr>`).join("");
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(`<html><head><title>${b.raNo}</title><style>body{font-family:Arial;font-size:12px;padding:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #333;padding:5px}th{background:#eee}.r{text-align:right}h2,h3{margin:4px 0;text-align:center}.sig{display:flex;justify-content:space-between;margin-top:60px}</style></head><body>
+  <h2>${co.name || ""}</h2><div style="text-align:center">${co.address || ""}${co.gst ? " · GSTIN: " + co.gst : ""}</div><hr/>
+  <h3>${b.type === "Milestone" ? "MILESTONE BILL" : "RUNNING ACCOUNT (RA) BILL"} — ${b.raNo}</h3>
+  <table style="margin:10px 0"><tr><td><b>Client:</b> ${client.name || ""}<br/>${client.address || ""}<br/>GSTIN: ${client.gst || "—"}</td><td><b>Contract:</b> ${(contract || {}).contractNo || ""}<br/><b>Project:</b> ${(contract || {}).projectName || ""}<br/><b>Bill Date:</b> ${b.billDate} ${b.periodFrom ? `<br/><b>Period:</b> ${b.periodFrom} to ${b.periodTo}` : ""}</td></tr></table>
+  <table><tr><th>#</th><th>Item</th><th>Unit</th><th>Prev Qty</th><th>This Bill</th><th>Upto Date</th><th>Rate</th><th>GST</th><th>Amount</th></tr>${rows}
+  <tr><td colspan=8 class=r>Basic Amount</td><td class=r>${inr(t.basic)}</td></tr>
+  <tr><td colspan=8 class=r>Add: GST</td><td class=r>${inr(t.gst)}</td></tr>
+  <tr><td colspan=8 class=r>Less: Retention (${b.retentionPct}%)</td><td class=r>${inr(t.retention)}</td></tr>
+  <tr><td colspan=8 class=r>Less: Advance Recovery</td><td class=r>${inr(b.advanceRecovery)}</td></tr>
+  <tr><td colspan=8 class=r>Less: Other Deduction</td><td class=r>${inr(b.otherDeduction)}</td></tr>
+  <tr><th colspan=8 class=r>NET PAYABLE</th><th class=r>${inr(t.net)}</th></tr></table>
+  <p><b>In words:</b> ${amountToWords(t.net)}</p>
+  <div class=sig><div>Prepared By<br/>${b.createdByName || ""}</div><div>Approved By (GM)<br/>${b.approvedByName || ""}</div><div>Client Signature</div></div>
+  <script>window.onload=()=>window.print()</script></body></html>`);
+  w.document.close();
+};

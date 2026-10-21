@@ -956,6 +956,63 @@ async def delete_fooding(fid: str, user: Dict = Depends(require_write)):
     return {"ok": True, "deleted": r.deleted_count}
 
 
+# ==================== CLIENT & REVENUE (CRM + RA BILLING) ====================
+_CRM_COLLS = {"leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases"}
+_CRM_WF = {"mb", "ra_bills", "change_orders"}
+
+
+def _crm_coll(name: str) -> str:
+    if name not in _CRM_COLLS:
+        raise HTTPException(status_code=404, detail="Unknown CRM collection")
+    return f"crm_{name}"
+
+
+@api_router.get("/crm/{name}")
+async def crm_list(name: str, user: Dict = Depends(get_current_user)):
+    return await _list_collection(_crm_coll(name))
+
+
+@api_router.post("/crm/next-number/{kind}")
+async def crm_next_number(kind: str, user: Dict = Depends(require_write)):
+    doc = await db.counters.find_one_and_update(
+        {"key": "crm"}, {"$inc": {kind.replace(".", "_"): 1}}, upsert=True, return_document=True,
+    )
+    return {"serial": int(doc.get(kind.replace(".", "_")) or 1)}
+
+
+@api_router.post("/crm/{name}")
+async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(require_write)):
+    coll = _crm_coll(name)
+    rid = body.get("id")
+    if not rid:
+        raise HTTPException(status_code=400, detail="id required")
+    body.pop("_id", None)
+    existing = await db[coll].find_one({"id": rid}, {"_id": 0})
+    if name in _CRM_WF:
+        old_step = int((existing or {}).get("step") or 1)
+        new_step = int(body.get("step") or old_step)
+        for f in ("approvedByName", "approvedAt"):
+            body.pop(f, None)
+            if existing and existing.get(f):
+                body[f] = existing[f]
+        if new_step != old_step and (new_step == 3 or old_step >= 3) and not _can_approve(user):
+            raise HTTPException(status_code=403, detail="GM / SuperAdmin approval required")
+        if new_step == 3 and old_step < 3:
+            body["approvedByName"] = user.get("name") or user.get("email")
+            body["approvedAt"] = datetime.now(timezone.utc).isoformat()
+    body["updatedAt"] = datetime.now(timezone.utc).isoformat()
+    if not existing:
+        body["createdByName"] = user.get("name") or user.get("email")
+    await db[coll].update_one({"id": rid}, {"$set": body}, upsert=True)
+    return await db[coll].find_one({"id": rid}, {"_id": 0})
+
+
+@api_router.delete("/crm/{name}/{rid}")
+async def crm_delete(name: str, rid: str, admin: Dict = Depends(require_admin)):
+    r = await db[_crm_coll(name)].delete_one({"id": rid})
+    return {"ok": True, "deleted": r.deleted_count}
+
+
 # ==================== EXPENSES (single-record upsert) ====================
 @api_router.post("/expenses")
 async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(require_write)):

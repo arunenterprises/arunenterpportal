@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, BarChart3 } from "lucide-react";
+import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, BarChart3, Handshake } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import {
@@ -131,6 +131,22 @@ const DEPARTMENTS = [
       "Milestones tracking · due dates",
       "Team allocation · roles",
       "Budget vs spent · progress %",
+    ],
+    roles: ALL_ROLES,
+  },
+  {
+    id: "client_revenue",
+    title: "Client & Revenue",
+    subtitle: "CRM · MB · RA Bills · Retention",
+    to: "/client-revenue",
+    icon: Handshake,
+    color: "#b45309",
+    dark: "#78350f",
+    lines: [
+      "Leads · enquiries · follow-ups",
+      "Client master · communication log",
+      "Measurement Book → RA Bills",
+      "Milestones · retention · change orders",
     ],
     roles: ALL_ROLES,
   },
@@ -276,7 +292,7 @@ export default function Home() {
 
   // Draft left-sidebar layout (Feb 2026 · user request): menu on left, dashboard on right.
   // Previous flat grid preserved commented inside render for easy rollback.
-  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "reports_hub", "project", "users"];
+  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "reports_hub", "client_revenue", "project", "users"];
   const visibleDepts = ORDER
     .map((id) => DEPARTMENTS.find((d) => d.id === id))
     .filter((d) => d && (d.id !== "users" || superAdmin || role === "Admin"));

@@ -1072,3 +1072,11 @@ body {
 .home-super-row .super-note {
   font-size: 11px; color: #78350f; line-height: 1.5;
 }
+
+/* Client & Revenue module */
+.crm-btn { transition: transform .15s ease, opacity .15s ease; }
+.crm-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.crm-tab { transition: background-color .15s ease, color .15s ease; }
+@media (max-width: 900px) { .crm-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
+@media (max-width: 560px) { .crm-grid { grid-template-columns: minmax(0,1fr) !important; } .crm-grid > div { grid-column: span 1 !important; } }
+
