@@ -6,7 +6,7 @@ import { CheckCircle2, Search, Plus, X, FilePlus2, Save, Pencil, Send, Printer, 
 import Header from "../components/Header";
 import ModuleHero from "../components/ModuleHero";
 import WeeklyFoodingTab from "../components/WeeklyFoodingTab";
-import { Landmark as LandmarkIcon } from "lucide-react";
+import { Landmark as LandmarkIcon, ShoppingCart } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import AccountsTabs from "../components/AccountsTabs";
@@ -60,7 +60,7 @@ const F = ({ label, req, children, hint }) => (
   </div>
 );
 
-export default function BillProcessing({ mode = "process" }) {
+export default function BillProcessing({ mode = "process", embedded = false }) {
   const isCreate = mode === "create";
   const nav = useNavigate();
   const [bill, setBill] = useState(() => createBillDraft(!isCreate));
@@ -510,9 +510,9 @@ export default function BillProcessing({ mode = "process" }) {
   const workflowLabel = bill.step < 5 ? `Next Approval Step (→ ${BILL_STEP_LABEL[bill.step + 1] || ""})` : "Approved";
   const isApproved = bill.step === 5;  return (
     <>
-      <Toaster position="top-center" richColors />
-      <HomeNavBar />
-      <div className="app-shell">
+      {!embedded && <><Toaster position="top-center" richColors />
+      <HomeNavBar /></>}
+      <div className={embedded ? "" : "app-shell"}>
         <TopActionBar
           variant="dark"
           searchPlaceholder="Vendor Code / Firm / Temp ID"
@@ -535,21 +535,23 @@ export default function BillProcessing({ mode = "process" }) {
         />
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 
-        <div className="a4" data-testid="bill-page">
+        <div className={embedded ? "" : "a4"} data-testid="bill-page">
+          {!embedded && <>
           <div className="module-doc-header"><Header formTitle={isCreate ? "PURCHASE · NEW VENDOR BILL CREATION" : "ACCOUNTS DEPARTMENT"} /></div>
           <ModuleHero
             tag={isCreate ? "Purchase · New Vendor Bill Creation" : "Accounts"}
             title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F"}
             subtitle={isCreate ? "Vendor + WO select · items feed · Submit karte hi Reference No milega" : "Ref No se bill fetch · cross-verify · GST / TDS · approval · PV"}
-            icon={LandmarkIcon}
-            gradient="linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"
-            shadowRgba="6,78,59,.28"
+            icon={isCreate ? ShoppingCart : LandmarkIcon}
+            gradient={isCreate ? "linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)" : "linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"}
+            shadowRgba={isCreate ? "22,101,52,.28" : "6,78,59,.28"}
           />
+          </>}
 
           {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
           {!isCreate && <AccountsTabs active={activeView} onSelect={(id) => {
             const y = window.scrollY;
-            document.body.style.minHeight = `${document.body.scrollHeight}px`;
+            document.body.style.minHeight = `${y + window.innerHeight}px`;
             setActiveView(id); bumpRev();
             window.history.replaceState(null, "", id === "vendor" ? "/bill" : `/bill?view=${id}`);
             requestAnimationFrame(() => window.scrollTo(0, y));

@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import BillProcessing from "./BillProcessing";
 import { Toaster, toast } from "sonner";
 import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash2, Save, Send, FilePlus2, Paperclip, Printer, ShoppingCart } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
@@ -80,9 +81,9 @@ const logBOQDeletion = (b, approved) => {
 };
 
 const TABS = [
-  { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#0ea5e9" },
-  { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#16a34a" },
-  { id: "billing", title: "New Vendor Bill Creation", subtitle: "Vendor select · bill feed · submit", icon: Receipt, color: "#f59e0b", route: "/bill-create" },
+  { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#166534" },
+  { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#166534" },
+  { id: "billing", title: "Vendor Bill Creation", subtitle: "Vendor select · bill feed · submit", icon: Receipt, color: "#166534" },
 ];
 
 // Shared datalist for units. Users can type any custom unit that isn't listed.
@@ -1178,12 +1179,19 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
 
 export default function PurchaseManagement() {
   const nav = useNavigate();
-  const [active, setActive] = useState("boq");
+  const [active, setActive] = useState(() => new URLSearchParams(window.location.search).get("tab") || "boq");
   const role = currentRole();
   const write = canCreate();
   const approve = canApprove();
 
-  const openTab = (t) => { if (t.route) { nav(t.route); return; } setActive(t.id); };
+  const openTab = (t) => {
+    const y = window.scrollY;
+    document.body.style.minHeight = `${y + window.innerHeight}px`;
+    setActive(t.id);
+    window.history.replaceState(null, "", t.id === "boq" ? "/purchase" : `/purchase?tab=${t.id}`);
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  };
+  useEffect(() => () => { document.body.style.minHeight = ""; }, []);
   const activeTab = TABS.find((t) => t.id === active) || TABS[0];
 
   return (
@@ -1238,6 +1246,7 @@ export default function PurchaseManagement() {
 
           {activeTab.id === "boq" && <BOQEditor writeAllowed={write} approveAllowed={approve} />}
           {activeTab.id === "wo" && <WOEditor writeAllowed={write} approveAllowed={approve} />}
+          {activeTab.id === "billing" && <BillProcessing key="create" mode="create" embedded />}
           {["boq", "wo"].includes(activeTab.id) && <HsnFinder />}
           <UnitDataList />
         </div>

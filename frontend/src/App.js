@@ -85,7 +85,7 @@ function App() {
           <Route path="/vendor" element={<RequireAuth><VendorRegistration /></RequireAuth>} />
           <Route path="/purchase" element={<RequireAuth><PurchaseManagement /></RequireAuth>} />
           <Route path="/bill" element={<RequireAuth><BillProcessing mode="process" /></RequireAuth>} />
-          <Route path="/bill-create" element={<RequireAuth><BillProcessing key="create" mode="create" /></RequireAuth>} />
+          <Route path="/bill-create" element={<Navigate to="/purchase?tab=billing" replace />} />
           <Route path="/accounts" element={<Navigate to="/bill" replace />} />
           <Route path="/expense" element={<Navigate to="/bill?view=expense" replace />} />
           <Route path="/gm" element={<RequireAuth><GeneralManager /></RequireAuth>} />

@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 36: Accounts tabs, the embedded Expenses tab, the server expense counter, Purchase hero, bill-create, GM CRM regression and logout cache clear all PASS. Backend: 4 new pytest checks (3 run, 1 skipped on purpose) plus the iter35 regression. Results: 7/7 run tests passed; with the skipped floor test included, that is 8/8 on the first run. UI: all 9 requested flows were checked with Playwright on the public URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "/bill on load (dedupeAllStores)", "issue": "The toast 'Duplicate process numbers removed (1 rows across all modules)' appears on every /bill visit. The server payments collection has 2 rows with pvNo 'PV/HR/2026-09/4'. Local dedupe removes one, the next sync brings it back, and the toast fires again. This existed before this change and is cosmetic or noisy, but the duplicate PV should be fixed on the server.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "verified": [
+    "/bill: tested at scrollY=250 by clicking expense, advance, paybill, fooding, exit, vendor, then expense again (DOM click). scrollY stayed at 250, the page did not reload (window marker kept), there is 1 hero with tag ACCOUNTS and the title 'Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F', and the gradient (#064e3b→#065f46→#14b8a6) stayed the same. The URL changed to /bill?view=<id> each time (/bill for vendor). A real mouse click at scrollY=100 also kept scrollY at 100.",
+    "Every active tab background is rgb(6,95,70), which is #065f46.",
+    "expense-page renders inside /bill. /expense redirects to /bill?view=expense. Refreshing /bill?view=advance opens the Advance tab as active.",
+    "The expense Ref is blank when the tab opens, and no counter call is made on load. Save calls POST /counters/next-expense and then POST /expenses. Two saves gave EXR00492627 and EXR00502627. Both rows are in expenses-table after reload and in GET /api/snapshot.",
+    "POST /api/counters/next-expense: returns 401/403 without auth, increases by 1, is always greater than the highest serial used, and floors to a newly saved higher serial (that check was run once, then skipped by default).",
+    "/purchase hero title contains 'New Vendor Bill Creation'. /bill-create has no bill-btn-approve and no accounts tabs.",
+    "/gm shows gm-crm-panel, 6 gm-crm-kpi cards and gm-kpi-grid.",
+    "Logout (hn-logout) clears localStorage ae_crm_cache and redirects to /login."
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter36_expense_counter.py", "/app/backend/tests/test_iter35_gm_crm_expense.py", "/app/test_reports/pytest/pytest_iter36.xml"],
+  "action_items": [
+    "Low: remove the duplicate payment pvNo 'PV/HR/2026-09/4' on the server (or make dedupe push its result back) so the dedupe toast stops showing on every /bill load.",
+    "Low: AccountsTabs onSelect sets document.body.style.minHeight and never resets it, so the body only grows across tab switches. Consider clearing it after the scroll is restored.",
+    "Note: the DB has 0 expense records, so 'old expenses must show' could only be checked with newly created records."
+  ],
+  "critical_code_review_comments": [
+    "reserveExpenseRef silently falls back to the local counter when the API fails, so offline saves can still produce refs that collide across users. This is acceptable as a fallback but could be shown to the user.",
+    "BillProcessing.jsx is well over 700 lines (1700+). Consider splitting the Accounts*View components into separate files."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter36_expense_counter.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Created 2 expenses through the UI and a few TEST_ expenses through the API; all were deleted (snapshot expenses = 0). The floor test pushed counters.expenseSerial up to 103; it was reset to 48 in Mongo and is now 50 after the two UI saves.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Playwright clicking an accounts tab while scrollY=250 auto-scrolls the tab into view (tabs sit at y≈217), which falsely makes scrollY look like 0. Use a DOM click (el.click()) or a smaller scroll to test scroll preservation. Do not run the skipped floor test against shared data. Hero selector: [data-testid*=module-hero]."
+}
