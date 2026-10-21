@@ -1,0 +1,43 @@
+{
+  "summary": "Tested the new Client & Revenue department (/client-revenue) end to end as SuperAdmin, with 13 pytest API tests plus 4 Playwright runs (desktop and mobile). The frontend flows all worked: leads with follow-ups and convert-to-client, clients, communications (attachment, 500KB limit, filter), contracts, Measurement Book, RA Bills, Milestones, Change Orders, Retention, dashboard KPIs, and data staying after a reload. Backend: 10 of 13 tests passed. The 3 failures are all the same security bug in the workflow approval guard of POST /api/crm/{name}: a user without approve rights can skip GM approval (create or move a bill straight to step 4 or 5) and can change approved bills.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/crm/ra_bills (and mb, change_orders)", "issue": "Approval bypass. The guard only blocks a non-approver when new_step==3 or old_step>=3. So a non-approver can move a bill 1->4 or 1->5, or create a new record at step 4 or 5, skipping GM approval. Reproduced with a User role that has approve=false: draft RA moved 1->5 returned 200, and a new RA created at step 5 returned 200.", "priority": "HIGH"},
+      {"endpoint": "POST /api/crm/ra_bills", "issue": "A non-approver can change an already approved bill (step 3, step kept the same, net changed to 999999) and gets 200. Approved records should be locked for non-approvers. One exception is needed: the RA save sets mb.raBillId on approved MB entries, so that field-only update must still be allowed (or done on the server).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/crm/retention_releases", "issue": "Only the frontend checks that a release does not exceed the balance. The backend does not check the balance or approver rights, and any writer can post a release."},
+      {"endpoint": "POST /api/crm/next-number/{kind}", "issue": "Accepts any kind string and adds a new field to the counters doc. Consider a whitelist or prefix rules."},
+      {"endpoint": "GET /api/crm/comms", "issue": "Returns the full base64 fileData of every attachment in the list response, so the payload will grow large over time."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Client & Revenue (all tabs)", "issues": ["Every toast shows twice (top-center and top-right). ClientRevenue.jsx adds its own <Toaster/> while an app-level Toaster already exists. The toasts also cover the header's right-side buttons."]},
+      {"screen": "Mobile 390px (HomeNavBar, global, also on Home)", "issues": ["The header's .hn-right block (user name, role, logout button) overflows: document scrollWidth is 591px against a 390px viewport, and the logout button is off-screen. The CRM content itself fits fine: inputs stack at full width and tables scroll inside their containers."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_revenue.py", "/app/test_reports/pytest/pytest_crm.xml"],
+  "action_items": [
+    "Fix the crm_upsert workflow guard in server.py so that, for non-approvers: any step change to >=3 returns 403 (not only ==3), and creating a record with step>=3 returns 403.",
+    "Lock records with step>=3 against content edits by non-approvers. Still allow the raBillId-only update on MB, or have the server mark MB entries when an RA bill is saved.",
+    "Validate retention releases on the backend: amount must not exceed the held balance and the user must be an approver.",
+    "Remove the duplicate <Toaster/> in ClientRevenue.jsx (or the app-level one) so each toast shows once.",
+    "Fix the HomeNavBar .hn-right overflow on mobile (global issue)."
+  ],
+  "critical_code_review_comments": [
+    "RABills prevQtyFor and the advance 'recovered' total include Draft and Submitted bills of the same contract. Prev Qty and advance recovery can be overstated if an earlier draft is later deleted or changed. Consider counting only bills with step>=2 or step>=3.",
+    "Milestone 'Complete & Bill' has no approver gate and cannot be undone: once done, the milestone loses its Edit and Delete buttons. If the generated draft bill is deleted, the milestone stays marked done with a dangling billId.",
+    "The ChangeOrders approve function saves the contract from a stale copy of data.contracts. If the Contracts tab saves at the same time, the CO item could be lost (low risk).",
+    "Contract items can be deleted even when MB entries or RA lines refer to them. Nothing prevents orphaned item references."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_revenue.py"],
+  "success_rate": {"backend": "77% (10/13; all 3 failures are the same approval-guard security bug)", "frontend": "100% of functional flows; 2 design issues"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12. The pytest fixture creates a temporary non-approver test_crm_nonapprover@example.com (role User, approve=false) and deletes it afterwards.",
+  "seed_data_creation": "All crm_* test records and the counters doc {key:'crm'} were deleted after testing. The CRM collections are now empty.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Verified on the UI: lead LD/xxxx saved with follow-up, converted to client CL/xxxx with the lead marked Won; client edit; comm with attachment and client filter; contract CT/0001 with 2 items at 18% and 12% GST. MB: 2x10x2x1 = 40 and direct qty 50, then submit and approve. RA1 generated: basic 350000, GST 54000, retention 17500, advance recovery 35000, net 351500, saved as RA/CT/0001/01, then Submit, Approve, Sent and Paid; all 3 MB entries show Billed. RA2 shows Prev Qty 40, this bill 10, GST edited to 5%, saved as RA/CT/0001/02. Print window opened. Milestone 10% created an RA/CT/0001/03 Milestone draft; a second milestone pushing the total past 100% was blocked. CO approved, giving the contract 3 items with the [Extra] item offered in MB. Retention: held 17500, release above balance blocked, 5000 release brought the balance to 12500. KPIs updated, data stayed after reload. To retest, rerun pytest tests/test_crm_revenue.py; the 3 TestWorkflowGuards failures should pass after the fix."
+}

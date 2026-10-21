@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Toaster } from "sonner";
 import { Handshake, LayoutDashboard, Users, Building2, MessagesSquare, FileSignature, Ruler, Receipt, Flag, ShieldCheck, FilePlus2 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
@@ -34,7 +33,6 @@ export default function ClientRevenue() {
   const Active = TABS.find((t) => t.k === tab).C;
   return (
     <>
-      <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div data-testid="client-revenue-page" style={{ background: "#f8fafc", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px)" }}>
         <ModuleHero tag="Client & Revenue · CRM + RA Billing" title="Leads · Clients · MB · RA Bills · Retention" subtitle="Client se lekar kaam ke paise ki vasooli tak ka poora hisaab ek jagah"

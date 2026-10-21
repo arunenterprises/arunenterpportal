@@ -130,6 +130,16 @@ Per directive "SuperAdmin deside karega …power ye system REGISTER NEW EMPLOYEE
   - **Weekly Fooding Tab** (`WeeklyFoodingTab.jsx`) — Approve button
   - **HR Management · Advance Request approval** (`HRManagement.jsx` line 1778)
 
+## 2026-10-21 — New Department: Client & Revenue (CRM + RA Billing)
+- User request (verbatim, Hindi): CRM (Lead tracking, Client portal, Communication) + Billing & Revenue (RA Billing & MB, Milestone billing, Retention money, Change order / extra work) "dono department ko merge karke ek new department banakar drafting dijiye dekhne bad is software main implement kijiye".
+- User choices: full draft; Client Portal NOT needed now; GST % per item; RA Bill approval by GM/SuperAdmin.
+- Route `/client-revenue`, Home card "Client & Revenue". Page `pages/ClientRevenue.jsx`, components `components/crm/*`.
+- Tabs: Dashboard KPIs, Leads & Enquiry (follow-ups, convert to client), Clients, Communication log (attachments ≤500KB), Contracts/Rates (items with per-item GST, retention %, mobilization advance + recovery %), Measurement Book (Nos×L×B×H, Draft→Submitted→GM Approved), RA Bills (generate from approved MB, prev/this/upto-date qty, retention, advance recovery, net; Draft→Submitted→GM Approved→Sent→Payment Received; print), Milestones (Complete & Bill → milestone bill draft), Retention register + releases, Change Orders (approval adds extra item to contract).
+- Backend: server-backed (no localStorage) `/api/crm/{name}` GET/POST, DELETE (admin), `/api/crm/next-number/{kind}` atomic serials (LD/, CL/, CT/, MB/, CO/, RA/<contract>/NN). Non-approvers limited to steps 1–2 and cannot edit approved records; retention release approver-only with balance check.
+- Tested: iteration_29 (frontend all flows pass); approval-bypass issues fixed afterwards and verified by backend pytest.
+- Backlog: Client Portal (later), comms list without base64 payload, RA bill Excel export.
+
+
 ## 2026-10-21 — Data Loss / Disappearing Records Fix
 - Root cause 1: 8-sec auto-sync replaced local lists with server snapshot → unsynced bills/expenses/BOQ/WO vanished. Now merge (`_mergeFromServer` in store.js) keeps unsynced + newer local records, honours server deletes via `<key>__synced_ids`.
 - Root cause 2: POST /api/snapshot reset counters to 0 when none sent (→ vendor code AE0001 repeats, duplicate numbers). Now counters only move forward ($max) in /snapshot and /counters.

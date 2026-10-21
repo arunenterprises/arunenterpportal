@@ -974,6 +974,9 @@ async def crm_list(name: str, user: Dict = Depends(get_current_user)):
 
 @api_router.post("/crm/next-number/{kind}")
 async def crm_next_number(kind: str, user: Dict = Depends(require_write)):
+    import re
+    if kind not in ("lead", "client", "contract", "mb", "co") and not re.fullmatch(r"ra_[A-Za-z0-9_]+", kind):
+        raise HTTPException(status_code=400, detail="Invalid number kind")
     doc = await db.counters.find_one_and_update(
         {"key": "crm"}, {"$inc": {kind.replace(".", "_"): 1}}, upsert=True, return_document=True,
     )
@@ -995,11 +998,22 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
             body.pop(f, None)
             if existing and existing.get(f):
                 body[f] = existing[f]
-        if new_step != old_step and (new_step == 3 or old_step >= 3) and not _can_approve(user):
-            raise HTTPException(status_code=403, detail="GM / SuperAdmin approval required")
+        if not _can_approve(user) and (new_step > 2 or old_step >= 3):
+            if name == "mb" and existing and new_step == old_step:
+                body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}
+            else:
+                raise HTTPException(status_code=403, detail="GM / SuperAdmin approval required")
         if new_step == 3 and old_step < 3:
             body["approvedByName"] = user.get("name") or user.get("email")
             body["approvedAt"] = datetime.now(timezone.utc).isoformat()
+    if name == "retention_releases":
+        if not _can_approve(user):
+            raise HTTPException(status_code=403, detail="GM / SuperAdmin approval required")
+        cid = body.get("contractId")
+        held = sum(float(b.get("retentionAmt") or 0) async for b in db.crm_ra_bills.find({"contractId": cid, "step": {"$gte": 3}}))
+        released = sum(float(r.get("amount") or 0) async for r in db.crm_retention_releases.find({"contractId": cid, "id": {"$ne": rid}}))
+        if float(body.get("amount") or 0) > round(held - released, 2) + 0.01:
+            raise HTTPException(status_code=400, detail="Release amount exceeds retention balance")
     body["updatedAt"] = datetime.now(timezone.utc).isoformat()
     if not existing:
         body["createdByName"] = user.get("name") or user.get("email")

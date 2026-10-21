@@ -1079,4 +1079,5 @@ body {
 .crm-tab { transition: background-color .15s ease, color .15s ease; }
 @media (max-width: 900px) { .crm-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
 @media (max-width: 560px) { .crm-grid { grid-template-columns: minmax(0,1fr) !important; } .crm-grid > div { grid-column: span 1 !important; } }
+@media (max-width: 600px) { .home-navbar { flex-wrap: wrap; height: auto !important; } .home-navbar .hn-right { flex-wrap: wrap; gap: 6px; } .home-navbar .hn-user b { display: none; } }
 
