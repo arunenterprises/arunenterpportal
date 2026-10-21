@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { canDelete } from "../../lib/store";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, uid, today, inr, num, nameOf, crmNextNo } from "./crmShared";
 import { WorkOrderImport } from "./WorkOrderImport";
+import HsnInput from "../HsnInput";
 import { CrmActionBar, FormLock } from "./CrmActionBar";
 
 const blankItem = () => ({ id: uid("it"), code: "", description: "", unit: "Cum", qty: 0, rate: 0, gstPct: 18 });
@@ -94,9 +95,10 @@ export const Contracts = ({ data, save, remove }) => {
           <Field label="Scope of Work" span={4}><Inp data-testid="contract-scope" value={f.scopeOfWork} onChange={set("scopeOfWork")} /></Field>
         </Grid>
         <div style={{ marginTop: 14, fontSize: 11, fontWeight: 800 }}>CONTRACT ITEMS (BOQ RATES)</div>
-        <Table testid="contract-items-table" cols={["Item Code", "Description", "Unit", "BOQ Qty", "Rate", "GST %", "Amount", ""]}
+        <Table testid="contract-items-table" cols={["HSN / SAC", "Description", "Unit", "BOQ Qty", "Rate", "GST %", "Amount", ""]}
           rows={f.items.map((i) => [
-            <Inp value={i.code} onChange={(e) => setItem(i.id, "code", e.target.value)} style={{ width: 80 }} />,
+            <HsnInput value={i.code} testid="contract-item-hsn" style={{ width: 120 }} onChange={(v) => setItem(i.id, "code", v)}
+              onPick={(code, rec) => setF((x) => ({ ...x, items: x.items.map((it) => (it.id === i.id ? { ...it, code, gstPct: rec.gst, description: it.description || rec.desc } : it)) }))} />,
             <Inp data-testid="contract-item-desc" value={i.description} onChange={(e) => setItem(i.id, "description", e.target.value)} style={{ minWidth: 200 }} />,
             <Inp value={i.unit} onChange={(e) => setItem(i.id, "unit", e.target.value)} style={{ width: 70 }} />,
             <Inp data-testid="contract-item-qty" type="number" value={i.qty} onChange={(e) => setItem(i.id, "qty", e.target.value)} style={{ width: 90 }} />,

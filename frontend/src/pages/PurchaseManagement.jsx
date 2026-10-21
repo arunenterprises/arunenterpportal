@@ -6,6 +6,7 @@ import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import { printWorkOrder } from "../lib/woPrint";
+import HsnInput from "../components/HsnInput";
 import {
   currentRole, canCreate, canApprove, canDelete, canDeleteApproved, currentUserProfile, currentUser,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
@@ -332,6 +333,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               <tr style={{ background: "#f1f5f9" }}>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 40 }}>#</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1" }}>Description</th>
+                <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 130 }}>HSN / SAC</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 80 }}>Qty</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 80 }}>Unit</th>
                 <th style={{ padding: 6, textAlign: "right", border: "1px solid #cbd5e1", width: 110 }}>Rate (₹)</th>
@@ -345,6 +347,9 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
                   <td style={{ padding: 4, textAlign: "center", border: "1px solid #cbd5e1" }}>{idx + 1}</td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}>
                     <input data-testid={`boq-desc-${idx}`} value={it.description} onChange={(e) => setItem(idx, "description", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }} />
+                  </td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}>
+                    <HsnInput value={it.hsn || ""} disabled={locked} testid={`boq-hsn-${idx}`} onChange={(v) => setItem(idx, "hsn", v)} onPick={(code, rec) => { setItem(idx, "hsn", code); if (!it.description) setItem(idx, "description", rec.desc); }} />
                   </td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}>
                     <input data-testid={`boq-qty-${idx}`} type="number" step="any" value={it.qty} onChange={(e) => setItem(idx, "qty", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} />
@@ -714,7 +719,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
       projectSite: p.projectSite || b.projectSite,
       clientName: p.clientName || b.clientName,
       items: (b.items && b.items.length > 0)
-        ? b.items.map((it) => ({ id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, description: it.description, qty: it.qty, unit: it.unit, rate: it.rate, amount: it.amount }))
+        ? b.items.map((it) => ({ id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, description: it.description, hsn: it.hsn || "", qty: it.qty, unit: it.unit, rate: it.rate, amount: it.amount }))
         : p.items,
       total: (b.items && b.items.length > 0) ? b.items.reduce((s, it) => s + Number(it.amount || 0), 0) : p.total,
     }));
@@ -933,6 +938,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
               <tr style={{ background: "#f1f5f9" }}>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 40 }}>#</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", textAlign: "left" }}>Description</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 130 }}>HSN / SAC</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 80 }}>Qty</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 90 }}>Unit</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 110 }}>Rate (₹)</th>
@@ -945,6 +951,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                 <tr key={it.id} data-testid={`wo-row-${idx}`}>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "center" }}>{idx + 1}</td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-desc-${idx}`} value={it.description} onChange={(e) => setItem(idx, "description", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }} /></td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><HsnInput value={it.hsn || ""} disabled={locked} testid={`wo-hsn-${idx}`} onChange={(v) => setItem(idx, "hsn", v)} onPick={(code, rec) => { setItem(idx, "hsn", code); if (!it.description) setItem(idx, "description", rec.desc); }} /></td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-qty-${idx}`} type="number" step="any" value={it.qty} onChange={(e) => setItem(idx, "qty", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} /></td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-unit-${idx}`} list="ae-units" value={it.unit} onChange={(e) => setItem(idx, "unit", e.target.value)} disabled={locked} placeholder="Type or pick…" style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }} /></td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-rate-${idx}`} type="number" step="any" value={it.rate} onChange={(e) => setItem(idx, "rate", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} /></td>

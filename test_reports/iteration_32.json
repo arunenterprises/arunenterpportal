@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 32: tested the new Client & Revenue features. Backend pytest: 30/30 pass (10 new tests in test_crm_power.py plus the 20 regression tests in test_crm_revenue.py). In the UI, all 8 requested features pass. (1) Offline GSTIN on Clients Master: 27AAPFU0939F1ZV (typed lowercase, auto-uppercased) shows ✓, the label shows 'GST NUMBER · FIRM / LLP', PAN is set to AAPFU0939F and State to Maharashtra. 27AAPFU0939F1ZX shows ✗ with no auto-fill. (2) Client IFSC: SBIN0001234 and HDFC0000001 show ✓, and bankName/branchName/bankAddress/bankCity/bankState are filled and read-only. (3) /vendor field-gstNo: 29AAGCB7383J1Z4 shows ✓ with 'Company', and sets field-panNo AAGCB7383J and field-state Karnataka; an invalid checksum shows ✗. (4) Contracts contract-wo-type: Supply gives TDS 0 / Ret 0, Service 2/5, Composite 2/5. contract-compliance shows the label and 4 notes per type. woType persists after save, and the Type column shows 'Supply + Service (Composite)'. (5) The RA bill generated from MB takes the contract's tdsPct (manually set to 1) and retention 5%. Totals: basic 500, GST 90, retention 25, TDS 5, net 560. (6) ra-btn-delete stays enabled at step 3 and step 4. The confirm text includes the approved-bill warning. After deletion the MB entry can be billed again (raBillId cleared). For a milestone bill approved at step 3 then deleted, the milestone goes back to Pending (ms-complete button shows again). (7) Home sidebar order is gm then client_revenue, for both SuperAdmin and a User-role user. (8) Non-admin user (User role with approve=true perm): Edit, New and Submit are enabled; Approve and Delete are disabled; the contract row delete button is hidden; Edit then Save works. Backend _crm_power: GM-role and User-role users with approve perm get 403 on DELETE lead, on MB step 2→3, and on retention_releases. Admin role and SuperAdmin are allowed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor GSTIN autofill", "issues": ["The 'GSTIN valid' toast shows twice (top-center and top-right). VendorRegistration mounts its own <Toaster position='top-center'> and a global Toaster also exists. This duplicate-Toaster pattern is in many pages and was not introduced in this change."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_power.py", "/app/backend/tests/test_crm_revenue.py", "/app/test_reports/pytest/pytest_crm_iter32.xml"],
+  "action_items": [
+    "Optional: remove the per-page <Toaster> in VendorRegistration.jsx (and other pages) if a global Toaster exists, to avoid duplicate toasts.",
+    "Optional: in RABills del(), MB entries are unmarked and the milestone reset BEFORE crmDelete. If the delete fails, the bill remains but its MBs/milestone are already detached. Delete first, then unmark (or do it server-side)."
+  ],
+  "critical_code_review_comments": [
+    "gstin.js checksum verified with node: valid 27AAPFU0939F1ZV, 29AAGCB7383J1Z4, 09AAACH7409R1ZZ; invalid 27AAPFU0939F1ZX. Lowercase input is rejected by parseGstin, but the input uppercases on change, so this is fine.",
+    "useGstin / Vendor GST effect fills PAN/State only when they are empty. If the user later changes the GSTIN to a different state, the old State/PAN stay. Consider overwriting when the previous value came from an earlier GSTIN autofill.",
+    "useGstin fires a success toast on every Load of a saved client that has a valid GSTIN (effect deps include f.gst). This is minor noise.",
+    "Frontend approve/delete gates (canDelete, role-based Admin/SuperAdmin) match backend _crm_power. A user's per-user approve=true permission does NOT grant CRM approval, which is consistent on both sides.",
+    "Edit is only enabled while step < 3 (Clients/RA/MB). This is by design: approved records are locked."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_power.py"],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "100% of requested flows"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12. Temporary users test_crm32_*@example.com were created and then deleted.",
+  "seed_data_creation": "None left. All crm_* docs and counters {key:'crm'} deleted, and test_crm32_* users deleted. No vendor was saved. Pre-existing users test.user@arun.com and test.admin@arun.com (created 2026-09-30, not by this run) were left untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: export REACT_APP_BACKEND_URL=...; pytest tests/test_crm_power.py tests/test_crm_revenue.py -n 0 -k 'not parse_sample'. CRM tab keys: dash, leads, clients, comms, contracts, mb, ra, ms, co, ret, reports (crm-tab-<k>). The milestone tab is crm-tab-ms. Non-SuperAdmin users are single-session (log in only once per test). AI WO parse was not called."
+}

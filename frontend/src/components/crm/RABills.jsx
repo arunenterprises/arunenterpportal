@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Wand2, Mail, IndianRupee, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { canDelete as canApprove, getCompany, amountToWords } from "../../lib/store";
+import { canDelete as canApprove, getCompany, getLogo, amountToWords } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmNextNo, crmSave, crmDelete } from "./crmShared";
 
@@ -142,24 +142,27 @@ export const RABills = ({ data, save, reload }) => {
 const printRA = (b, t, contract, data) => {
   const co = getCompany();
   const client = data.clients.find((c) => c.id === (contract || {}).clientId) || {};
-  const rows = t.lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.code || ""} ${l.description}</td><td>${l.unit}</td><td class=r>${l.prevQty}</td><td class=r>${l.curQty}</td><td class=r>${+(num(l.prevQty) + num(l.curQty)).toFixed(3)}</td><td class=r>${inr(l.rate)}</td><td class=r>${l.gstPct}%</td><td class=r>${inr(l.amount)}</td></tr>`).join("");
+  const rows = t.lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.code || ""}</td><td>${l.description}</td><td>${l.unit}</td><td class=r>${l.prevQty}</td><td class=r>${l.curQty}</td><td class=r>${+(num(l.prevQty) + num(l.curQty)).toFixed(3)}</td><td class=r>${inr(l.rate)}</td><td class=r>${l.gstPct}%</td><td class=r>${inr(l.amount)}</td></tr>`).join("");
+  const logo = getLogo();
+  const WOT = { Supply: "Supply (Material)", Service: "Service / Works Contract", Composite: "Supply + Service (Composite)" };
   const w = window.open("", "_blank");
   if (!w) return;
-  w.document.write(`<html><head><title>${b.raNo}</title><style>body{font-family:Arial;font-size:12px;padding:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #333;padding:5px}th{background:#eee}.r{text-align:right}h2,h3{margin:4px 0;text-align:center}.sig{display:flex;justify-content:space-between;margin-top:60px}</style></head><body>
-  <h2>${co.name || ""}</h2><div style="text-align:center">${co.address || ""}${co.gst ? " · GSTIN: " + co.gst : ""}</div><hr/>
+  w.document.write(`<html><head><title>${b.raNo}</title><style>body{font-family:Arial;font-size:12px;padding:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #333;padding:5px}th{background:#eee}.r{text-align:right}h2,h3{margin:4px 0;text-align:center}.sig{display:flex;justify-content:space-between;margin-top:70px}.sig div{border-top:1px solid #333;padding-top:4px;min-width:170px;text-align:center}.hdr{display:flex;align-items:center;gap:16px;border-bottom:3px double #1e3a8a;padding-bottom:8px}.hdr img{height:78px;max-width:150px;object-fit:contain}.hdr .c{flex:1;text-align:center}.hdr .n{font-size:22px;font-weight:900;color:#1e3a8a;letter-spacing:.5px}.hdr .t{font-size:11px;font-style:italic}.hdr .p{display:inline-block;margin:3px 0;padding:2px 10px;border:1px solid #1e3a8a;border-radius:10px;font-size:11px;font-weight:700}.hdr .d{font-size:11px}@media print{@page{size:A4;margin:12mm}}</style></head><body>
+  <div class=hdr>${logo ? `<img src="${logo}"/>` : ""}<div class=c><div class=n>${co.name || ""}</div>${co.tagline ? `<div class=t>${co.tagline}</div>` : ""}${co.pillLine ? `<div class=p>${co.pillLine}</div>` : ""}<div class=d>${co.address || ""}</div><div class=d>${[co.tollFree && "Mob: " + co.tollFree, co.email && "Email: " + co.email, co.website].filter(Boolean).join(" · ")}</div><div class=d><b>${[co.gst && "GSTIN: " + co.gst, co.pan && "PAN: " + co.pan, co.state && "State: " + co.state].filter(Boolean).join(" · ")}</b></div></div>${logo ? `<div style="width:150px"></div>` : ""}</div>
   <h3>${b.type === "Milestone" ? "MILESTONE BILL" : "RUNNING ACCOUNT (RA) BILL"} — ${b.raNo}</h3>
-  <table style="margin:10px 0"><tr><td><b>Client:</b> ${client.name || ""}<br/>${client.address || ""}<br/>GSTIN: ${client.gst || "—"}</td><td><b>Contract:</b> ${(contract || {}).contractNo || ""}<br/><b>Project:</b> ${(contract || {}).projectName || ""}<br/><b>Bill Date:</b> ${b.billDate} ${b.periodFrom ? `<br/><b>Period:</b> ${b.periodFrom} to ${b.periodTo}` : ""}</td></tr></table>
-  <table><tr><th>#</th><th>Item</th><th>Unit</th><th>Prev Qty</th><th>This Bill</th><th>Upto Date</th><th>Rate</th><th>GST</th><th>Amount</th></tr>${rows}
-  <tr><td colspan=8 class=r>Basic Amount</td><td class=r>${inr(t.basic)}</td></tr>
-  <tr><td colspan=8 class=r>Add: GST</td><td class=r>${inr(t.gst)}</td></tr>
-  <tr><td colspan=8 class=r>Less: Retention (${b.retentionPct}%)</td><td class=r>${inr(t.retention)}</td></tr>
-  <tr><td colspan=8 class=r>Less: Advance Recovery</td><td class=r>${inr(b.advanceRecovery)}</td></tr>
-  <tr><td colspan=8 class=r>Less: Other Deduction</td><td class=r>${inr(b.otherDeduction)}</td></tr>
-  <tr><td colspan=8 class=r>Less: TDS (${num(b.tdsPct)}%)</td><td class=r>${inr(t.tds)}</td></tr>
-  <tr><th colspan=8 class=r>NET PAYABLE</th><th class=r>${inr(t.net)}</th></tr></table>
+  <table style="margin:10px 0"><tr><td><b>Client:</b> ${client.name || ""}<br/>${client.address || ""}<br/>GSTIN: ${client.gst || "—"}</td><td><b>Contract:</b> ${(contract || {}).contractNo || ""}<br/><b>Project:</b> ${(contract || {}).projectName || ""}<br/><b>Bill Date:</b> ${b.billDate} ${b.periodFrom ? `<br/><b>Period:</b> ${b.periodFrom} to ${b.periodTo}` : ""}${(contract || {}).workOrderNo ? `<br/><b>Client WO:</b> ${contract.workOrderNo}` : ""}${(contract || {}).woType ? `<br/><b>WO Type:</b> ${WOT[contract.woType] || contract.woType}` : ""}</td></tr></table>
+  <table><tr><th>#</th><th>HSN/SAC</th><th>Item</th><th>Unit</th><th>Prev Qty</th><th>This Bill</th><th>Upto Date</th><th>Rate</th><th>GST</th><th>Amount</th></tr>${rows}
+  <tr><td colspan=9 class=r>Basic Amount</td><td class=r>${inr(t.basic)}</td></tr>
+  <tr><td colspan=9 class=r>Add: GST</td><td class=r>${inr(t.gst)}</td></tr>
+  <tr><td colspan=9 class=r>Less: Retention (${b.retentionPct}%)</td><td class=r>${inr(t.retention)}</td></tr>
+  <tr><td colspan=9 class=r>Less: Advance Recovery</td><td class=r>${inr(b.advanceRecovery)}</td></tr>
+  <tr><td colspan=9 class=r>Less: Other Deduction</td><td class=r>${inr(b.otherDeduction)}</td></tr>
+  <tr><td colspan=9 class=r>Less: TDS (${num(b.tdsPct)}%)</td><td class=r>${inr(t.tds)}</td></tr>
+  <tr><th colspan=9 class=r>NET PAYABLE</th><th class=r>${inr(t.net)}</th></tr></table>
   <p><b>In words:</b> ${amountToWords(t.net)}</p>
   <p><b>TDS deducted:</b> ${inr(t.tds)} &nbsp; · &nbsp; <b>GST payable to Govt.:</b> ${inr(t.gstPayable)}</p>
-  <div class=sig><div>Prepared By<br/>${b.createdByName || ""}</div><div>Approved By (GM)<br/>${b.approvedByName || ""}</div><div>Client Signature</div></div>
+  ${co.bankName ? `<p><b>Payment to:</b> ${co.name} · ${co.bankName}${co.bankBranch ? ", " + co.bankBranch : ""} · A/c ${co.bankAccountNo || ""} · IFSC ${co.bankIfsc || ""}</p>` : ""}
+  <div class=sig><div>Prepared By<br/>${b.createdByName || ""}</div><div>Approved By (GM)<br/>${b.approvedByName || ""}</div><div>Client / Engineer-in-Charge<br/>Signature &amp; Seal</div><div>For ${co.name || ""}<br/>Authorised Signatory</div></div>
   <script>window.onload=()=>window.print()</script></body></html>`);
   w.document.close();
 };

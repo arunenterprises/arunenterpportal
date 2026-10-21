@@ -9,6 +9,7 @@ import WeeklyFoodingTab from "../components/WeeklyFoodingTab";
 import { Landmark as LandmarkIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import HsnInput from "../components/HsnInput";
 import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
@@ -892,11 +893,9 @@ export default function BillProcessing() {
                             readOnly={locked} data-testid={`item-desc-${i}`} />
                         </td>
                         <td>
-                          <input placeholder="HSN/SAC"
-                            value={r.hsn || ""}
-                            onChange={(e) => updateItem(r.id, { hsn: e.target.value.replace(/[^0-9]/g, "").slice(0, 8) })}
-                            readOnly={locked} data-testid={`item-hsn-${i}`}
-                            style={{ textAlign: "center" }} />
+                          <HsnInput value={r.hsn || ""} disabled={locked} testid={`item-hsn-${i}`}
+                            onChange={(v) => updateItem(r.id, { hsn: v })}
+                            onPick={(code) => updateItem(r.id, { hsn: code })} />
                         </td>
                         <td>
                           <input type="number" step="0.01" min="0" placeholder="0"

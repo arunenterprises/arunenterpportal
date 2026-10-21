@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { canDelete as canApprove, canDelete } from "../../lib/store";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, STEP_WF, stepTone, uid, today, inr, num, crmNextNo, crmSave } from "./crmShared";
 import { CrmActionBar } from "./CrmActionBar";
+import HsnInput from "../HsnInput";
 
 const blank = () => ({ id: "", coNo: "", contractId: "", date: today(), description: "", reason: "", unit: "Nos", qty: 0, rate: 0, gstPct: 18, step: 1 });
 
@@ -29,7 +30,7 @@ export const ChangeOrders = ({ data, save, remove, reload }) => {
     if (!out) return;
     const k = data.contracts.find((c) => c.id === co.contractId);
     if (!k || (k.items || []).some((i) => i.coId === co.id)) return;
-    const item = { id: uid("it"), code: co.coNo, description: `[Extra] ${co.description}`, unit: co.unit, qty: num(co.qty), rate: num(co.rate), gstPct: num(co.gstPct), fromCO: true, coId: co.id };
+    const item = { id: uid("it"), code: co.hsn || co.coNo, description: `[Extra] ${co.description}`, unit: co.unit, qty: num(co.qty), rate: num(co.rate), gstPct: num(co.gstPct), fromCO: true, coId: co.id };
     try {
       await crmSave("contracts", { ...k, items: [...(k.items || []), item] });
       await reload();
@@ -55,6 +56,7 @@ export const ChangeOrders = ({ data, save, remove, reload }) => {
           <Field label="Extra Work Description *" span={2}><Inp data-testid="co-desc" disabled={locked} value={f.description} onChange={set("description")} /></Field>
           <Field label="Client Demand / Reason" span={2}><Inp data-testid="co-reason" disabled={locked} value={f.reason} onChange={set("reason")} /></Field>
           <Field label="Unit"><Inp data-testid="co-unit" disabled={locked} value={f.unit} onChange={set("unit")} /></Field>
+          <Field label="HSN / SAC"><HsnInput value={f.hsn} disabled={locked} testid="co-hsn" onChange={(v) => setF({ ...f, hsn: v })} onPick={(code, rec) => setF({ ...f, hsn: code, gstPct: rec.gst })} /></Field>
           <Field label="Qty (budget)"><Inp data-testid="co-qty" type="number" disabled={locked} value={f.qty} onChange={set("qty")} /></Field>
           <Field label="Rate (₹)"><Inp data-testid="co-rate" type="number" disabled={locked} value={f.rate} onChange={set("rate")} /></Field>
           <Field label="GST %"><Inp data-testid="co-gst" type="number" disabled={locked} value={f.gstPct} onChange={set("gstPct")} /></Field>
