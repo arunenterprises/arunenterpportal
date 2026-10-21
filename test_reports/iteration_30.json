@@ -1,0 +1,35 @@
+{
+  "summary": "Tested Client & Revenue Management end-to-end (backend + UI). Backend: 17/17 pytest pass, including new /api/crm/parse-work-order tests (bad mime 400, empty data 400, unauth 401, a real Gemini parse of /tmp/wo.pdf returning WO PWD/WO/2026/118 with 3 items). UI: the Home sidebar label wraps onto 2 lines without truncating and opens /client-revenue; navy hero and Reports button work; flow strip crm-flow-1..9 shows counts and switches tabs; tabs work. Contracts: WO PDF upload, preview, then apply filled 3 items with unit/qty/rate/GST 18, retention 5, WO no/date, project, site, scope and value 12,26,000. The new client note showed, and the client CL/0001 plus contract CT/0001 were created on save. MB entry, submit and approve, then RA generate pulled TDS 2 / GST TDS 2 from the contract. Totals were correct: basic 52000, GST 9360, retention 2600, TDS 1040, GST TDS 1040, GST payable 8320, net 56680. Submit, GM approve and print (TDS rows plus net GST payable) work. The milestone bill computed TDS and GST TDS correctly (net 133634, GST payable 19616). Dashboard kpi-tds 2080, kpi-gst-payable 8320 and dash-tax-table are correct. Reports tab: type select, date filter, Excel download, print popup and Reports Hub link work; /reports-hub?dept=crm_ra_bills opens the CRM RA tab with TDS/GST columns; 7 rh-tab-crm_* tabs exist. Found and fixed one bug: the Contract Register report showed '—' for Contract No, and report search matched woFileData base64.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/crm/{name} (contracts)", "issue": "woFileData (base64 WO PDF up to 2MB) is stored inside the contract doc and returned by GET /api/crm/contracts on every load. Payload grows with each contract. Consider separate file storage or excluding it from the list."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "crmShared.crmReportRows (contracts report)", "issue": "FIXED by testing agent: contractNo was overwritten with '' because contracts have no contractId. woFileData base64 also leaked into report rows, so search matched it and it went to the Reports Hub cache.", "selector": "[data-testid='crm-report-table']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard dash-tax-table", "issues": ["The 'Net Received' column header shows net payable even for unpaid bills. Rename it to 'Net Payable'."]},
+      {"screen": "RA list (ra-table)", "issues": ["The 'TDS' column shows only IT TDS, not GST TDS. Add a GST TDS column or label it 'IT TDS'."]},
+      {"screen": "Reports Hub", "issues": ["Subtitle still says '12 modules' even though CRM added 7 more tabs.", "The CRM Contract/Client registers show a 'PENDING 1' KPI although they have no workflow.", "At 1920px the RA register table overflows horizontally (Net/Status columns need scrolling). It does scroll."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_revenue.py", "/app/test_reports/pytest/pytest_crm_wo.xml"],
+  "action_items": [
+    "Optional: rename the dash-tax-table 'Net Received' column to 'Net Payable'; clarify the TDS column in the RA list",
+    "Optional: move woFileData out of the contract doc, or exclude it from GET /api/crm/contracts",
+    "Optional: update the Reports Hub '12 modules' subtitle"
+  ],
+  "critical_code_review_comments": [
+    "Contracts.applyWO client match: c.name.toLowerCase().includes(nm) || nm.includes(c.name) can false-match short or empty client names (an empty name matches every WO). Guard with c.name.trim() and prefer a GSTIN match first.",
+    "Contracts.onSave: if the client save succeeds but the contract save fails, newClient stays set, so a retry creates a duplicate client. Clear newClient / set clientId after the client is created.",
+    "crm_parse_work_order uses require_write, so any writer can spend AI credits. Consider rate limiting it."
+  ],
+  "updated_files": ["/app/frontend/src/components/crm/crmShared.jsx", "/app/backend/tests/test_crm_revenue.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% of requested flows (1 report bug fixed during test)"},
+  "seed_data_creation": "Created CL/0001, CT/0001, MB/0001, RA/CT/0001/01, RA/CT/0001/02 and a TEST_Foundation milestone via the UI. All deleted afterwards, plus the counters {key:'crm'} doc and the test non-approver user. The CRM collections are empty again.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use /tmp/wo.pdf for the WO parse (about 20-25s with Gemini). Only 2 AI calls were used this run (1 pytest, 1 UI). The CRM DB was empty before testing. In Playwright, 'import asyncio' is needed for dialog auto-accept (milestone Complete & Bill uses window.confirm).",
+  "rca of the issue": "crmReportRows spread r and then set contractNo from ct(r.contractId), which is {} for contracts themselves, so the real contractNo was overwritten. Fix: fall back to r.contractNo and strip woFileData."
+}

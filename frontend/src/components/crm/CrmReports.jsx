@@ -8,13 +8,13 @@ import { Card, Grid, Field, Inp, Sel, Btn, Table, inr, num, crmReportRows, RA_ST
 const LEAD_ST = (s) => s;
 export const CRM_REPORTS = [
   { k: "ra_bills", hub: "crm_ra_bills", l: "RA / Milestone Bill Register", date: "billDate", status: (r) => RA_STEPS[r.step],
-    cols: [["raNo", "Bill No"], ["type", "Type"], ["billDate", "Date"], ["clientName", "Client"], ["contractNo", "Contract"], ["basic", "Basic", 1], ["gstTotal", "GST", 1], ["tdsAmt", "IT TDS", 1], ["gstTdsAmt", "GST TDS", 1], ["gstPayable", "GST Payable", 1], ["retentionAmt", "Retention", 1], ["net", "Net", 1], ["_status", "Status"]] },
+    cols: [["raNo", "Bill No"], ["type", "Type"], ["billDate", "Date"], ["clientName", "Client"], ["contractNo", "Contract"], ["basic", "Basic", 1], ["gstTotal", "GST Payable", 1], ["tdsAmt", "TDS", 1], ["retentionAmt", "Retention", 1], ["net", "Net", 1], ["_status", "Status"]] },
   { k: "mb", hub: "crm_mb", l: "Measurement Book Register", date: "date", status: (r) => STEP_WF[r.step],
     cols: [["mbNo", "MB No"], ["date", "Date"], ["contractNo", "Contract"], ["itemDesc", "Item"], ["location", "Location"], ["qty", "Qty"], ["unit", "Unit"], ["_status", "Status"]] },
   { k: "leads", hub: "crm_leads", l: "Leads & Enquiry Report", date: "createdAt", status: (r) => LEAD_ST(r.status),
     cols: [["leadNo", "Lead No"], ["name", "Client"], ["mobile", "Mobile"], ["projectType", "Type"], ["source", "Source"], ["value", "Est. Value", 1], ["_status", "Status"]] },
-  { k: "clients", hub: "crm_clients", l: "Client Master", date: "createdAt", status: () => "",
-    cols: [["clientCode", "Code"], ["name", "Name"], ["contactPerson", "Contact"], ["mobile", "Mobile"], ["email", "Email"], ["gst", "GSTIN"]] },
+  { k: "clients", hub: "crm_clients", l: "Client Master", date: "createdAt", status: (r) => STEP_WF[r.step || 1],
+    cols: [["clientCode", "Code"], ["tempRefId", "Temp ID"], ["name", "Name"], ["clientType", "Type"], ["mobile", "Mobile"], ["gst", "GSTIN"], ["_status", "Status"]] },
   { k: "contracts", hub: "crm_contracts", l: "Contract Register", date: "startDate", status: () => "",
     cols: [["contractNo", "Contract"], ["clientName", "Client"], ["projectName", "Project"], ["startDate", "Start"], ["contractValue", "Value", 1], ["retentionPct", "Ret. %"]] },
   { k: "change_orders", hub: "crm_change_orders", l: "Change Order Register", date: "date", status: (r) => STEP_WF[r.step],

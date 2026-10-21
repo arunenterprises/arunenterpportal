@@ -136,3 +136,33 @@ class TestWorkflowGuards:
 
     def test_nonapprover_delete_403(self, nonapprover):
         assert nonapprover.delete(f"{BASE_URL}/api/crm/leads/TEST_none").status_code == 403
+
+
+# Work-order PDF AI parse (Gemini) — /api/crm/parse-work-order (1 AI call only)
+class TestWorkOrderParse:
+    def test_bad_mime_400(self, admin):
+        r = admin.post(f"{BASE_URL}/api/crm/parse-work-order", json={"mimeType": "text/plain", "data": "aGVsbG8="})
+        assert r.status_code == 400
+
+    def test_empty_data_400(self, admin):
+        r = admin.post(f"{BASE_URL}/api/crm/parse-work-order", json={"mimeType": "application/pdf", "data": ""})
+        assert r.status_code == 400
+
+    def test_unauth(self):
+        r = requests.post(f"{BASE_URL}/api/crm/parse-work-order", json={"mimeType": "application/pdf", "data": "x"})
+        assert r.status_code in (401, 403)
+
+    def test_parse_sample_pdf(self, admin):
+        import base64
+        if not os.path.exists("/tmp/wo.pdf"):
+            pytest.skip("no sample pdf")
+        b64 = base64.b64encode(open("/tmp/wo.pdf", "rb").read()).decode()
+        r = admin.post(f"{BASE_URL}/api/crm/parse-work-order", json={"fileName": "wo.pdf", "mimeType": "application/pdf",
+                                                                       "data": f"data:application/pdf;base64,{b64}"}, timeout=180)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        print("PARSED:", d)
+        assert "PWD/WO/2026/118" in str(d.get("workOrderNo"))
+        assert isinstance(d.get("items"), list) and len(d["items"]) == 3
+        for it in d["items"]:
+            assert it["description"] and float(it["qty"]) > 0 and float(it["rate"]) > 0 and it["unit"]

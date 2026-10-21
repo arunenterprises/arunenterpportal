@@ -958,7 +958,7 @@ async def delete_fooding(fid: str, user: Dict = Depends(require_write)):
 
 # ==================== CLIENT & REVENUE (CRM + RA BILLING) ====================
 _CRM_COLLS = {"leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases"}
-_CRM_WF = {"mb", "ra_bills", "change_orders"}
+_CRM_WF = {"mb", "ra_bills", "change_orders", "clients"}
 
 
 def _crm_coll(name: str) -> str:

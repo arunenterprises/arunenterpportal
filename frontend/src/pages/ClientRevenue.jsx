@@ -66,7 +66,7 @@ export default function ClientRevenue() {
   return (
     <>
       <HomeNavBar />
-      <div data-testid="client-revenue-page" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px)" }}>
+      <div data-testid="client-revenue-page" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px) 110px" }}>
         <ModuleHero tag="Client & Revenue Management" title="CRM · Measurement Book · RA Billing · Retention" subtitle="Lead se lekar client payment aur retention release tak ka poora workflow"
           icon={Handshake} gradient="linear-gradient(135deg, #0b1f4d 0%, #1e3a8a 55%, #0891b2 100%)" shadowRgba="30,58,138,.28"
           rightSlot={<button data-testid="crm-hero-reports-btn" onClick={() => setTab("reports")} className="crm-btn"

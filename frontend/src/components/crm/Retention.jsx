@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { canApprove, canDelete } from "../../lib/store";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, uid, today, inr, num } from "./crmShared";
+import { CrmActionBar } from "./CrmActionBar";
 
 export const retentionSummary = (data) => data.contracts.map((k) => {
   const held = data.ra_bills.filter((b) => b.contractId === k.id && Number(b.step) >= 3).reduce((s, b) => s + num(b.retentionAmt), 0);
@@ -21,6 +22,9 @@ export const Retention = ({ data, save, remove }) => {
   };
   return (
     <>
+      <CrmActionBar name="ret" status="Retention register"
+        onNew={() => setF({ contractId: "", date: today(), amount: 0, ref: "", remarks: "" })} onSave={canApprove() ? onSave : null}
+        list={{ title: "Retention Money Register", cols: ["Contract", "Project", "Retention %", "Held", "Released", "Balance"], rows: rows.map((r) => [r.k.contractNo, r.k.projectName, r.k.retentionPct, r.held, r.released, r.balance]) }} />
       <Card title="Retention Money Register" testid="retention-card">
         <Table testid="retention-table" cols={["Contract", "Project", "Retention %", "Held (approved bills)", "Released", "Balance with Client"]}
           rows={rows.map((r) => [r.k.contractNo, r.k.projectName, `${r.k.retentionPct}%`, inr(r.held), inr(r.released), <b data-testid={`retention-balance-${r.k.id}`}>{inr(r.balance)}</b>])} />
@@ -34,7 +38,6 @@ export const Retention = ({ data, save, remove }) => {
             <Field label="UTR / Ref"><Inp data-testid="rr-ref" value={f.ref} onChange={set("ref")} /></Field>
             <Field label="Remarks"><Inp data-testid="rr-remarks" value={f.remarks} onChange={set("remarks")} /></Field>
           </Grid>
-          <Btn data-testid="rr-save-btn" style={{ marginTop: 12 }} onClick={onSave}>Save Release</Btn>
         </Card>
       )}
       <Card title="Release History">

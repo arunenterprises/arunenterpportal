@@ -62,7 +62,7 @@ export const crmReportRows = (name, d = crmCache) => {
   }
   return rows.map((r) => {
     const k = ct(r.contractId);
-    return { ...r, contractNo: k.contractNo || "", projectName: k.projectName || r.projectName || "", clientName: cl(r.clientId || k.clientId).name || r.name || "", fileData: undefined };
+    return { ...r, contractNo: k.contractNo || r.contractNo || "", projectName: k.projectName || r.projectName || "", clientName: cl(r.clientId || k.clientId).name || r.name || "", fileData: undefined, woFileData: undefined };
   });
 };
 
@@ -90,9 +90,9 @@ export const useCrmData = () => {
     } catch (e) { toast.error(e.message); return null; }
   };
   const remove = async (name, id) => {
-    if (!window.confirm("Delete this record?")) return;
-    try { await crmDelete(name, id); await reload(); toast.success("Deleted"); }
-    catch (e) { toast.error(e.message); }
+    if (!window.confirm("Delete this record?")) return false;
+    try { await crmDelete(name, id); await reload(); toast.success("Deleted"); return true; }
+    catch (e) { toast.error(e.message); return false; }
   };
   return { data, loading, reload, save, remove };
 };

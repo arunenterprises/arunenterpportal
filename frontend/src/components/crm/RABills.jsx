@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Save, Send, CheckCircle2, Trash2, Printer, Wand2, Mail, IndianRupee } from "lucide-react";
+import { Wand2, Mail, IndianRupee, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { canApprove, canDelete, getCompany, amountToWords } from "../../lib/store";
+import { canApprove, getCompany, amountToWords } from "../../lib/store";
+import { CrmActionBar } from "./CrmActionBar";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmNextNo, crmSave, crmDelete } from "./crmShared";
 
 export const computeRA = (b) => {
@@ -13,22 +14,22 @@ export const computeRA = (b) => {
   const gst = lines.reduce((s, l) => s + l.gst, 0);
   const retention = +(basic * num(b.retentionPct) / 100).toFixed(2);
   const tds = +(basic * num(b.tdsPct) / 100).toFixed(2);
-  const gstTds = +(basic * num(b.gstTdsPct) / 100).toFixed(2);
-  const net = +(basic + gst - retention - num(b.advanceRecovery) - num(b.otherDeduction) - tds - gstTds).toFixed(2);
-  return { lines, basic: +basic.toFixed(2), gst: +gst.toFixed(2), gross: +(basic + gst).toFixed(2), retention, tds, gstTds, gstPayable: +(gst - gstTds).toFixed(2), net };
+  const net = +(basic + gst - retention - num(b.advanceRecovery) - num(b.otherDeduction) - tds).toFixed(2);
+  return { lines, basic: +basic.toFixed(2), gst: +gst.toFixed(2), gross: +(basic + gst).toFixed(2), retention, tds, gstPayable: +gst.toFixed(2), net };
 };
 
-const blank = () => ({ id: "", raNo: "", type: "RA", contractId: "", billDate: today(), periodFrom: "", periodTo: "", lines: [], mbIds: [], retentionPct: 0, tdsPct: 2, gstTdsPct: 0, advanceRecovery: 0, otherDeduction: 0, remarks: "", step: 1, receivedAmount: 0, receivedDate: "", receivedRef: "" });
+const blank = () => ({ id: "", raNo: "", type: "RA", contractId: "", billDate: today(), periodFrom: "", periodTo: "", lines: [], mbIds: [], retentionPct: 0, tdsPct: 2, advanceRecovery: 0, otherDeduction: 0, remarks: "", step: 1, receivedAmount: 0, receivedDate: "", receivedRef: "" });
 
 const prevQtyFor = (bills, contractId, itemId, excludeId) =>
   bills.filter((b) => b.contractId === contractId && b.id !== excludeId).flatMap((b) => b.lines || []).filter((l) => l.itemId === itemId).reduce((s, l) => s + num(l.curQty), 0);
 
 export const RABills = ({ data, save, reload }) => {
   const [f, setF] = useState(blank());
+  const [editing, setEditing] = useState(true);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const contract = data.contracts.find((c) => c.id === f.contractId);
   const t = useMemo(() => computeRA(f), [f]);
-  const locked = Number(f.step) >= 3;
+  const locked = Number(f.step) >= 3 || !editing;
 
   const generate = () => {
     if (!contract) return alert("Contract select karein");
@@ -43,7 +44,7 @@ export const RABills = ({ data, save, reload }) => {
     const basic = lines.reduce((s, l) => s + l.curQty * l.rate, 0);
     const recovered = data.ra_bills.filter((b) => b.contractId === contract.id && b.id !== f.id).reduce((s, b) => s + num(b.advanceRecovery), 0);
     const advRec = Math.max(0, Math.min(basic * num(contract.advanceRecoveryPct) / 100, num(contract.advanceAmount) - recovered));
-    setF({ ...f, lines, mbIds: mbs.map((m) => m.id), retentionPct: num(contract.retentionPct), tdsPct: contract.tdsPct ?? 2, gstTdsPct: num(contract.gstTdsPct), advanceRecovery: +advRec.toFixed(2) });
+    setF({ ...f, lines, mbIds: mbs.map((m) => m.id), retentionPct: num(contract.retentionPct), tdsPct: contract.tdsPct ?? 2, advanceRecovery: +advRec.toFixed(2) });
     toast.success(`${mbs.length} MB entries se ${lines.length} items load hue`);
   };
 
@@ -51,12 +52,13 @@ export const RABills = ({ data, save, reload }) => {
     const r = { ...rec, id: rec.id || uid("ra") };
     if (!r.raNo) r.raNo = await crmNextNo(`ra_${r.contractId}`, `RA/${(contract || {}).contractNo || "CT"}/`, 2);
     const c = computeRA(r);
-    Object.assign(r, { basic: c.basic, gstTotal: c.gst, gross: c.gross, retentionAmt: c.retention, tdsAmt: c.tds, gstTdsAmt: c.gstTds, gstPayable: c.gstPayable, net: c.net, clientId: (contract || {}).clientId || r.clientId });
+    Object.assign(r, { basic: c.basic, gstTotal: c.gst, gross: c.gross, retentionAmt: c.retention, tdsAmt: c.tds, gstPayable: c.gstPayable, net: c.net, clientId: (contract || {}).clientId || r.clientId });
     const out = await save("ra_bills", r, msg);
     if (!out) return;
     const toMark = data.mb.filter((m) => (r.mbIds || []).includes(m.id) && m.raBillId !== r.id);
     if (toMark.length) { await Promise.all(toMark.map((m) => crmSave("mb", { ...m, raBillId: r.id }))); await reload(); }
     setF(out);
+    setEditing(false);
   };
   const onSave = () => {
     if (!f.contractId || !f.lines.length) return alert("Contract select karke MB se items generate karein");
@@ -72,9 +74,17 @@ export const RABills = ({ data, save, reload }) => {
   const setLine = (i, k, v) => setF({ ...f, lines: f.lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)) });
 
   const contractOpts = [{ v: "", l: "— Select contract —" }, ...data.contracts.map((c) => ({ v: c.id, l: `${c.contractNo} · ${c.projectName}` }))];
+  const st = Number(f.step);
   return (
     <>
-      <Card testid="ra-form" title={f.id ? `${f.type === "Milestone" ? "Milestone Bill" : "RA Bill"} · ${f.raNo} · ${RA_STEPS[f.step]}` : "New RA Bill (Running Account)"} right={<Btn tone="ghost" data-testid="ra-new-btn" onClick={() => setF(blank())}>New</Btn>}>
+      <CrmActionBar name="ra" status={f.id ? `${f.raNo} · ${RA_STEPS[f.step]} · ${editing && st < 3 ? "Editing" : "View"}` : "New RA bill"}
+        labels={{ submit: "Submit to GM", approve: "GM Final Approval" }}
+        onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 3 ? onSave : null}
+        onEdit={f.id && !editing && st < 3 ? () => setEditing(true) : null}
+        onSubmit={f.id && st === 1 ? () => move(f, 2) : null} onApprove={f.id && st === 2 ? () => move(f, 3) : null}
+        onDelete={f.id && st < 3 ? () => del(f) : null}
+        list={{ title: "RA / Milestone Bill Register", cols: ["Bill No", "Type", "Date", "Client", "Contract", "Basic", "GST", "TDS", "GST Payable", "Retention", "Net", "Status"], rows: data.ra_bills.map((b) => [b.raNo, b.type, b.billDate, nameOf(data.clients, b.clientId), (data.contracts.find((c) => c.id === b.contractId) || {}).contractNo, num(b.basic), num(b.gstTotal), num(b.tdsAmt), num(b.gstTotal), num(b.retentionAmt), num(b.net), RA_STEPS[b.step]]) }} />
+      <Card testid="ra-form" title={f.id ? `${f.type === "Milestone" ? "Milestone Bill" : "RA Bill"} · ${f.raNo} · ${RA_STEPS[f.step]}` : "New RA Bill (Running Account)"}>
         <Grid cols={4}>
           <Field label="Contract *"><Sel data-testid="ra-contract" disabled={!!f.id} value={f.contractId} onChange={(e) => setF({ ...blank(), contractId: e.target.value })} options={contractOpts} /></Field>
           <Field label="Bill Date"><Inp data-testid="ra-date" type="date" disabled={locked} value={f.billDate} onChange={set("billDate")} /></Field>
@@ -93,23 +103,18 @@ export const RABills = ({ data, save, reload }) => {
           <Field label="Advance Recovery (₹)"><Inp data-testid="ra-adv-rec" type="number" disabled={locked} value={f.advanceRecovery} onChange={set("advanceRecovery")} /></Field>
           <Field label="Other Deduction (₹)"><Inp data-testid="ra-other-ded" type="number" disabled={locked} value={f.otherDeduction} onChange={set("otherDeduction")} /></Field>
           <Field label="Remarks"><Inp data-testid="ra-remarks" disabled={locked} value={f.remarks} onChange={set("remarks")} /></Field>
-          <Field label="Income Tax TDS % (194C)"><Inp data-testid="ra-tds-pct" type="number" disabled={locked} value={f.tdsPct} onChange={set("tdsPct")} /></Field>
-          <Field label="GST TDS % (Govt. 2%)"><Inp data-testid="ra-gst-tds-pct" type="number" disabled={locked} value={f.gstTdsPct} onChange={set("gstTdsPct")} /></Field>
+          <Field label="TDS % (194C)"><Inp data-testid="ra-tds-pct" type="number" disabled={locked} value={f.tdsPct} onChange={set("tdsPct")} /></Field>
         </Grid>
         <div data-testid="ra-totals" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 8, background: "#eff6ff", padding: 12, borderRadius: 8, fontSize: 12 }}>
           <div>Basic: <b>{inr(t.basic)}</b></div><div>GST: <b>{inr(t.gst)}</b></div><div>Gross: <b>{inr(t.gross)}</b></div>
           <div>Retention: <b>-{inr(t.retention)}</b></div><div>Adv. Recovery: <b>-{inr(f.advanceRecovery)}</b></div>
-          <div data-testid="ra-tds">TDS Kata: <b>-{inr(t.tds)}</b></div><div data-testid="ra-gst-tds">GST TDS: <b>-{inr(t.gstTds)}</b></div>
+          <div data-testid="ra-tds">TDS Kata ({num(f.tdsPct)}%): <b>-{inr(t.tds)}</b></div>
           <div data-testid="ra-gst-payable" style={{ color: "#b91c1c" }}>GST Payable (Govt.): <b>{inr(t.gstPayable)}</b></div>
           <div data-testid="ra-net" style={{ color: "#1e3a8a" }}>Net Payable: <b>{inr(t.net)}</b></div>
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {!locked && <Btn data-testid="ra-save-btn" onClick={onSave}><Save size={14} /> Save</Btn>}
-          {f.id && Number(f.step) === 1 && <Btn tone="dark" data-testid="ra-submit-btn" onClick={() => move(f, 2)}><Send size={14} /> Submit to GM</Btn>}
-          {f.id && Number(f.step) === 2 && canApprove() && <Btn tone="green" data-testid="ra-approve-btn" onClick={() => move(f, 3)}><CheckCircle2 size={14} /> GM Approve</Btn>}
-          {f.id && Number(f.step) === 3 && canApprove() && <Btn tone="dark" data-testid="ra-sent-btn" onClick={() => move(f, 4)}><Mail size={14} /> Mark Sent to Client</Btn>}
-          {f.id && <Btn tone="ghost" data-testid="ra-print-btn" onClick={() => printRA(f, t, contract, data)}><Printer size={14} /> Print</Btn>}
-          {f.id && canDelete() && Number(f.step) < 3 && <Btn tone="red" data-testid="ra-delete-btn" onClick={() => del(f)}><Trash2 size={14} /> Delete</Btn>}
+          {f.id && st === 3 && canApprove() && <Btn tone="dark" data-testid="ra-sent-btn" onClick={() => move(f, 4)}><Mail size={14} /> Mark Sent to Client</Btn>}
+          {f.id && <Btn tone="ghost" data-testid="ra-print-btn" onClick={() => printRA(f, t, contract, data)}><Printer size={14} /> Print Bill</Btn>}
         </div>
         {f.id && Number(f.step) === 4 && canApprove() && (
           <div style={{ marginTop: 12, padding: 12, border: "1px dashed #86efac", borderRadius: 8 }}>
@@ -123,10 +128,10 @@ export const RABills = ({ data, save, reload }) => {
         )}
       </Card>
       <Card title={`RA / Milestone Bills (${data.ra_bills.length})`}>
-        <Table testid="ra-table" cols={["Bill No", "Type", "Date", "Client", "Contract", "Gross", "GST", "TDS", "GST Payable", "Net", "Status", ""]}
+        <Table testid="ra-table" cols={["Bill No", "Type", "Date", "Client", "Contract", "Gross", "GST Payable", "TDS", "Net", "Status", ""]}
           rows={data.ra_bills.slice().reverse().map((b) => [b.raNo, b.type, b.billDate, nameOf(data.clients, b.clientId), (data.contracts.find((c) => c.id === b.contractId) || {}).contractNo || "—",
-            inr(b.gross), inr(b.gstTotal), inr(b.tdsAmt), inr(b.gstPayable ?? b.gstTotal), inr(b.net), <Badge text={RA_STEPS[b.step]} tone={stepTone(b.step)} />,
-            <Btn tone="ghost" data-testid={`ra-open-${b.id}`} onClick={() => setF({ ...blank(), ...b })}>Open</Btn>])} />
+            inr(b.gross), inr(b.gstTotal), inr(b.tdsAmt), inr(b.net), <Badge text={RA_STEPS[b.step]} tone={stepTone(b.step)} />,
+            <Btn tone="ghost" data-testid={`ra-open-${b.id}`} onClick={() => { setF({ ...blank(), ...b }); setEditing(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Open</Btn>])} />
       </Card>
     </>
   );
@@ -148,11 +153,10 @@ const printRA = (b, t, contract, data) => {
   <tr><td colspan=8 class=r>Less: Retention (${b.retentionPct}%)</td><td class=r>${inr(t.retention)}</td></tr>
   <tr><td colspan=8 class=r>Less: Advance Recovery</td><td class=r>${inr(b.advanceRecovery)}</td></tr>
   <tr><td colspan=8 class=r>Less: Other Deduction</td><td class=r>${inr(b.otherDeduction)}</td></tr>
-  <tr><td colspan=8 class=r>Less: Income Tax TDS (${num(b.tdsPct)}%)</td><td class=r>${inr(t.tds)}</td></tr>
-  <tr><td colspan=8 class=r>Less: GST TDS (${num(b.gstTdsPct)}%)</td><td class=r>${inr(t.gstTds)}</td></tr>
+  <tr><td colspan=8 class=r>Less: TDS (${num(b.tdsPct)}%)</td><td class=r>${inr(t.tds)}</td></tr>
   <tr><th colspan=8 class=r>NET PAYABLE</th><th class=r>${inr(t.net)}</th></tr></table>
   <p><b>In words:</b> ${amountToWords(t.net)}</p>
-  <p><b>GST on bill:</b> ${inr(t.gst)} &nbsp; · &nbsp; <b>GST TDS credit:</b> ${inr(t.gstTds)} &nbsp; · &nbsp; <b>Net GST payable to Govt.:</b> ${inr(t.gstPayable)}</p>
+  <p><b>TDS deducted:</b> ${inr(t.tds)} &nbsp; · &nbsp; <b>GST payable to Govt.:</b> ${inr(t.gstPayable)}</p>
   <div class=sig><div>Prepared By<br/>${b.createdByName || ""}</div><div>Approved By (GM)<br/>${b.approvedByName || ""}</div><div>Client Signature</div></div>
   <script>window.onload=()=>window.print()</script></body></html>`);
   w.document.close();

@@ -1,15 +1,17 @@
 import React, { useState } from "react";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { canDelete } from "../../lib/store";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, uid, today, inr, num, nameOf, crmNextNo } from "./crmShared";
 import { WorkOrderImport } from "./WorkOrderImport";
+import { CrmActionBar, FormLock } from "./CrmActionBar";
 
 const blankItem = () => ({ id: uid("it"), code: "", description: "", unit: "Cum", qty: 0, rate: 0, gstPct: 18 });
-const blank = () => ({ id: "", contractNo: "", clientId: "", projectName: "", siteLocation: "", startDate: today(), completionDate: "", workOrderNo: "", workOrderDate: "", scopeOfWork: "", contractValue: 0, retentionPct: 5, tdsPct: 2, gstTdsPct: 0, advanceAmount: 0, advanceRecoveryPct: 10, items: [blankItem()], newClient: null, woFileName: "", woFileData: "" });
+const blank = () => ({ id: "", contractNo: "", clientId: "", projectName: "", siteLocation: "", startDate: today(), completionDate: "", workOrderNo: "", workOrderDate: "", scopeOfWork: "", contractValue: 0, retentionPct: 5, tdsPct: 2, advanceAmount: 0, advanceRecoveryPct: 10, items: [blankItem()], newClient: null, woFileName: "", woFileData: "" });
 export const itemsValue = (items) => (items || []).reduce((s, i) => s + num(i.qty) * num(i.rate), 0);
 
 export const Contracts = ({ data, save, remove }) => {
   const [f, setF] = useState(blank());
+  const [editing, setEditing] = useState(true);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const setItem = (id, k, v) => setF({ ...f, items: f.items.map((i) => (i.id === id ? { ...i, [k]: v } : i)) });
   const applyWO = (p, file, dataUrl) => {
@@ -32,7 +34,7 @@ export const Contracts = ({ data, save, remove }) => {
   const onSave = async () => {
     let clientId = f.clientId;
     if (!clientId && f.newClient) {
-      const c = await save("clients", { id: uid("cl"), clientCode: await crmNextNo("client", "CL/"), ...f.newClient }, `Naya client "${f.newClient.name}" bana`);
+      const c = await save("clients", { id: uid("cl"), tempRefId: `TMP-CL-${Date.now().toString().slice(-6)}`, step: 1, clientCode: "", ...f.newClient }, `Naya client "${f.newClient.name}" bana`);
       if (!c) return;
       clientId = c.id;
     }
@@ -40,12 +42,17 @@ export const Contracts = ({ data, save, remove }) => {
     const rec = { ...f, clientId, newClient: null, id: f.id || uid("ct"), contractNo: f.contractNo || await crmNextNo("contract", "CT/") };
     if (!num(rec.contractValue)) rec.contractValue = itemsValue(rec.items);
     const out = await save("contracts", rec, `Contract ${rec.contractNo} saved`);
-    if (out) setF(out);
+    if (out) { setF(out); setEditing(false); }
   };
-  const clientOpts = [{ v: "", l: "— Select client —" }, ...data.clients.map((c) => ({ v: c.id, l: `${c.clientCode} · ${c.name}` }))];
+  const clientOpts = [{ v: "", l: "— Select client —" }, ...data.clients.map((c) => ({ v: c.id, l: `${c.clientCode || c.tempRefId || ""} · ${c.name}` }))];
   return (
     <>
-      <Card testid="contract-form" title={f.id ? `Edit Contract · ${f.contractNo}` : "New Contract / Work Rates (BOQ)"} right={<Btn tone="ghost" data-testid="contract-new-btn" onClick={() => setF(blank())}><Plus size={14} /> New</Btn>}>
+      <CrmActionBar name="contract" status={f.id ? `${f.contractNo} · ${editing ? "Editing" : "View"}` : "New contract"}
+        onNew={() => { setF(blank()); setEditing(true); }} onSave={editing ? onSave : null} onEdit={f.id && !editing ? () => setEditing(true) : null}
+        onDelete={f.id ? async () => { if (await remove("contracts", f.id)) setF(blank()); } : null}
+        list={{ title: "Contract Register", cols: ["Contract No", "Client WO", "Client", "Project", "Value", "Retention %", "TDS %", "Items"], rows: data.contracts.map((k) => [k.contractNo, k.workOrderNo, nameOf(data.clients, k.clientId), k.projectName, num(k.contractValue), k.retentionPct, k.tdsPct, (k.items || []).length]) }} />
+      <Card testid="contract-form" title={f.id ? `Contract · ${f.contractNo}` : "New Contract / Work Order"}>
+        <FormLock editing={editing}>
         {!f.id && <WorkOrderImport onApply={applyWO} />}
         <Grid cols={4}>
           <Field label="Client *">
@@ -60,8 +67,7 @@ export const Contracts = ({ data, save, remove }) => {
           <Field label="Mobilization Advance (₹)"><Inp data-testid="contract-advance" type="number" value={f.advanceAmount} onChange={set("advanceAmount")} /></Field>
           <Field label="Advance Recovery % / bill"><Inp data-testid="contract-adv-rec" type="number" value={f.advanceRecoveryPct} onChange={set("advanceRecoveryPct")} /></Field>
           <Field label="Client WO No"><Inp data-testid="contract-wo-no" value={f.workOrderNo} onChange={set("workOrderNo")} /></Field>
-          <Field label="Income Tax TDS % (194C)"><Inp data-testid="contract-tds-pct" type="number" value={f.tdsPct ?? 2} onChange={set("tdsPct")} /></Field>
-          <Field label="GST TDS % (Govt. client 2%)"><Inp data-testid="contract-gst-tds-pct" type="number" value={f.gstTdsPct ?? 0} onChange={set("gstTdsPct")} /></Field>
+          <Field label="TDS % (194C)"><Inp data-testid="contract-tds-pct" type="number" value={f.tdsPct ?? 2} onChange={set("tdsPct")} /></Field>
           <Field label="WO Date"><Inp data-testid="contract-wo-date" type="date" value={f.workOrderDate} onChange={set("workOrderDate")} /></Field>
           <Field label="Completion Date"><Inp data-testid="contract-completion" type="date" value={f.completionDate} onChange={set("completionDate")} /></Field>
           <Field label="WO File">{f.woFileData ? <a data-testid="contract-wo-file" href={f.woFileData} download={f.woFileName} style={{ fontSize: 12, paddingTop: 6 }}>{f.woFileName}</a> : <span style={{ fontSize: 12, color: "#94a3b8", paddingTop: 6 }}>—</span>}</Field>
@@ -82,14 +88,14 @@ export const Contracts = ({ data, save, remove }) => {
         <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
           <Btn tone="ghost" data-testid="contract-add-item" onClick={() => setF({ ...f, items: [...f.items, blankItem()] })}><Plus size={13} /> Add Item</Btn>
           <span style={{ fontSize: 12, fontWeight: 700 }}>Items Total: {inr(itemsValue(f.items))}</span>
-          <Btn data-testid="contract-save-btn" onClick={onSave} style={{ marginLeft: "auto" }}><Save size={14} /> Save Contract</Btn>
         </div>
+        </FormLock>
       </Card>
       <Card title={`Contracts (${data.contracts.length})`}>
         <Table testid="contracts-table" cols={["Contract No", "Client WO", "Client", "Project", "Value", "Retention %", "Items", "Actions"]}
           rows={data.contracts.map((k) => [k.contractNo, k.workOrderNo || "—", nameOf(data.clients, k.clientId), k.projectName, inr(k.contractValue), `${k.retentionPct}%`, (k.items || []).length,
             <div style={{ display: "flex", gap: 6 }}>
-              <Btn tone="ghost" data-testid={`contract-edit-${k.id}`} onClick={() => setF({ ...blank(), ...k })}>Edit</Btn>
+              <Btn tone="ghost" data-testid={`contract-edit-${k.id}`} onClick={() => { setF({ ...blank(), ...k }); setEditing(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Open</Btn>
               {canDelete() && <Btn tone="red" data-testid={`contract-del-${k.id}`} onClick={() => remove("contracts", k.id)}><Trash2 size={13} /></Btn>}
             </div>])} />
       </Card>

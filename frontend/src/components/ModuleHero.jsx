@@ -51,8 +51,8 @@ const ModuleHero = ({
             </div>
           )}
           <div>
-            {tag && <div style={{ fontSize: 10.5, letterSpacing: 2.5, color: "rgba(255,255,255,.78)", fontWeight: 800, textTransform: "uppercase" }}>{tag}</div>}
-            {title && <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 0.4, marginTop: 2 }}>{title}</div>}
+            {tag && <div style={{ fontSize: 20, letterSpacing: 1.2, color: "#fff", fontWeight: 900, textTransform: "uppercase" }}>{tag}</div>}
+            {title && <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 0.3, marginTop: 3, color: "rgba(255,255,255,.9)" }}>{title}</div>}
             {subtitle && <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.82)", marginTop: 4, letterSpacing: 0.2 }}>{subtitle}</div>}
           </div>
         </div>

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Plus, CheckCircle2, Trash2 } from "lucide-react";
+import { CheckCircle2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { canDelete } from "../../lib/store";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, uid, today, inr, num, crmNextNo, crmSave } from "./crmShared";
+import { CrmActionBar } from "./CrmActionBar";
 
 const blank = (contractId = "") => ({ id: "", contractId, title: "", pct: 0, dueDate: "", gstPct: 18, done: false, doneDate: "", billId: "" });
 
@@ -32,9 +33,8 @@ export const Milestones = ({ data, save, remove, reload }) => {
     const ret = +(amount * num(k.retentionPct) / 100).toFixed(2);
     const tdsPct = k.tdsPct ?? 2;
     const tds = +(amount * num(tdsPct) / 100).toFixed(2);
-    const gstTds = +(amount * num(k.gstTdsPct) / 100).toFixed(2);
     try {
-      await crmSave("ra_bills", { id: billId, raNo, type: "Milestone", contractId: k.id, clientId: k.clientId, billDate: today(), lines: [line], mbIds: [], retentionPct: num(k.retentionPct), tdsPct, gstTdsPct: num(k.gstTdsPct), advanceRecovery: 0, otherDeduction: 0, step: 1, basic: amount, gstTotal: gst, gross: amount + gst, retentionAmt: ret, tdsAmt: tds, gstTdsAmt: gstTds, gstPayable: +(gst - gstTds).toFixed(2), net: +(amount + gst - ret - tds - gstTds).toFixed(2), milestoneId: m.id });
+      await crmSave("ra_bills", { id: billId, raNo, type: "Milestone", contractId: k.id, clientId: k.clientId, billDate: today(), lines: [line], mbIds: [], retentionPct: num(k.retentionPct), tdsPct, advanceRecovery: 0, otherDeduction: 0, step: 1, basic: amount, gstTotal: gst, gross: amount + gst, retentionAmt: ret, tdsAmt: tds, gstPayable: gst, net: +(amount + gst - ret - tds).toFixed(2), milestoneId: m.id });
       await crmSave("milestones", { ...m, done: true, doneDate: today(), billId });
       await reload();
       toast.success(`Milestone complete · Bill ${raNo} draft bana (RA Bills tab mein)`);
@@ -44,7 +44,13 @@ export const Milestones = ({ data, save, remove, reload }) => {
   const contractOpts = [{ v: "", l: "— Select contract —" }, ...data.contracts.map((c) => ({ v: c.id, l: `${c.contractNo} · ${c.projectName}` }))];
   return (
     <>
-      <Card testid="ms-form" title="Milestone Billing Plan" right={<Btn tone="ghost" data-testid="ms-new-btn" onClick={() => setF(blank(f.contractId))}><Plus size={14} /> New</Btn>}>
+      <CrmActionBar name="ms" status={f.id ? `${f.title} · ${f.done ? "Done" : "Pending"}` : "New milestone"}
+        labels={{ approve: "Complete & Bill" }}
+        onNew={() => setF(blank(f.contractId))} onSave={!f.done ? onSave : null}
+        onApprove={f.id && !f.done ? async () => { await complete(f); setF(blank(f.contractId)); } : null}
+        onDelete={f.id && !f.done ? async () => { if (await remove("milestones", f.id)) setF(blank(f.contractId)); } : null}
+        list={{ title: "Milestone Plan", cols: ["Contract", "Milestone", "%", "Amount", "GST %", "Target", "Status"], rows: list.map((m) => { const k = data.contracts.find((c) => c.id === m.contractId) || {}; return [k.contractNo, m.title, m.pct, num(k.contractValue) * num(m.pct) / 100, m.gstPct, m.dueDate, m.done ? `Done ${m.doneDate}` : "Pending"]; }) }} />
+      <Card testid="ms-form" title="Milestone Billing Plan">
         <Grid cols={5}>
           <Field label="Contract *"><Sel data-testid="ms-contract" value={f.contractId} onChange={set("contractId")} options={contractOpts} /></Field>
           <Field label="Milestone *"><Inp data-testid="ms-title" value={f.title} onChange={set("title")} placeholder="Foundation / First floor" /></Field>
@@ -53,7 +59,6 @@ export const Milestones = ({ data, save, remove, reload }) => {
           <Field label="Target Date"><Inp data-testid="ms-due" type="date" value={f.dueDate} onChange={set("dueDate")} /></Field>
         </Grid>
         <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <Btn data-testid="ms-save-btn" onClick={onSave}>Save Milestone</Btn>
           {contract && <span style={{ fontSize: 12 }}>Contract value {inr(contract.contractValue)} · planned {usedPct + num(f.pct)}%</span>}
         </div>
       </Card>
