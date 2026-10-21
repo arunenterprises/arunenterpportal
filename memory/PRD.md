@@ -254,3 +254,8 @@ Per directive "SuperAdmin deside karega …power ye system REGISTER NEW EMPLOYEE
 
 ## Credentials
 See `/app/memory/test_credentials.md`.
+
+## 2026-10-21 — GM Dashboard: Client & Revenue alignment
+- KPI grid me 5 CRM verticals (Leads, Clients, Measurement Book, RA Bills, Change Orders) — same KpiCard style as other departments.
+- CrmGmPanel moved to bottom as Dept #7 (numbered strip like other DeptGroups), coloured header bar (#1e3a8a) + "Open module" pill, same as InboxSection.
+

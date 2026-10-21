@@ -5,7 +5,16 @@ import { loadCrmCache, inr, num, nameOf, RA_STEPS } from "./crmShared";
 import { retentionSummary } from "./Retention";
 
 // GM Dashboard section for Client & Revenue Management.
-export const CrmGmPanel = () => {
+const stepCount = (a) => ({ pending: a.filter((x) => Number(x.step) === 2).length, approved: a.filter((x) => Number(x.step) >= 3).length, total: a.length });
+export const crmGmCounts = (d) => ({
+  leads: { pending: d.leads.filter((l) => !["Won", "Lost"].includes(l.status)).length, approved: d.leads.filter((l) => l.status === "Won").length, total: d.leads.length },
+  clients: stepCount(d.clients),
+  mb: stepCount(d.mb),
+  ra: stepCount(d.ra_bills),
+  co: stepCount(d.change_orders),
+});
+
+export const CrmGmPanel = ({ index = 7 }) => {
   const nav = useNavigate();
   const [d, setD] = useState(null);
   useEffect(() => { loadCrmCache().then((c) => setD({ ...c })).catch(() => setD(null)); }, []);
@@ -27,10 +36,19 @@ export const CrmGmPanel = () => {
     ...d.change_orders.filter((c) => Number(c.step) === 2).map((c) => ["Change Order", c.coNo, c.description, inr(c.value)]),
   ];
   return (
-    <div data-testid="gm-crm-panel" style={{ marginTop: 16, background: "#fff", border: "1px solid #dbeafe", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 14px", background: "linear-gradient(135deg,#0b1f4d 0%,#1e3a8a 55%,#0891b2 100%)", color: "#fff" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, fontSize: 14, letterSpacing: .4 }}><Handshake size={18} /> CLIENT &amp; REVENUE MANAGEMENT</div>
-        <button data-testid="gm-crm-open" onClick={() => nav("/client-revenue")} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#fff", color: "#1e3a8a", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Open <ArrowRight size={13} /></button>
+    <div data-testid="gm-crm-panel" style={{ marginTop: 18, marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div style={{ width: 26, height: 26, borderRadius: 8, background: "#1e3a8a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, boxShadow: "0 2px 6px #1e3a8a55" }}>{index}</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", letterSpacing: .5, textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 6 }}><Handshake size={14} /> Client &amp; Revenue Management</div>
+        <div style={{ flex: 1, height: 1, background: "linear-gradient(to right, #e2e8f0, transparent)" }} />
+      </div>
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,.05)" }}>
+      <div data-testid="gm-crm-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 16px", background: "#1e3a8a", color: "#fff" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 800, letterSpacing: .5, textTransform: "uppercase" }}>
+          <Handshake size={15} /> Client &amp; Revenue pending
+          <span style={{ marginLeft: 4, padding: "1px 8px", background: "rgba(255,255,255,.22)", borderRadius: 999, fontSize: 11, fontWeight: 700 }}>{pend.length}</span>
+        </div>
+        <button data-testid="gm-crm-open" onClick={() => nav("/client-revenue")} style={{ padding: "5px 12px", background: "rgba(255,255,255,.22)", color: "#fff", border: "1px solid rgba(255,255,255,.4)", borderRadius: 20, cursor: "pointer", fontSize: 10.5, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>Open module <ArrowRight size={11} /></button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, padding: 12 }}>
         {kpis.map(([l, v], i) => (
@@ -56,6 +74,7 @@ export const CrmGmPanel = () => {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

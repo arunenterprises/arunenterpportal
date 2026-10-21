@@ -4,10 +4,11 @@ import { Toaster, toast } from "sonner";
 import {
   ArrowRight, CheckCircle2, RefreshCw, ClipboardList, Users, FileText,
   Wallet, Receipt, CreditCard, Clock, TrendingUp, LayoutDashboard, ShieldCheck,
-  UserCheck, Calendar, LogOut, Briefcase, Banknote, XCircle, Trash2,
+  UserCheck, Calendar, LogOut, Briefcase, Banknote, XCircle, Trash2, Handshake,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
-import CrmGmPanel from "../components/crm/CrmGmPanel";
+import CrmGmPanel, { crmGmCounts } from "../components/crm/CrmGmPanel";
+import { loadCrmCache } from "../components/crm/crmShared";
 import {
   getVendors, getBills, getPayments, getExpenses, getBOQs, getWOs,
   getEmployees, getLeaves, getExits, getRecruitments, getPayBills,
@@ -264,6 +265,8 @@ export default function GeneralManager() {
   const [tab, setTab] = useState("pending");
   const bump = () => setTick((t) => t + 1);
   const delOk = canDelete();
+  const [crm, setCrm] = useState(null);
+  useEffect(() => { loadCrmCache().then((c) => setCrm(crmGmCounts(c))).catch(() => {}); }, [tick]);
 
   // REAL-TIME SYNC: auto-refresh when any user (admin/superadmin anywhere) commits a change.
   // App.js runs an 8-second global poll + focus-triggered pulls, which fire the
@@ -503,9 +506,16 @@ export default function GeneralManager() {
             <KpiCard testid="kpi-hr-recruits" icon={Briefcase}  label="HR · Recruitment" tone="#16a34a" pending={stats.recruitsPending.length}  approved={stats.recruitsApproved.length} total={recruits.length}  onOpen={() => nav("/hr")} />
             <KpiCard testid="kpi-hr-exits"  icon={LogOut}       label="HR · Exit & F&F"  tone="#991b1b" pending={stats.exitsPending.length}     approved={stats.exitsApproved.length}    total={exits.length}     onOpen={() => nav("/hr")} />
             <KpiCard testid="kpi-hr-paybills" icon={Banknote}   label="HR · Pay Bills"   tone="#be185d" pending={stats.payBillsPending.length}  approved={stats.payBillsApproved.length} total={payBills.length}  onOpen={() => nav("/hr")} />
+            {crm && [
+              ["leads", "CRM · Leads", TrendingUp, "#0891b2"],
+              ["clients", "CRM · Clients", Handshake, "#1e3a8a"],
+              ["mb", "CRM · Measurement Book", ClipboardList, "#0f766e"],
+              ["ra", "CRM · RA Bills", Receipt, "#1d4ed8"],
+              ["co", "CRM · Change Orders", FileText, "#4338ca"],
+            ].map(([k, label, Icon, tone]) => (
+              <KpiCard key={k} testid={`kpi-crm-${k}`} icon={Icon} label={label} tone={tone} pending={crm[k].pending} approved={crm[k].approved} total={crm[k].total} onOpen={() => nav("/client-revenue")} />
+            ))}
           </div>
-
-          <CrmGmPanel />
 
           {/* Segmented tab bar */}
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -579,6 +589,8 @@ export default function GeneralManager() {
           <div style={{ marginTop: 18 }}>
             {tab === "pending" ? pendingInbox : approvedInbox}
           </div>
+
+          <CrmGmPanel index={7} />
 
           {/* Footer helper */}
           <div style={{
