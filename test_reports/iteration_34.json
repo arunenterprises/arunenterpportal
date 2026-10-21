@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 34 (frontend only, SuperAdmin, 1920x1080 plus 390 mobile). Tested the vendor bill split (Purchase /bill-create to Accounts /bill), the Expenses tab move, the HsnFinder panel and the action row. All core flows PASS. (1) Purchase /purchase: tabs are BOQ, Work Order and New Vendor Bill Creation; there is no Expense tab. hsn-finder sits at the bottom. 'cement' lists 2523 and 3816, and hsn-copy-2523 shows a toast. boq-hsn-0 is a plain INPUT with no list attribute. (2) /bill-create: header 'PURCHASE · NEW VENDOR BILL CREATION' shows; there are no accounts tabs and no fetch panel. Final Approval is disabled. Seeded a TEST approved vendor in localStorage (the DB had 0 vendors), then fetched it. Filled WO TEST-WO-001, invoice TEST-INV-001, date and basic 10000, plus 2 item rows with HSN 2523 and 995454. Save gave AE00392627 at step 1. Submit raised the alert 'Reference No: AE00392627', and step went 1→2. After that billNo is readonly, Add Row is disabled, and a second Submit shows 'Bill already Accounts mein hai'. (3) /bill: tabs are Vendor Bill Process, Expenses, Advance Reg., Pay Bills Process, Weekly Fooding, Exit & F&F. Opening /bill did NOT consume a bill serial (billSerial stayed 38) and refNo is blank on load. New is disabled. Save before fetch shows an error. An unknown ref shows 'ka koi bill nahi mila'. The step-1 draft ref shows 'abhi Purchase mein draft hai'. A lowercase ref is upper-cased, and Enter fetches the bill. Fetching by permanent BILL no also works. The Expenses tab navigates to /expense. (4) Cross-verify: the items fieldset is disabled and items are not editable. Submit with 0/2 verified gave '2 item(s) cross-verify karna baaki hai'; with 1/2 it gave '1 item(s)…'. After Verify All (2/2) and Save, Submit moved step 2→3. Submit at step 3 without Account Incharge gave an error; with the name filled it moved 3→4. Final Approval then went to step 5 with BILL00392627, net ₹11,600. (5) Client & Revenue: hsn-finder shows on the Contracts and CO tabs only (not RA/MB), and cement lists 2523. (6) RA print: checked by code review only. The DOCTYPE and table font-size 12px are present, with the logo fallback `${origin}/arun-logo.jpg`. There was no RA bill to print in the UI. Cleanup: TEST bill deleted via UI (SuperAdmin). The TEST vendor was removed from localStorage and via DELETE /api/vendors/v_test_qa; /api/vendors and /api/bills are now [].",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BillProcessing bill-action-row", "issue": "The row does not wrap (flex-wrap nowrap, overflow-x auto). But the button labels themselves break onto 2 lines at 1920px because the page container is about 840px wide: 'Vendor / Query', 'New / Bill', 'Save / Bill', 'Final / Approval', '⬇ / Excel'. Buttons have a fixed height of 32 and no white-space: nowrap or flex-shrink: 0, so the user still sees a 2-line look. Add whiteSpace:'nowrap', flexShrink:0 to every button in the row.", "selector": "[data-testid=bill-action-row] button", "priority": "MEDIUM"},
+      {"component": "Toasts (all pages incl. Purchase/Bill)", "issue": "Every toast shows TWICE (top-center plus top-right). App.js mounts a global <Toaster position='top-right'/> and each page also mounts its own <Toaster position='top-center'/>. This was already there before, but it is very visible here (HSN Copy toast, bill toasts).", "selector": "[data-sonner-toast]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "/bill load", "issue": "The toast 'Duplicate process numbers removed (1 rows across all modules)' appears on every /bill mount. dedupeAllStores removes a dup locally, but sync re-introduces it, so it repeats every time. Root cause is likely a duplicate row in one of the server collections. This existed before.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "/bill on mobile 390px", "issues": ["Whole page overflows horizontally (document scrollWidth 1139 vs 390). The action row is 1028px wide, so the page scrolls instead of the row. This existed before."]},
+      {"screen": "Home", "issues": ["The updated Purchase/Accounts subtitle and lines ('BOQ · WO · New Vendor Bill Creation', 'Vendor Bill Process: Ref No fetch…') are in the DEPTS data but are NOT rendered in the current sidebar Home layout, which shows titles only, so the user can't see them. This is fine only if the DeptCard grid is shown elsewhere."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add whiteSpace:'nowrap' and flexShrink:0 to all bill-action-row buttons so labels stay on one line (the row then scrolls horizontally on narrow widths).",
+    "Remove the per-page <Toaster/> instances (or the global one in App.js) to stop duplicate toasts.",
+    "Optional: in /bill (process mode), the Bills Data Sheet 'Load' and the Bill No lookup (bill-lookup) still load step-1 Purchase drafts, which bypasses the 'draft hai' check. Save/Submit guards block changes, but consider hiding step-1 bills in process mode for consistency.",
+    "Optional: in create mode, Submit 1→2 does not require Site Incharge Name (requiredForStep(1)), unlike the old flow. Confirm this is intended.",
+    "Optional: check the recurring 'Duplicate process numbers removed' toast (dedupe keeps finding 1 dup on each load)."
+  ],
+  "critical_code_review_comments": [
+    "BillProcessing.jsx is about 2000 lines; split it (fetch panel, cross-verify, action row, print) into components.",
+    "Accounts mode loadBill() via the bill-load-<id> row and the bill-lookup has no step>=2 guard, while bill-fetch-btn does.",
+    "The bill-fetch-ref Enter handler uses document.querySelector to click the button; call a shared fetchByRef() function instead.",
+    "The fetch/lookup matching logic is duplicated 3 times (onKeyDown, bill-lookup click, bill-fetch-btn). Extract it into a helper (DRY).",
+    "RABills printRA: an XSS risk exists because text fields (description, client name) are injected unescaped into document.write HTML."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "95% (all requested flows pass; 1 medium cosmetic issue with action-row label wrapping)"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Temporarily seeded vendor TESTV0001JV2627 (id v_test_qa, step 3) in localStorage; it synced to the server. Created bill AE00392627/BILL00392627. Both were deleted afterwards. Bill serial counter advanced to about 39 (not reverted).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The DB has 0 vendors. To test bills, seed an approved vendor in localStorage key ae_vm_vendors ({id, vendorCode, step:3, firmName,...}), then delete it afterwards via DELETE /api/vendors/{id}, because it syncs to the server. Do NOT remove sonner toast DOM nodes manually; that crashes React (insertBefore error). Toasts appear twice (two Toasters). Bill fields use data-testid field-<key> (billNo, billDate, basicAmount, purchaseInchargeName, accountInchargeName, approverName). Items use item-desc/hsn/woQty/woRate/billedQty-<i> plus btn-add-item-row. No RA bill exists, so RA print could not be tested in the UI."
+}

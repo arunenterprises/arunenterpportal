@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Toaster } from "sonner";
 import { Handshake, LayoutDashboard, Users, Building2, MessagesSquare, FileSignature, Ruler, Receipt, Flag, ShieldCheck, FilePlus2, BarChart3, ChevronRight } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
@@ -66,6 +67,7 @@ export default function ClientRevenue() {
   const Active = TABS.find((t) => t.k === tab).C;
   return (
     <>
+      <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div data-testid="client-revenue-page" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px) 110px" }}>
         <ModuleHero tag="Client & Revenue Management" title="CRM · Measurement Book · RA Billing · Retention" subtitle="Lead se lekar client payment aur retention release tak ka poora workflow"

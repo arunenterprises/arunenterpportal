@@ -1,7 +1,7 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
 import VendorRegistration from "./pages/VendorRegistration";
@@ -76,7 +76,6 @@ function App() {
 
   return (
     <div className="App">
-      <Toaster position="top-right" richColors />
       <SplashScreen />
       <BrowserRouter>
         <Routes>

@@ -130,6 +130,20 @@ Per directive "SuperAdmin deside karega …power ye system REGISTER NEW EMPLOYEE
   - **Weekly Fooding Tab** (`WeeklyFoodingTab.jsx`) — Approve button
   - **HR Management · Advance Request approval** (`HRManagement.jsx` line 1778)
 
+## 2026-10-21 — Client & Revenue Management follow-ups (iterations 30–34)
+- Renamed "Client & Revenue Management"; navy/blue theme; workflow strip; Reports tab + Reports Hub (7 CRM tabs, ?dept= param).
+- AI Work Order import (Gemini 3.1 Pro via EMERGENT_LLM_KEY, POST /api/crm/parse-work-order) → preview → fills contract (items, qty, rate, GST, WO type, client).
+- Single TDS (194C) per RA bill; GST payable = bill GST; dashboard KPIs + bill-wise TDS/GST table.
+- Fixed bottom action bar (New/Save/Edit/Submit/Final Approval/Delete/Excel/Print) on all CRM tabs; Edit open to all users; Approve/Delete only SuperAdmin + Admin (backend _crm_power).
+- Client Registration form (like Vendor): temp ID → permanent CL/#### on approval; IFSC auto bank details; offline GSTIN decode (checksum, PAN, State) for Client + Vendor (lib/gstin.js).
+- Work Order Type Supply / Service / Composite with compliance defaults (TDS, retention) + notes.
+- HSN/SAC search panel (components/HsnFinder.jsx, lib/hsnData.js, rates indicative post 22-Sep-2025) at bottom of Vendor Bill, BOQ, WO, Contracts, Change Orders.
+- RA bill print: company letterhead with logo (fallback /arun-logo.jpg), GSTIN/PAN, bank details, 4 signature blocks.
+- Vendor bill split: Purchase "New Vendor Bill Creation" (/bill-create, mode=create, submit → Reference No) and Accounts "Vendor Bill Process" (/bill, fetch by Ref No, item cross-verification required before submit). Expenses tab moved from Purchase to Accounts. /bill no longer consumes a bill serial on open.
+- GM Dashboard: Client & Revenue panel (KPIs + pending approvals list).
+- Removed duplicate global Toaster (toasts showed twice).
+- Backlog: GST name/address lookup needs paid GST API key; Client Portal; RA bill Excel per contract; recurring "Duplicate process numbers removed" toast on /bill (server duplicate row).
+
 ## 2026-10-21 — New Department: Client & Revenue (CRM + RA Billing)
 - User request (verbatim, Hindi): CRM (Lead tracking, Client portal, Communication) + Billing & Revenue (RA Billing & MB, Milestone billing, Retention money, Change order / extra work) "dono department ko merge karke ek new department banakar drafting dijiye dekhne bad is software main implement kijiye".
 - User choices: full draft; Client Portal NOT needed now; GST % per item; RA Bill approval by GM/SuperAdmin.

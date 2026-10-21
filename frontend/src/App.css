@@ -1074,6 +1074,8 @@ body {
 }
 
 /* Client & Revenue module */
+[data-testid="bill-action-row"] { max-width: 100%; min-width: 0; box-sizing: border-box; }
+[data-testid="bill-action-row"] > * { white-space: nowrap; flex-shrink: 0; }
 .crm-btn { transition: transform .15s ease, opacity .15s ease; }
 .crm-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .crm-tab { transition: background-color .15s ease, color .15s ease; }

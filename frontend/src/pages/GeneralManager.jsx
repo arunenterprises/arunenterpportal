@@ -7,6 +7,7 @@ import {
   UserCheck, Calendar, LogOut, Briefcase, Banknote, XCircle, Trash2,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
+import CrmGmPanel from "../components/crm/CrmGmPanel";
 import {
   getVendors, getBills, getPayments, getExpenses, getBOQs, getWOs,
   getEmployees, getLeaves, getExits, getRecruitments, getPayBills,
@@ -503,6 +504,8 @@ export default function GeneralManager() {
             <KpiCard testid="kpi-hr-exits"  icon={LogOut}       label="HR · Exit & F&F"  tone="#991b1b" pending={stats.exitsPending.length}     approved={stats.exitsApproved.length}    total={exits.length}     onOpen={() => nav("/hr")} />
             <KpiCard testid="kpi-hr-paybills" icon={Banknote}   label="HR · Pay Bills"   tone="#be185d" pending={stats.payBillsPending.length}  approved={stats.payBillsApproved.length} total={payBills.length}  onOpen={() => nav("/hr")} />
           </div>
+
+          <CrmGmPanel />
 
           {/* Segmented tab bar */}
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
