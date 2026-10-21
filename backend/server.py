@@ -974,14 +974,15 @@ async def crm_list(name: str, user: Dict = Depends(get_current_user)):
 
 _WO_PROMPT = """You are reading a client's construction WORK ORDER / LOI / agreement document (Indian context, may be Hindi or English, may be scanned).
 Extract data and reply with ONLY a JSON object (no markdown) in this exact shape:
-{"workOrderNo": "", "workOrderDate": "YYYY-MM-DD or empty", "clientName": "", "clientAddress": "", "clientGst": "", "clientPan": "",
+{"workOrderNo": "", "workOrderDate": "YYYY-MM-DD or empty", "workOrderType": "Supply | Service | Composite", "clientName": "", "clientAddress": "", "clientGst": "", "clientPan": "",
  "contactPerson": "", "clientMobile": "", "clientEmail": "", "projectName": "", "siteLocation": "", "startDate": "YYYY-MM-DD or empty",
  "completionDate": "YYYY-MM-DD or empty", "contractValue": 0, "retentionPct": 0, "advanceAmount": 0, "advanceRecoveryPct": 0,
  "defaultGstPct": 0, "scopeOfWork": "",
  "items": [{"code": "", "description": "", "unit": "", "qty": 0, "rate": 0, "gstPct": 0}]}
 Rules: numbers must be plain numbers (no commas/currency). Include EVERY line item of the BOQ/schedule with its quantity, unit and rate.
 If GST % is given per item use it, else use the overall GST % (defaultGstPct). Retention / security deposit % goes in retentionPct.
-Use empty string or 0 when a value is not present. Do not invent values."""
+Use empty string or 0 when a value is not present. Do not invent values.
+workOrderType: "Supply" if only material supply, "Service" if works contract / labour / construction / services, "Composite" if supply + installation/erection."""
 
 
 @api_router.post("/crm/parse-work-order")
@@ -1055,20 +1056,20 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
             body.pop(f, None)
             if existing and existing.get(f):
                 body[f] = existing[f]
-        if not _can_approve(user) and (new_step > 2 or old_step >= 3):
+        if not _crm_power(user) and (new_step > 2 or old_step >= 3):
             if name == "mb" and existing and new_step == old_step:
                 body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}
             else:
-                raise HTTPException(status_code=403, detail="GM / SuperAdmin approval required")
+                raise HTTPException(status_code=403, detail="Approval sirf SuperAdmin / Admin kar sakte hain")
         if new_step == 3 and old_step < 3:
             body["approvedByName"] = user.get("name") or user.get("email")
             body["approvedAt"] = datetime.now(timezone.utc).isoformat()
     if name == "retention_releases":
-        if not _can_approve(user):
-            raise HTTPException(status_code=403, detail="GM / SuperAdmin approval required")
+        if not _crm_power(user):
+            raise HTTPException(status_code=403, detail="Approval sirf SuperAdmin / Admin kar sakte hain")
         cid = body.get("contractId")
-        held = sum(float(b.get("retentionAmt") or 0) async for b in db.crm_ra_bills.find({"contractId": cid, "step": {"$gte": 3}}))
-        released = sum(float(r.get("amount") or 0) async for r in db.crm_retention_releases.find({"contractId": cid, "id": {"$ne": rid}}))
+        held = sum([float(b.get("retentionAmt") or 0) async for b in db.crm_ra_bills.find({"contractId": cid, "step": {"$gte": 3}})])
+        released = sum([float(r.get("amount") or 0) async for r in db.crm_retention_releases.find({"contractId": cid, "id": {"$ne": rid}})])
         if float(body.get("amount") or 0) > round(held - released, 2) + 0.01:
             raise HTTPException(status_code=400, detail="Release amount exceeds retention balance")
     body["updatedAt"] = datetime.now(timezone.utc).isoformat()
@@ -1078,8 +1079,15 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
     return await db[coll].find_one({"id": rid}, {"_id": 0})
 
 
+def _crm_power(user: Dict) -> bool:
+    """Client & Revenue: approve/delete only for SuperAdmin + Admin role."""
+    return _is_super_admin(user) or (user.get("role") or "").strip().lower() == "admin"
+
+
 @api_router.delete("/crm/{name}/{rid}")
-async def crm_delete(name: str, rid: str, admin: Dict = Depends(require_admin)):
+async def crm_delete(name: str, rid: str, user: Dict = Depends(get_current_user)):
+    if not _crm_power(user):
+        raise HTTPException(status_code=403, detail="Delete sirf SuperAdmin / Admin kar sakte hain")
     r = await db[_crm_coll(name)].delete_one({"id": rid})
     return {"ok": True, "deleted": r.deleted_count}
 

@@ -16,7 +16,7 @@ import { loadCrmCache, crmReportRows, RA_STEPS, STEP_WF } from "../components/cr
 import { CRM_REPORTS } from "../components/crm/CrmReports";
 
 const CRM_AMOUNT = { ra_bills: "net", contracts: "contractValue", change_orders: "value", retention: "balance", leads: "value" };
-const CRM_STATUS = { ra_bills: ["step", RA_STEPS], mb: ["step", STEP_WF], change_orders: ["step", STEP_WF], leads: ["status", null] };
+const CRM_STATUS = { ra_bills: ["step", RA_STEPS], mb: ["step", STEP_WF], change_orders: ["step", STEP_WF], clients: ["step", STEP_WF], leads: ["status", null] };
 const CRM_DEPTS = CRM_REPORTS.map((r) => ({
   id: r.hub, title: `CRM · ${r.l}`, icon: "◆",
   fetch: () => crmReportRows(r.k),

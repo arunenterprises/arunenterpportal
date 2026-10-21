@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Wand2, Mail, IndianRupee, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { canApprove, getCompany, amountToWords } from "../../lib/store";
+import { canDelete as canApprove, getCompany, amountToWords } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmNextNo, crmSave, crmDelete } from "./crmShared";
 
@@ -66,8 +66,10 @@ export const RABills = ({ data, save, reload }) => {
   };
   const move = (b, step, extra = {}) => persist({ ...b, ...extra, step }, `${b.raNo} → ${RA_STEPS[step]}`);
   const del = async (b) => {
-    if (!window.confirm(`Delete ${b.raNo}?`)) return;
+    if (!window.confirm(`Delete ${b.raNo}?${Number(b.step) >= 3 ? " Yeh approved/payment bill hai — pakka delete karein?" : ""}`)) return;
     await Promise.all(data.mb.filter((m) => m.raBillId === b.id).map((m) => crmSave("mb", { ...m, raBillId: "" })));
+    const ms = data.milestones.find((m) => m.billId === b.id);
+    if (ms) await crmSave("milestones", { ...ms, done: false, doneDate: "", billId: "" });
     try { await crmDelete("ra_bills", b.id); toast.success("Deleted"); } catch (e) { toast.error(e.message); }
     await reload(); setF(blank());
   };
@@ -82,7 +84,7 @@ export const RABills = ({ data, save, reload }) => {
         onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 3 ? onSave : null}
         onEdit={f.id && !editing && st < 3 ? () => setEditing(true) : null}
         onSubmit={f.id && st === 1 ? () => move(f, 2) : null} onApprove={f.id && st === 2 ? () => move(f, 3) : null}
-        onDelete={f.id && st < 3 ? () => del(f) : null}
+        onDelete={f.id ? () => del(f) : null}
         list={{ title: "RA / Milestone Bill Register", cols: ["Bill No", "Type", "Date", "Client", "Contract", "Basic", "GST", "TDS", "GST Payable", "Retention", "Net", "Status"], rows: data.ra_bills.map((b) => [b.raNo, b.type, b.billDate, nameOf(data.clients, b.clientId), (data.contracts.find((c) => c.id === b.contractId) || {}).contractNo, num(b.basic), num(b.gstTotal), num(b.tdsAmt), num(b.gstTotal), num(b.retentionAmt), num(b.net), RA_STEPS[b.step]]) }} />
       <Card testid="ra-form" title={f.id ? `${f.type === "Milestone" ? "Milestone Bill" : "RA Bill"} · ${f.raNo} · ${RA_STEPS[f.step]}` : "New RA Bill (Running Account)"}>
         <Grid cols={4}>

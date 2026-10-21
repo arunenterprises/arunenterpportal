@@ -9,6 +9,7 @@ import { Users as UsersIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
+import { parseGstin } from "../lib/gstin";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
@@ -98,6 +99,14 @@ export default function VendorRegistration() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendor.ifscCode]);
+
+  const gstInfo = parseGstin(vendor.gstNo);
+  useEffect(() => {
+    if (!gstInfo.valid || locked) return;
+    setVendor((p) => ({ ...p, panNo: p.panNo || gstInfo.pan, state: p.state || gstInfo.state }));
+    toast.success(`GSTIN valid · ${gstInfo.state} · PAN ${gstInfo.pan}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gstInfo.valid, vendor.gstNo]);
 
   const validateStep1 = () => {
     if (!String(vendor.firmName || "").trim()) { toast.error("Vendor / Firm Name is required"); return false; }
@@ -318,9 +327,12 @@ export default function VendorRegistration() {
               <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="Mobile Number" req><input placeholder="Phone Number" maxLength={12} {...bind("mobileNo")} /></F>
                 <F label="Vendor Email ID (For Work Orders)"><input type="email" placeholder="vendor@domain.com" {...bind("email")} /></F>
-                <F label="GST Number">
-                  <input placeholder="GSTIN Number" maxLength={15}
-                    {...bind("gstNo", { style: { textTransform: "uppercase" } })} />
+                <F label={`GST Number${gstInfo.valid ? ` · ${gstInfo.entityType}` : ""}`}>
+                  <div style={{ position: "relative" }}>
+                    <input placeholder="GSTIN (auto-fills PAN & State)" maxLength={15}
+                      {...bind("gstNo", { style: { textTransform: "uppercase", paddingRight: 40, ...(gstInfo.valid ? { background: "#f0fdf4" } : {}) } })} />
+                    <span data-testid="gst-status" style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: (vendor.gstNo || "").length === 15 ? "inline-block" : "none", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: gstInfo.valid ? "#dcfce7" : "#fee2e2", color: gstInfo.valid ? "#166534" : "#991b1b" }}>{gstInfo.valid ? "✓" : "✗"}</span>
+                  </div>
                 </F>
               </div>
               <div className="row cols-2" style={{ marginTop: 10 }}>

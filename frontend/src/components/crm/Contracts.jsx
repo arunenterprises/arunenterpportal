@@ -6,26 +6,38 @@ import { WorkOrderImport } from "./WorkOrderImport";
 import { CrmActionBar, FormLock } from "./CrmActionBar";
 
 const blankItem = () => ({ id: uid("it"), code: "", description: "", unit: "Cum", qty: 0, rate: 0, gstPct: 18 });
-const blank = () => ({ id: "", contractNo: "", clientId: "", projectName: "", siteLocation: "", startDate: today(), completionDate: "", workOrderNo: "", workOrderDate: "", scopeOfWork: "", contractValue: 0, retentionPct: 5, tdsPct: 2, advanceAmount: 0, advanceRecoveryPct: 10, items: [blankItem()], newClient: null, woFileName: "", woFileData: "" });
+const blank = () => ({ id: "", contractNo: "", clientId: "", projectName: "", siteLocation: "", startDate: today(), completionDate: "", workOrderNo: "", workOrderDate: "", scopeOfWork: "", contractValue: 0, retentionPct: 5, tdsPct: 2, woType: "Service", advanceAmount: 0, advanceRecoveryPct: 10, items: [blankItem()], newClient: null, woFileName: "", woFileData: "" });
 export const itemsValue = (items) => (items || []).reduce((s, i) => s + num(i.qty) * num(i.rate), 0);
+
+export const WO_TYPES = {
+  Supply: { tdsPct: 0, retentionPct: 0, gstPct: 18, notes: ["Section 194C TDS lagu nahi; 194Q 0.1% sirf tab jab client ka turnover ₹10 Cr+ ho", "HSN code har item par zaroori", "E-Way Bill ₹50,000 se upar ke dispatch par", "Retention aam taur par nahi; zarurat ho to Performance Guarantee / Warranty"] },
+  Service: { tdsPct: 2, retentionPct: 5, gstPct: 18, notes: ["Section 194C TDS: 2% (Company/Firm), 1% (Individual/HUF)", "SAC code (works contract 9954) zaroori", "Retention / Security Deposit 5% — kaam poora hone ke baad release", "Construction mein BOCW Labour Cess 1% client kaat sakta hai"] },
+  Composite: { tdsPct: 2, retentionPct: 5, gstPct: 18, notes: ["Supply + Installation = Works Contract (composite supply)", "Section 194C TDS 2% / 1% poore bill par", "Retention 5% + installation complete hone par release", "HSN (material) aur SAC (service) dono ka record rakhein"] },
+};
+const WO_LABEL = { Supply: "Supply (Material)", Service: "Service / Works Contract", Composite: "Supply + Service (Composite)" };
 
 export const Contracts = ({ data, save, remove }) => {
   const [f, setF] = useState(blank());
   const [editing, setEditing] = useState(true);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const setItem = (id, k, v) => setF({ ...f, items: f.items.map((i) => (i.id === id ? { ...i, [k]: v } : i)) });
+  const setWoType = (t) => {
+    const c = WO_TYPES[t];
+    setF((x) => ({ ...x, woType: t, tdsPct: c.tdsPct, retentionPct: c.retentionPct }));
+  };
   const applyWO = (p, file, dataUrl) => {
     const nm = String(p.clientName || "").trim().toLowerCase();
     const match = nm && data.clients.find((c) => c.name.toLowerCase().includes(nm) || nm.includes(c.name.toLowerCase()) || (p.clientGst && c.gst === p.clientGst));
     const items = (p.items || []).filter((i) => i.description).map((i) => ({ ...blankItem(), code: i.code || "", description: i.description, unit: i.unit || "Nos", qty: num(i.qty), rate: num(i.rate), gstPct: num(i.gstPct) || num(p.defaultGstPct) || 18 }));
     setF((x) => ({
       ...x,
+      ...(WO_TYPES[p.workOrderType] ? { woType: p.workOrderType, tdsPct: WO_TYPES[p.workOrderType].tdsPct, retentionPct: WO_TYPES[p.workOrderType].retentionPct } : {}),
       clientId: match ? match.id : x.clientId,
       newClient: !match && p.clientName ? { name: p.clientName, address: p.clientAddress || "", gst: p.clientGst || "", pan: p.clientPan || "", contactPerson: p.contactPerson || "", mobile: p.clientMobile || "", email: p.clientEmail || "" } : null,
       projectName: p.projectName || x.projectName, siteLocation: p.siteLocation || x.siteLocation,
       startDate: p.startDate || x.startDate, completionDate: p.completionDate || x.completionDate,
       workOrderNo: p.workOrderNo || x.workOrderNo, workOrderDate: p.workOrderDate || x.workOrderDate, scopeOfWork: p.scopeOfWork || x.scopeOfWork,
-      contractValue: num(p.contractValue) || itemsValue(items), retentionPct: num(p.retentionPct) || x.retentionPct,
+      contractValue: num(p.contractValue) || itemsValue(items), retentionPct: num(p.retentionPct) || (WO_TYPES[p.workOrderType] || {}).retentionPct || x.retentionPct,
       advanceAmount: num(p.advanceAmount) || x.advanceAmount, advanceRecoveryPct: num(p.advanceRecoveryPct) || x.advanceRecoveryPct,
       items: items.length ? items : x.items,
       woFileName: file.size <= 2 * 1024 * 1024 ? file.name : "", woFileData: file.size <= 2 * 1024 * 1024 ? dataUrl : "",
@@ -54,6 +66,14 @@ export const Contracts = ({ data, save, remove }) => {
       <Card testid="contract-form" title={f.id ? `Contract · ${f.contractNo}` : "New Contract / Work Order"}>
         <FormLock editing={editing}>
         {!f.id && <WorkOrderImport onApply={applyWO} />}
+        <Grid cols={4}>
+          <Field label="Work Order Type *"><Sel data-testid="contract-wo-type" value={f.woType || "Service"} onChange={(e) => setWoType(e.target.value)} options={Object.keys(WO_TYPES).map((k) => ({ v: k, l: WO_LABEL[k] }))} /></Field>
+          <div data-testid="contract-compliance" style={{ gridColumn: "span 3", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "8px 12px", fontSize: 11.5, color: "#0c4a6e" }}>
+            <b>Compliance ({WO_LABEL[f.woType || "Service"]}):</b> TDS {num(f.tdsPct)}% · Retention {num(f.retentionPct)}% · GST {WO_TYPES[f.woType || "Service"].gstPct}% default
+            <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>{WO_TYPES[f.woType || "Service"].notes.map((n) => <li key={n}>{n}</li>)}</ul>
+          </div>
+        </Grid>
+        <div style={{ height: 12 }} />
         <Grid cols={4}>
           <Field label="Client *">
             <Sel data-testid="contract-client" value={f.clientId} onChange={(e) => setF({ ...f, clientId: e.target.value, newClient: e.target.value ? null : f.newClient })} options={clientOpts} />
@@ -92,8 +112,8 @@ export const Contracts = ({ data, save, remove }) => {
         </FormLock>
       </Card>
       <Card title={`Contracts (${data.contracts.length})`}>
-        <Table testid="contracts-table" cols={["Contract No", "Client WO", "Client", "Project", "Value", "Retention %", "Items", "Actions"]}
-          rows={data.contracts.map((k) => [k.contractNo, k.workOrderNo || "—", nameOf(data.clients, k.clientId), k.projectName, inr(k.contractValue), `${k.retentionPct}%`, (k.items || []).length,
+        <Table testid="contracts-table" cols={["Contract No", "Type", "Client WO", "Client", "Project", "Value", "Retention %", "Items", "Actions"]}
+          rows={data.contracts.map((k) => [k.contractNo, WO_LABEL[k.woType] || "—", k.workOrderNo || "—", nameOf(data.clients, k.clientId), k.projectName, inr(k.contractValue), `${k.retentionPct}%`, (k.items || []).length,
             <div style={{ display: "flex", gap: 6 }}>
               <Btn tone="ghost" data-testid={`contract-edit-${k.id}`} onClick={() => { setF({ ...blank(), ...k }); setEditing(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Open</Btn>
               {canDelete() && <Btn tone="red" data-testid={`contract-del-${k.id}`} onClick={() => remove("contracts", k.id)}><Trash2 size={13} /></Btn>}

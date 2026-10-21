@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Send, CheckCircle2, Trash2 } from "lucide-react";
-import { canApprove, canDelete } from "../../lib/store";
+import { canDelete as canApprove, canDelete } from "../../lib/store";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, STEP_WF, stepTone, uid, today, num, crmNextNo } from "./crmShared";
 import { CrmActionBar } from "./CrmActionBar";
 

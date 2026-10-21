@@ -27,7 +27,7 @@ export const Comms = ({ data, save, remove }) => {
     if (out) { setF(out); setEditing(false); }
   };
   const list = data.comms.filter((c) => !filter || c.clientId === filter).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  const clientOpts = [{ v: "", l: "— Select client —" }, ...data.clients.map((c) => ({ v: c.id, l: `${c.clientCode} · ${c.name}` }))];
+  const clientOpts = [{ v: "", l: "— Select client —" }, ...data.clients.map((c) => ({ v: c.id, l: `${c.clientCode || c.tempRefId || ""} · ${c.name}` }))];
   return (
     <>
       <CrmActionBar name="comm" status={f.id ? `${f.type} · ${f.date} · ${editing ? "Editing" : "View"}` : "New record"}

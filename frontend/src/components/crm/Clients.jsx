@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import Header from "../Header";
 import StepTabs from "../StepTabs";
 import { uid, today, crmNextNo, nameOf } from "./crmShared";
+import { parseGstin } from "../../lib/gstin";
 import { CrmActionBar, FormLock } from "./CrmActionBar";
 
 const CLIENT_TYPES = ["Government Department", "PSU / Corporation", "Private Company", "Builder / Developer", "Individual", "Other"];
@@ -12,7 +13,7 @@ const STEPS = { 1: "Step 1 · Created", 2: "Step 2 · Checked & Submitted", 3: "
 const blank = () => ({
   id: "", tempRefId: "", clientCode: "", step: 1, clientType: "Government Department", name: "", department: "", contactPerson: "", designation: "",
   mobile: "", altMobile: "", email: "", gst: "", pan: "", tan: "", address: "", city: "", state: "", pincode: "",
-  projectCode: "", siteName: "", ifscCode: "", bankName: "", branchName: "", bankAddress: "", accountType: "Current", accountHolder: "", accountNumber: "",
+  projectCode: "", siteName: "", ifscCode: "", bankName: "", branchName: "", bankAddress: "", bankCity: "", bankState: "", accountType: "Current", accountHolder: "", accountNumber: "",
   creatorName: "", creationDate: today(), checkedByName: "", remarks: "",
 });
 
@@ -22,23 +23,43 @@ const F = ({ label, req, children }) => (
 
 const useIfsc = (f, setF) => {
   const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     const code = (f.ifscCode || "").toUpperCase().trim();
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(code)) { setOk(false); return undefined; }
     let off = false;
+    setBusy(true);
     fetch(`https://ifsc.razorpay.com/${code}`).then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => { if (off) return; setF((p) => ({ ...p, bankName: d.BANK, branchName: d.BRANCH, bankAddress: d.ADDRESS })); setOk(true); })
-      .catch(() => { if (!off) { setOk(false); toast.error(`IFSC "${code}" not found`); } });
+      .then((d) => { if (off) return; setF((p) => ({ ...p, bankName: d.BANK, branchName: d.BRANCH, bankAddress: d.ADDRESS, bankCity: d.CITY, bankState: d.STATE })); setOk(true); toast.success(`Bank: ${d.BANK} · ${d.BRANCH}`); })
+      .catch(() => { if (!off) { setOk(false); toast.error(`IFSC "${code}" not found`); } })
+      .finally(() => { if (!off) setBusy(false); });
     return () => { off = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f.ifscCode]);
-  return ok;
+  return { ok, busy };
 };
+
+const useGstin = (f, setF) => {
+  const info = parseGstin(f.gst);
+  useEffect(() => {
+    if (!info.valid) return;
+    setF((p) => ({ ...p, pan: p.pan || info.pan, state: p.state || info.state }));
+    toast.success(`GSTIN valid · ${info.state} · PAN ${info.pan}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [info.valid, f.gst]);
+  return info;
+};
+
+const Badge = ({ ok, busy, show, okText = "✓", badText = "✗", testid }) => (
+  <span data-testid={testid} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: show ? "inline-block" : "none", fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+    background: busy ? "#fef3c7" : ok ? "#dcfce7" : "#fee2e2", color: busy ? "#92400e" : ok ? "#166534" : "#991b1b" }}>{busy ? "…" : ok ? okText : badText}</span>
+);
 
 export const Clients = ({ data, save, remove }) => {
   const [f, setF] = useState(blank());
   const [editing, setEditing] = useState(true);
-  const ifscOk = useIfsc(f, setF);
+  const ifsc = useIfsc(f, setF);
+  const gstInfo = useGstin(f, setF);
   const st = Number(f.step) || 1;
   const bind = (k, up) => ({ value: f[k] ?? "", onChange: (e) => setF({ ...f, [k]: up ? e.target.value.toUpperCase() : e.target.value }), "data-testid": `client-${k}` });
 
@@ -92,7 +113,7 @@ export const Clients = ({ data, save, remove }) => {
           <div className="row cols-3" style={{ marginTop: 10 }}>
             <F label="Alternate Mobile"><input maxLength={12} {...bind("altMobile")} /></F>
             <F label="Client Email ID (For Bills)"><input type="email" {...bind("email")} /></F>
-            <F label="GST Number"><input maxLength={15} {...bind("gst", true)} /></F>
+            <F label={`GST Number${gstInfo.valid ? ` · ${gstInfo.entityType}` : ""}`}><div style={{ position: "relative" }}><input maxLength={15} placeholder="GSTIN (auto-fills PAN & State)" {...bind("gst", true)} style={{ paddingRight: 40, ...(gstInfo.valid ? { background: "#f0fdf4" } : {}) }} /><Badge testid="client-gst-status" ok={gstInfo.valid} show={(f.gst || "").length === 15} /></div></F>
           </div>
           <div className="row cols-3" style={{ marginTop: 10 }}>
             <F label="PAN Number"><input maxLength={10} {...bind("pan", true)} /></F>
@@ -107,9 +128,14 @@ export const Clients = ({ data, save, remove }) => {
         </div></div>
         <div className="section"><div className="sec-head">2. Client Bank Details (payment receipt se match ke liye)</div><div className="sec-body">
           <div className="row cols-3">
-            <F label="IFSC Code (auto-fills bank)"><input maxLength={11} {...bind("ifscCode", true)} style={ifscOk ? { background: "#f0fdf4" } : {}} /></F>
-            <F label="Bank Name (auto)"><input {...bind("bankName")} /></F>
-            <F label="Branch Name (auto)"><input {...bind("branchName")} /></F>
+            <F label="IFSC Code (auto-fetch bank details)"><div style={{ position: "relative" }}><input maxLength={11} placeholder="e.g. SBIN0001234" {...bind("ifscCode", true)} style={{ paddingRight: 40, ...(ifsc.ok ? { background: "#f0fdf4" } : {}) }} /><Badge testid="client-ifsc-status" ok={ifsc.ok} busy={ifsc.busy} show={(f.ifscCode || "").length === 11} /></div></F>
+            <F label="Bank Name (auto)"><input {...bind("bankName")} readOnly={ifsc.ok} style={ifsc.ok ? { background: "#f0fdf4" } : {}} /></F>
+            <F label="Branch Name (auto)"><input {...bind("branchName")} readOnly={ifsc.ok} style={ifsc.ok ? { background: "#f0fdf4" } : {}} /></F>
+          </div>
+          <div className="row cols-3" style={{ marginTop: 10 }}>
+            <F label="Bank Branch Address (auto)"><input {...bind("bankAddress")} readOnly={ifsc.ok} style={ifsc.ok ? { background: "#f0fdf4" } : {}} /></F>
+            <F label="Bank City (auto)"><input {...bind("bankCity")} readOnly={ifsc.ok} style={ifsc.ok ? { background: "#f0fdf4" } : {}} /></F>
+            <F label="Bank State (auto)"><input {...bind("bankState")} readOnly={ifsc.ok} style={ifsc.ok ? { background: "#f0fdf4" } : {}} /></F>
           </div>
           <div className="row cols-3" style={{ marginTop: 10 }}>
             <F label="Account Type"><select {...bind("accountType")}>{ACCOUNT_TYPES.map((t) => <option key={t}>{t}</option>)}</select></F>

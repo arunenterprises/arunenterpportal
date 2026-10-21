@@ -1,7 +1,9 @@
 import React from "react";
 import * as XLSX from "xlsx";
 import { FilePlus2, Save, Pencil, Send, CheckCircle2, Trash2, FileSpreadsheet, Printer } from "lucide-react";
-import { canCreate, canApprove, canDelete, getCompany } from "../../lib/store";
+import { canCreate, canDelete, getCompany } from "../../lib/store";
+
+const canApprove = canDelete;
 
 const exportExcel = ({ title, cols, rows }) => {
   const wb = XLSX.utils.book_new();
@@ -28,13 +30,13 @@ export const CrmActionBar = ({ name, status, onNew, onSave, onEdit, onSubmit, on
   <div data-testid={`crm-actionbar-${name}`} style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 40, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, flexWrap: "wrap", background: "#0b1f4d", padding: "9px 14px", borderTop: "2px solid #1d4ed8", boxShadow: "0 -6px 18px rgba(11,31,77,.25)" }}>
     <B testid={`${name}-btn-new`} icon={FilePlus2} label={labels.new || "New"} bg="#0369a1" on={onNew} off={disabled.new || !canCreate()} />
     <B testid={`${name}-btn-save`} icon={Save} label="Save" bg="#16a34a" on={onSave} off={disabled.save || !canCreate()} />
-    <B testid={`${name}-btn-edit`} icon={Pencil} label="Edit" bg="#0891b2" on={onEdit} off={disabled.edit || !canCreate()} />
+    <B testid={`${name}-btn-edit`} icon={Pencil} label="Edit" bg="#0891b2" on={onEdit} off={disabled.edit} />
     <B testid={`${name}-btn-submit`} icon={Send} label={labels.submit || "Submit"} bg="#7c3aed" on={onSubmit} off={disabled.submit || !canCreate()} />
     <B testid={`${name}-btn-approve`} icon={CheckCircle2} label={labels.approve || "Final Approval"} bg="#dc2626" on={onApprove} off={disabled.approve || !canApprove()} />
     <B testid={`${name}-btn-delete`} icon={Trash2} label="Delete" bg="#9f1239" on={onDelete} off={disabled.delete || !canDelete()} />
     <B testid={`${name}-btn-excel`} icon={FileSpreadsheet} label="Excel" bg="#15803d" on={list ? () => exportExcel(list) : null} />
     <B testid={`${name}-btn-print`} icon={Printer} label="Print" bg="#475569" on={list ? () => printList(list) : null} />
-    {status && <span data-testid={`${name}-status`} style={{ marginLeft: "auto", color: "#bfdbfe", fontSize: 11.5, fontWeight: 700 }}>{status}</span>}
+    {status && <span data-testid={`${name}-bar-status`} style={{ color: "#bfdbfe", fontSize: 11.5, fontWeight: 700, marginLeft: 10 }}>{status}</span>}
   </div>
 );
 

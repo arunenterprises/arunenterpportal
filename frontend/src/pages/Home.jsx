@@ -292,7 +292,7 @@ export default function Home() {
 
   // Draft left-sidebar layout (Feb 2026 · user request): menu on left, dashboard on right.
   // Previous flat grid preserved commented inside render for easy rollback.
-  const ORDER = ["gm", "hr", "vendor", "purchase", "accounts", "reports", "reports_hub", "client_revenue", "project", "users"];
+  const ORDER = ["gm", "client_revenue", "hr", "vendor", "purchase", "accounts", "reports", "reports_hub", "project", "users"];
   const visibleDepts = ORDER
     .map((id) => DEPARTMENTS.find((d) => d.id === id))
     .filter((d) => d && (d.id !== "users" || superAdmin || role === "Admin"));

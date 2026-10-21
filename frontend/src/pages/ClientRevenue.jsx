@@ -18,7 +18,7 @@ import { CrmReports } from "../components/crm/CrmReports";
 const TABS = [
   { k: "dash", l: "Dashboard", icon: LayoutDashboard, C: CrmDashboard },
   { k: "leads", l: "Leads & Enquiry", icon: Users, C: Leads },
-  { k: "clients", l: "Clients", icon: Building2, C: Clients },
+  { k: "clients", l: "Clients Master", icon: Building2, C: Clients },
   { k: "comms", l: "Communication", icon: MessagesSquare, C: Comms },
   { k: "contracts", l: "Contracts / Rates", icon: FileSignature, C: Contracts },
   { k: "mb", l: "Measurement Book", icon: Ruler, C: MBook },

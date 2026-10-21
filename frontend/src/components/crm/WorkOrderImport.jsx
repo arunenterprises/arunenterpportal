@@ -3,7 +3,7 @@ import { FileUp, Loader2, CheckCircle2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Btn, Table, inr, num, crmParseWorkOrder } from "./crmShared";
 
-const HEAD = [["workOrderNo", "WO No"], ["workOrderDate", "WO Date"], ["clientName", "Client"], ["clientGst", "Client GSTIN"], ["projectName", "Project"], ["siteLocation", "Site"],
+const HEAD = [["workOrderNo", "WO No"], ["workOrderType", "WO Type"], ["workOrderDate", "WO Date"], ["clientName", "Client"], ["clientGst", "Client GSTIN"], ["projectName", "Project"], ["siteLocation", "Site"],
   ["startDate", "Start"], ["completionDate", "Completion"], ["contractValue", "Contract Value"], ["retentionPct", "Retention %"], ["advanceAmount", "Advance"], ["defaultGstPct", "GST %"]];
 
 export const WorkOrderImport = ({ onApply }) => {

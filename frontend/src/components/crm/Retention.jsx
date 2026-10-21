@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { canApprove, canDelete } from "../../lib/store";
+import { canDelete as canApprove, canDelete } from "../../lib/store";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, uid, today, inr, num } from "./crmShared";
 import { CrmActionBar } from "./CrmActionBar";
 

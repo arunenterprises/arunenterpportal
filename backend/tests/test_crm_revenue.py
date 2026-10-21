@@ -166,3 +166,46 @@ class TestWorkOrderParse:
         assert isinstance(d.get("items"), list) and len(d["items"]) == 3
         for it in d["items"]:
             assert it["description"] and float(it["qty"]) > 0 and float(it["rate"]) > 0 and it["unit"]
+
+
+# Clients workflow (iteration 31): clients now in _CRM_WF
+class TestClientWorkflow:
+    def test_admin_client_3_step(self, admin):
+        cid = rid("cl")
+        r = admin.post(f"{BASE_URL}/api/crm/clients", json={"id": cid, "tempRefId": "TMP-CL-000001", "step": 1, "name": "TEST_Client", "mobile": "9999999999"})
+        assert r.status_code == 200 and r.json()["step"] == 1
+        r = admin.post(f"{BASE_URL}/api/crm/clients", json={**r.json(), "step": 2, "checkedByName": "Checker"})
+        assert r.json()["step"] == 2 and not r.json().get("approvedAt")
+        r = admin.post(f"{BASE_URL}/api/crm/clients", json={**r.json(), "step": 3, "clientCode": "CL/TEST", "approvedByName": "Fake"})
+        d = r.json()
+        assert d["step"] == 3 and d["clientCode"] == "CL/TEST" and d["approvedByName"] != "Fake" and d["approvedAt"]
+        got = [x for x in admin.get(f"{BASE_URL}/api/crm/clients").json() if x["id"] == cid][0]
+        assert got["tempRefId"] == "TMP-CL-000001" and got["step"] == 3
+
+    def test_nonapprover_client_step3_403(self, nonapprover):
+        cid = rid("cl")
+        assert nonapprover.post(f"{BASE_URL}/api/crm/clients", json={"id": cid, "step": 1, "name": "TEST_C2"}).status_code == 200
+        assert nonapprover.post(f"{BASE_URL}/api/crm/clients", json={"id": cid, "step": 2, "name": "TEST_C2"}).status_code == 200
+        assert nonapprover.post(f"{BASE_URL}/api/crm/clients", json={"id": cid, "step": 3, "name": "TEST_C2"}).status_code == 403
+        assert nonapprover.post(f"{BASE_URL}/api/crm/clients", json={"id": rid("cl"), "step": 3, "name": "TEST_C3"}).status_code == 403
+
+    def test_client_next_number(self, admin):
+        a = admin.post(f"{BASE_URL}/api/crm/next-number/client", json={}).json()["serial"]
+        b = admin.post(f"{BASE_URL}/api/crm/next-number/client", json={}).json()["serial"]
+        assert b == a + 1
+
+
+# Retention release (regression: async-generator sum() caused 500)
+class TestRetentionRelease:
+    def test_release_within_and_over_balance(self, admin, nonapprover):
+        ct = rid("ct")
+        admin.post(f"{BASE_URL}/api/crm/ra_bills", json={"id": rid("ra"), "contractId": ct, "step": 2, "retentionAmt": 500})
+        bid = rid("ra")
+        admin.post(f"{BASE_URL}/api/crm/ra_bills", json={"id": bid, "contractId": ct, "step": 2, "retentionAmt": 300})
+        admin.post(f"{BASE_URL}/api/crm/ra_bills", json={"id": bid, "contractId": ct, "step": 3, "retentionAmt": 300})
+        r = admin.post(f"{BASE_URL}/api/crm/retention_releases", json={"id": rid("rr"), "contractId": ct, "amount": 200})
+        assert r.status_code == 200, r.text
+        assert r.json()["amount"] == 200
+        r = admin.post(f"{BASE_URL}/api/crm/retention_releases", json={"id": rid("rr"), "contractId": ct, "amount": 150})
+        assert r.status_code == 400
+        assert nonapprover.post(f"{BASE_URL}/api/crm/retention_releases", json={"id": rid("rr"), "contractId": ct, "amount": 1}).status_code == 403
