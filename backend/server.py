@@ -734,6 +734,25 @@ async def next_vendor_serial(user: Dict = Depends(require_write)):
     return {"nextSerial": next_serial, "maxUsed": max_used, "flooredAt": floor}
 
 
+@api_router.post("/counters/next-expense")
+async def next_expense_serial(user: Dict = Depends(require_write)):
+    import re
+    max_used = 0
+    async for x in db.expenses.find({}, {"refNo": 1, "permanentExpenseNo": 1, "expenseSerial": 1}):
+        for v in (x.get("refNo"), x.get("permanentExpenseNo")):
+            m = re.match(r"^EX[RP](\d{4})", v or "")
+            if m:
+                max_used = max(max_used, int(m.group(1)))
+        try:
+            max_used = max(max_used, int(x.get("expenseSerial") or 0))
+        except (TypeError, ValueError):
+            pass
+    await db.counters.update_one({"key": "global"}, {"$max": {"expenseSerial": max_used}}, upsert=True)
+    bumped = await db.counters.find_one_and_update({"key": "global"}, {"$inc": {"expenseSerial": 1}}, upsert=True, return_document=True)
+    return {"nextSerial": int(bumped.get("expenseSerial") or max_used + 1)}
+
+
+
 # ==================== LOGO ====================
 @api_router.get("/logo")
 async def get_logo(user: Dict = Depends(get_current_user)):

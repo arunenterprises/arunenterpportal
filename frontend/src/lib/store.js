@@ -6,7 +6,7 @@ import {
   apiUpsertAdvanceRequest, apiDeleteAdvanceRequest, apiResetHrFinancials,
   apiUpsertRecruitment, apiDeleteRecruitment, apiUpsertExit, apiDeleteExit,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
-  apiNextVendorSerial,
+  apiNextVendorSerial, apiNextExpenseSerial,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
 import { toast as _toast } from "sonner";
@@ -271,14 +271,13 @@ export const saveExpenses = (list) => {
   _schedulePush();
 };
 
-export const createExpenseDraft = () => {
+export const createExpenseDraft = (consume = true) => {
   const c = getCounters();
-  c.expenseSerial = (c.expenseSerial || 0) + 1;
-  saveCounters(c);
+  if (consume) { c.expenseSerial = (c.expenseSerial || 0) + 1; saveCounters(c); }
   return {
     id: `x_${Date.now()}`,
-    expenseSerial: c.expenseSerial,
-    refNo: buildExpenseTempRef(c.expenseSerial),
+    expenseSerial: consume ? c.expenseSerial : 0,
+    refNo: consume ? buildExpenseTempRef(c.expenseSerial) : "",
     permanentExpenseNo: "",
     step: 1,
     date: new Date().toISOString().slice(0, 10),
@@ -318,7 +317,25 @@ export const computeExpense = (e) => {
   return { basic, gst, gross, tds, other, netPayable };
 };
 
+// Reserve a collision-free expense ref from the server (falls back to local counter offline).
+export const reserveExpenseRef = async (e) => {
+  if (e.refNo) return e;
+  try {
+    const { nextSerial } = await apiNextExpenseSerial();
+    const c = getCounters();
+    if ((c.expenseSerial || 0) < nextSerial) { c.expenseSerial = nextSerial; saveCounters(c); }
+    return { ...e, expenseSerial: nextSerial, refNo: buildExpenseTempRef(nextSerial) };
+  } catch { return e; }
+};
+
 export const upsertExpense = (e) => {
+  if (!e.refNo) {
+    const c = getCounters();
+    c.expenseSerial = (c.expenseSerial || 0) + 1;
+    saveCounters(c);
+    e.expenseSerial = c.expenseSerial;
+    e.refNo = buildExpenseTempRef(c.expenseSerial);
+  }
   const list = getExpenses();
   const idx = list.findIndex((x) => x.id === e.id);
   e.updatedAt = new Date().toISOString();
@@ -1196,6 +1213,7 @@ export const logout = async () => {
     apiLogout().catch(() => {});
   } catch (_e) { /* noop */ }
   localStorage.removeItem(KEYS.AUTH);
+  localStorage.removeItem("ae_crm_cache");
   clearToken();
 };
 export const isAuthed = () => !!read(KEYS.AUTH, null) && !!getToken();

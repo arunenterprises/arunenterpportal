@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 35 (backend + frontend, SuperAdmin, 1920x1080). Every requested feature PASSES. (1) /gm shows the 5 CRM KPI cards (kpi-crm-leads/clients/mb/ra/co). gm-crm-panel sits at the bottom as dept #7, and gm-crm-header and gm-crm-open are present; gm-crm-open goes to /client-revenue. (2) ae_crm_cache was empty on the first visit and populated after it. On the second visit the panel rendered in about 370ms with all CRM cards. (3) Seeded a pending TEST MB and RA bill (step 2) via the API, and both rows appeared in gm-crm-pending. gm-crm-approve-0 moved the MB to step 3, confirmed via GET /api/crm/mb with approvedByName set. gm-crm-reject-0 showed the confirm dialog, then the RA went to step 1 with the toast 'TEST-RA-UI rejected'. (4) A step-4 RA with sentAt 40 days ago gave the red gm-crm-overdue-badge ('1 payment 30+ din late') and the gm-crm-overdue list ('TEST-RA-OD ₹9,000 40 din'). (5) /bill-create has no bill-btn-approve; /bill has it. (6) The /bill hero says ACCOUNTS. accounts-tab-expense goes to /expense, which has the same ACCOUNTS hero, the same gradient and the same 6 tabs, with Expenses active. accounts-tab-advance goes to /bill?view=advance and the Advance tab is active. (7) Saved an expense on /expense and reloaded: it is still listed and it is in GET /api/snapshot. Two expenses with the same refNo and different ids both stay after reload. With the localStorage expenses cleared (simulating a new device), all 3 load back from the server. The pending-sync queue was empty. All TEST data was cleaned up (CRM mb/ra_bills = [], expenses = []).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ExpenseProcess createExpenseDraft", "issue": "Every open or reload of /expense uses up expense serials, because useState(createExpenseDraft) increments counters.expenseSerial and StrictMode in dev runs it twice. Observed refs EXR0034 → 0036 → 0041 → 0045 with only 2 saves. This leaves gaps in the expense ref sequence. The same problem was already fixed for bills (refNo blank on load).", "selector": "[data-testid=expense-page]", "priority": "LOW"},
+      {"component": "AccountsTabs (/bill?view=advance)", "issue": "After going to /bill?view=advance, switching to other tabs (paybill, fooding, exit, vendor) leaves the URL at ?view=advance, so a page refresh reopens Advance. This is cosmetic.", "selector": "[data-testid^=accounts-tab-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter35_gm_crm_expense.py", "/app/backend/tests/seed_iter35.py", "/app/test_reports/pytest/pytest_iter35.xml"],
+  "action_items": [
+    "(Low) /expense: don't consume expenseSerial on mount; assign the ref on first Save, as was done for bills",
+    "(Low) AccountsTabs onSelect on /bill: keep ?view= in the URL in sync (history.replaceState)",
+    "(Low) logout(): clear localStorage ae_crm_cache so the next user on a shared browser doesn't briefly see the previous user's client and revenue data",
+    "(Info) Old expenses: the DB had 0 expenses before testing, so anything 'old' that was never synced to the server cannot be recovered by the dedupe fix. Only data still in a browser's localStorage will push up."
+  ],
+  "critical_code_review_comments": [
+    "The CrmGmPanel approve/reject reuses crmSave → POST /api/crm/{name}, which uses $set, so fileData that was stripped from the localStorage cache is not wiped on approve. This is safe.",
+    "The GM reject sets step 1 directly. The backend allows this only for _crm_power users, which matches the UI gating via canDelete().",
+    "ae_crm_cache holds every CRM collection (minus files) in localStorage for any logged-in user, including non-admins. Consider scoping it or clearing it on logout.",
+    "store.js is 2414 lines; consider splitting it by domain."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter35_gm_crm_expense.py", "/app/backend/tests/seed_iter35.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "TEST_ui_mb1, TEST_ui_ra1, TEST_ui_ra_od, TEST_dup_exp and 2 UI expenses (paidTo 'TEST …') were created and then deleted. The DB is now clean.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use `python /app/backend/tests/seed_iter35.py seed|show|clean` (needs REACT_APP_BACKEND_URL exported) to seed a pending MB/RA and an overdue RA for the /gm CRM panel. The /expense ref input has no data-testid field-refNo; the other fields use field-<key> (paidToName, description, basicAmount). Pending rows are indexed, and the indices shift after approve/reject. Login uses data-testid login-username/login-password/login-submit."
+}

@@ -10,6 +10,7 @@ import { Landmark as LandmarkIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import AccountsTabs from "../components/AccountsTabs";
+import ExpenseProcess from "./ExpenseProcess";
 import HsnInput from "../components/HsnInput";
 import HsnFinder from "../components/HsnFinder";
 import HomeNavBar from "../components/HomeNavBar";
@@ -71,7 +72,8 @@ export default function BillProcessing({ mode = "process" }) {
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [activeView, setActiveView] = useState(() => new URLSearchParams(window.location.search).get("view") || "vendor"); // vendor | advance | paybill | exit
+  const [activeView, setActiveView] = useState(() => new URLSearchParams(window.location.search).get("view") || "vendor");
+  useEffect(() => () => { document.body.style.minHeight = ""; }, []); // vendor | advance | paybill | exit
   const [rev, setRev] = useState(0);
 
   // REAL-TIME CROSS-USER SYNC: re-render on ae-sync-done (every ~8s via App.js).
@@ -537,7 +539,7 @@ export default function BillProcessing({ mode = "process" }) {
           <div className="module-doc-header"><Header formTitle={isCreate ? "PURCHASE · NEW VENDOR BILL CREATION" : "ACCOUNTS DEPARTMENT"} /></div>
           <ModuleHero
             tag={isCreate ? "Purchase · New Vendor Bill Creation" : "Accounts"}
-            title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "Vendor Bill Process · Advance · Pay Bill · Expenses · Exit F&F"}
+            title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F"}
             subtitle={isCreate ? "Vendor + WO select · items feed · Submit karte hi Reference No milega" : "Ref No se bill fetch · cross-verify · GST / TDS · approval · PV"}
             icon={LandmarkIcon}
             gradient="linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"
@@ -545,7 +547,13 @@ export default function BillProcessing({ mode = "process" }) {
           />
 
           {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
-          {!isCreate && <AccountsTabs active={activeView} onSelect={(id) => { setActiveView(id); bumpRev(); }} />}
+          {!isCreate && <AccountsTabs active={activeView} onSelect={(id) => {
+            const y = window.scrollY;
+            document.body.style.minHeight = `${document.body.scrollHeight}px`;
+            setActiveView(id); bumpRev();
+            window.history.replaceState(null, "", id === "vendor" ? "/bill" : `/bill?view=${id}`);
+            requestAnimationFrame(() => window.scrollTo(0, y));
+          }} />}
 
           {activeView === "vendor" && (<>
           {!isCreate && (
@@ -1398,6 +1406,7 @@ export default function BillProcessing({ mode = "process" }) {
           <HsnFinder />
           </>)}
 
+          {activeView === "expense" && <ExpenseProcess embedded />}
           {activeView === "advance" && <AccountsAdvanceView rev={rev} bumpRev={bumpRev} />}
           {activeView === "paybill" && <AccountsPayBillView rev={rev} bumpRev={bumpRev} />}
           {activeView === "fooding" && <WeeklyFoodingTab writeAllowed={canCreate()} />}

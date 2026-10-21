@@ -58,6 +58,8 @@ export const apiPushSnapshot = (data) =>
 // $inc + maxUsed-serial scan, guaranteeing monotonicity across every device.
 export const apiNextVendorSerial = () =>
   req("/counters/next-vendor", { method: "POST", body: "{}" });
+export const apiNextExpenseSerial = () =>
+  req("/counters/next-expense", { method: "POST", body: "{}" });
 
 // ---- Admin: Selective HR Financials reset (pay bills + advances + HR PVs) ----
 export const apiResetHrFinancials = () =>

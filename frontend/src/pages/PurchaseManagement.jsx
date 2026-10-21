@@ -1194,7 +1194,7 @@ export default function PurchaseManagement() {
         <div className="a4" data-testid="purchase-page">
           <ModuleHero
             tag="Purchase Management"
-            title="BOQ · Work Orders · Procurement"
+            title="BOQ · Work Orders · New Vendor Bill Creation · Procurement"
             subtitle="Line-item BOQs · Vendor WO · Auto-fill from BOQ · GST + Retention · GM approval"
             icon={ShoppingCart}
             gradient="linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)"

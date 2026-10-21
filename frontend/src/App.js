@@ -6,7 +6,6 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import VendorRegistration from "./pages/VendorRegistration";
 import BillProcessing from "./pages/BillProcessing";
-import ExpenseProcess from "./pages/ExpenseProcess";
 import Reports from "./pages/Reports";
 import UsersAdmin from "./pages/UsersAdmin";
 import PurchaseManagement from "./pages/PurchaseManagement";
@@ -88,7 +87,7 @@ function App() {
           <Route path="/bill" element={<RequireAuth><BillProcessing mode="process" /></RequireAuth>} />
           <Route path="/bill-create" element={<RequireAuth><BillProcessing key="create" mode="create" /></RequireAuth>} />
           <Route path="/accounts" element={<Navigate to="/bill" replace />} />
-          <Route path="/expense" element={<RequireAuth><ExpenseProcess /></RequireAuth>} />
+          <Route path="/expense" element={<Navigate to="/bill?view=expense" replace />} />
           <Route path="/gm" element={<RequireAuth><GeneralManager /></RequireAuth>} />
           <Route path="/hr" element={<RequireAuth><HRManagement /></RequireAuth>} />
           <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />

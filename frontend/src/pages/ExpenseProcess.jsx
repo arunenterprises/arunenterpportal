@@ -10,7 +10,7 @@ import TopActionBar from "../components/TopActionBar";
 import AccountsTabs from "../components/AccountsTabs";
 import HomeNavBar from "../components/HomeNavBar";
 import {
-  createExpenseDraft, computeExpense, upsertExpense, advanceExpenseStep,
+  createExpenseDraft, computeExpense, upsertExpense, advanceExpenseStep, reserveExpenseRef,
   EXPENSE_STEP_LABEL, currentUser, exportJSON, getExpenses, amountToWords,
   canCreate, canApprove,
 } from "../lib/store";
@@ -30,8 +30,8 @@ const CATEGORIES = [
 const PAYMENT_MODES = ["Cash", "Cheque", "NEFT / RTGS", "IMPS", "UPI", "Debit / Credit Card"];
 const GST_SLABS = [0, 5, 12, 18, 28];
 
-export default function ExpenseProcess() {
-  const [expense, setExpense] = useState(createExpenseDraft);
+export default function ExpenseProcess({ embedded = false }) {
+  const [expense, setExpense] = useState(() => createExpenseDraft(false));
   const [locked, setLocked] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [searchQ, setSearchQ] = useState("");
@@ -62,15 +62,16 @@ export default function ExpenseProcess() {
   };
 
   const handleNew = () => {
-    setExpense(createExpenseDraft());
+    setExpense(createExpenseDraft(false));
     setLocked(false);
     setRefresh((n) => n + 1);
     toast.success("New expense draft started");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    const saved = upsertExpense({ ...expense, createdByName: expense.createdByName || currentUser() });
+    const base = await reserveExpenseRef(expense);
+    const saved = upsertExpense({ ...base, createdByName: base.createdByName || currentUser() });
     setExpense(saved);
     setRefresh((n) => n + 1);
     toast.success(`Saved ${saved.refNo}`);
@@ -99,7 +100,7 @@ export default function ExpenseProcess() {
     setLocked(false); toast.info("Editable");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const step = Number(expense.step) || 1;
     if (step >= 4) { toast.info("Already approved"); return; }
     if (!validate()) return;
@@ -115,7 +116,7 @@ export default function ExpenseProcess() {
     if (step === 3) { toast.error("Use Final Approval to approve"); return; }
     if (step === 1 && !expense.preparedByName.trim()) { toast.error("Enter 'Prepared By' name"); return; }
     if (step === 2 && !expense.checkedByName.trim()) { toast.error("Enter 'Checked By' name"); return; }
-    const next = advanceExpenseStep({ ...expense });
+    const next = advanceExpenseStep({ ...(await reserveExpenseRef(expense)) });
     setExpense(next); setRefresh((n) => n + 1);
     toast.success(`Advanced to ${EXPENSE_STEP_LABEL[next.step]}`);
   };
@@ -207,8 +208,8 @@ export default function ExpenseProcess() {
 
   return (
     <>
-      <Toaster richColors position="top-right" />
-      <HomeNavBar />
+      {!embedded && <><Toaster richColors position="top-right" />
+      <HomeNavBar /></>}
       <TopActionBar
         onNew={handleNew} onSave={handleSave} onEdit={handleEdit}
         onSubmit={handleSubmit} onApprove={handleApprove}
@@ -223,17 +224,19 @@ export default function ExpenseProcess() {
         prevLabel="Bill" prevTo="/bill"
         nextLabel="Reports" nextTo="/final"
       />
-      <div className="a4" data-testid="expense-page">
+      <div className={embedded ? "" : "a4"} data-testid="expense-page">
+        {!embedded && <>
         <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
         <ModuleHero
           tag="Accounts"
-          title="Vendor Bill Process · Advance · Pay Bill · Expenses · Exit F&F"
+          title="Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F"
           subtitle="Expenses · Petty Cash · Reimbursements · 4-step approval · GM final sign-off"
           icon={ReceiptIcon}
           gradient="linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"
           shadowRgba="6,78,59,.28"
         />
         <AccountsTabs active="expense" />
+        </>}
         <StepTabs step={Number(expense.step) || 1} labels={[EXPENSE_STEP_LABEL[1], EXPENSE_STEP_LABEL[2], EXPENSE_STEP_LABEL[3], EXPENSE_STEP_LABEL[4]]} />
 
         {/* 1. Expense Details */}
