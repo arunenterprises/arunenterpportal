@@ -136,12 +136,12 @@ const DEPARTMENTS = [
   },
   {
     id: "client_revenue",
-    title: "Client & Revenue",
+    title: "Client & Revenue Management",
     subtitle: "CRM · MB · RA Bills · Retention",
     to: "/client-revenue",
     icon: Handshake,
-    color: "#b45309",
-    dark: "#78350f",
+    color: "#1e3a8a",
+    dark: "#0b1f4d",
     lines: [
       "Leads · enquiries · follow-ups",
       "Client master · communication log",
@@ -358,7 +358,7 @@ export default function Home() {
                     <Icon size={16} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textTransform: "uppercase", letterSpacing: 0.3 }}>{d.title}</div>
+                    <div style={{ whiteSpace: "normal", lineHeight: 1.25, fontSize: d.title.length > 20 ? 11 : undefined, textTransform: "uppercase", letterSpacing: 0.3, wordBreak: "break-word" }}>{d.title}</div>
                   </div>
                 </button>
               );

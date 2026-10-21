@@ -30,8 +30,11 @@ export const Milestones = ({ data, save, remove, reload }) => {
     const line = { itemId: `ms_${m.id}`, code: "MS", description: `Milestone: ${m.title} (${m.pct}%)`, unit: "LS", rate: amount, gstPct: num(m.gstPct), prevQty: 0, curQty: 1 };
     const gst = +(amount * num(m.gstPct) / 100).toFixed(2);
     const ret = +(amount * num(k.retentionPct) / 100).toFixed(2);
+    const tdsPct = k.tdsPct ?? 2;
+    const tds = +(amount * num(tdsPct) / 100).toFixed(2);
+    const gstTds = +(amount * num(k.gstTdsPct) / 100).toFixed(2);
     try {
-      await crmSave("ra_bills", { id: billId, raNo, type: "Milestone", contractId: k.id, clientId: k.clientId, billDate: today(), lines: [line], mbIds: [], retentionPct: num(k.retentionPct), advanceRecovery: 0, otherDeduction: 0, step: 1, basic: amount, gstTotal: gst, gross: amount + gst, retentionAmt: ret, net: +(amount + gst - ret).toFixed(2), milestoneId: m.id });
+      await crmSave("ra_bills", { id: billId, raNo, type: "Milestone", contractId: k.id, clientId: k.clientId, billDate: today(), lines: [line], mbIds: [], retentionPct: num(k.retentionPct), tdsPct, gstTdsPct: num(k.gstTdsPct), advanceRecovery: 0, otherDeduction: 0, step: 1, basic: amount, gstTotal: gst, gross: amount + gst, retentionAmt: ret, tdsAmt: tds, gstTdsAmt: gstTds, gstPayable: +(gst - gstTds).toFixed(2), net: +(amount + gst - ret - tds - gstTds).toFixed(2), milestoneId: m.id });
       await crmSave("milestones", { ...m, done: true, doneDate: today(), billId });
       await reload();
       toast.success(`Milestone complete · Bill ${raNo} draft bana (RA Bills tab mein)`);

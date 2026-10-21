@@ -12,6 +12,20 @@ import {
   listFYOptions, getActiveFYOverride, PAYBILL_STATUS, ADVANCE_REQ_STATUS, LOAN_STATUS,
   getCompany, getLogo, DEFAULT_COMPANY, currentUser, syncFromCloud,
 } from "../lib/store";
+import { loadCrmCache, crmReportRows, RA_STEPS, STEP_WF } from "../components/crm/crmShared";
+import { CRM_REPORTS } from "../components/crm/CrmReports";
+
+const CRM_AMOUNT = { ra_bills: "net", contracts: "contractValue", change_orders: "value", retention: "balance", leads: "value" };
+const CRM_STATUS = { ra_bills: ["step", RA_STEPS], mb: ["step", STEP_WF], change_orders: ["step", STEP_WF], leads: ["status", null] };
+const CRM_DEPTS = CRM_REPORTS.map((r) => ({
+  id: r.hub, title: `CRM · ${r.l}`, icon: "◆",
+  fetch: () => crmReportRows(r.k),
+  dateKey: r.date,
+  amountKey: CRM_AMOUNT[r.k] || null,
+  statusKey: (CRM_STATUS[r.k] || [])[0],
+  statusMap: (CRM_STATUS[r.k] || [])[1] || undefined,
+  columns: r.cols.map(([key, label, money]) => ({ key, label, width: money ? 120 : 140, right: !!money })),
+}));
 
 // Alias — WO getter is exported as getWOs in store.js
 const getWorkOrders = getWOs;
@@ -322,6 +336,7 @@ const DEPT_CONFIG = [
       { key: "_status", label: "Status", width: 110 },
     ],
   },
+  ...CRM_DEPTS,
 ];
 
 const getCellValue = (row, col, cfg) => {
@@ -563,7 +578,10 @@ const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = tr
 
 const ReportsHub = () => {
   const nav = useNavigate();
-  const [activeDept, setActiveDept] = useState("vendors");
+  const [activeDept, setActiveDept] = useState(() => {
+    const q = new URLSearchParams(window.location.search).get("dept");
+    return DEPT_CONFIG.some((d) => d.id === q) ? q : "vendors";
+  });
   const [refresh, setRefresh] = useState(0);
   const [fy, setFy] = useState(getActiveFYOverride() || "");
   const [month, setMonth] = useState("");
@@ -590,7 +608,7 @@ const ReportsHub = () => {
     if (syncing) return;
     setSyncing(true);
     try {
-      await syncFromCloud();
+      await Promise.all([syncFromCloud(), loadCrmCache().catch(() => null)]);
       setRefresh((v) => v + 1);
       setLastSyncAt(new Date());
       if (!silent) toast.success("✓ Latest data pulled from server");

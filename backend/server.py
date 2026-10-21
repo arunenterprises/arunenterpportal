@@ -972,6 +972,63 @@ async def crm_list(name: str, user: Dict = Depends(get_current_user)):
     return await _list_collection(_crm_coll(name))
 
 
+_WO_PROMPT = """You are reading a client's construction WORK ORDER / LOI / agreement document (Indian context, may be Hindi or English, may be scanned).
+Extract data and reply with ONLY a JSON object (no markdown) in this exact shape:
+{"workOrderNo": "", "workOrderDate": "YYYY-MM-DD or empty", "clientName": "", "clientAddress": "", "clientGst": "", "clientPan": "",
+ "contactPerson": "", "clientMobile": "", "clientEmail": "", "projectName": "", "siteLocation": "", "startDate": "YYYY-MM-DD or empty",
+ "completionDate": "YYYY-MM-DD or empty", "contractValue": 0, "retentionPct": 0, "advanceAmount": 0, "advanceRecoveryPct": 0,
+ "defaultGstPct": 0, "scopeOfWork": "",
+ "items": [{"code": "", "description": "", "unit": "", "qty": 0, "rate": 0, "gstPct": 0}]}
+Rules: numbers must be plain numbers (no commas/currency). Include EVERY line item of the BOQ/schedule with its quantity, unit and rate.
+If GST % is given per item use it, else use the overall GST % (defaultGstPct). Retention / security deposit % goes in retentionPct.
+Use empty string or 0 when a value is not present. Do not invent values."""
+
+
+@api_router.post("/crm/parse-work-order")
+async def crm_parse_work_order(body: Dict = Body(...), user: Dict = Depends(require_write)):
+    import base64, json as _json, tempfile, uuid
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType, TextDelta, StreamDone
+    mime = body.get("mimeType") or "application/pdf"
+    if mime not in ("application/pdf", "image/png", "image/jpeg", "image/webp"):
+        raise HTTPException(status_code=400, detail="Sirf PDF / JPG / PNG file upload karein")
+    raw = (body.get("data") or "").split(",")[-1]
+    try:
+        blob = base64.b64decode(raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid file data")
+    if not blob or len(blob) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File 15 MB se chhoti honi chahiye")
+    ext = {"application/pdf": ".pdf", "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}[mime]
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tf:
+        tf.write(blob)
+        path = tf.name
+    try:
+        chat = LlmChat(api_key=os.environ["EMERGENT_LLM_KEY"], session_id=f"wo-{uuid.uuid4()}",
+                       system_message="You extract structured data from construction work order documents.").with_model("gemini", "gemini-3.1-pro-preview")
+        text = ""
+        async for ev in chat.stream_message(UserMessage(text=_WO_PROMPT, file_contents=[FileContentWithMimeType(file_path=path, mime_type=mime)])):
+            if isinstance(ev, TextDelta):
+                text += ev.content
+            elif isinstance(ev, StreamDone):
+                break
+    except Exception as e:
+        logging.exception("WO parse failed")
+        raise HTTPException(status_code=502, detail=f"AI se document nahi padha ja saka: {str(e)[:150]}")
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    m = re.search(r"\{.*\}", text, re.S)
+    try:
+        data = _json.loads(m.group(0)) if m else None
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=422, detail="Document se data nahi nikla — saaf PDF try karein")
+    return data
+
+
 @api_router.post("/crm/next-number/{kind}")
 async def crm_next_number(kind: str, user: Dict = Depends(require_write)):
     import re

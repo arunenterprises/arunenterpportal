@@ -53,7 +53,7 @@ export const Leads = ({ data, save, remove }) => {
           </Grid>
           <Btn tone="ghost" data-testid="fu-add-btn" style={{ marginTop: 8 }} onClick={addFollowUp}><Plus size={13} /> Add Follow-up</Btn>
           {(f.followUps || []).map((x) => (
-            <div key={x.id} style={{ fontSize: 12, marginTop: 6 }}>• <b>{x.date}</b> — {x.note} {x.nextDate && <span style={{ color: "#b45309" }}>(next: {x.nextDate})</span>}</div>
+            <div key={x.id} style={{ fontSize: 12, marginTop: 6 }}>• <b>{x.date}</b> — {x.note} {x.nextDate && <span style={{ color: "#0891b2" }}>(next: {x.nextDate})</span>}</div>
           ))}
         </div>
         <div style={{ marginTop: 12 }}><Btn data-testid="lead-save-btn" onClick={onSave}><Save size={14} /> Save Lead</Btn></div>

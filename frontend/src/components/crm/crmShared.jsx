@@ -25,20 +25,56 @@ export const crmNextNo = async (kind, prefix, pad = 4) => {
   const { serial } = await req(`/next-number/${encodeURIComponent(kind)}`, { method: "POST", body: "{}" });
   return `${prefix}${String(serial).padStart(pad, "0")}`;
 };
+export const crmParseWorkOrder = (file) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => req("/parse-work-order", { method: "POST", body: JSON.stringify({ fileName: file.name, mimeType: file.type, data: r.result }) })
+    .then((out) => resolve({ parsed: out, dataUrl: r.result })).catch(reject);
+  r.onerror = () => reject(new Error("File read failed"));
+  r.readAsDataURL(file);
+});
 export const fyTag = () => getFY();
 export const uid = (p) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 export const today = () => new Date().toISOString().slice(0, 10);
 export const inr = (n) => "₹" + (Number(n) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const num = (v) => Number(v) || 0;
 
+export const CRM_NAMES = ["leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases"];
+
+// Module-level cache so Reports Hub (sync getters) can read CRM data.
+export const crmCache = Object.fromEntries(CRM_NAMES.map((n) => [n, []]));
+export const loadCrmCache = async () => {
+  const lists = await Promise.all(CRM_NAMES.map((n) => crmList(n)));
+  CRM_NAMES.forEach((n, i) => { crmCache[n] = lists[i]; });
+  return crmCache;
+};
+
+// Enriched report rows (client name, contract no) shared by dept Reports tab and Reports Hub.
+export const crmReportRows = (name, d = crmCache) => {
+  const ct = (id) => d.contracts.find((c) => c.id === id) || {};
+  const cl = (id) => d.clients.find((c) => c.id === id) || {};
+  const rows = d[name] || [];
+  if (name === "retention") {
+    return d.contracts.map((k) => {
+      const held = d.ra_bills.filter((b) => b.contractId === k.id && Number(b.step) >= 3).reduce((s, b) => s + num(b.retentionAmt), 0);
+      const released = d.retention_releases.filter((r) => r.contractId === k.id).reduce((s, r) => s + num(r.amount), 0);
+      return { id: k.id, contractNo: k.contractNo, projectName: k.projectName, clientName: cl(k.clientId).name || "", startDate: k.startDate, retentionPct: k.retentionPct, held, released, balance: +(held - released).toFixed(2) };
+    });
+  }
+  return rows.map((r) => {
+    const k = ct(r.contractId);
+    return { ...r, contractNo: k.contractNo || "", projectName: k.projectName || r.projectName || "", clientName: cl(r.clientId || k.clientId).name || r.name || "", fileData: undefined };
+  });
+};
+
 // Loads all CRM collections once and exposes save/delete with auto-refresh.
 export const useCrmData = () => {
-  const names = ["leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases"];
+  const names = CRM_NAMES;
   const [data, setData] = useState(() => Object.fromEntries(names.map((n) => [n, []])));
   const [loading, setLoading] = useState(true);
   const reload = useCallback(async () => {
     try {
       const lists = await Promise.all(names.map((n) => crmList(n)));
+      names.forEach((n, i) => { crmCache[n] = lists[i]; });
       setData(Object.fromEntries(names.map((n, i) => [n, lists[i]])));
     } catch (e) { toast.error(`Load failed: ${e.message}`); }
     setLoading(false);
@@ -65,7 +101,7 @@ export const STEP_WF = { 1: "Draft", 2: "Submitted", 3: "GM Approved" };
 export const RA_STEPS = { 1: "Draft", 2: "Submitted", 3: "GM Approved", 4: "Sent to Client", 5: "Payment Received" };
 
 // ---------- UI atoms ----------
-export const C = { ink: "#0f172a", sub: "#475569", line: "#e2e8f0", brand: "#b45309", brandDark: "#78350f", soft: "#fffbeb" };
+export const C = { ink: "#0f172a", sub: "#475569", line: "#e2e8f0", brand: "#1d4ed8", brandDark: "#1e3a8a", soft: "#eff6ff", accent: "#0891b2" };
 
 export const Field = ({ label, children, span = 1 }) => (
   <div style={{ gridColumn: `span ${span}`, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>

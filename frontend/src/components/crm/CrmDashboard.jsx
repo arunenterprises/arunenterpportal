@@ -1,11 +1,11 @@
 import React from "react";
-import { Users, Receipt, Wallet, ShieldCheck, Ruler, FilePlus2 } from "lucide-react";
+import { Users, Receipt, Wallet, ShieldCheck, Ruler, FilePlus2, Percent, Landmark } from "lucide-react";
 import { Card, Table, Badge, RA_STEPS, stepTone, inr, num, nameOf } from "./crmShared";
 import { retentionSummary } from "./Retention";
 
 const Tile = ({ icon: Icon, label, value, sub, testid }) => (
   <div data-testid={testid} className="crm-tile" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, display: "flex", gap: 12, alignItems: "center" }}>
-    <div style={{ width: 40, height: 40, borderRadius: 10, background: "#fef3c7", color: "#b45309", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={20} /></div>
+    <div style={{ width: 40, height: 40, borderRadius: 10, background: "#e0f2fe", color: "#1d4ed8", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={20} /></div>
     <div>
       <div style={{ fontSize: 10.5, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{value}</div>
@@ -23,6 +23,8 @@ export const CrmDashboard = ({ data }) => {
   const openLeads = data.leads.filter((l) => !["Won", "Lost"].includes(l.status)).length;
   const pendingMB = data.mb.filter((m) => Number(m.step) === 2).length;
   const pendingCO = data.change_orders.filter((c) => Number(c.step) === 2).length;
+  const tdsTotal = approved.reduce((s, b) => s + num(b.tdsAmt) + num(b.gstTdsAmt), 0);
+  const gstPayable = approved.reduce((s, b) => s + num(b.gstPayable ?? b.gstTotal), 0);
   const due = data.leads.flatMap((l) => (l.followUps || []).filter((f) => f.nextDate).map((f) => ({ l, f }))).filter((x) => x.f.nextDate <= new Date().toISOString().slice(0, 10) && !["Won", "Lost"].includes(x.l.status));
   return (
     <>
@@ -33,7 +35,14 @@ export const CrmDashboard = ({ data }) => {
         <Tile testid="kpi-retention" icon={ShieldCheck} label="Retention Held" value={inr(retention)} sub="Client ke paas ruka" />
         <Tile testid="kpi-pending-mb" icon={Ruler} label="MB Approval Pending" value={pendingMB} />
         <Tile testid="kpi-pending-co" icon={FilePlus2} label="Change Orders Pending" value={pendingCO} />
+        <Tile testid="kpi-tds" icon={Percent} label="Total TDS Kata" value={inr(tdsTotal)} sub="Income Tax + GST TDS (approved bills)" />
+        <Tile testid="kpi-gst-payable" icon={Landmark} label="GST Payable (Govt.)" value={inr(gstPayable)} sub="Bill GST − GST TDS credit" />
       </div>
+      <Card title="Bill-wise TDS & GST">
+        <Table testid="dash-tax-table" cols={["Bill No", "Client", "Date", "Basic", "GST", "IT TDS", "GST TDS", "GST Payable", "Net Received", "Status"]}
+          rows={data.ra_bills.slice().reverse().map((b) => [b.raNo, nameOf(data.clients, b.clientId), b.billDate, inr(b.basic), inr(b.gstTotal), inr(b.tdsAmt), inr(b.gstTdsAmt),
+            <b style={{ color: "#b91c1c" }}>{inr(b.gstPayable ?? b.gstTotal)}</b>, inr(b.net), <Badge text={RA_STEPS[b.step]} tone={stepTone(b.step)} />])} />
+      </Card>
       <Card title="Recent Bills">
         <Table testid="dash-ra-table" cols={["Bill No", "Client", "Date", "Net", "Status"]}
           rows={data.ra_bills.slice(-8).reverse().map((b) => [b.raNo, nameOf(data.clients, b.clientId), b.billDate, inr(b.net), <Badge text={RA_STEPS[b.step]} tone={stepTone(b.step)} />])} />
