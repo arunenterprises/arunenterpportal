@@ -885,9 +885,22 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_wri
     data syncs cross-device. Approval-gated transitions still enforced per-field."""
     colls = ["vendors", "bills", "payments", "expenses", "paybills", "loans", "advance_requests",
              "recruitments", "exits", "employees", "boqs", "work_orders", "attendance", "fooding"]
+    wf = {"bills": "step", "paybills": "step", "loans": "status", "advance_requests": "status",
+          "recruitments": "step", "exits": "step"}
     result = {}
     for c in colls:
-        result[c] = await _merge_upsert(c, body.get(c) or [])
+        items = body.get(c) or []
+        if c in wf:
+            allowed = []
+            for it in items:
+                if not isinstance(it, dict) or not it.get("id"):
+                    continue
+                try:
+                    allowed.append(await _enforce_workflow(c, it, user, step_field=wf[c]))
+                except HTTPException:
+                    continue
+            items = allowed
+        result[c] = await _merge_upsert(c, items)
     if body.get("counters"):
         await _bump_counters(body["counters"])
     logo = body.get("logo", "")

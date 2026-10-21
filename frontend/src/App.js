@@ -59,6 +59,7 @@ function App() {
     };
     const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
     const start = () => { stop(); timer = setInterval(tick, 8000); };
+    autoSyncFromCloud(0).then((snap) => { if (snap) { try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch (e) { /* noop */ } } });
     const onVis = () => {
       if (document.visibilityState === "visible") {
         autoSyncFromCloud(0).then((snap) => { if (snap) { try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch (e) { /* noop */ } } });

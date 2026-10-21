@@ -130,6 +130,17 @@ Per directive "SuperAdmin deside karega …power ye system REGISTER NEW EMPLOYEE
   - **Weekly Fooding Tab** (`WeeklyFoodingTab.jsx`) — Approve button
   - **HR Management · Advance Request approval** (`HRManagement.jsx` line 1778)
 
+## 2026-10-21 — Data Loss / Disappearing Records Fix
+- Root cause 1: 8-sec auto-sync replaced local lists with server snapshot → unsynced bills/expenses/BOQ/WO vanished. Now merge (`_mergeFromServer` in store.js) keeps unsynced + newer local records, honours server deletes via `<key>__synced_ids`.
+- Root cause 2: POST /api/snapshot reset counters to 0 when none sent (→ vendor code AE0001 repeats, duplicate numbers). Now counters only move forward ($max) in /snapshot and /counters.
+- Root cause 3: stale devices overwrote newer records. `_merge_upsert` skips older `updatedAt`.
+- Weekly Fooding now cloud-synced (POST/DELETE /api/fooding, in snapshot).
+- Snapshot push runs workflow collections through `_enforce_workflow` (no approval bypass); creators can submit step 1→2.
+- Immediate sync on app load; localStorage quota errors toast instead of silently failing.
+- Tested: iteration_28 + backend pytest 15/15 pass.
+- Backlog: server-side atomic serials for BOQ/WO/Bill/Expense numbers (avoid cross-device duplicates & gaps); updatedAt guard on single-record endpoints; fooding approval server-side check.
+
+
 ## Feb-2026 Session Changes (round 6 — Employee Photo & Signature as Images in Reports Hub)
 - **Reports Hub · Employee Master** on-screen table now shows **Photo (40px)** and **Signature (28px contain)** as real `<img>` thumbnails, not raw data-URL text.
 - Full Biodata print pages render a dedicated **"PHOTO & SIGNATURE"** strip above record details — displays each image at 85×100 (photo) / 150×60 (signature) with "Image not available" fallback.

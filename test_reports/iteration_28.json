@@ -1,0 +1,44 @@
+{
+  "summary": "Tested the data-loss fixes (records disappearing after a day, bill save, expense in approval, Weekly Fooding, counter reset, AE0001 vendor code reset). Backend: 14 new pytest tests in test_data_persistence.py all pass. The older backend_test.py also passes (20/20). Frontend E2E (SuperAdmin) passes: (1) Bill: fetched vendor AE0001JV2627, filled WO no, invoice no, date and amount 1234, clicked Save, and the bill appeared in local storage and in GET /api/bills. After removing ae_vm_bills and ae_vm_bills__synced_ids and reloading, the bill came back from the server and shows in the Bills Data Sheet. (2) Expense: saved, then Submit moved it to step 2 '2. Prepared'. After 18s of sync cycles the server still had step 2, and after a reload it was still at step 2 with its row visible. (3) Weekly Fooding (Accounts tab): Save Draft sent the record to the server (it is in snapshot.fooding). After removing ae_vm_fooding and reloading, the row came back. (4) Counters: POST /snapshot with no counters or with zero counters did not change them, and POST /counters with lower values did not lower them. (5) A snapshot with an older updatedAt did not overwrite a newer record, a newer one did, and a snapshot without a record did not delete it. (6) /counters/next-vendor returned a serial above the highest existing code (maxUsed=1, next=2). Regression: all 11 main routes loaded with no JS page errors. One new security issue found: POST /api/snapshot lets a non-approver skip the approval workflow (see critical).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/snapshot (_merge_upsert)", "issue": "Approval workflow bypass. A plain 'User' gets 403 on POST /api/bills with step=5, but POST /api/snapshot {bills:[{id, step:5, approvedByName:'FORGED', updatedAt:now}]} is accepted and saves step=5 and the forged approvedByName. Reproduced in /app/backend/tests/test_snapshot_workflow_bypass.py (FAILS). The frontend makes this happen on its own: every upsertBill also calls saveBills -> _schedulePush, so a step change rejected by /bills (403) is still written by the snapshot push 1.5s later. The same applies to paybills, loans, advance_requests, recruitments and exits. Fix: in push_snapshot, for the workflow collections, run every item through _enforce_workflow, or skip/strip step changes the user is not allowed to make. Also never accept _SERVER_OWNED_FIELDS from a snapshot.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/expenses", "issue": "Does not call _enforce_workflow, so any writer can set step=4 (Approved & Paid) directly."},
+      {"endpoint": "POST /api/fooding", "issue": "Uses require_write only. Any writer can set status='Approved' and approvedBy, so the Accounts Manager check exists only in the UI. DELETE /api/fooding also needs only write permission (other collections need admin)."},
+      {"endpoint": "POST /api/bills, /api/vendors, /api/employees", "issue": "These single-record endpoints write without the updatedAt guard, so a stale copy pushed through them can still overwrite a newer one. Only snapshot and fooding use _merge_upsert."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Page reload with empty or wiped localStorage", "issue": "The first syncFromCloud runs only after the first 8s tick in App.js (no sync when the page loads; only HRManagement syncs on mount). After a reload the bills list was empty for about 8-10s before the data appeared, which can still look like data loss to the user. Add an immediate autoSyncFromCloud(0) when App mounts.", "affected_selectors": ["[data-testid=bills-data-sheet]", "[data-testid=expenses-table]", "[data-testid=wf-saved-table]"]},
+      {"flow": "Bill / Expense draft serials", "issue": "Each time the bill or expense page is opened, createBillDraft/createExpenseDraft increments the counter and pushes it. During this test billSerial went 0->14 and expenseSerial 0->7 with only 1 bill and 1 expense saved. Serials are wasted, which leaves gaps in reference numbers. Already existed before this change."}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_data_persistence.py", "/app/backend/tests/test_snapshot_workflow_bypass.py", "/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_iter28.xml"],
+  "action_items": [
+    "HIGH: Fix the POST /api/snapshot workflow bypass. Enforce step/status transitions and strip server-owned fields for bills, paybills, loans, advance_requests, recruitments, exits and expenses in push_snapshot.",
+    "Add server-side approval checks to POST /api/expenses and POST /api/fooding (status=Approved should require Accounts Manager or approver).",
+    "Call autoSyncFromCloud(0) right away when App mounts so lists fill immediately after a reload, not after 8s.",
+    "Optional: apply the updatedAt guard in the single-record POST /bills, /vendors and /employees endpoints too."
+  ],
+  "critical_code_review_comments": [
+    "_mergeFromServer: on the first run after deploy, __synced_ids is missing (prev=null), so every local-only record is pushed back to the server. Records deleted on the server before this deploy will come back once on each device that still has them cached. Acceptable as a one-time migration, but worth knowing.",
+    "A bulk delete through saveX(list) on the client is undone by the next sync if the matching DELETE endpoint was not called (the server copy wins). Deletions must always call the per-record DELETE API.",
+    "_merge_upsert compares updatedAt as strings. The frontend sends 'Z' timestamps and the backend writes '+00:00' (in updated_at, a different field), so this works today. Keep a single format.",
+    "WeeklyFoodingTab has its own read/write that skips store.write's quota-error handling (localStorage.setItem can throw there).",
+    "server.py (1463 lines) and store.js (2410 lines) are over 700 lines and should be split into modules.",
+    "The old backend_test.py creates CrossUserVendor/CrossUserSnap vendors and TEST_cross_b_* bills and never deletes them. I removed them manually this time."
+  ],
+  "updated_files": ["/app/backend/tests/test_data_persistence.py", "/app/backend/tests/test_snapshot_workflow_bypass.py"],
+  "success_rate": {"backend": "93% (14/15 incl. security probe; 20/20 legacy)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "No seed data created. All TEST records (bill TEST_INV_ITER28, expense TEST_Expense_iter28, fooding TEST_CIRCLE_28, TEST_* bills/fooding, leftover CrossUser* vendors, TEST_cross_b_* bills, temp test users) were deleted from Mongo. vendorSerial restored to 1. billSerial (14) and expenseSerial (7) were left as they are: counters only move forward and the UI raises them each time a draft page opens.",
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (from /app/memory/test_credentials.md) - worked",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_data_persistence.py tests/test_snapshot_workflow_bypass.py tests/backend_test.py (pytest.ini adds -n xdist). test_snapshot_workflow_bypass should PASS once the snapshot bypass is fixed. Frontend testids: bill-vendor-input/bill-fetch-vendor, field-workOrderNo/billNo/billDate/basicAmount, bill-btn-save, bills-data-sheet; expense field-paidToName/description/basicAmount/preparedByName, exp-btn-save/exp-btn-submit, exp-row-{id}; Fooding is on /bill -> accounts-tab-fooding, wf-circle, wf-amt-0, wf-save, wf-row-{id}. The JWT is in localStorage 'ae_vm_jwt'. Sync is polled every 8s, so wait at least 10s after a reload. The only approved vendor is AE0001JV2627 ('TEST Vendor Inc').",
+  "rca of the issue": "Records disappearing: the old syncFromCloud replaced local lists with the server snapshot, and the old POST /snapshot reset counters and let stale copies overwrite newer ones. The fixes work (verified). Remaining risk: snapshot push skips the server-side approval workflow (security, not data loss)."
+}
