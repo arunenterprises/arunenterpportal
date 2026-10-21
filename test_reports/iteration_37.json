@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 37 frontend testing on the public URL with Playwright, logged in as SuperAdmin. All 6 requested flows PASS. (1) /purchase: there is exactly one 'PURCHASE MANAGEMENT' module-hero, and its green gradient is the same on all tabs. Clicking boq/wo/billing (JS click at scrollY=120) keeps scrollY=120. The URL changes in place to /purchase, /purchase?tab=wo or /purchase?tab=billing with no navigation. Every active tab background is rgb(22,101,52) = #166534. The Billing tab renders bill-page with bill-btn-save and bill-btn-submit, and has no bill-btn-approve and no bill-fetch-ref. (2) /bill-create redirects to /purchase?tab=billing. Loading /purchase?tab=wo directly opens the WO tab. (3) Inside Purchase: fetched the TEST vendor, filled the WO/invoice/date/amount fields, and Save gave 'Saved (AE00892627)'. Submit showed an alert with Ref No AE00892627 and the status became '2. WO Verify'. A fresh session on /bill (vendor tab) loaded the bill with bill-fetch-ref AE00892627, with billNo TEST_INV_1 and status 2. (4) /bill: on all 6 accounts tabs the hero and scrollY=120 stay the same, and the URL changes to /bill?view=X. (5) Weekly Fooding: created TEST_WF1 with POST /api/fooding, removed ae_vm_fooding and ae_vm_fooding__synced_ids from localStorage, then reloaded /bill?view=fooding. 'Saved Fooding Records · 1' lists TEST-WF, October 2026, ₹500, Approved. (6) /gm renders gm-crm-panel, gm-crm-header and 5 kpi-crm cards. No page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bill?view=fooding", "issues": ["The Financial Year field shows '2627' for a new October 2026 draft. A more readable form would be '2026-27' or '26-27'. This may be pre-existing or intended."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PurchaseManagement.openTab sets document.body.style.minHeight to scrollY+innerHeight and only resets it when the component unmounts. After switching to a shorter tab, extra blank space can stay at the bottom. Consider resetting it after the next paint (for example in a setTimeout after scrollTo).",
+    "BillProcessing.jsx (about 1980 lines) and PurchaseManagement.jsx (about 1256 lines) are well over the 700-line guideline and should be split.",
+    "Submitting a test bill uses up a billSerial on the server counter (ref AE00892627). This is expected, but test runs push up the production counters."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100%"},
+  "seed_data_creation": "Temporarily created vendor TEST_V1 (code TESTV001JV2526, step 3), fooding TEST_WF1 and bill b_1792604930876 (ref AE00892627). All three were deleted through the DELETE APIs, and the snapshot was confirmed back to 0 vendors, 0 bills and 0 fooding.",
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (from /app/memory/test_credentials.md). The login API body uses {identifier, password}.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The preview DB has 0 vendors, bills and fooding, so seed an approved vendor first (POST /api/vendors with step:3) before testing bill creation. Test scroll preservation with JS el.click(), not Playwright click. Field testids: field-workOrderNo, field-billNo, field-billDate, field-basicAmount, field-refNo, field-currentStatus. The vendor fetch uses bill-vendor-input and bill-fetch-vendor. Submit in create mode fires window.alert, so register a dialog handler. The GM CRM panel testid is gm-crm-panel."
+}

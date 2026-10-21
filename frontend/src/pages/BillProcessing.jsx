@@ -51,7 +51,7 @@ const RELEASE_OPTIONS = ["Added to Due List (Unpaid)", "Paid", "On Hold"];
 
 const F = ({ label, req, children, hint }) => (
   <div className="field-b">
-    <label>
+    <label title={typeof label === "string" ? label : undefined}>
       <span className="label-text">{label}</span>
       {req && <span className="req" title="Required">*</span>}
       {hint && <span className="label-hint">{hint}</span>}

@@ -259,3 +259,12 @@ See `/app/memory/test_credentials.md`.
 - KPI grid me 5 CRM verticals (Leads, Clients, Measurement Book, RA Bills, Change Orders) — same KpiCard style as other departments.
 - CrmGmPanel moved to bottom as Dept #7 (numbered strip like other DeptGroups), coloured header bar (#1e3a8a) + "Open module" pill, same as InboxSection.
 
+
+## 2026-10-21 — Data visibility + department tab consistency
+- Expenses: frontend dedupe now by id (was refNo → hid 10 prod records sharing EXR temp refs). Server atomic `/api/counters/next-expense` for refs; no serial consumed on page open; failed expense/bill saves queued for retry.
+- Fooding: prod has 2 records (verified present); tab reads them correctly after sync.
+- GM: CRM direct Approve/Reject (MB, RA) for SuperAdmin/Admin; Receivable Alert red badge for RA bills Sent to Client > 30 days (sentAt stamped); CRM cache in localStorage → instant render.
+- Accounts: Expenses embedded as tab in /bill (/expense redirects), shared AccountsTabs, one hero/colour, no scroll jump, ?view= URL.
+- Purchase: Vendor Bill Creation embedded as tab (/bill-create → /purchase?tab=billing), no approval button, uniform hero/colours.
+- Bill form labels single-line with ellipsis (aligned inputs).
+

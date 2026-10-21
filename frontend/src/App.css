@@ -378,7 +378,7 @@ body {
 .row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
 .row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 
-.field-b { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field-b { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; min-width: 0; }
 .field-b label {
   font-size: 10px;
   color: #475569;
@@ -386,12 +386,16 @@ body {
   letter-spacing: 0.6px;
   text-transform: uppercase;
   line-height: 1.25;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 4px;
   padding-left: 1px;
+  min-height: 14px;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
 }
-.field-b label .label-text { color: #334155; }
+.field-b label .label-text { color: #334155; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .field-b label .req {
   color: #dc2626;
   font-size: 11px;
