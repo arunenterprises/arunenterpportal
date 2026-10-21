@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home as HomeIcon, LogOut, ArrowLeft, ImageUp, ImageOff } from "lucide-react";
+import { Home as HomeIcon, LogOut, ArrowLeft, ImageUp, ImageOff, Users, Store } from "lucide-react";
 import { toast } from "sonner";
 import { logout, currentUser, currentUserProfile, isSuperAdmin, setLogo, clearLogo, getLogo } from "../lib/store";
 import AuthSplash from "./AuthSplash";
@@ -107,6 +107,10 @@ const HomeNavBar = () => {
             {superAdmin ? "SUPERADMIN" : (me?.role || "User").toUpperCase()}
           </span>
         </span>
+        {["/", "/home"].includes(location.pathname) && <>
+          <a href="https://employee-portal-366.emergent.host/" target="_blank" rel="noopener noreferrer" data-testid="hn-employee-portal" className="hn-portal"><Users size={13} /> Employee Portal</a>
+          <a href="https://vendor-portal-458.emergent.host/" target="_blank" rel="noopener noreferrer" data-testid="hn-vendor-portal" className="hn-portal"><Store size={13} /> Vendor Portal</a>
+        </>}
         <button
           onClick={doLogout}
           data-testid="hn-logout"
