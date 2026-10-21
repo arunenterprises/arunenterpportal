@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import CrmGmPanel, { crmGmCounts } from "../components/crm/CrmGmPanel";
-import { loadCrmCache } from "../components/crm/crmShared";
+import { loadCrmCache, crmCache, crmCacheReady } from "../components/crm/crmShared";
 import {
   getVendors, getBills, getPayments, getExpenses, getBOQs, getWOs,
   getEmployees, getLeaves, getExits, getRecruitments, getPayBills,
@@ -265,7 +265,7 @@ export default function GeneralManager() {
   const [tab, setTab] = useState("pending");
   const bump = () => setTick((t) => t + 1);
   const delOk = canDelete();
-  const [crm, setCrm] = useState(null);
+  const [crm, setCrm] = useState(() => (crmCacheReady() ? crmGmCounts(crmCache) : null));
   useEffect(() => { loadCrmCache().then((c) => setCrm(crmGmCounts(c))).catch(() => {}); }, [tick]);
 
   // REAL-TIME SYNC: auto-refresh when any user (admin/superadmin anywhere) commits a change.

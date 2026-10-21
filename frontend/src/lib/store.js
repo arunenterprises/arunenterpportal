@@ -324,7 +324,7 @@ export const upsertExpense = (e) => {
   e.updatedAt = new Date().toISOString();
   if (idx >= 0) list[idx] = e; else list.push(e);
   saveExpenses(list);
-  if (getToken()) apiUpsertExpense(e).catch(() => {});
+  if (getToken()) _bg("apiUpsertExpense", [e], apiUpsertExpense(e));
   return e;
 };
 
@@ -973,7 +973,7 @@ export const upsertBill = (b) => {
   b.updatedAt = new Date().toISOString();
   if (idx >= 0) list[idx] = b; else list.push(b);
   saveBills(list);
-  if (getToken()) apiUpsertBill(b).catch(() => {});
+  if (getToken()) _bg("apiUpsertBill", [b], apiUpsertBill(b));
   return b;
 };
 
@@ -1066,7 +1066,7 @@ export const dedupeAllStores = () => {
   total += dedupeByKey(KEYS.PAYMENTS,  (p) => p?.pvNo,                                                  "payments");
   total += dedupeByKey(KEYS.BILLS,     (b) => b?.permanentBillNo || b?.refNo,                           "bills");
   total += dedupeByKey(KEYS.VENDORS,   (v) => v?.vendorCode || v?.tempRefId,                            "vendors");
-  total += dedupeByKey(KEYS.EXPENSES,  (e) => e?.expenseNo || e?.refNo,                                 "expenses");
+  total += dedupeByKey(KEYS.EXPENSES,  (e) => e?.id,                                                    "expenses");
   total += dedupeByKey(KEYS.BOQS,      (b) => b?.boqNo || b?.refNo,                                     "boqs");
   total += dedupeByKey(KEYS.WOS,       (w) => w?.woNo || w?.refNo,                                      "wos");
   total += dedupeByKey(KEYS.PAYBILLS,  (p) => p?.refNo || p?.monthKey,                                  "paybills");
@@ -1950,6 +1950,8 @@ export const retryPendingSyncs = async () => {
       if (item.fnName === "apiUpsertPayBill") { await apiUpsertPayBill(item.args[0]); retried += 1; }
       else if (item.fnName === "apiUpsertAdvanceRequest") { await apiUpsertAdvanceRequest(item.args[0]); retried += 1; }
       else if (item.fnName === "apiUpsertLoan") { await apiUpsertLoan(item.args[0]); retried += 1; }
+      else if (item.fnName === "apiUpsertExpense") { await apiUpsertExpense(item.args[0]); retried += 1; }
+      else if (item.fnName === "apiUpsertBill") { await apiUpsertBill(item.args[0]); retried += 1; }
       else stillPending.push(item);
     } catch (e) {
       stillPending.push(item);
@@ -2235,7 +2237,7 @@ export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
   const bills = read(KEYS.BILLS, []);
   bills.push(bill);
   write(KEYS.BILLS, bills);
-  if (getToken()) apiUpsertBill(bill).catch(() => {});
+  if (getToken()) _bg("apiUpsertBill", [bill], apiUpsertBill(bill));
   return bill;
 };
 

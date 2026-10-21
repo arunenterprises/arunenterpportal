@@ -9,6 +9,7 @@ import WeeklyFoodingTab from "../components/WeeklyFoodingTab";
 import { Landmark as LandmarkIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import AccountsTabs from "../components/AccountsTabs";
 import HsnInput from "../components/HsnInput";
 import HsnFinder from "../components/HsnFinder";
 import HomeNavBar from "../components/HomeNavBar";
@@ -70,7 +71,7 @@ export default function BillProcessing({ mode = "process" }) {
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [activeView, setActiveView] = useState("vendor"); // vendor | advance | paybill | exit
+  const [activeView, setActiveView] = useState(() => new URLSearchParams(window.location.search).get("view") || "vendor"); // vendor | advance | paybill | exit
   const [rev, setRev] = useState(0);
 
   // REAL-TIME CROSS-USER SYNC: re-render on ae-sync-done (every ~8s via App.js).
@@ -523,7 +524,7 @@ export default function BillProcessing({ mode = "process" }) {
           onSave={handleSave}
           onEdit={handleEdit}
           onSubmit={handleSubmit}
-          onApprove={handleApprove}
+          onApprove={isCreate ? undefined : handleApprove}
           onPrint={handlePrint}
           onExportJSON={handleExportJSON}
           onExportExcel={handleExportExcel}
@@ -544,34 +545,7 @@ export default function BillProcessing({ mode = "process" }) {
           />
 
           {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
-          {!isCreate && <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">
-            {[
-              { id: "vendor", label: "Vendor Bill Process", tone: "#0369a1", icon: Receipt },
-              { id: "expense", label: "Expenses", tone: "#7c3aed", icon: Wallet, route: "/expense" },
-              { id: "advance", label: "Advance Reg.", tone: "#f59e0b", icon: Wallet },
-              { id: "paybill", label: "Pay Bills Process", tone: "#be185d", icon: IndianRupee },
-              { id: "fooding", label: "Weekly Fooding", tone: "#15803d", icon: Utensils },
-              { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
-            ].map((t) => {
-              const Icon = t.icon; const active = activeView === t.id;
-              return (
-                <button
-                  key={t.id}
-                  data-testid={`accounts-tab-${t.id}`}
-                  onClick={() => { if (t.route) { nav(t.route); return; } setActiveView(t.id); bumpRev(); }}
-                  style={{
-                    padding: "8px 16px", background: active ? t.tone : "transparent",
-                    color: active ? "#fff" : "#334155", border: "none",
-                    borderRadius: "6px 6px 0 0", cursor: "pointer",
-                    fontWeight: 700, fontSize: 12, letterSpacing: .3,
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                  }}
-                >
-                  <Icon size={13} /> {t.label}
-                </button>
-              );
-            })}
-          </div>}
+          {!isCreate && <AccountsTabs active={activeView} onSelect={(id) => { setActiveView(id); bumpRev(); }} />}
 
           {activeView === "vendor" && (<>
           {!isCreate && (
@@ -1407,7 +1381,7 @@ export default function BillProcessing({ mode = "process" }) {
             <button data-testid="bill-btn-edit" onClick={handleEdit} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: bill.step >= 5 ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Pencil size={13} /> Edit</button>
             <button data-testid="bill-btn-save" onClick={handleSave} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Save size={13} /> Save Bill</button>
             <button data-testid="bill-btn-submit" onClick={handleSubmit} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Send size={13} /> Submit</button>
-            <button data-testid="bill-btn-approve" onClick={handleApprove} disabled={isCreate || !canApprove() || bill.step !== 4} style={{ padding: "7px 12px", height: 32, background: canApprove() && bill.step === 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() && bill.step === 4 ? "pointer" : "not-allowed", opacity: canApprove() && bill.step === 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><CheckCircle2 size={13} /> Final Approval</button>
+            {!isCreate && <button data-testid="bill-btn-approve" onClick={handleApprove} disabled={!canApprove() || bill.step !== 4} style={{ padding: "7px 12px", height: 32, background: canApprove() && bill.step === 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() && bill.step === 4 ? "pointer" : "not-allowed", opacity: canApprove() && bill.step === 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><CheckCircle2 size={13} /> Final Approval</button>}
             <button
               data-testid="bill-btn-delete"
               onClick={handleDelete}

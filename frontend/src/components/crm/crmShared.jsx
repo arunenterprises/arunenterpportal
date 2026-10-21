@@ -41,10 +41,18 @@ export const num = (v) => Number(v) || 0;
 export const CRM_NAMES = ["leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases"];
 
 // Module-level cache so Reports Hub (sync getters) can read CRM data.
-export const crmCache = Object.fromEntries(CRM_NAMES.map((n) => [n, []]));
+const CRM_LS = "ae_crm_cache";
+const _lsCrm = (() => { try { return JSON.parse(localStorage.getItem(CRM_LS) || "{}"); } catch { return {}; } })();
+export const crmCache = Object.fromEntries(CRM_NAMES.map((n) => [n, Array.isArray(_lsCrm[n]) ? _lsCrm[n] : []]));
+export const crmCacheReady = () => !!localStorage.getItem(CRM_LS);
+const _storeCrm = (lists) => {
+  CRM_NAMES.forEach((n, i) => { crmCache[n] = lists[i]; });
+  const lite = Object.fromEntries(CRM_NAMES.map((n) => [n, crmCache[n].map(({ fileData, woFileData, ...r }) => r)]));
+  try { localStorage.setItem(CRM_LS, JSON.stringify(lite)); } catch { /* quota */ }
+};
 export const loadCrmCache = async () => {
   const lists = await Promise.all(CRM_NAMES.map((n) => crmList(n)));
-  CRM_NAMES.forEach((n, i) => { crmCache[n] = lists[i]; });
+  _storeCrm(lists);
   return crmCache;
 };
 
@@ -74,7 +82,7 @@ export const useCrmData = () => {
   const reload = useCallback(async () => {
     try {
       const lists = await Promise.all(names.map((n) => crmList(n)));
-      names.forEach((n, i) => { crmCache[n] = lists[i]; });
+      _storeCrm(lists);
       setData(Object.fromEntries(names.map((n, i) => [n, lists[i]])));
     } catch (e) { toast.error(`Load failed: ${e.message}`); }
     setLoading(false);

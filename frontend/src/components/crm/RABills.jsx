@@ -115,7 +115,7 @@ export const RABills = ({ data, save, reload }) => {
           <div data-testid="ra-net" style={{ color: "#1e3a8a" }}>Net Payable: <b>{inr(t.net)}</b></div>
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {f.id && st === 3 && canApprove() && <Btn tone="dark" data-testid="ra-sent-btn" onClick={() => move(f, 4)}><Mail size={14} /> Mark Sent to Client</Btn>}
+          {f.id && st === 3 && canApprove() && <Btn tone="dark" data-testid="ra-sent-btn" onClick={() => move(f, 4, { sentAt: today() })}><Mail size={14} /> Mark Sent to Client</Btn>}
           {f.id && <Btn tone="ghost" data-testid="ra-print-btn" onClick={() => printRA(f, t, contract, data)}><Printer size={14} /> Print Bill</Btn>}
         </div>
         {f.id && Number(f.step) === 4 && canApprove() && (

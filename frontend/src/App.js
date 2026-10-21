@@ -19,6 +19,7 @@ import VendorPortalWO from "./pages/VendorPortalWO";
 import AdvertisementPortal from "./pages/AdvertisementPortal";
 import SplashScreen from "./components/SplashScreen";
 import { isAuthed, retryPendingSyncs, getPendingSyncCount, autoSyncFromCloud } from "./lib/store";
+import { loadCrmCache } from "./components/crm/crmShared";
 
 const RequireAuth = ({ children }) => {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -61,6 +62,7 @@ function App() {
     const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
     const start = () => { stop(); timer = setInterval(tick, 8000); };
     autoSyncFromCloud(0).then((snap) => { if (snap) { try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch (e) { /* noop */ } } });
+    loadCrmCache().catch(() => {});
     const onVis = () => {
       if (document.visibilityState === "visible") {
         autoSyncFromCloud(0).then((snap) => { if (snap) { try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch (e) { /* noop */ } } });

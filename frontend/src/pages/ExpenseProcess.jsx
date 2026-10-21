@@ -7,6 +7,7 @@ import ModuleHero from "../components/ModuleHero";
 import { Receipt as ReceiptIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
+import AccountsTabs from "../components/AccountsTabs";
 import HomeNavBar from "../components/HomeNavBar";
 import {
   createExpenseDraft, computeExpense, upsertExpense, advanceExpenseStep,
@@ -223,15 +224,16 @@ export default function ExpenseProcess() {
         nextLabel="Reports" nextTo="/final"
       />
       <div className="a4" data-testid="expense-page">
-        <div className="module-doc-header"><Header formTitle={`Expense Process · ${expense.permanentExpenseNo || expense.refNo}`} /></div>
+        <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
         <ModuleHero
-          tag="Expense Process"
-          title="Petty Cash · Reimbursements · Approvals"
-          subtitle="4-step approval · Auto Expense No · GM final sign-off · Direct to PV"
+          tag="Accounts"
+          title="Vendor Bill Process · Advance · Pay Bill · Expenses · Exit F&F"
+          subtitle="Expenses · Petty Cash · Reimbursements · 4-step approval · GM final sign-off"
           icon={ReceiptIcon}
-          gradient="linear-gradient(135deg,#78350f 0%,#b45309 45%,#f59e0b 100%)"
-          shadowRgba="180,83,9,.28"
+          gradient="linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"
+          shadowRgba="6,78,59,.28"
         />
+        <AccountsTabs active="expense" />
         <StepTabs step={Number(expense.step) || 1} labels={[EXPENSE_STEP_LABEL[1], EXPENSE_STEP_LABEL[2], EXPENSE_STEP_LABEL[3], EXPENSE_STEP_LABEL[4]]} />
 
         {/* 1. Expense Details */}
