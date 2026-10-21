@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Handshake, LayoutDashboard, Users, Building2, MessagesSquare, FileSignature, Ruler, Receipt, Flag, ShieldCheck, FilePlus2, BarChart3, ChevronRight } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
+import HsnFinder from "../components/HsnFinder";
 import { useCrmData } from "../components/crm/crmShared";
 import { CrmDashboard } from "../components/crm/CrmDashboard";
 import { Leads } from "../components/crm/Leads";
@@ -83,6 +84,7 @@ export default function ClientRevenue() {
           ))}
         </div>
         {crm.loading ? <div data-testid="crm-loading" style={{ padding: 30, textAlign: "center", color: "#64748b" }}>Loading…</div> : <Active {...crm} />}
+        {["contracts", "co"].includes(tab) && <HsnFinder />}
       </div>
     </>
   );

@@ -897,14 +897,16 @@ export const advanceVendorStep = async (v) => {
 export const getBills = () => read(KEYS.BILLS, []);
 export const saveBills = (list) => { write(KEYS.BILLS, list); _schedulePush(); };
 
-export const createBillDraft = () => {
+export const createBillDraft = (peek = false) => {
   const c = getCounters();
-  c.billSerial = (c.billSerial || 0) + 1;
-  saveCounters(c);
+  if (!peek) {
+    c.billSerial = (c.billSerial || 0) + 1;
+    saveCounters(c);
+  }
   return {
-    id: `b_${Date.now()}`,
-    billSerial: c.billSerial,
-    refNo: buildTempBillRef(c.billSerial),      // AE0001{FY} (active till approval)
+    id: peek ? "" : `b_${Date.now()}`,
+    billSerial: peek ? 0 : c.billSerial,
+    refNo: peek ? "" : buildTempBillRef(c.billSerial),      // AE0001{FY} (active till approval)
     permanentBillNo: "",                          // BILL0001{FY} (generated on final approval — primary key)
     processDate: new Date().toISOString().slice(0, 10),
     step: 1,

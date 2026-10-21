@@ -10,6 +10,7 @@ import { Landmark as LandmarkIcon } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import HsnInput from "../components/HsnInput";
+import HsnFinder from "../components/HsnFinder";
 import HomeNavBar from "../components/HomeNavBar";
 import VendorQueryModal from "../components/VendorQueryModal";
 import {
@@ -57,11 +58,14 @@ const F = ({ label, req, children, hint }) => (
   </div>
 );
 
-export default function BillProcessing() {
+export default function BillProcessing({ mode = "process" }) {
+  const isCreate = mode === "create";
   const nav = useNavigate();
-  const [bill, setBill] = useState(() => createBillDraft());
+  const [bill, setBill] = useState(() => createBillDraft(!isCreate));
   const [billSearch, setBillSearch] = useState("");
-  const [locked, setLocked] = useState(false);
+  const [refFetch, setRefFetch] = useState("");
+  const [lockedRaw, setLocked] = useState(false);
+  const locked = lockedRaw || (isCreate && Number(bill.step) >= 2);
   const [vendorInput, setVendorInput] = useState("");
   const [queryOpen, setQueryOpen] = useState(false);
   const [queryCode, setQueryCode] = useState("");
@@ -327,6 +331,7 @@ export default function BillProcessing() {
   const openQuery = (q) => { setQueryCode(q || bill.vendorCode || ""); setQueryOpen(true); };
 
   const handleNew = () => {
+    if (!isCreate) { toast.info("Naya bill Purchase > New Vendor Bill Creation mein banayein"); nav("/bill-create"); return; }
     setBill({ ...createBillDraft(), createdByName: currentUser() });
     setLocked(false); setVendorInput("");
     toast.success("New bill draft");
@@ -343,7 +348,7 @@ export default function BillProcessing() {
     const label = bill.permanentBillNo || bill.refNo || "this bill";
     if (!window.confirm(`Delete ${label}?\n\nThis cannot be undone. If a Payment Voucher is already linked, it will remain in Payments.`)) return;
     deleteBill(bill.id);
-    setBill({ ...createBillDraft(), createdByName: currentUser() });
+    setBill({ ...createBillDraft(!isCreate), createdByName: currentUser() });
     setLocked(false); setVendorInput("");
     setRefresh((n) => n + 1);
     toast.success(`${label} deleted`);
@@ -359,6 +364,7 @@ export default function BillProcessing() {
   };
 
   const handleSave = () => {
+    if (!isCreate && (!bill.id || Number(bill.step) < 2)) { toast.error("Pehle Reference No se Purchase ka bill fetch karein"); return; }
     if (!validate()) return;
     const s = upsertBill({ ...bill });
     setBill(s);
@@ -409,6 +415,17 @@ export default function BillProcessing() {
   const handleSubmit = () => {
     if (bill.step >= 5) { toast.error("Already in Payment Due List"); return; }
     if (!validate()) return;
+    if (isCreate) {
+      if (Number(bill.step) >= 2) { toast.info(`Bill already Accounts mein hai · Ref No ${bill.refNo}`); return; }
+      const sent = advanceBillStep({ ...bill });
+      setBill(sent);
+      toast.success(`Submitted to Accounts · Ref No ${sent.refNo}`);
+      window.alert(`Bill Accounts ko submit ho gaya.\n\nReference No: ${sent.refNo}\n\nAccounts > Vendor Bill Process mein isi Ref No se bill fetch hoga.`);
+      return;
+    }
+    if (Number(bill.step) < 2) { toast.error("Yeh bill abhi Purchase mein draft hai — pehle Purchase se Submit karein"); return; }
+    const unverified = (bill.items || []).filter((r) => !(bill.itemVerify || {})[r.id]);
+    if (unverified.length) { toast.error(`${unverified.length} item(s) cross-verify karna baaki hai`); return; }
     // Re-Submit after reopen (record is at step 4 with revision > 0) — just save & log, awaiting Re-Approval
     if (bill.step === 4 && (bill.revision || 0) > 0) {
       const history = Array.isArray(bill.history) ? bill.history : [];
@@ -429,6 +446,7 @@ export default function BillProcessing() {
   };
 
   const handleApprove = () => {
+    if (isCreate) { toast.info("Approval Accounts > Vendor Bill Process mein hoga"); return; }
     const step = Number(bill.step) || 1;
     if (step === 5) { toast.info("Already in Payment Due List"); return; }
     if (step !== 4) { toast.error("Complete all approval steps first (use Submit)"); return; }
@@ -515,20 +533,21 @@ export default function BillProcessing() {
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 
         <div className="a4" data-testid="bill-page">
-          <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
+          <div className="module-doc-header"><Header formTitle={isCreate ? "PURCHASE · NEW VENDOR BILL CREATION" : "ACCOUNTS DEPARTMENT"} /></div>
           <ModuleHero
-            tag="Accounts"
-            title="Vendor Bills · Advance · Pay Bill · Exit F&F"
-            subtitle="5-step bill flow · GST / TDS auto-compute · PV generation · UTR tracking"
+            tag={isCreate ? "Purchase · New Vendor Bill Creation" : "Accounts"}
+            title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "Vendor Bill Process · Advance · Pay Bill · Expenses · Exit F&F"}
+            subtitle={isCreate ? "Vendor + WO select · items feed · Submit karte hi Reference No milega" : "Ref No se bill fetch · cross-verify · GST / TDS · approval · PV"}
             icon={LandmarkIcon}
             gradient="linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"
             shadowRgba="6,78,59,.28"
           />
 
           {/* Accounts Department Top Switcher — Vendor Bills · Advance Reg · Pay Bills · Exit F&F */}
-          <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">
+          {!isCreate && <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">
             {[
-              { id: "vendor", label: "Vendor Bills", tone: "#0369a1", icon: Receipt },
+              { id: "vendor", label: "Vendor Bill Process", tone: "#0369a1", icon: Receipt },
+              { id: "expense", label: "Expenses", tone: "#7c3aed", icon: Wallet, route: "/expense" },
               { id: "advance", label: "Advance Reg.", tone: "#f59e0b", icon: Wallet },
               { id: "paybill", label: "Pay Bills Process", tone: "#be185d", icon: IndianRupee },
               { id: "fooding", label: "Weekly Fooding", tone: "#15803d", icon: Utensils },
@@ -539,7 +558,7 @@ export default function BillProcessing() {
                 <button
                   key={t.id}
                   data-testid={`accounts-tab-${t.id}`}
-                  onClick={() => { setActiveView(t.id); bumpRev(); }}
+                  onClick={() => { if (t.route) { nav(t.route); return; } setActiveView(t.id); bumpRev(); }}
                   style={{
                     padding: "8px 16px", background: active ? t.tone : "transparent",
                     color: active ? "#fff" : "#334155", border: "none",
@@ -552,9 +571,25 @@ export default function BillProcessing() {
                 </button>
               );
             })}
-          </div>
+          </div>}
 
           {activeView === "vendor" && (<>
+          {!isCreate && (
+            <div data-testid="bill-fetch-panel" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "10px 0", padding: "10px 12px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
+              <b style={{ fontSize: 12, color: "#1e3a8a" }}>Purchase se aaya bill fetch karein:</b>
+              <input data-testid="bill-fetch-ref" value={refFetch} onChange={(e) => setRefFetch(e.target.value.toUpperCase())} placeholder="Reference No (e.g. AE0001...)"
+                onKeyDown={(e) => { if (e.key === "Enter") document.querySelector("[data-testid=bill-fetch-btn]")?.click(); }}
+                style={{ flex: "1 1 220px", padding: "7px 10px", fontSize: 12.5, border: "1px solid #93c5fd", borderRadius: 6, fontFamily: "monospace" }} />
+              <button data-testid="bill-fetch-btn" onClick={() => {
+                const q = refFetch.trim().toLowerCase();
+                if (!q) { toast.error("Reference No daalein"); return; }
+                const m = getBills().find((b) => (b.refNo || "").toLowerCase() === q || (b.permanentBillNo || "").toLowerCase() === q);
+                if (!m) { toast.error(`Ref No "${refFetch}" ka koi bill nahi mila`); return; }
+                if (Number(m.step) < 2) { toast.error("Yeh bill abhi Purchase mein draft hai (submit nahi hua)"); return; }
+                loadBill(m); setRefFetch("");
+              }} style={{ padding: "7px 14px", background: "#1e3a8a", color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Search size={13} /> Fetch Bill</button>
+            </div>
+          )}
           {/* View Switcher — Vendor Bills · HR Payroll · Employee Advance */}
           <StepTabs
             step={bill.step}
@@ -844,12 +879,13 @@ export default function BillProcessing() {
           {/* 2B. ITEM & WORK SCOPE BREAKDOWN */}
           <div className="section">
             <div className="section-title-inline">
-              <span>Item &amp; Work Scope Breakdown Details</span>
+              <span>Item &amp; Work Scope Breakdown Details{!isCreate && " · Cross Verification"}</span>
               <button className="btn-add-row" data-testid="btn-add-item-row"
-                onClick={addItem} disabled={locked}>
+                onClick={addItem} disabled={locked || !isCreate}>
                 <Plus size={12} /> Add Row
               </button>
             </div>
+            <fieldset disabled={!isCreate} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
             {items.length === 0 ? (
               <div className="items-empty" data-testid="items-empty">
                 No items added yet. Click "Add Row" to break down the work scope.
@@ -964,6 +1000,23 @@ export default function BillProcessing() {
                   </tr>
                 </tfoot>
               </table>
+            )}
+            </fieldset>
+            {!isCreate && items.length > 0 && (
+              <div data-testid="bill-cross-verify" style={{ marginTop: 10, padding: "10px 12px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                  <b style={{ fontSize: 12, color: "#166534" }}>Accounts Cross-Verification (Invoice vs Purchase feed) · {items.filter((r) => (bill.itemVerify || {})[r.id]).length}/{items.length} verified</b>
+                  <button data-testid="bill-verify-all" disabled={lockedRaw || Number(bill.step) >= 5} onClick={() => setBill((b) => ({ ...b, itemVerify: Object.fromEntries(items.map((r) => [r.id, true])) }))}
+                    style={{ padding: "4px 10px", fontSize: 11, background: "#16a34a", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700 }}>Verify All</button>
+                </div>
+                {items.map((r, i) => (
+                  <label key={r.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12, padding: "3px 0" }}>
+                    <input type="checkbox" data-testid={`bill-verify-${i}`} disabled={lockedRaw || Number(bill.step) >= 5} checked={!!(bill.itemVerify || {})[r.id]}
+                      onChange={(e) => setBill((b) => ({ ...b, itemVerify: { ...(b.itemVerify || {}), [r.id]: e.target.checked } }))} />
+                    <span>{i + 1}. {r.description || "—"} · HSN {r.hsn || "—"} · Qty {r.billedQty || 0} {r.unit} × ₹{r.woRate || 0}</span>
+                  </label>
+                ))}
+              </div>
             )}
           </div>
 
@@ -1348,13 +1401,13 @@ export default function BillProcessing() {
           )}
 
           {/* Inline Action Buttons — uniform left-to-right alignment */}
-          <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-start", alignItems: "stretch", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="bill-action-row">
+          <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-start", alignItems: "stretch", gap: 6, flexWrap: "nowrap", overflowX: "auto", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="bill-action-row">
             <button data-testid="bill-btn-query" onClick={() => openQuery()} style={{ padding: "7px 12px", height: 32, background: "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><FileSearch size={13} /> Vendor Query</button>
-            <button data-testid="bill-btn-new" onClick={handleNew} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: canCreate() ? "#0369a1" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><FilePlus2 size={13} /> New Bill</button>
+            <button data-testid="bill-btn-new" onClick={handleNew} disabled={!canCreate() || !isCreate} style={{ padding: "7px 12px", height: 32, background: canCreate() && isCreate ? "#0369a1" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><FilePlus2 size={13} /> New Bill</button>
             <button data-testid="bill-btn-edit" onClick={handleEdit} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: bill.step >= 5 ? "#94a3b8" : "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Pencil size={13} /> Edit</button>
             <button data-testid="bill-btn-save" onClick={handleSave} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Save size={13} /> Save Bill</button>
             <button data-testid="bill-btn-submit" onClick={handleSubmit} disabled={!canCreate() || bill.step >= 5} style={{ padding: "7px 12px", height: 32, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() && bill.step < 5 ? "pointer" : "not-allowed", opacity: canCreate() && bill.step < 5 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Send size={13} /> Submit</button>
-            <button data-testid="bill-btn-approve" onClick={handleApprove} disabled={!canApprove() || bill.step !== 4} style={{ padding: "7px 12px", height: 32, background: canApprove() && bill.step === 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() && bill.step === 4 ? "pointer" : "not-allowed", opacity: canApprove() && bill.step === 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><CheckCircle2 size={13} /> Final Approval</button>
+            <button data-testid="bill-btn-approve" onClick={handleApprove} disabled={isCreate || !canApprove() || bill.step !== 4} style={{ padding: "7px 12px", height: 32, background: canApprove() && bill.step === 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canApprove() && bill.step === 4 ? "pointer" : "not-allowed", opacity: canApprove() && bill.step === 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><CheckCircle2 size={13} /> Final Approval</button>
             <button
               data-testid="bill-btn-delete"
               onClick={handleDelete}
@@ -1368,6 +1421,7 @@ export default function BillProcessing() {
             <button data-testid="bill-btn-export-excel" onClick={handleExportExcel} style={{ padding: "7px 12px", height: 32, background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(5,150,105,.3)", lineHeight: 1 }}>⬇ Excel</button>
             <button data-testid="bill-btn-print" onClick={handlePrint} style={{ padding: "7px 12px", height: 32, background: "#ea580c", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(234,88,12,.3)", lineHeight: 1 }}><Printer size={13} /> Print</button>
           </div>
+          <HsnFinder />
           </>)}
 
           {activeView === "advance" && <AccountsAdvanceView rev={rev} bumpRev={bumpRev} />}

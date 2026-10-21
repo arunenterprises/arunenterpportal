@@ -40,7 +40,7 @@ const DEPARTMENTS = [
   {
     id: "purchase",
     title: "Purchase Management",
-    subtitle: "BOQ · WO · Billing · Expense (Create)",
+    subtitle: "BOQ · WO · New Vendor Bill Creation",
     to: "/purchase",
     icon: ShoppingCart,
     color: "#16a34a",
@@ -48,8 +48,8 @@ const DEPARTMENTS = [
     lines: [
       "BOQ: create → prepare → submit",
       "Work Order: create → submit",
-      "Billing: create + WO + invoice attach",
-      "Expense: create → submit",
+      "New Vendor Bill: vendor select → feed → submit (Ref No)",
+      "HSN / SAC code search",
     ],
     roles: ALL_ROLES,
   },
@@ -62,9 +62,9 @@ const DEPARTMENTS = [
     color: "#f59e0b",
     dark: "#b45309",
     lines: [
-      "All Purchase bills + vendor bills",
+      "Vendor Bill Process: Ref No fetch + cross-verify",
       "GST + TDS calculation, compliance",
-      "Bill / Expense approval + re-approval",
+      "Bill / Expense approval + Expenses tab",
       "Payment voucher preparation",
     ],
     roles: ALL_ROLES,

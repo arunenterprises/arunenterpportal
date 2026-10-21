@@ -7,6 +7,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import { printWorkOrder } from "../lib/woPrint";
 import HsnInput from "../components/HsnInput";
+import HsnFinder from "../components/HsnFinder";
 import {
   currentRole, canCreate, canApprove, canDelete, canDeleteApproved, currentUserProfile, currentUser,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
@@ -81,8 +82,7 @@ const logBOQDeletion = (b, approved) => {
 const TABS = [
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#0ea5e9" },
   { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#16a34a" },
-  { id: "billing", title: "Billing", subtitle: "Vendor Bill Submission", icon: Receipt, color: "#f59e0b", route: "/bill" },
-  { id: "expense", title: "Expense", subtitle: "Petty Cash / Reimbursement", icon: Wallet, color: "#7c3aed", route: "/expense" },
+  { id: "billing", title: "New Vendor Bill Creation", subtitle: "Vendor select · bill feed · submit", icon: Receipt, color: "#f59e0b", route: "/bill-create" },
 ];
 
 // Shared datalist for units. Users can type any custom unit that isn't listed.
@@ -1238,6 +1238,7 @@ export default function PurchaseManagement() {
 
           {activeTab.id === "boq" && <BOQEditor writeAllowed={write} approveAllowed={approve} />}
           {activeTab.id === "wo" && <WOEditor writeAllowed={write} approveAllowed={approve} />}
+          {["boq", "wo"].includes(activeTab.id) && <HsnFinder />}
           <UnitDataList />
         </div>
       </div>
