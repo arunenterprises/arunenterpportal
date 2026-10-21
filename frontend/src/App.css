@@ -984,14 +984,16 @@ body {
   flex-wrap: wrap;
 }
 .home-navbar .hn-link {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 18px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 136px; height: 34px; box-sizing: border-box;
+  padding: 0 8px;
   border-radius: 6px;
   color: #cbd5e1;
   text-decoration: none;
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: .4px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .3px;
+  white-space: nowrap;
   transition: all .15s ease;
   border: 1px solid transparent;
 }
@@ -1021,24 +1023,24 @@ body {
 .home-navbar .hn-role.usr { background: #dbeafe; color: #1e3a8a; }
 .home-navbar .hn-logout {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  width: 148px; height: 34px; box-sizing: border-box;
+  width: 136px; height: 34px; box-sizing: border-box;
   padding: 0 8px;
   background: #fee2e2; color: #991b1b;
   border: 1px solid #fca5a5;
   border-radius: 6px;
   cursor: pointer;
-  font-weight: 800; font-size: 13px;
-  letter-spacing: .4px;
+  font-weight: 800; font-size: 12px;
+  letter-spacing: .3px;
 }
 .home-navbar .hn-logout:hover { background: #fecaca; }
 .home-navbar .hn-portal {
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  width: 148px; height: 34px; box-sizing: border-box;
+  width: 136px; height: 34px; box-sizing: border-box;
   padding: 0 8px;
   background: #0369a1; color: #fff;
   border: 1px solid #0284c7;
   border-radius: 6px;
-  font-weight: 800; font-size: 13px; letter-spacing: .4px;
+  font-weight: 800; font-size: 12px; letter-spacing: .3px;
   text-decoration: none; white-space: nowrap;
   transition: background-color .15s ease;
 }
