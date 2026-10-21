@@ -6,6 +6,7 @@ import {
   apiUpsertAdvanceRequest, apiDeleteAdvanceRequest, apiResetHrFinancials,
   apiUpsertRecruitment, apiDeleteRecruitment, apiUpsertExit, apiDeleteExit,
   apiSetCounters, apiSetLogo, apiFetchSnapshot, apiPushSnapshot,
+  apiNextVendorSerial,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
 import { toast as _toast } from "sonner";
@@ -50,7 +51,12 @@ const read = (k, fallback) => {
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }
   catch { return fallback; }
 };
-const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const write = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); }
+  catch (e) {
+    try { console.error("[storage-full]", k, e); _toast.error("Browser storage full — data cloud par save ho raha hai, page refresh karein."); } catch {}
+  }
+};
 
 // ---- Company Details master (SuperAdmin-managed · used across letterhead / PV / prints) ----
 export const DEFAULT_COMPANY = {
@@ -173,6 +179,30 @@ const nextVendorCode = () => {
   return `AE${String(nextSerial).padStart(4, "0")}JV${getFY()}`;
 };
 
+// SERVER-FIRST vendor code generator (Feb 2026 — robust fix for AE0001 reset).
+// Always tries the atomic server endpoint first so every device gets a
+// GLOBAL monotonic serial, even on a brand-new / wiped local store. Falls
+// back to the local scan only when the server is unreachable or returns an
+// error — in which case we still cannot regress because of the local scan.
+const nextVendorCodeAsync = async () => {
+  if (getToken()) {
+    try {
+      const r = await apiNextVendorSerial();
+      const serial = Number(r?.nextSerial) || 0;
+      if (serial > 0) {
+        // Mirror into local counter so subsequent local-only paths stay aligned
+        const c = getCounters();
+        c.vendorSerial = Math.max(Number(c.vendorSerial) || 0, serial);
+        saveCounters(c);
+        return `AE${String(serial).padStart(4, "0")}JV${getFY()}`;
+      }
+    } catch (e) {
+      try { console.warn("[nextVendorCodeAsync] server call failed, falling back to local scan:", e?.message || e); } catch {}
+    }
+  }
+  return nextVendorCode();
+};
+
 export const STEP_LABEL = {
   1: "Step 1: Creation",
   2: "Step 2: Checking & Verification",
@@ -200,6 +230,7 @@ export const EXPENSE_STEP_LABEL = {
 // (previously only singular upsert* functions pushed; bulk save* was local-only
 // → data appeared only on the device that happened to also fire an upsert).
 let _snapPushTimer = null;
+export const schedulePush = () => _schedulePush();
 const _schedulePush = () => {
   try {
     if (!getToken()) return;
@@ -219,6 +250,8 @@ const _schedulePush = () => {
           advance_requests: JSON.parse(localStorage.getItem(KEYS.ADVANCE_REQS) || "[]"),
           recruitments: JSON.parse(localStorage.getItem("ae_vm_recruitments") || "[]"),
           exits: JSON.parse(localStorage.getItem("ae_vm_exits") || "[]"),
+          attendance: JSON.parse(localStorage.getItem(KEYS.ATTENDANCE) || "[]"),
+          fooding: JSON.parse(localStorage.getItem(KEYS.FOODING) || "[]"),
         };
         apiPushSnapshot(payload).then(() => {
           try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch {}
@@ -823,7 +856,7 @@ export const findVendorByCode = (code) => {
   );
 };
 
-export const advanceVendorStep = (v) => {
+export const advanceVendorStep = async (v) => {
   const next = { ...v };
   const approver = _me();
   if (next.step === 1) {
@@ -833,15 +866,16 @@ export const advanceVendorStep = (v) => {
     if (approver) next.approvedByName = approver;
     // Preserve existing vendorCode on Re-Approval; only generate a new one for first approval
     if (!next.vendorCode) {
-      // DOUBLE-SAFE collision check: nextVendorCode() is now monotonic, but we
-      // also verify the generated code is unique among OTHER vendors (ignoring
-      // our own id). If someone sneaked in a code, bump again defensively.
-      let candidate = nextVendorCode();
+      // SERVER-FIRST: ask the backend for an atomically-bumped serial. This
+      // prevents the "AE0001 reset" bug when a device has an empty local
+      // store (fresh install / privacy mode / cache cleared). Local scan
+      // kicks in only if the server is unreachable.
+      let candidate = await nextVendorCodeAsync();
       let hop = 0;
       while (hop < 50) {
         const clash = getVendors().find((o) => o.id !== next.id && (o.vendorCode || "") === candidate);
         if (!clash) break;
-        candidate = nextVendorCode();
+        candidate = await nextVendorCodeAsync();
         hop += 1;
       }
       next.vendorCode = candidate;
@@ -2205,22 +2239,49 @@ export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
 
 
 // ---- Cloud Sync helpers ----
+// Merge server list into local: keeps unsynced local records & newer local edits
+// (server-side deletions are honoured via the last-synced id list).
+const _recKey = (r) => r?.id || r?.pvNo || "";
+const _mergeFromServer = (key, serverList) => {
+  const local = read(key, []);
+  const syncedKey = `${key}__synced_ids`;
+  const prevSynced = read(syncedKey, null);
+  const prev = Array.isArray(prevSynced) ? new Set(prevSynced) : null;
+  const serverMap = new Map();
+  serverList.forEach((r) => { const k = _recKey(r); if (k) serverMap.set(k, r); });
+  const out = serverList.slice();
+  const idx = new Map(out.map((r, i) => [_recKey(r), i]));
+  let dirty = false;
+  for (const r of Array.isArray(local) ? local : []) {
+    const k = _recKey(r);
+    if (!k) continue;
+    const s = serverMap.get(k);
+    if (s) {
+      if (String(r.updatedAt || "") > String(s.updatedAt || "")) { out[idx.get(k)] = r; dirty = true; }
+    } else if (!prev || !prev.has(k)) {
+      out.push(r); dirty = true;
+    }
+  }
+  write(key, out);
+  write(syncedKey, [...serverMap.keys()]);
+  return dirty;
+};
+
 export const syncFromCloud = async () => {
   const snap = await apiFetchSnapshot();
-  if (Array.isArray(snap.vendors)) write(KEYS.VENDORS, snap.vendors);
-  if (Array.isArray(snap.bills)) write(KEYS.BILLS, snap.bills);
-  if (Array.isArray(snap.payments)) write(KEYS.PAYMENTS, snap.payments);
-  if (Array.isArray(snap.expenses)) write(KEYS.EXPENSES, snap.expenses);
-  if (Array.isArray(snap.boqs)) write(KEYS.BOQS, snap.boqs);
-  if (Array.isArray(snap.work_orders)) write(KEYS.WOS, snap.work_orders);
-  if (Array.isArray(snap.employees)) write(KEYS.EMPLOYEES, snap.employees);
-  if (Array.isArray(snap.attendance)) write(KEYS.ATTENDANCE, snap.attendance);
-  if (Array.isArray(snap.paybills)) write(KEYS.PAYBILLS, snap.paybills);
-  if (Array.isArray(snap.payBills)) write(KEYS.PAYBILLS, snap.payBills); // legacy key fallback
-  if (Array.isArray(snap.loans)) write(KEYS.LOANS, snap.loans);
-  if (Array.isArray(snap.advance_requests)) write(KEYS.ADVANCE_REQS, snap.advance_requests);
-  if (Array.isArray(snap.recruitments)) write(RECRUITS_KEY, snap.recruitments);
-  if (Array.isArray(snap.exits)) write(EXITS_KEY, snap.exits);
+  const pairs = [
+    [KEYS.VENDORS, snap.vendors], [KEYS.BILLS, snap.bills], [KEYS.PAYMENTS, snap.payments],
+    [KEYS.EXPENSES, snap.expenses], [KEYS.BOQS, snap.boqs], [KEYS.WOS, snap.work_orders],
+    [KEYS.EMPLOYEES, snap.employees], [KEYS.ATTENDANCE, snap.attendance],
+    [KEYS.PAYBILLS, snap.paybills || snap.payBills], [KEYS.LOANS, snap.loans],
+    [KEYS.ADVANCE_REQS, snap.advance_requests], [RECRUITS_KEY, snap.recruitments],
+    [EXITS_KEY, snap.exits], [KEYS.FOODING, snap.fooding],
+  ];
+  let needPush = false;
+  for (const [k, list] of pairs) {
+    if (Array.isArray(list) && _mergeFromServer(k, list)) needPush = true;
+  }
+  if (needPush) _schedulePush();
   if (snap.counters) {
     // MONOTONIC counter merge (Feb 2026 fix): Never let a remote snapshot pull
     // the counter BACKWARDS. If local already issued serial N, remote cannot

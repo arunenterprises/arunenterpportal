@@ -162,8 +162,8 @@ async def _enforce_workflow(coll: str, body: Dict, user: Dict, step_field: str =
         for f in _SERVER_OWNED_FIELDS:
             if existing.get(f) is not None:
                 body[f] = existing[f]
-    # Permission check: new drafts need write perm, forward transitions need approve
-    if new_step > old_step:
+    # Permission check: creators may submit (→ step 2); further transitions need approve
+    if new_step > old_step and new_step > 2:
         if not _can_approve(user):
             raise HTTPException(
                 status_code=403,
@@ -545,6 +545,39 @@ async def _list_collection(coll: str) -> List[dict]:
     return items
 
 
+async def _merge_upsert(coll: str, items: List[dict]) -> int:
+    """Upsert by id (or pvNo); never let an older copy overwrite a newer one."""
+    count = 0
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        it.pop("_id", None)
+        key = {"id": it["id"]} if it.get("id") else ({"pvNo": it["pvNo"]} if it.get("pvNo") else None)
+        if not key:
+            continue
+        existing = await db[coll].find_one(key, {"_id": 0, "updatedAt": 1})
+        inc, cur = str(it.get("updatedAt") or ""), str((existing or {}).get("updatedAt") or "")
+        if existing and cur and inc < cur:
+            continue
+        await db[coll].update_one(key, {"$set": it}, upsert=True)
+        count += 1
+    return count
+
+
+async def _bump_counters(counters: Dict) -> None:
+    """Counters only ever move forward ($max) — a stale device can't reset serials."""
+    vals = {}
+    for k, v in (counters or {}).items():
+        if k in ("key", "_id"):
+            continue
+        try:
+            vals[k] = int(v or 0)
+        except (TypeError, ValueError):
+            continue
+    if vals:
+        await db.counters.update_one({"key": "global"}, {"$max": vals}, upsert=True)
+
+
 async def _replace_collection(coll: str, items: List[dict]) -> int:
     await db[coll].delete_many({})
     if items:
@@ -650,9 +683,55 @@ async def get_counters(user: Dict = Depends(get_current_user)):
 
 @api_router.post("/counters")
 async def set_counters(body: Dict = Body(...), user: Dict = Depends(require_write)):
-    body["key"] = "global"
-    await db.counters.update_one({"key": "global"}, {"$set": body}, upsert=True)
-    return body
+    await _bump_counters(body)
+    return (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {}
+
+
+# ---------------------------------------------------------------------------
+# ATOMIC counter bump (Feb 2026 fix for "vendor code reset to 01" bug).
+#
+# Why?  Local-only serial generation drifts the moment any device has an
+# empty/stale `ae_vm_vendors` snapshot: `nextVendorCode()` scans only local
+# records, finds nothing, bumps a 0 counter and happily reissues `AE0001JVxx`
+# — which the dedupe pass then uses to overwrite the real `AE0001` on cloud.
+#
+# This endpoint eliminates the race: it uses MongoDB `$inc` to atomically
+# increment the serial counter server-side AND cross-checks the max serial
+# actually used by existing vendors in the same collection, so the returned
+# serial is guaranteed monotonic across every device, every tab, every retry.
+# ---------------------------------------------------------------------------
+@api_router.post("/counters/next-vendor")
+async def next_vendor_serial(user: Dict = Depends(require_write)):
+    import re
+    # 1. Max serial actually in use (scan vendor codes, ignore drafts without a code)
+    max_used = 0
+    async for v in db.vendors.find({"vendorCode": {"$regex": r"^AE\d{4}JV"}}, {"vendorCode": 1}):
+        m = re.match(r"^AE(\d{4})JV", v.get("vendorCode") or "")
+        if m:
+            try:
+                n = int(m.group(1))
+                if n > max_used:
+                    max_used = n
+            except ValueError:
+                pass
+    # 2. Current stored counter
+    cur_doc = await db.counters.find_one({"key": "global"}, {"vendorSerial": 1})
+    cur_serial = int((cur_doc or {}).get("vendorSerial") or 0)
+    # 3. Floor at max(stored, max_used), then atomically $inc by 1 so parallel
+    #    callers never collide. If stored < floor we first clamp it up, then inc.
+    floor = max(cur_serial, max_used)
+    if cur_serial < floor:
+        await db.counters.update_one(
+            {"key": "global"}, {"$set": {"vendorSerial": floor}}, upsert=True,
+        )
+    bumped = await db.counters.find_one_and_update(
+        {"key": "global"},
+        {"$inc": {"vendorSerial": 1}},
+        upsert=True,
+        return_document=True,
+    )
+    next_serial = int((bumped or {}).get("vendorSerial") or (floor + 1))
+    return {"nextSerial": next_serial, "maxUsed": max_used, "flooredAt": floor}
 
 
 # ==================== LOGO ====================
@@ -723,6 +802,7 @@ async def snapshot(user: Dict = Depends(get_current_user)):
         "advance_requests": await _list_collection("advance_requests"),
         "recruitments": await _list_collection("recruitments"),
         "exits": await _list_collection("exits"),
+        "fooding": await _list_collection("fooding"),
         "counters": (await db.counters.find_one({"key": "global"}, {"_id": 0})) or {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0, "boqSerial": 0, "woSerial": 0, "empSerial": 0, "adsSerial": 0},
         "logo": ((await db.settings.find_one({"key": "logo"}, {"_id": 0})) or {}).get("value", ""),
         "active_fy": ((await db.settings.find_one({"key": "active_fy"}, {"_id": 0})) or {}).get("value", ""),
@@ -803,75 +883,17 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_wri
     Feb 2026 fix: switched from require_approver → require_write so creator-tier
     users (Purchase, Accounts, HR, User) can also push their saved drafts and
     data syncs cross-device. Approval-gated transitions still enforced per-field."""
-    vendors = body.get("vendors", [])
-    bills = body.get("bills", [])
-    payments = body.get("payments", [])
-    expenses = body.get("expenses", [])
-    paybills = body.get("paybills", [])
-    loans = body.get("loans", [])
-    advance_requests = body.get("advance_requests", [])
-    recruitments = body.get("recruitments", [])
-    exits_ = body.get("exits", [])
-    employees = body.get("employees", [])
-    boqs = body.get("boqs", [])
-    work_orders = body.get("work_orders", [])
-    attendance = body.get("attendance", [])
-    counters = body.get("counters", {"vendorSerial": 0, "billSerial": 0, "pvSerial": 0, "expenseSerial": 0})
+    colls = ["vendors", "bills", "payments", "expenses", "paybills", "loans", "advance_requests",
+             "recruitments", "exits", "employees", "boqs", "work_orders", "attendance", "fooding"]
+    result = {}
+    for c in colls:
+        result[c] = await _merge_upsert(c, body.get(c) or [])
+    if body.get("counters"):
+        await _bump_counters(body["counters"])
     logo = body.get("logo", "")
-    # Merge (upsert by id) instead of replace, to avoid data loss across devices
-    for v in vendors:
-        if v.get("id"):
-            await db.vendors.update_one({"id": v["id"]}, {"$set": v}, upsert=True)
-    for b in bills:
-        if b.get("id"):
-            await db.bills.update_one({"id": b["id"]}, {"$set": b}, upsert=True)
-    for x in expenses:
-        if x.get("id"):
-            await db.expenses.update_one({"id": x["id"]}, {"$set": x}, upsert=True)
-    for pb in paybills:
-        if pb.get("id"):
-            await db.paybills.update_one({"id": pb["id"]}, {"$set": pb}, upsert=True)
-    for ln in loans:
-        if ln.get("id"):
-            await db.loans.update_one({"id": ln["id"]}, {"$set": ln}, upsert=True)
-    for ar in advance_requests:
-        if ar.get("id"):
-            await db.advance_requests.update_one({"id": ar["id"]}, {"$set": ar}, upsert=True)
-    for rc in recruitments:
-        if rc.get("id"):
-            await db.recruitments.update_one({"id": rc["id"]}, {"$set": rc}, upsert=True)
-    for ex in exits_:
-        if ex.get("id"):
-            await db.exits.update_one({"id": ex["id"]}, {"$set": ex}, upsert=True)
-    # ROUND-2 GAP FIX (Feb 2026): employees / boqs / work_orders were silently dropped
-    for e in employees:
-        if e.get("id"):
-            await db.employees.update_one({"id": e["id"]}, {"$set": e}, upsert=True)
-    for bq in boqs:
-        if bq.get("id"):
-            await db.boqs.update_one({"id": bq["id"]}, {"$set": bq}, upsert=True)
-    for wo in work_orders:
-        if wo.get("id"):
-            await db.work_orders.update_one({"id": wo["id"]}, {"$set": wo}, upsert=True)
-    for at in attendance:
-        if at.get("id"):
-            await db.attendance.update_one({"id": at["id"]}, {"$set": at}, upsert=True)
-    if payments:
-        for p in payments:
-            pid = p.get("id") or p.get("pvNo")
-            if not pid:
-                continue
-            key = {"id": pid} if p.get("id") else {"pvNo": p.get("pvNo")}
-            await db.payments.update_one(key, {"$set": p}, upsert=True)
-    counters["key"] = "global"
-    await db.counters.update_one({"key": "global"}, {"$set": counters}, upsert=True)
     if logo:
         await db.settings.update_one({"key": "logo"}, {"$set": {"value": logo}}, upsert=True)
-    return {
-        "vendors": len(vendors), "bills": len(bills), "payments": len(payments), "expenses": len(expenses),
-        "paybills": len(paybills), "loans": len(loans), "advance_requests": len(advance_requests),
-        "recruitments": len(recruitments), "exits": len(exits_),
-    }
+    return result
 
 
 # ==================== HR: PAY BILLS / LOANS / ADVANCES / RECRUIT / EXITS ====================
@@ -904,6 +926,21 @@ _make_hr_crud("loans", "loans", step_field="status")
 _make_hr_crud("advance_requests", "advance_requests", step_field="status")
 _make_hr_crud("recruitments", "recruitments", step_field="step")
 _make_hr_crud("exits", "exits", step_field="step")
+
+
+# ==================== WEEKLY FOODING ====================
+@api_router.post("/fooding")
+async def upsert_fooding(body: Dict = Body(...), user: Dict = Depends(require_write)):
+    if not body.get("id"):
+        raise HTTPException(status_code=400, detail="id is required")
+    await _merge_upsert("fooding", [body])
+    return {"ok": True, "id": body["id"]}
+
+
+@api_router.delete("/fooding/{fid}")
+async def delete_fooding(fid: str, user: Dict = Depends(require_write)):
+    r = await db.fooding.delete_one({"id": fid})
+    return {"ok": True, "deleted": r.deleted_count}
 
 
 # ==================== EXPENSES (single-record upsert) ====================

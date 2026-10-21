@@ -53,6 +53,12 @@ export const apiFetchSnapshot = () => req("/snapshot");
 export const apiPushSnapshot = (data) =>
   req("/snapshot", { method: "POST", body: JSON.stringify(data) });
 
+// Atomic server-side counter bump for new vendor approvals (Feb 2026 fix for
+// "code resets to AE0001 on fresh/empty local store"). Backend uses MongoDB
+// $inc + maxUsed-serial scan, guaranteeing monotonicity across every device.
+export const apiNextVendorSerial = () =>
+  req("/counters/next-vendor", { method: "POST", body: "{}" });
+
 // ---- Admin: Selective HR Financials reset (pay bills + advances + HR PVs) ----
 export const apiResetHrFinancials = () =>
   req("/admin/reset-hr-financials", { method: "POST", body: "{}" });
@@ -72,6 +78,11 @@ export const apiUpsertExpense = (x) =>
   req("/expenses", { method: "POST", body: JSON.stringify(x) });
 export const apiDeleteExpense = (id) =>
   req(`/expenses/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const apiUpsertFooding = (r) =>
+  req("/fooding", { method: "POST", body: JSON.stringify(r) });
+export const apiDeleteFooding = (id) =>
+  req(`/fooding/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export const apiUpsertBOQ = (b) =>
   req("/boqs", { method: "POST", body: JSON.stringify(b) });

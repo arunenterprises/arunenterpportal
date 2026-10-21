@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Plus, Trash2, Save, Send, Printer, Download, CheckCircle2, Utensils } from "lucide-react";
-import { getEmployees, getFY, getActiveFYOverride, APPROVER_NAME, canApprove, isAccountsManager, currentUser } from "../lib/store";
+import { getEmployees, getFY, getActiveFYOverride, APPROVER_NAME, canApprove, isAccountsManager, currentUser, schedulePush } from "../lib/store";
+import { getToken, apiUpsertFooding, apiDeleteFooding } from "../lib/api";
 
 // -------- Local storage CRUD for Weekly Fooding records --------
 const KEY = "ae_vm_fooding";
@@ -11,14 +12,17 @@ const write = (list) => { localStorage.setItem(KEY, JSON.stringify(list)); try {
 export const getFoodingList = () => read();
 export const saveFoodingList = (list) => write(list);
 export const upsertFooding = (r) => {
+  r.updatedAt = new Date().toISOString();
   const list = read();
   const i = list.findIndex((x) => x.id === r.id);
   if (i >= 0) list[i] = r; else list.push(r);
   write(list);
+  if (getToken()) apiUpsertFooding(r).catch(() => schedulePush());
   return r;
 };
 export const deleteFooding = (id) => {
   write(read().filter((x) => x.id !== id));
+  if (getToken()) apiDeleteFooding(id).catch(() => {});
 };
 
 const PAY_METHODS = ["NEFT", "RTGS", "UPI", "IMPS", "Cash", "Cheque", "NIL"];

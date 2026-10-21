@@ -326,7 +326,7 @@ export default function GeneralManager() {
   const totalPending = stats.vendorPending.length + stats.billsPending.length + stats.vouchersPending.length + stats.expensesPending.length + stats.boqsPending.length + stats.wosPending.length + stats.empsPending.length + stats.leavesPending.length + stats.exitsPending.length + stats.recruitsPending.length + stats.payBillsPending.length;
   const totalApproved = stats.vendorApproved.length + stats.billsApproved.length + stats.vouchersApproved.length + stats.expensesApproved.length + stats.boqsApproved.length + stats.wosApproved.length + stats.empsApproved.length + stats.leavesApproved.length + stats.exitsApproved.length + stats.recruitsApproved.length + stats.payBillsApproved.length;
 
-  const approveVendor = (v) => { if (!canDo) return toast.error("Not permitted"); const next = advanceVendorStep(v); toast.success(`Vendor ${next.firmName || next.tempRefId} approved by ${next.approvedByName}`); bump(); };
+  const approveVendor = async (v) => { if (!canDo) return toast.error("Not permitted"); const next = await advanceVendorStep(v); toast.success(`Vendor ${next.firmName || next.tempRefId} approved by ${next.approvedByName}`); bump(); };
   const approveBill = (b) => { if (!canDo) return toast.error("Not permitted"); const next = advanceBillStep(b); toast.success(`Bill ${next.permanentBillNo || next.refNo} approved by ${next.approverName}`); bump(); };
   const approveVoucher = (p) => {
     if (!canDo) return toast.error("Not permitted");
