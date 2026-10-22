@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 42: Tested the mobile block, the SuperAdmin Button Designer (UI + /api/settings/ui-buttons) and Reports Hub paper settings, plus a regression check. Backend: 7/7 new pytest pass (GET needs auth, SA save/persist, extra keys dropped, non-SA can read, non-SA POST 403, bad value 400, reset). Invoice-cancel regression test_iter41: 7/7 pass. Frontend: the mobile block shows for the iPhone and Android-Mobile UA at 390x800 on /login and /home. The iPad and Android-tablet UA at 820x1180 and desktop 1920 load normal login. bd-toggle shows for SA, not for test.user. Picking a button shows bd-picked and the button's own action does not run (Save Bill gave no toast, sidebar-hr did not navigate). Sliders give a live preview. Save gives a toast and persists on the server and in style#ae-btn-style after reload. test.user sees the same styles. bd-reset works for button, page and global. After closing the designer, buttons work again. Reports Hub (route is /reports-hub, NOT /reports): the panel and all its testids work. Saving A3 landscape, 15mm, 120% changes the label to 'Print A3' and the print HTML has '@page { size: A3 landscape; margin: 15mm; }' and 'html { zoom: 1.2; }'. Another dept stays A4. 'Sabhi reports' applies Letter to every dept. The setting persists after reload and logout+relogin. One real bug: a per-button style is overridden by the page-scope style (CSS specificity).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ButtonDesigner buildButtonCss", "issue": "A per-button rule is overridden by the page rule when both exist. Page selector `body[data-route=\"/bill\"] button:not(.bd-ui)` has specificity (0,2,2). Button selector `body[data-route=\"/bill\"] [data-testid=\"bill-btn-save\"]` has (0,2,1). Both use !important, so the page rule wins. Verified: bill-btn-save saved with radius 18 rendered 2px after a page rule of radius 2. The panel still shows 18px when the button is re-picked, which confuses the user. Fix: raise the button selector's specificity, e.g. `body[data-route=\"p\"] [data-testid=\"id\"][data-testid]:not(.bd-ui)` or `html body[data-route=..] [data-testid=..]:not(.bd-ui)`.", "selector": "style#ae-btn-style", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reports Hub paper panel", "issues": ["PaperPanel is rendered as a flex child inside the summary/actions row (justify space-between, wrap) with no flexBasis:100%/width:100%. It shows as a narrow column on the right, and the summary text and action buttons float in the vertical middle with large empty space. Give it width:100% / flex-basis:100% or render it outside that flex row."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter42_ui_buttons.py", "/app/backend/tests/test_iter41_invoice_cancel.py", "/app/test_reports/pytest/pytest_iter42.xml"],
+  "action_items": [
+    "Fix CSS specificity in ButtonDesigner.buildButtonCss so per-button rules beat page and global rules",
+    "Make PaperPanel full-width (flex-basis 100%) in the ReportsHub actions row"
+  ],
+  "critical_code_review_comments": [
+    "ButtonDesigner: the testid/route are put into CSS selectors without CSS.escape. Only SuperAdmin can write it, but a testid containing a quote would break the whole stylesheet. Use CSS.escape.",
+    "ButtonDesigner: the zoom rule has no !important, so inline `zoom` styles on buttons win (others use !important). This is inconsistent.",
+    "ButtonDesigner: Save stores the full DEF shape with empty strings (e.g. {zoom:1,font:'',...}). It is harmless but bloats settings. Strip empty values before saving.",
+    "Backend /settings/ui-buttons POST: there is no validation of the nested values (any dict or strings are accepted). Consider whitelisting keys zoom/font/radius/width/margin as numbers.",
+    "PaperPanel: useState(init) does not resync if the dept changes while the panel is open. It is minor because the panel closes on save, but switching tabs with the panel open shows the previous report's values.",
+    "MobileBlock: isPhone is computed once at module load. That is fine, but touch && screen<600 also blocks small touch laptops/foldables. It is acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter42_ui_buttons.py"],
+  "success_rate": {"backend": "100%", "frontend": "95%"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12. test.user@arun.com / User@2026 (works, but it is NOT listed in /app/memory/test_credentials.md and should be added). Non-SA users are single-session: login is blocked with 'Already logged in' unless you logout first (the pytest fixture now logs out).",
+  "seed_data_creation": "None. The ui_buttons setting was reset to {global:{},pages:{},buttons:{}} (verified in Mongo). The test.user current_session was set to inactive. iter41 TEST_ invoice data was cleaned up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The Reports Hub route is /reports-hub (/reports is Vouchers). The print popup can be captured with context.expect_page() after clicking rh-print. To move ButtonDesigner sliders, use the native value setter plus an 'input' event. test.user is single-session, so logout via POST /api/auth/logout or set users.current_session.active=false in Mongo. Always reset ui_buttons via POST /api/settings/ui-buttons {value:{global:{},pages:{},buttons:{}}}.",
+  "rca of the issue": "Per-button override is lost because of CSS specificity. BTN='button:not(.bd-ui)' adds an element and a class to the page selector (0,2,2), while the per-button selector has only body plus two attributes (0,2,1). With equal !important, higher specificity wins regardless of stylesheet order. Repro: on /bill, set bill-btn-save radius=18 (button scope), then set page scope radius=2. getComputedStyle(bill-btn-save).borderRadius is '2px'."
+}

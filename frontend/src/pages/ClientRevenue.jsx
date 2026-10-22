@@ -27,7 +27,7 @@ const TABS = [
   { k: "contracts", l: "Contracts / Rates", icon: FileSignature, C: Contracts, c: "#c026d3" },
   { k: "mb", l: "Measurement Book", icon: Ruler, C: MBook, c: "#db2777" },
   { k: "ra", l: "RA Bills", icon: Receipt, C: RABills, c: "#dc2626" },
-  { k: "inv", l: "Client Tax Invoice", icon: FileText, C: Invoices, c: "#ea580c" },
+  { k: "inv", l: "Tax Invoice", icon: FileText, C: Invoices, c: "#ea580c" },
   { k: "invreg", l: "Invoice Register", icon: BookOpen, C: InvoiceRegister, c: "#d97706" },
   { k: "ms", l: "Milestones", icon: Flag, C: Milestones, c: "#65a30d" },
   { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders, c: "#16a34a" },

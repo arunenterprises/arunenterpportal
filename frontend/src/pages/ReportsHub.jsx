@@ -1209,7 +1209,7 @@ const ReportsHub = () => {
               <FileSpreadsheet size={13} /> Excel
             </button>
           </div>
-          {paperOpen && <PaperPanel init={paperFor(cfg.id)} title={cfg.title} onSave={savePaper} onClose={() => setPaperOpen(false)} />}
+          {paperOpen && <div style={{ flexBasis: "100%", width: "100%" }}><PaperPanel init={paperFor(cfg.id)} title={cfg.title} onSave={savePaper} onClose={() => setPaperOpen(false)} /></div>}
         </div>
 
         {/* Data table */}

@@ -22,7 +22,7 @@ const BTN = "button:not(.bd-ui)";
 export const buildButtonCss = (v = EMPTY) => [
   rule(`body ${BTN}`, v.global),
   ...Object.entries(v.pages || {}).map(([p, s]) => rule(`body[data-route="${p}"] ${BTN}`, s)),
-  ...Object.entries(v.buttons || {}).map(([k, s]) => { const [p, id] = k.split("|"); return rule(`body[data-route="${p}"] [data-testid="${id}"]`, s); }),
+  ...Object.entries(v.buttons || {}).map(([k, s]) => { const [p, id] = k.split("|"); return rule(`body[data-route="${p}"] button[data-testid="${id}"]:not(.bd-ui), body[data-route="${p}"] a[data-testid="${id}"][data-testid]`, s); }),
 ].filter(Boolean).join("\n");
 
 const applyCss = (v) => {
@@ -87,12 +87,12 @@ export const ButtonDesigner = () => {
     else { const k = `${page}|${picked.id}`; if (data) next.buttons[k] = data; else delete next.buttons[k]; }
     return next;
   };
-  const panel = { position: "fixed", left: 14, bottom: 64, width: 300, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,.25)", padding: 12, zIndex: 9998 };
+  const panel = { position: "fixed", left: 6, top: 84, width: 300, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,.25)", padding: 12, zIndex: 9998 };
   return (
     <>
       <button className="bd-ui" data-testid="bd-toggle" onClick={() => { setOn(!on); setPicked(null); if (on) applyCss(val); }}
-        style={{ position: "fixed", left: 14, bottom: 14, zIndex: 9999, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", background: on ? "#dc2626" : "#7c3aed", color: "#fff", border: "none", borderRadius: 999, fontWeight: 800, fontSize: 12, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,.25)" }}>
-        <Paintbrush size={14} /> {on ? "Designer band karein" : "Button Designer"}
+        style={{ position: "fixed", left: 6, top: 56, zIndex: 9999, display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", background: on ? "#dc2626" : "#7c3aed", color: "#fff", border: "none", borderRadius: 999, fontWeight: 700, fontSize: 10, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,.2)", opacity: on ? 1 : .85 }}>
+        <Paintbrush size={11} /> {on ? "Designer band" : "Designer"}
       </button>
       {on && (
         <div className="bd-ui" data-testid="bd-panel" style={panel}>
