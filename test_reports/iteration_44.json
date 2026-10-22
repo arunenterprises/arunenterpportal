@@ -1,0 +1,30 @@
+{
+  "summary": "Tested the SuperAdmin Designer 'Page Layout' mode, a regression of Buttons mode, and toggle drag/resize. Backend: 13/13 pytest passed (new test_iter44_ui_layout.py plus the updated test_iter42). Frontend: every requested flow passed. bd-toggle shows only for the SuperAdmin; test.user does not get it. The panel has both tabs. In layout mode a KPI card click is picked without navigating and gets a dashed outline. The font, width, padding and margin sliders and the bg/text colours live-preview, and Save shows a toast. The server stores the key '/home|[data-testid=\"home-kpis\"] > div:nth-child(1) > div:nth-child(2)'. After reload, style#ae-btn-style holds the body[data-route=\"/home\"] rule. test.user sees the same style. The selector does not match on /bill. Hide works: the element is display:none after reload. bd-el-reset removes one element, and bd-el-reset-page (confirm accepted) removes all of the page's elements. Buttons mode: bill-btn-save font 16 applies, and page and global scopes save. Dragging moves the toggle by +300/+150 without opening the panel; a simple click opens it. bd-tog-bigger takes the scale to 1.2 and it survives a reload; the mouse wheel takes it to 1.3; bd-tog-reset restores {x:6,y:56,scale:1}. Settings were reset to an empty value at the end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ButtonDesigner layout mode", "issue": "Once an element is hidden (display:none) it cannot be clicked/picked again, so the only way to unhide it is 'reset whole page', which also wipes the page's other layout changes. Add a list of the page's saved element overrides, each with its own reset/unhide button.", "selector": "[data-testid=bd-el-hide]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Designer layout mode", "issues": ["The success toast says 'Button layout saved' even for page-layout element saves; the copy should be mode-specific.", "The picked label shows only the tag and text (e.g. 'div · 0 / 0'), so it is hard to tell which container was chosen. Consider a 'select parent' button, since clicks usually land on the deepest child (the KPI value div rather than the card)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter44_ui_layout.py", "/app/backend/tests/test_iter42_ui_buttons.py", "/app/test_reports/pytest/pytest_iter44.xml"],
+  "action_items": [
+    "Optional: let the SuperAdmin unhide an individual hidden element (a list of overrides for the current page).",
+    "Optional: give layout saves their own toast text and add a 'select parent element' control."
+  ],
+  "critical_code_review_comments": [
+    "cssPath uses an nth-child chain below the nearest data-testid. If the DOM changes, e.g. conditional rows, async-loaded children or a new KPI card, the saved rule silently points to a different element. Prefer anchoring on data-testid elements and keep the chain short.",
+    "When a different element is picked without saving, the previous element's unsaved preview CSS stays applied until the next slider change. Call applyCss(val) when a new element is picked.",
+    "The backend stores the elements' selector keys and style values without validation. Values such as bg/color are interpolated straight into CSS, so a '}' would inject arbitrary CSS. Only the SuperAdmin can write, but you could whitelist hex colours and numeric values server-side.",
+    "In layout mode the capture handler intercepts click only; pointerdown/mousedown still reach Radix-style components, which may open menus while picking."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter44_ui_layout.py", "/app/backend/tests/test_iter42_ui_buttons.py (EMPTY now includes elements)"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None. The ui_buttons setting was reset to {global:{},pages:{},buttons:{},elements:{}}, and bd_toggle_v1 was restored to its default by bd-tog-reset in the test browser.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the ui-buttons tests with `pytest -n 0`: pytest.ini enables xdist, and parallel workers clash on the shared settings doc. test.user@arun.com / User@2026 is single-session. Do not log out the SuperAdmin."
+}

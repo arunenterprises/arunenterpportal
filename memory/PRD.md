@@ -305,3 +305,8 @@ See `/app/memory/test_credentials.md`.
 - Button Designer (SuperAdmin): pick any button → size/font/radius/min-width/margin for this button / page / whole app; saved in settings key ui_buttons (GET/POST /api/settings/ui-buttons) and applied for all users via injected CSS (body[data-route]).
 - Reports Hub Paper Setting: size A4/A3/Letter/Legal, orientation Auto/Portrait/Landscape, margin, font %; per report or all reports (localStorage rh_paper_v1).
 
+
+## 2026-10-22 — Designer: Page Layout mode + draggable toggle
+- Designer toggle draggable (pointer) + resizable (wheel / −/+/↺), position in localStorage bd_toggle_v1.
+- "Page Layout" mode: pick any element → font, width %, padding, margin, bg/text colour, hide; saved in ui_buttons.elements ('<route>|<css path from nearest data-testid>'), applied per page for all users. Saved-changes list per page with remove (to unhide), "↑ Bada hissa chunein" parent picker, reset page.
+

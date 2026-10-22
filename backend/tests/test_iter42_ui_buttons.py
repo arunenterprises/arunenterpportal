@@ -6,7 +6,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 SA = {"identifier": "arunenterprises2023@gmail.com", "password": "Arun2023@12"}
 USER = {"identifier": "test.user@arun.com", "password": "User@2026"}
-EMPTY = {"global": {}, "pages": {}, "buttons": {}}
+EMPTY = {"global": {}, "pages": {}, "buttons": {}, "elements": {}}
 
 
 def _login(body):

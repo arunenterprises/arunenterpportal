@@ -121,7 +121,7 @@ export const ButtonDesigner = () => {
   const page = picked?.page || loc.pathname;
   const changeScope = (sc) => { setScope(sc); setS({ ...DEF, ...current(sc, page, picked?.id) }); };
   const commit = async (next) => {
-    try { const r = await apiSetUiButtons(next); setVal(r.value); localStorage.setItem(LS, JSON.stringify(r.value)); toast.success("Button layout saved \u2014 sabke liye lagu"); }
+    try { const r = await apiSetUiButtons(next); setVal(r.value); localStorage.setItem(LS, JSON.stringify(r.value)); toast.success(mode === "layout" ? "Page layout saved, sabke liye lagu" : "Button layout saved, sabke liye lagu"); }
     catch (e) { toast.error(e.message); }
   };
   const withScope = (data) => {
@@ -184,9 +184,29 @@ export const ButtonDesigner = () => {
             ))}
           </div>
           {mode === "layout" ? (
-            !el ? <div className="bd-ui" data-testid="bd-layout-hint" style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>Page ka koi bhi hissa (box, card, section, table, input, heading) click karke chunein. Badlav sirf is page ({loc.pathname}) par lagu honge.</div> : (
+            !el ? <div className="bd-ui" data-testid="bd-layout-hint" style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>Page ka koi bhi hissa (box, card, section, table, input, heading) click karke chunein. Badlav sirf is page ({loc.pathname}) par lagu honge.
+              {Object.keys(val.elements || {}).filter((k) => k.startsWith(`${loc.pathname}|`)).length > 0 && (
+                <div className="bd-ui" data-testid="bd-el-list" style={{ marginTop: 8, maxHeight: 160, overflow: "auto", borderTop: "1px solid #e2e8f0", paddingTop: 6 }}>
+                  <b className="bd-ui" style={{ fontSize: 11 }}>Is page ke saved badlav:</b>
+                  {Object.entries(val.elements).filter(([k]) => k.startsWith(`${loc.pathname}|`)).map(([k, v], i) => (
+                    <div key={k} className="bd-ui" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, marginTop: 4 }}>
+                      <span className="bd-ui" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={k}>{v.hide ? "[Chhupa] " : ""}{k.split("|")[1].slice(-40)}</span>
+                      <button className="bd-ui" data-testid={`bd-el-remove-${i}`} onClick={() => { const next = { ...val, elements: { ...val.elements } }; delete next.elements[k]; commit(next); }} style={{ fontSize: 10, cursor: "pointer", color: "#b91c1c" }}>Hatayein</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div> : (
               <>
-                <div className="bd-ui" data-testid="bd-el-picked" style={{ fontSize: 11, background: "#f1f5f9", padding: 6, borderRadius: 6, marginBottom: 8, wordBreak: "break-all" }}>Chuna: <b>{el.label}</b></div>
+                <div className="bd-ui" data-testid="bd-el-picked" style={{ fontSize: 11, background: "#f1f5f9", padding: 6, borderRadius: 6, marginBottom: 8, wordBreak: "break-all" }}>Chuna: <b>{el.label}</b>
+                  <button className="bd-ui" data-testid="bd-el-parent" onClick={() => {
+                    const cur = document.querySelector("[data-bd-sel]"); const p = cur && cur.parentElement;
+                    if (!p || p === document.body) return;
+                    clearSel(); p.setAttribute("data-bd-sel", "1"); p.style.outline = "2px dashed #7c3aed";
+                    const sel = cssPath(p); setEl({ sel, page: loc.pathname, label: `${p.tagName.toLowerCase()} · ${(p.innerText || "").trim().slice(0, 30)}` });
+                    setEs({ ...EDEF, ...((val.elements || {})[`${loc.pathname}|${sel}`] || {}) });
+                  }} style={{ marginLeft: 6, fontSize: 10, cursor: "pointer" }}>↑ Bada hissa chunein</button>
+                </div>
                 <Slider label="Font" k="font" min={8} max={28} step={0.5} s={es} set={setE} unit="px" />
                 <Slider label="Chaudai" k="width" min={10} max={100} step={1} s={es} set={setE} unit="%" />
                 <Slider label="Andar ki jagah (padding)" k="padding" min={0} max={40} step={1} s={es} set={setE} unit="px" />
