@@ -1,0 +1,21 @@
+{
+  "summary": "Retest of iteration_42 follow-ups. Button Designer CSS specificity fix verified: with ui-buttons {global:{font:11}, pages:{'/bill':{font:9}}, buttons:{'/bill|bill-btn-save':{font:18,radius:12}}}, /bill bill-btn-save computed 18px / 12px radius, other /bill buttons (hn-back, btn-change-logo, hn-logout) 9px, /home buttons 11px. UI flow: bd-toggle (fixed at x=6,y=56, 74x21px) -> pick bill-btn-save -> panel shows 'Chuna: Save Bill' with current 18px/12px -> bd-font slider to 15 -> bd-save -> reload: bill-btn-save 15px/12px while page rule 9px still applied to others. /client-revenue crm-tab-inv text = 'Tax Invoice'. /reports-hub rh-paper-btn opens rh-paper-panel width 1464px = full row width (same as table). ui-buttons reset to empty at end (verified via GET).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/home sidebar", "issues": ["bd-toggle pill (x 6-80, y 56-77) slightly overlaps the 'ERP · Workspace' sidebar title text on dashboard pages - cosmetic, consider top:48 or left offset"]},
+      {"screen": "Button Designer", "issues": ["bd-font slider max is 20px, so values >20 cannot be set from UI (API accepts any) - informational"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["Optional: nudge bd-toggle so it does not touch the 'ERP · Workspace' sidebar title"],
+  "critical_code_review_comments": ["buildButtonCss: button rule specificity (0,3,2) > page rule (0,2,2) > global (0,1,2); all !important so ordering is correct and also beats inline styles. Page/global rules only target <button>, so anchor-based buttons (a[data-testid]) only get per-button styling - acceptable but inconsistent."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None; ui-buttons temporarily set then reset to {global:{},pages:{},buttons:{}}",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login page: first <input> is email, input[type=password]; POST /api/auth/login {identifier,password} returns token. ui-buttons via GET/POST /api/settings/ui-buttons {value:{...}}. Range sliders need native value setter + input event to change in React."
+}

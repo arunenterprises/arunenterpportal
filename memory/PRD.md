@@ -295,3 +295,13 @@ See `/app/memory/test_credentials.md`.
 - Workflow strip 13 Invoice Sent / 14 Invoice Paid; GM panel "Unpaid Client Invoices" list (red > 30 days).
 
 
+
+## 2026-10-22 — Invoice cancel, A4 portrait, speed, mobile block, Button Designer, Paper setting
+- Invoice Cancel (Admin, from Approved/Sent, reason required; server sets cancelledBy/At; number kept; step 6 Cancelled; locked; CANCELLED watermark; register KPIs exclude).
+- Invoice preview/print A4 portrait (190mm body, fixed table layout), letterhead mode 75mm top.
+- Speed: GET /api/crm-all (one call) + localStorage cache → Client & Revenue and GM render instantly.
+- CRM tabs individually coloured; tab "Tax Invoice"; dashboard tiles/strip/tabs single line.
+- Mobile phones blocked (MobileBlock.jsx; tablets/desktop allowed).
+- Button Designer (SuperAdmin): pick any button → size/font/radius/min-width/margin for this button / page / whole app; saved in settings key ui_buttons (GET/POST /api/settings/ui-buttons) and applied for all users via injected CSS (body[data-route]).
+- Reports Hub Paper Setting: size A4/A3/Letter/Legal, orientation Auto/Portrait/Landscape, margin, font %; per report or all reports (localStorage rh_paper_v1).
+
