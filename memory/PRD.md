@@ -310,3 +310,10 @@ See `/app/memory/test_credentials.md`.
 - Designer toggle draggable (pointer) + resizable (wheel / −/+/↺), position in localStorage bd_toggle_v1.
 - "Page Layout" mode: pick any element → font, width %, padding, margin, bg/text colour, hide; saved in ui_buttons.elements ('<route>|<css path from nearest data-testid>'), applied per page for all users. Saved-changes list per page with remove (to unhide), "↑ Bada hissa chunein" parent picker, reset page.
 
+
+## 2026-10-22 — Local folder data save + pinned action strips
+- store.js read/write: in-memory fallback when browser storage is full (data still shows from server sync).
+- LocalFolderBackup.jsx (Home page panel, every user): pick folder/drive (File System Access API, Chrome/Edge) → ARUN_ERP_DATA/latest/<collection>.json + history/ERP_Backup_<date>.json. SuperAdmin saves ALL users' data (/api/admin/backup); other users save own snapshot under user_<email>/. Auto every 1/5/15/30/60 min + after each sync while ERP is open; SuperAdmin restore-from-file (merge).
+- ActionStripToggle: every module's action-button strip pinned to bottom (default) / top / normal (localStorage strip_pos_v1); BOQ row got data-testid boq-action-row.
+- Not verified by testing agent (customer asked to avoid testing cost).
+
