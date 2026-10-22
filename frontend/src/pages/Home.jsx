@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, BarChart3, Handshake } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
+import LocalFolderPanel from "../components/LocalFolderBackup";
 import {
   currentUserProfile,
   isSuperAdmin,
@@ -388,6 +389,8 @@ export default function Home() {
                 <div style={{ fontSize: 10.5, color: "#fde68a" }}>across all departments</div>
               </div>
             </div>
+
+            <LocalFolderPanel />
 
             {/* KPI tiles */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }} data-testid="home-kpis">

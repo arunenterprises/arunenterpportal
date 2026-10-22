@@ -1105,3 +1105,10 @@ body {
 @media (max-width: 600px) { .crm-one-line { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
 
 
+
+/* Action button strips stay visible (pinned) — user choice via ActionStripToggle */
+body[data-strip="bottom"] [data-testid$="-action-row"],
+body[data-strip="bottom"] [data-testid="pv-bottom-actions"] { position: sticky; bottom: 0; z-index: 60; box-shadow: 0 -4px 14px rgba(15,23,42,.14); }
+body[data-strip="top"] [data-testid$="-action-row"],
+body[data-strip="top"] [data-testid="pv-bottom-actions"] { position: sticky; top: 52px; z-index: 60; box-shadow: 0 4px 14px rgba(15,23,42,.14); }
+

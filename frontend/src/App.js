@@ -22,6 +22,7 @@ import { loadCrmCache } from "./components/crm/crmShared";
 import { MobileBlock, isPhone } from "./components/MobileBlock";
 import ButtonDesigner from "./components/ButtonDesigner";
 import { LocalFolderRunner } from "./components/LocalFolderBackup";
+import ActionStripToggle from "./components/ActionStripToggle";
 
 const RequireAuth = ({ children }) => {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -85,6 +86,7 @@ function App() {
       <BrowserRouter>
         <ButtonDesigner />
         <LocalFolderRunner />
+        <ActionStripToggle />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />

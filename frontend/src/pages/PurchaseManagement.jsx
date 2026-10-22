@@ -450,7 +450,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
       </div>
 
       {/* Actions */}
-      <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+      <div data-testid="boq-action-row" style={{ marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
         <button data-testid="boq-btn-search" onClick={() => setSearchOpen(true)} style={{ padding: "8px 14px", background: "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}>
           🔍 Search BOQ
         </button>
