@@ -1055,17 +1055,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         {/* Right group — Export */}
         <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", alignItems: "center", flexShrink: 0 }}>
           <button data-testid="wo-btn-download" onClick={() => downloadWOExcel()} style={{ padding: "7px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>⬇ Excel</button>
-          <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print PDF (A4)</button>
-          {wo.step >= 4 && (
-            <button
-              data-testid="wo-btn-download-pdf"
-              onClick={() => printWorkOrder(wo)}
-              title="Open printable A4 Work Order — use 'Save as PDF' in the print dialog, then share with the vendor"
-              style={{ padding: "7px 12px", background: "linear-gradient(135deg,#0891b2 0%,#4f46e5 100%)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 1px 3px rgba(8,145,178,.35)" }}
-            >
-              📥 Download WO (PDF for Vendor)
-            </button>
-          )}
+          <button data-testid="wo-btn-print" onClick={() => printWorkOrder(wo)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> {wo.step >= 4 ? "PDF for Vendor" : "Print PDF"}</button>
           {wo.id && canDelete() && (
             <button
               data-testid="wo-btn-delete-current"
