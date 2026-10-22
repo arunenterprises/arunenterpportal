@@ -25,7 +25,8 @@ const writeFile = async (dir, name, obj) => {
 };
 
 // Pull the full server database (every user's data) and save JSON files into the chosen folder.
-export const runFolderBackup = async (interactive = false) => {
+const today = () => new Date().toLocaleDateString("en-CA");
+export const runFolderBackup = async (interactive = false, daily = false) => {
   const h = await getHandle();
   if (!h) throw new Error("Pehle folder chunein");
   let perm = h.queryPermission ? await h.queryPermission({ mode: "readwrite" }) : "granted";
@@ -47,6 +48,13 @@ export const runFolderBackup = async (interactive = false) => {
   const hist = await root.getDirectoryHandle("history", { create: true });
   await writeFile(hist, `ERP_Backup_${day}.json`, { generated_at: new Date().toISOString(), collections: cols });
   const m = { ...meta(), folder: h.name, lastAt: new Date().toISOString(), lastCount: count, lastCollections: Object.keys(cols).length };
+  if (daily) {
+    const dd = await root.getDirectoryHandle("daily_sync", { create: true });
+    const hm = new Date().toTimeString().slice(0, 5).replace(":", "");
+    await writeFile(dd, `Daily_Sync_${today()}_${hm}.json`, { generated_at: new Date().toISOString(), records: count, collections: cols });
+    m.dailyDone = today();
+    m.dailyAt = new Date().toISOString();
+  }
   localStorage.setItem(META, JSON.stringify(m));
   return m;
 };
@@ -57,7 +65,18 @@ export const LocalFolderRunner = () => {
     if (!folderSupported) return undefined;
     const tick = () => {
       const m = meta();
-      if (!m.auto || !getToken()) return;
+      if (!getToken() || !m.folder) return;
+      const from = m.dailyFrom ?? 22;
+      const hr = new Date().getHours();
+      if (m.daily !== false && hr >= from && hr < from + 1 && m.dailyDone !== today()) {
+        runFolderBackup(false, true).then((r) => toast.success(`Aaj ka Daily Sync ho gaya: ${r.lastCount} records`)).catch(() => {
+          if (m.remindOn === today()) return;
+          localStorage.setItem(META, JSON.stringify({ ...meta(), remindOn: today() }));
+          toast.warning("Aaj ka Daily Sync baki hai \u2014 folder mein backup save karein", { duration: 600000, action: { label: "Daily Sync karein", onClick: () => runFolderBackup(true, true).then((r) => toast.success(`Daily Sync ho gaya: ${r.lastCount} records`)).catch((e) => toast.error(e.message)) } });
+        });
+        return;
+      }
+      if (!m.auto) return;
       if (m.lastAt && Date.now() - new Date(m.lastAt).getTime() < (m.every || 5) * 60000) return;
       runFolderBackup(false).catch(() => {});
     };
@@ -85,9 +104,9 @@ export const LocalFolderPanel = () => {
       await now();
     } catch (e) { if (e.name !== "AbortError") toast.error(e.message); }
   };
-  const now = async () => {
+  const now = async (daily = false) => {
     setBusy(true);
-    try { const r = await runFolderBackup(true); setM(r); toast.success(`${r.lastCount} records ${r.folder} folder mein save`); }
+    try { const r = await runFolderBackup(true, daily === true); setM(r); toast.success(`${r.lastCount} records ${r.folder} folder mein save`); }
     catch (e) { toast.error(e.message); }
     setBusy(false);
   };
@@ -114,10 +133,15 @@ export const LocalFolderPanel = () => {
         <>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <button data-testid="local-folder-choose" onClick={choose} style={btn("#0f766e")}><FolderOpen size={14} /> {m.folder ? "Folder badlein" : "Folder / Drive chunein"}</button>
-            <button data-testid="local-folder-now" disabled={busy || !m.folder} onClick={now} style={{ ...btn("#1d4ed8"), opacity: busy || !m.folder ? 0.6 : 1 }}><RefreshCw size={14} /> {busy ? "Saving\u2026" : "Backup Now"}</button>
+            <button data-testid="local-folder-now" disabled={busy || !m.folder} onClick={() => now()} style={{ ...btn("#1d4ed8"), opacity: busy || !m.folder ? 0.6 : 1 }}><RefreshCw size={14} /> {busy ? "Saving\u2026" : "Backup Now"}</button>
             <label style={{ fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
               <input data-testid="local-folder-auto" type="checkbox" checked={!!m.auto} onChange={(e) => save({ auto: e.target.checked })} /> Auto save har
               <select data-testid="local-folder-every" value={m.every || 5} onChange={(e) => save({ every: Number(e.target.value) })} style={{ padding: 3 }}>{[1, 5, 15, 30, 60].map((x) => <option key={x} value={x}>{x}</option>)}</select> min
+            </label>
+            <button data-testid="local-folder-daily-now" disabled={busy || !m.folder} onClick={() => now(true)} style={{ ...btn("#b45309"), opacity: busy || !m.folder ? 0.6 : 1 }}><HardDriveDownload size={14} /> Daily Sync Now</button>
+            <label style={{ fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <input data-testid="local-folder-daily" type="checkbox" checked={m.daily !== false} onChange={(e) => save({ daily: e.target.checked })} /> Roz raat Daily Sync
+              <select data-testid="local-folder-daily-from" value={m.dailyFrom ?? 22} onChange={(e) => save({ dailyFrom: Number(e.target.value) })} style={{ padding: 3 }}>{[18, 19, 20, 21, 22, 23].map((x) => <option key={x} value={x}>{`${x > 12 ? x - 12 : x}:00 - ${x + 1 > 12 ? x - 11 : x + 1}:00 PM`.replace("12:00 PM", "12:00 AM")}</option>)}</select>
             </label>
             {sa && <label style={{ ...btn("#7c3aed"), cursor: "pointer" }}><Upload size={14} /> Folder file se Restore
               <input data-testid="local-folder-restore" type="file" accept=".json" style={{ display: "none" }} onChange={(e) => restore(e.target.files[0])} />
@@ -125,6 +149,9 @@ export const LocalFolderPanel = () => {
           </div>
           <div data-testid="local-folder-status" style={{ marginTop: 8, fontSize: 12, color: "#0f172a" }}>
             Folder: <b>{m.folder || "—"}</b> · Last save: <b>{m.lastAt ? new Date(m.lastAt).toLocaleString("en-IN") : "abhi tak nahi"}</b>{m.lastCount != null ? ` · ${m.lastCount} records / ${m.lastCollections} collections` : ""}
+          </div>
+          <div data-testid="local-folder-daily-status" style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: m.dailyDone === today() ? "#15803d" : "#b45309" }}>
+            Aaj ka Daily Sync: {m.dailyDone === today() ? `Ho gaya (${new Date(m.dailyAt).toLocaleTimeString("en-IN")})` : "Baki hai"} · File: ARUN_ERP_DATA/daily_sync/Daily_Sync_&lt;date&gt;_&lt;time&gt;.json (purani files kabhi delete nahi hoti)
           </div>
           <div style={{ fontSize: 10.5, color: "#64748b", marginTop: 4 }}>Auto save tabhi chalta hai jab ERP is computer par khula ho (har {m.every || 5} min aur har sync ke baad). Browser band karke dobara kholne par ek baar "Backup Now" dabakar folder permission dein.</div>
         </>
