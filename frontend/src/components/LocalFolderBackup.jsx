@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { FolderOpen, HardDriveDownload, RefreshCw, Upload } from "lucide-react";
 import { apiDownloadBackup, apiRestoreBackup, apiFetchSnapshot, getToken } from "../lib/api";
 import { isSuperAdmin, currentUserEmail } from "../lib/store";
+import { DesktopSyncDownload, DailySyncReport } from "./DesktopSyncApp";
 
 // IndexedDB keeps the chosen folder handle (File System Access API, Chrome / Edge).
 const idb = (mode, fn) => new Promise((res, rej) => {
@@ -156,6 +157,8 @@ export const LocalFolderPanel = () => {
           <div style={{ fontSize: 10.5, color: "#64748b", marginTop: 4 }}>Auto save tabhi chalta hai jab ERP is computer par khula ho (har {m.every || 5} min aur har sync ke baad). Browser band karke dobara kholne par ek baar "Backup Now" dabakar folder permission dein.</div>
         </>
       )}
+      {sa && <DesktopSyncDownload />}
+      {sa && <DailySyncReport />}
     </div>
   );
 };

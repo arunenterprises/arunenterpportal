@@ -317,3 +317,10 @@ See `/app/memory/test_credentials.md`.
 - ActionStripToggle: every module's action-button strip pinned to bottom (default) / top / normal (localStorage strip_pos_v1); BOQ row got data-testid boq-action-row.
 - Not verified by testing agent (customer asked to avoid testing cost).
 
+
+
+## 2026-10-23 — Daily Sync, Desktop Sync App, Daily Sync Report
+- LocalFolderBackup: "Daily Sync Now" + "Roz raat Daily Sync" (default 10-11 PM) → ARUN_ERP_DATA/daily_sync/Daily_Sync_<date>_<time>.json, reminder toast if permission missing.
+- BACKUP_COLLECTIONS now include fooding + all crm_* collections.
+- Desktop Sync App (components/DesktopSyncApp.jsx): SuperAdmin downloads ERP_Sync.ps1 (embedded URL + sync key) + Install_ERP_Sync.bat (Windows Task Scheduler, every 30 min). Backend: POST /api/admin/sync-key (SA, sha256 hash in settings.desktop_sync_key), GET /api/sync-agent/backup (X-Sync-Key header).
+- Daily Sync Report: db.sync_reports per IST date counts on each full backup; GET /api/admin/sync-report shows +new per day.

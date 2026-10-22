@@ -18,7 +18,8 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr
 from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import hashlib
 import logging
 import asyncio
 import json
@@ -1409,24 +1410,53 @@ async def reset_hr_financials(admin: Dict = Depends(require_super_admin)):
 BACKUP_COLLECTIONS = [
     "users", "vendors", "bills", "payments", "expenses", "boqs", "work_orders",
     "employees", "attendance", "paybills", "loans", "advance_requests",
-    "recruitments", "exits", "counters", "settings",
+    "recruitments", "exits", "counters", "settings", "fooding",
+    "crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_invoices",
+    "crm_retention_releases", "crm_milestones", "crm_comms", "crm_change_orders",
 ]
+REPORT_KEYS = {"bills": "Vendor Bills", "expenses": "Expenses", "payments": "Payment Vouchers", "fooding": "Fooding", "crm_invoices": "Tax Invoices", "crm_ra_bills": "RA Bills", "work_orders": "Work Orders", "vendors": "Vendors"}
+
+
+async def _full_backup_payload() -> Dict[str, Any]:
+    cols = {c: await db[c].find({}, {"_id": 0}).to_list(100000) for c in BACKUP_COLLECTIONS}
+    today = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%Y-%m-%d")
+    counts = {k: len(cols.get(k, [])) for k in REPORT_KEYS}
+    await db.sync_reports.update_one({"date": today}, {"$set": {"date": today, "counts": counts, "at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    return {"generated_at": datetime.now(timezone.utc).isoformat(), "db_name": os.environ.get("DB_NAME", ""), "version": 1, "collections": cols}
+
+
+async def _require_sync_key(x_sync_key: Optional[str] = Header(default=None)) -> None:
+    doc = await db.settings.find_one({"key": "desktop_sync_key"}, {"_id": 0})
+    want = (doc or {}).get("hash", "")
+    got = hashlib.sha256((x_sync_key or "").encode()).hexdigest()
+    if not x_sync_key or not want or not hmac.compare_digest(got, want):
+        raise HTTPException(status_code=401, detail="Invalid sync key")
+
+
+@api_router.post("/admin/sync-key")
+async def new_sync_key(admin: Dict = Depends(require_super_admin)):
+    key = _secrets.token_urlsafe(32)
+    await db.settings.update_one({"key": "desktop_sync_key"}, {"$set": {"key": "desktop_sync_key", "hash": hashlib.sha256(key.encode()).hexdigest(), "created_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    return {"sync_key": key}
+
+
+@api_router.get("/sync-agent/backup")
+async def sync_agent_backup(_: None = Depends(_require_sync_key)):
+    return await _full_backup_payload()
+
+
+@api_router.get("/admin/sync-report")
+async def sync_report(admin: Dict = Depends(require_super_admin)):
+    rows = await db.sync_reports.find({}, {"_id": 0}).sort("date", -1).to_list(15)
+    for i, r in enumerate(rows):
+        prev = rows[i + 1]["counts"] if i + 1 < len(rows) else {}
+        r["new"] = {k: max(0, r["counts"].get(k, 0) - prev.get(k, 0)) if prev else None for k in REPORT_KEYS}
+    return {"labels": REPORT_KEYS, "items": rows[:14]}
 
 
 @api_router.get("/admin/backup")
 async def download_backup(admin: Dict = Depends(require_super_admin)):
-    """Return a full JSON snapshot of every business collection.
-    Password hashes are preserved so restored users can keep logging in."""
-    payload: Dict[str, Any] = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "db_name": os.environ.get("DB_NAME", ""),
-        "version": 1,
-        "collections": {},
-    }
-    for coll in BACKUP_COLLECTIONS:
-        docs = await db[coll].find({}, {"_id": 0}).to_list(100000)
-        payload["collections"][coll] = docs
-    return payload
+    return await _full_backup_payload()
 
 
 @api_router.post("/admin/restore")

@@ -178,6 +178,8 @@ export const apiResetData = (wipe_users = false) =>
 
 // ---- Backup & Restore (Super Admin only) ----
 export const apiDownloadBackup = () => req("/admin/backup");
+export const apiNewSyncKey = () => req("/admin/sync-key", { method: "POST" });
+export const apiSyncReport = () => req("/admin/sync-report");
 export const apiRestoreBackup = (collections, wipe_existing = false) =>
   req("/admin/restore", {
     method: "POST",
