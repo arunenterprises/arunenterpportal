@@ -82,12 +82,12 @@ export default function ClientRevenue() {
             style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: "#1e3a8a", border: "none", borderRadius: 8, padding: "9px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>
             <BarChart3 size={15} /> Reports</button>} />
         {!crm.loading && <WorkflowStrip data={crm.data} onGo={setTab} />}
-        <div data-testid="crm-tabs" style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 14 }}>
+        <div data-testid="crm-tabs" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))", gap: 6, marginBottom: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 6 }}>
           {TABS.map((t) => (
             <button key={t.k} data-testid={`crm-tab-${t.k}`} onClick={() => setTab(t.k)} className="crm-tab"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 999, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer",
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 8px", borderRadius: 7, fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
                 border: tab === t.k ? "1px solid #1e3a8a" : "1px solid #e2e8f0", background: tab === t.k ? "#1e3a8a" : "#fff", color: tab === t.k ? "#fff" : "#334155" }}>
-              <t.icon size={14} /> {t.l}
+              <t.icon size={13} style={{ flexShrink: 0 }} /> {t.l}
             </button>
           ))}
         </div>
