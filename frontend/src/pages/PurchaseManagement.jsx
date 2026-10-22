@@ -9,6 +9,7 @@ import ModuleHero from "../components/ModuleHero";
 import { printWorkOrder } from "../lib/woPrint";
 import HsnInput from "../components/HsnInput";
 import HsnFinder from "../components/HsnFinder";
+import AiWoButton from "../components/AiWoButton";
 import {
   currentRole, canCreate, canApprove, canDelete, canDeleteApproved, currentUserProfile, currentUser,
   getBOQs, createBOQDraft, upsertBOQ, advanceBOQStep, computeBOQTotal, BOQ_STEP_LABEL, deleteBOQ,
@@ -1049,6 +1050,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         {/* Center group — Approval */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button data-testid="wo-btn-approve" onClick={handleApprove} disabled={!approveAllowed || wo.step < 3 || wo.step >= 4} style={{ padding: "7px 14px", background: approveAllowed && wo.step >= 3 && wo.step < 4 ? "#dc2626" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed && wo.step >= 3 && wo.step < 4 ? "pointer" : "not-allowed", opacity: approveAllowed && wo.step >= 3 && wo.step < 4 ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>✓ Final Approval (issue WO No.)</button>
+          <AiWoButton wo={wo} onApply={(d) => { const next = { ...wo, ...d }; setWo(next); if (writeAllowed) { upsertWO(next); setList(getWOs()); } }} />
         </div>
         {/* Right group — Export */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>

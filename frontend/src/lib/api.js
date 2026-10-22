@@ -14,6 +14,11 @@ const req = async (path, opts = {}) => {
   const t = getToken();
   if (t) headers["Authorization"] = `Bearer ${t}`;
   const res = await fetch(`${BASE}/api${path}`, { ...opts, headers });
+  if (res.status === 401 && t && path !== "/auth/login" && path !== "/auth/logout") {
+    clearToken();
+    try { localStorage.removeItem("ae_vm_auth"); } catch {}
+    if (!window.location.pathname.startsWith("/login")) window.location.href = "/login";
+  }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const j = await res.json(); msg = j.detail || msg; } catch {}
@@ -25,6 +30,7 @@ const req = async (path, opts = {}) => {
 // ---- Auth ----
 export const apiLogin = (identifier, password) =>
   req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
+export const apiAiWoTerms = (wo) => req("/ai/wo-terms", { method: "POST", body: JSON.stringify(wo) });
 export const apiLogout = () => req("/auth/logout", { method: "POST" });
 export const apiGetActiveFY = () => req("/settings/fy");
 export const apiSetActiveFY = (fy) => req("/settings/fy", { method: "POST", body: JSON.stringify({ active_fy: fy }) });

@@ -236,6 +236,7 @@ const _schedulePush = () => {
     if (!getToken()) return;
     clearTimeout(_snapPushTimer);
     _snapPushTimer = setTimeout(() => {
+      _snapPushTimer = null;
       try {
         const payload = {
           vendors: JSON.parse(localStorage.getItem(KEYS.VENDORS) || "[]"),
@@ -1215,6 +1216,10 @@ export const logout = async () => {
   localStorage.removeItem(KEYS.AUTH);
   localStorage.removeItem("ae_crm_cache");
   clearToken();
+  if (getPendingSyncCount() === 0 && !_snapPushTimer) {
+    const keep = new Set([KEYS.LOGO]);
+    Object.keys(localStorage).filter((k) => k.startsWith("ae_") && !keep.has(k)).forEach((k) => localStorage.removeItem(k));
+  }
 };
 export const isAuthed = () => !!read(KEYS.AUTH, null) && !!getToken();
 // Returns the logged-in user's display name (never the raw email).

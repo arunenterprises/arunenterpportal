@@ -384,7 +384,7 @@ const getCellValue = (row, col, cfg) => {
 };
 
 // Universal helpers for biodata rendering
-const prettifyKey = (k) => k
+const prettifyKey = (k) => String(k).replace(/[<>"'&]/g, "")
   .replace(/([A-Z])/g, " $1")
   .replace(/[_-]/g, " ")
   .replace(/^./, (s) => s.toUpperCase())
@@ -418,11 +418,12 @@ const isImageValue = (v) => typeof v === "string" && (/^data:image\//i.test(v) |
 // empty ones are simply omitted (prevents "Photo Url — —" placeholder rows in the biodata).
 const isImageFieldAlwaysHide = (k) => isImageKey(k);
 const isLineKey = (v) => Array.isArray(v) && v.length > 0 && typeof v[0] === "object" && v[0] !== null;
+const escHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const formatValue = (k, v) => {
   if (v === null || v === undefined || v === "") return "—";
   if (typeof v === "boolean") return v ? "Yes" : "No";
   if (isAmountKey(k) && (typeof v === "number" || !isNaN(Number(v)))) return "₹ " + inrN(v);
-  return String(v);
+  return escHtml(v);
 };
 
 // Letterhead + title band (shared across summary + biodata pages)
@@ -465,7 +466,7 @@ const buildSignaturePanel = (row, me) => {
   const preparedBy = row?.preparedByName      || row?.submittedByName || printer || dash;
   const checkedBy  = row?.checkedByName       || row?.verifiedByName  || row?.settledByName || dash;
   const approvedBy = row?.finalApprovedByName || row?.approvedByName  || row?.approvedBy    || row?.gmApprovedByName || dash;
-  const cell = (role, name) => `<div class="sig-box"><div class="name">${name}</div><div class="role">${role}</div></div>`;
+  const cell = (role, name) => `<div class="sig-box"><div class="name">${escHtml(name)}</div><div class="role">${role}</div></div>`;
   return `<div class="sigs">
     ${cell("Created By",  createdBy)}
     ${cell("Prepared By", preparedBy)}
@@ -476,8 +477,8 @@ const buildSignaturePanel = (row, me) => {
 
 // Compact card (2-per-page biodata)
 const buildCompactCard = (row, idx, total, cfg) => {
-  const refNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `#${idx + 1}`;
-  const statusLabel = cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "";
+  const refNo = escHtml(row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `#${idx + 1}`);
+  const statusLabel = escHtml(cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "");
   const allEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object" && !isImageFieldAlwaysHide(k));
   const imageEntries = Object.entries(row).filter(([k, v]) => isImageKey(k) && typeof v === "string" && v.trim() !== "");
   const fieldEntries = allEntries;
@@ -489,7 +490,7 @@ const buildCompactCard = (row, idx, total, cfg) => {
   const imgHTML = imageEntries.length ? `<div class="cc-img-row">${imageEntries.map(([k, v]) => `
       <div class="cc-img-tile">
         <div class="cc-img-l">${prettifyKey(k).replace(/\s*Url$/i, "")}</div>
-        <div class="cc-img-box"><img src="${String(v).replace(/"/g, "&quot;")}" onerror="this.style.display='none'" /></div>
+        <div class="cc-img-box"><img src="${/^(data:image\/|https?:\/\/|\/)/i.test(String(v)) ? escHtml(v) : ""}" onerror="this.style.display='none'" /></div>
       </div>`).join("")}</div>` : "";
   return `<div class="compact-card">
     <div class="cc-head"><b>${refNo}</b><span>${idx + 1} / ${total} · ${statusLabel}</span></div>
@@ -500,7 +501,7 @@ const buildCompactCard = (row, idx, total, cfg) => {
 
 // Build the per-record biodata card HTML (letterhead + title + fields + line items + signatures)
 const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = true, me = "") => {
-  const bioRefNo = row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `${cfg.id.toUpperCase()}-${idx+1}`;
+  const bioRefNo = escHtml(row.pvNo || row.permanentBillNo || row.refNo || row.boqNo || row.woNo || row.expenseNo || row.vendorCode || row.empCode || `${cfg.id.toUpperCase()}-${idx+1}`);
   // Filter fields: skip internal, skip object/line-items (will render separately)
   const allFieldEntries = Object.entries(row).filter(([k, v]) => !isSkipKey(k) && !isLineKey(v) && typeof v !== "object" && !isImageFieldAlwaysHide(k));
   // Separate image fields (photo / signature / avatar) from text fields
@@ -513,12 +514,12 @@ const buildBiodataCard = (row, idx, total, cfg, co, logo, nowStr, pageBreak = tr
       ${imageEntries.map(([k, v]) => `
         <div class="img-tile">
           <div class="img-tile-l">${prettifyKey(k).replace(/\s*Url$/i, "")}</div>
-          <div class="img-tile-box"><img src="${String(v).replace(/"/g, "&quot;")}" alt="${prettifyKey(k)}" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'color:#94a3b8;font-size:10px\\'>Image not available</span>'" /></div>
+          <div class="img-tile-box"><img src="${/^(data:image\/|https?:\/\/|\/)/i.test(String(v)) ? escHtml(v) : ""}" alt="${prettifyKey(k)}" onerror="this.style.display='none';this.parentElement.innerHTML='<span style=\\'color:#94a3b8;font-size:10px\\'>Image not available</span>'" /></div>
         </div>`).join("")}
     </div>
   ` : "";
   // Status derived label as first chip
-  const statusLabel = cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "";
+  const statusLabel = escHtml(cfg.statusMap?.[row[cfg.statusKey]] || row[cfg.statusKey] || "");
   // Partition: amount/date/status fields come first (header strip), rest in grid
   const headerFields = [];
   if (cfg.amountKey && row[cfg.amountKey] != null) headerFields.push([cfg.amountKey, row[cfg.amountKey], true]);

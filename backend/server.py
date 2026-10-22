@@ -20,6 +20,8 @@ from pydantic import BaseModel, EmailStr
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import logging
+import json
+import uuid
 import hmac
 import secrets as _secrets
 import re
@@ -58,6 +60,9 @@ async def get_current_user(request: Request) -> Dict[str, Any]:
     user = await db.users.find_one({"email": payload.get("email")})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    cs = user.get("current_session")
+    if isinstance(cs, dict) and cs.get("active") is False:
+        raise HTTPException(status_code=401, detail="Session ended. Please login again.")
     user.pop("_id", None)
     user.pop("password_hash", None)
     return user
@@ -139,6 +144,9 @@ _SERVER_OWNED_FIELDS = (
 )
 
 
+_PROTECTED_FIN_RE = re.compile(r"(amount|total|net|gross|rate|qty|quantity|bank|account|ifsc|tds|gst|deduction|payable|salary|items|lines)", re.I)
+
+
 async def _enforce_workflow(coll: str, body: Dict, user: Dict, step_field: str = "step") -> Dict:
     """For paybills / advance_requests / loans / bills: validate step/status
     transition on the server, require approver for forward transitions, strip
@@ -162,6 +170,11 @@ async def _enforce_workflow(coll: str, body: Dict, user: Dict, step_field: str =
         for f in _SERVER_OWNED_FIELDS:
             if existing.get(f) is not None:
                 body[f] = existing[f]
+    # Approved records: non-approvers may not change financial fields (re-approval needed)
+    if existing and new_step == old_step and old_step >= 3 and not _can_approve(user):
+        for k in set(existing) | set(body):
+            if _PROTECTED_FIN_RE.search(k) and json.dumps(existing.get(k), sort_keys=True, default=str) != json.dumps(body.get(k, existing.get(k)), sort_keys=True, default=str):
+                raise HTTPException(status_code=403, detail=f"Approved record: '{k}' can be changed only by an approver")
     # Permission check: creators may submit (→ step 2); further transitions need approve
     if new_step > old_step and new_step > 2:
         if not _can_approve(user):
@@ -315,13 +328,22 @@ async def change_password(body: ChangePasswordBody, user: Dict = Depends(get_cur
     return {"ok": True, "email": target_email}
 
 
+_LOGIN_FAILS: Dict[str, List[float]] = {}
+
+
 @api_router.post("/auth/login")
 async def login(body: LoginBody, request: Request):
     ident = body.identifier.lower().strip()
     password = body.password.strip()
+    now_ts = datetime.now(timezone.utc).timestamp()
+    fails = [t for t in _LOGIN_FAILS.get(ident, []) if now_ts - t < 900]
+    if len(fails) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again after 15 minutes.")
     user = await db.users.find_one({"email": ident})
     if not user or not verify_password(password, user.get("password_hash", "")):
+        _LOGIN_FAILS[ident] = fails + [now_ts]
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    _LOGIN_FAILS.pop(ident, None)
 
     # ---- SINGLE-SESSION ENFORCEMENT (Feb 2026 · user request) ----
     # Block login if the same account already has an active session newer than
@@ -970,9 +992,54 @@ async def upsert_fooding(body: Dict = Body(...), user: Dict = Depends(require_wr
 
 
 @api_router.delete("/fooding/{fid}")
-async def delete_fooding(fid: str, user: Dict = Depends(require_write)):
+async def delete_fooding(fid: str, user: Dict = Depends(require_admin)):
     r = await db.fooding.delete_one({"id": fid})
     return {"ok": True, "deleted": r.deleted_count}
+
+
+# ==================== AI WORK ORDER (Scope + T&C) ====================
+_AI_WO_SYSTEM = (
+    "You are a senior contracts engineer for an Indian civil works contractor and general order supplier. "
+    "You draft clear, professional Work Order documents in formal English."
+)
+
+
+@api_router.post("/ai/wo-terms")
+async def ai_wo_terms(body: Dict = Body(...), user: Dict = Depends(require_write)):
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+    items = body.get("items") or []
+    lines = "\n".join(f"- {i.get('description','')} | qty {i.get('qty','')} {i.get('unit','')} | rate {i.get('rate','')}" for i in items[:60])
+    defaults = "\n".join(f"{k}: {body.get(k) or ''}" for k in ("paymentTerms", "deliveryTerms", "penaltyClause", "warrantyClause", "termsAndConditions"))
+    prompt = (
+        f"Work Order details:\nVendor: {body.get('vendorName','')}\nProject/Site: {body.get('projectSite','')}\nClient: {body.get('clientName','')}\n"
+        f"WO Date: {body.get('woDate','')} | Expiry: {body.get('expiryDate','')} | GST %: {body.get('gstSlab','')} | Retention %: {body.get('retentionPct','')}\n"
+        f"Existing scope notes: {body.get('scopeOfWork','')}\nLine items:\n{lines}\n\n"
+        f"The company's OWN default terms (already printed separately in the WO):\n{defaults}\n\n"
+        "Task: 1) Write a detailed 'Scope of Work' in English (deliverables, execution method, quality standards, site responsibilities, exclusions) based on the line items. "
+        "2) Write 10-15 additional numbered Terms & Conditions in English suitable for this work order. "
+        "These AI terms MUST NOT repeat, paraphrase or overlap any of the company's own default terms above - cover different topics only "
+        "(e.g. safety, insurance, labour law compliance, documentation, inspection, dispute resolution, force majeure, confidentiality, termination). "
+        'Respond ONLY with JSON: {"scopeOfWork": "...", "aiTerms": "1. ...\\n2. ..."}'
+    )
+    chat = LlmChat(api_key=os.environ["EMERGENT_LLM_KEY"], session_id=f"aiwo-{uuid.uuid4()}", system_message=_AI_WO_SYSTEM).with_model("openai", "gpt-5.6-terra")
+    out = ""
+    try:
+        async for ev in chat.stream_message(UserMessage(text=prompt)):
+            if isinstance(ev, TextDelta):
+                out += ev.content
+            elif isinstance(ev, StreamDone):
+                break
+    except Exception as e:
+        logger.exception("AI WO generation failed")
+        raise HTTPException(status_code=502, detail=f"AI generation failed: {str(e)[:200]}")
+    m = re.search(r"\{.*\}", out, re.S)
+    try:
+        data = json.loads(m.group(0)) if m else {}
+    except Exception:
+        data = {}
+    if not data.get("scopeOfWork") and not data.get("aiTerms"):
+        raise HTTPException(status_code=502, detail="AI returned an unreadable response. Please try again.")
+    return {"scopeOfWork": str(data.get("scopeOfWork", "")).strip(), "aiTerms": str(data.get("aiTerms", "")).strip()}
 
 
 # ==================== CLIENT & REVENUE (CRM + RA BILLING) ====================

@@ -67,6 +67,7 @@ export const printWorkOrder = (wo, boqRef = "") => {
 
     <h2 class="sec">A. Scope of Work</h2>
     <div class="para">${esc(wo.scopeOfWork || "—")}</div>
+    ${wo.aiScopeOfWork ? `<h2 class="sec">A-1. Detailed Scope of Work</h2><div class="para">${esc(wo.aiScopeOfWork)}</div>` : ""}
 
     <h2 class="sec">B. Line Items</h2>
     <table class="items">
@@ -97,6 +98,7 @@ export const printWorkOrder = (wo, boqRef = "") => {
       <tr><td class="k">Warranty Clause</td><td>${esc(wo.warrantyClause || "—")}</td></tr>
       <tr><td class="k">General T&amp;C</td><td>${esc(wo.termsAndConditions || "—")}</td></tr>
     </table>
+    ${wo.aiTerms ? `<h2 class="sec">D. Additional Terms &amp; Conditions</h2><div class="para">${esc(wo.aiTerms)}</div>` : ""}
 
     <table class="approval">
       <tr>
