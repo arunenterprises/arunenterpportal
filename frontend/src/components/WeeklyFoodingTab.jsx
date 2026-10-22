@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Plus, Trash2, Save, Send, Printer, Download, CheckCircle2, Utensils } from "lucide-react";
 import { getEmployees, getFY, getActiveFYOverride, APPROVER_NAME, canApprove, isAccountsManager, currentUser, schedulePush } from "../lib/store";
-import { getToken, apiUpsertFooding, apiDeleteFooding } from "../lib/api";
+import { getToken, apiUpsertFooding, apiDeleteFooding, apiListEmployees } from "../lib/api";
 
 // -------- Local storage CRUD for Weekly Fooding records --------
 const KEY = "ae_vm_fooding";
@@ -71,8 +71,21 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
 
   useEffect(() => {
     setList(getFoodingList());
-    setEmps(getEmployees().filter((e) => Number(e.step) >= 5 || e.empCode));
-    const onSync = () => { setList(getFoodingList()); setEmps(getEmployees()); setRefresh((v) => v + 1); };
+    // Employees come from server (not only browser storage) so the dropdown never goes empty.
+    const loadEmps = async () => {
+      const pick = (arr) => (arr || []).filter((e) => Number(e.step) >= 5 || e.empCode);
+      const local = pick(getEmployees());
+      setEmps(local);
+      try {
+        const r = await apiListEmployees();
+        const srv = pick(Array.isArray(r) ? r : r?.items || r?.employees);
+        const m = new Map(local.map((e) => [e.id, e]));
+        srv.forEach((e) => m.set(e.id, { ...m.get(e.id), ...e }));
+        setEmps([...m.values()]);
+      } catch {}
+    };
+    loadEmps();
+    const onSync = () => { setList(getFoodingList()); loadEmps(); setRefresh((v) => v + 1); };
     window.addEventListener("ae-sync-done", onSync);
     return () => window.removeEventListener("ae-sync-done", onSync);
   }, []);
