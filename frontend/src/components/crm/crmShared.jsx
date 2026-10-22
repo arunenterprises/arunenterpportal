@@ -19,6 +19,10 @@ const req = async (path, opts = {}) => {
 };
 
 export const crmList = (name) => req(`/${name}`);
+const crmAllLists = async () => {
+  const all = await req("-all");
+  return CRM_NAMES.map((n) => all[n] || []);
+};
 export const crmSave = (name, rec) => req(`/${name}`, { method: "POST", body: JSON.stringify(rec) });
 export const crmDelete = (name, id) => req(`/${name}/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const crmNextNo = async (kind, prefix, pad = 4) => {
@@ -51,7 +55,7 @@ const _storeCrm = (lists) => {
   try { localStorage.setItem(CRM_LS, JSON.stringify(lite)); } catch { /* quota */ }
 };
 export const loadCrmCache = async () => {
-  const lists = await Promise.all(CRM_NAMES.map((n) => crmList(n)));
+  const lists = await crmAllLists();
   _storeCrm(lists);
   return crmCache;
 };
@@ -77,11 +81,11 @@ export const crmReportRows = (name, d = crmCache) => {
 // Loads all CRM collections once and exposes save/delete with auto-refresh.
 export const useCrmData = () => {
   const names = CRM_NAMES;
-  const [data, setData] = useState(() => Object.fromEntries(names.map((n) => [n, []])));
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(() => Object.fromEntries(names.map((n) => [n, crmCacheReady() ? crmCache[n] : []])));
+  const [loading, setLoading] = useState(() => !crmCacheReady());
   const reload = useCallback(async () => {
     try {
-      const lists = await Promise.all(names.map((n) => crmList(n)));
+      const lists = await crmAllLists();
       _storeCrm(lists);
       setData(Object.fromEntries(names.map((n, i) => [n, lists[i]])));
     } catch (e) { toast.error(`Load failed: ${e.message}`); }
@@ -180,6 +184,6 @@ export const Badge = ({ text, tone = "slate" }) => {
   const t = { slate: ["#f1f5f9", "#334155"], amber: ["#fef3c7", "#92400e"], green: ["#dcfce7", "#166534"], blue: ["#dbeafe", "#1e40af"], red: ["#fee2e2", "#991b1b"] }[tone];
   return <span style={{ background: t[0], color: t[1], padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap" }}>{text}</span>;
 };
-export const stepTone = (s) => ({ 1: "slate", 2: "amber", 3: "blue", 4: "blue", 5: "green" }[Number(s)] || "slate");
+export const stepTone = (s) => ({ 1: "slate", 2: "amber", 3: "blue", 4: "blue", 5: "green", 6: "red" }[Number(s)] || "slate");
 
 export const nameOf = (list, id, key = "name") => (list.find((x) => x.id === id) || {})[key] || "—";

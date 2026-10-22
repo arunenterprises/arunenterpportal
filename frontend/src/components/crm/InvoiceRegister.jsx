@@ -11,12 +11,13 @@ export const InvoiceRegister = ({ data }) => {
   const [open, setOpen] = useState("");
   const rows = data.invoices.filter((b) => (!q.client || b.clientId === q.client) && (!q.status || String(b.step) === q.status)
     && (!q.text || `${b.refNo} ${b.invoiceNo} ${b.poNo} ${b.projectName}`.toLowerCase().includes(q.text.toLowerCase())));
+  const live = data.invoices.filter((b) => Number(b.step) !== 6);
   const unpaid = data.invoices.filter((b) => [3, 4].includes(Number(b.step)));
   const sum = (a, k) => a.reduce((s, b) => s + num(b[k]), 0);
   return (
     <>
       <div data-testid="invreg-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10, marginBottom: 14 }}>
-        {[["Total Invoices", data.invoices.length], ["Total Value", inr(sum(data.invoices, "total"))], ["Unpaid (Approved / Sent)", `${unpaid.length} · ${inr(sum(unpaid, "total"))}`], ["Received", inr(sum(data.invoices.filter((b) => Number(b.step) === 5), "receivedAmount"))]].map(([l, v], i) => (
+        {[["Total Invoices", `${live.length}${data.invoices.length - live.length ? ` (+${data.invoices.length - live.length} cancelled)` : ""}`], ["Total Value", inr(sum(live, "total"))], ["Unpaid (Approved / Sent)", `${unpaid.length} · ${inr(sum(unpaid, "total"))}`], ["Received", inr(sum(data.invoices.filter((b) => Number(b.step) === 5), "receivedAmount"))]].map(([l, v], i) => (
           <div key={l} data-testid={`invreg-kpi-${i}`} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" }}>
             <div style={{ fontSize: 10.5, fontWeight: 800, color: "#475569", textTransform: "uppercase" }}>{l}</div>
             <div style={{ fontSize: 17, fontWeight: 900, color: "#0f172a" }}>{v}</div>
@@ -48,6 +49,7 @@ export const InvoiceRegister = ({ data }) => {
                 </div>
               ))}
               {b.approvedByName && <div style={{ fontSize: 12, color: "#166534", marginTop: 6 }}>Approved by {b.approvedByName} · {fmt(b.approvedAt)}</div>}
+              {Number(b.step) === 6 && <div data-testid="invreg-cancel-reason" style={{ fontSize: 12, color: "#b91c1c", marginTop: 6, fontWeight: 700 }}>Cancelled on {b.cancelledAt} by {b.cancelledBy || "—"} · Reason: {b.cancelReason}</div>}
             </div>
           );
         })()}

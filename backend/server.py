@@ -20,6 +20,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 import logging
+import asyncio
 import json
 import uuid
 import hmac
@@ -1055,6 +1056,13 @@ def _crm_coll(name: str) -> str:
     return f"crm_{name}"
 
 
+@api_router.get("/crm-all")
+async def crm_all(user: Dict = Depends(get_current_user)):
+    names = sorted(_CRM_COLLS)
+    lists = await asyncio.gather(*[_list_collection(_crm_coll(n)) for n in names])
+    return dict(zip(names, lists))
+
+
 @api_router.get("/crm/{name}")
 async def crm_list(name: str, user: Dict = Depends(get_current_user)):
     return await _list_collection(_crm_coll(name))
@@ -1151,6 +1159,10 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
             body["invoiceNo"] = (existing or {}).get("invoiceNo", "")
             if existing and existing.get("refNo"):
                 body["refNo"] = existing["refNo"]
+            if old_step == 6:
+                raise HTTPException(status_code=400, detail="Cancelled invoice change nahi ho sakta")
+            if new_step == 6 and (old_step not in (3, 4) or not str(body.get("cancelReason") or "").strip()):
+                raise HTTPException(status_code=400, detail="Sirf Approved / Sent invoice reason ke saath cancel ho sakta hai")
         if not _crm_power(user) and (new_step > 2 or old_step >= 3 or (name == "invoices" and old_step >= 2)):
             if name == "mb" and existing and new_step == old_step:
                 body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}

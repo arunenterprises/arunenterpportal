@@ -5,7 +5,7 @@ import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUse
 import { CrmActionBar } from "./CrmActionBar";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, stepTone, uid, today, inr, num, nameOf, crmNextNo } from "./crmShared";
 
-export const INV_STEPS = { 1: "Draft", 2: "Submitted", 3: "Approved", 4: "Sent to Client", 5: "Paid" };
+export const INV_STEPS = { 1: "Draft", 2: "Submitted", 3: "Approved", 4: "Sent to Client", 5: "Paid", 6: "Cancelled" };
 export const invLabel = (b) => b.invoiceNo || b.refNo || "—";
 const r2 = (n) => +(Number(n) || 0).toFixed(2);
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br/>");
@@ -121,6 +121,11 @@ export const Invoices = ({ data, save, remove }) => {
             <Btn tone="ghost" data-testid="inv-print-without" onClick={() => printInvoice(f, t, client, false)}><FileText size={14} /> Print on Letterhead (without Company Details)</Btn>
             {st < 3 && <span style={{ fontSize: 11, color: "#92400e", alignSelf: "center" }}>Note: Permanent Invoice No approval ke baad milega — tabhi final copy client ko dein.</span>}
             {st === 3 && canApprove() && <Btn tone="dark" data-testid="inv-sent-btn" onClick={() => move(4, { sentAt: today() })}><Mail size={14} /> Mark Sent to Client</Btn>}
+            {[3, 4].includes(st) && canApprove() && <Btn tone="red" data-testid="inv-cancel-btn" onClick={() => {
+              const reason = (window.prompt(`${f.invoiceNo} cancel karne ka kaaran likhein:`) || "").trim();
+              if (!reason) { toast.error("Cancel ke liye kaaran zaroori hai"); return; }
+              move(6, { cancelReason: reason, cancelledAt: today(), cancelledBy: currentUser() });
+            }}><X size={14} /> Cancel Invoice</Btn>}
           </div>
         )}
         {f.id && st === 4 && canApprove() && (
@@ -134,6 +139,7 @@ export const Invoices = ({ data, save, remove }) => {
           </div>
         )}
         {f.id && st === 5 && <div data-testid="inv-paid-info" style={{ marginTop: 12, fontSize: 12, color: "#166534", fontWeight: 700 }}>Paid — {inr(f.receivedAmount)} on {f.receivedDate} · UTR {f.utr}</div>}
+        {f.id && st === 6 && <div data-testid="inv-cancel-info" style={{ marginTop: 12, fontSize: 12, color: "#b91c1c", fontWeight: 700, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 10 }}>CANCELLED — {f.cancelledAt} by {f.cancelledBy || "—"} · Reason: {f.cancelReason}</div>}
       </Card>
       {preview && <InvoicePreview inv={f} t={t} client={client} onClose={() => setPreview(null)} />}
       <Card title={`Client Tax Invoices (${data.invoices.length})`}>
@@ -158,18 +164,20 @@ export const buildInvoiceHtml = (inv, t, client, withCompany, autoPrint = true) 
   const amt = (v) => (v ? n2(v) : "");
   const rows = t.lines.map((l) => `<tr><td class=c>${esc(l.poPos)}</td><td class=c>${esc(l.itemCode)}</td><td>${esc(l.description)}</td><td class=c>${esc(l.hsn)}</td><td class=c>${esc(l.qty)}</td><td class=c>${esc(l.uom)}</td><td class=r>${n2(l.rate)}</td><td class=r>${n2(l.taxable)}</td><td class=c>${pct(l, "igst")}</td><td class=r>${amt(l.igst)}</td><td class=c>${pct(l, "cgst")}</td><td class=r>${amt(l.cgst)}</td><td class=c>${pct(l, "sgst")}</td><td class=r>${amt(l.sgst)}</td><td class=r>${n2(l.total)}</td></tr>`).join("");
   const head = withCompany
-    ? `<div class=hdr><img src="${esc(logo)}" onerror="this.style.display='none'"/><div class=hc><div class=hn>${esc(co.name)}</div>${co.tagline ? `<div class=ht>${esc(co.tagline)}</div>` : ""}${co.pillLine ? `<div class=hp>${esc(co.pillLine)}</div>` : ""}<div class=hd>${esc(co.address)}</div><div class=hd>${[co.tollFree && "Mob: " + co.tollFree, co.email && "Email: " + co.email, co.website].filter(Boolean).map(esc).join(" · ")}</div><div class=hd><b>GSTIN: ${esc(gstin)} · PAN: ${esc(pan)}</b></div></div><div style="width:110px"></div></div>`
+    ? `<div class=hdr><img src="${esc(logo)}" onerror="this.style.display='none'"/><div class=hc><div class=hn>${esc(co.name)}</div>${co.tagline ? `<div class=ht>${esc(co.tagline)}</div>` : ""}${co.pillLine ? `<div class=hp>${esc(co.pillLine)}</div>` : ""}<div class=hd>${esc(co.address)}</div><div class=hd>${[co.tollFree && "Mob: " + co.tollFree, co.email && "Email: " + co.email, co.website].filter(Boolean).map(esc).join(" · ")}</div><div class=hd><b>GSTIN: ${esc(gstin)} · PAN: ${esc(pan)}</b></div></div><div style="width:70px"></div></div>`
     : `<div style="height:75mm"></div>`;
   const cAddr = String(co.address || "").split(",").map((s) => s.trim()).filter(Boolean).map(esc).join(",<br/>");
   const invNoTxt = inv.invoiceNo || `${inv.refNo || ""} (Draft — pending approval)`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(invNoTxt)}</title><style>
-  @page{size:A4 landscape;margin:8mm}body{font-family:Calibri,Arial,sans-serif;font-size:11px;color:#000;margin:0}
-  table{width:100%;border-collapse:collapse}td,th{border:1px solid #000;padding:3px 4px;vertical-align:top}th{font-weight:400;text-align:center;vertical-align:middle}
+  @page{size:A4 portrait;margin:10mm}html{background:#e2e8f0}body{font-family:Calibri,Arial,sans-serif;font-size:9px;color:#000;margin:0 auto;width:190mm;background:#fff;position:relative}
+  @media screen{body{padding:10mm;box-sizing:content-box;min-height:277mm;margin:10px auto;box-shadow:0 2px 12px rgba(0,0,0,.2)}}
+  .cxl{position:absolute;top:45%;left:0;right:0;text-align:center;font-size:90px;font-weight:900;color:rgba(220,38,38,.22);transform:rotate(-30deg);pointer-events:none;z-index:5}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #000;padding:2px 3px;vertical-align:top;word-wrap:break-word}th{font-weight:400;text-align:center;vertical-align:middle;font-size:8px}
   .c{text-align:center}.r{text-align:right}.b{font-weight:700}.u{text-decoration:underline;font-weight:700}.nb td{border-top:none;border-bottom:none}
-  .ttl{text-align:center;font-size:15px;font-weight:700;padding:4px}
-  .hdr{display:flex;align-items:center;gap:12px;border-bottom:2.5px solid #c81e2b;padding-bottom:6px;margin-bottom:8px}.hdr img{width:110px;height:90px;object-fit:contain}.hc{flex:1;text-align:center}.hn{font-size:22px;font-weight:900;color:#c81e2b}.ht{font-size:10px;font-weight:700;letter-spacing:1px}.hp{display:inline-block;margin:3px 0;padding:1px 12px;background:#0ea5e9;color:#fff;border-radius:10px;font-size:10px;font-weight:700}.hd{font-size:10px}
-  .sig{height:120px;position:relative}.sig div{position:absolute;right:6px;text-align:right;font-weight:700;font-size:10.5px}
-  </style></head><body>${head}
+  .ttl{text-align:center;font-size:13px;font-weight:700;padding:4px}
+  .hdr{display:flex;align-items:center;gap:10px;border-bottom:2.5px solid #c81e2b;padding-bottom:5px;margin-bottom:6px}.hdr img{width:70px;height:60px;object-fit:contain}.hc{flex:1;text-align:center}.hn{font-size:18px;font-weight:900;color:#c81e2b}.ht{font-size:8.5px;font-weight:700;letter-spacing:1px}.hp{display:inline-block;margin:2px 0;padding:1px 10px;background:#0ea5e9;color:#fff;border-radius:10px;font-size:8.5px;font-weight:700}.hd{font-size:8.5px}
+  .sig{height:95px;position:relative}.sig div{position:absolute;right:6px;text-align:right;font-weight:700;font-size:9.5px}
+  </style></head><body>${Number(inv.step) === 6 ? `<div class=cxl>CANCELLED</div>` : ""}${head}
   <table>
   <tr><td colspan=15 class=ttl>TAX INVOICE</td></tr>
   <tr><td colspan=2 class=b>Invoice No :</td><td colspan=2 class=b>${esc(invNoTxt)}</td><td colspan=3 class=b>Invoice Date</td><td colspan=8>${fmtD(inv.invoiceDate)}</td></tr>
@@ -180,8 +188,8 @@ export const buildInvoiceHtml = (inv, t, client, withCompany, autoPrint = true) 
   <tr><td colspan=4><span class=u>CONTRACTOR NAME &amp; ADDRESS :</span><br/><b>${esc(inv.contractorCode)}</b><br/><br/>${esc(String(co.name || "").replace(/^M\/s\s*/i, ""))},<br/>${cAddr}<br/>PAN: ${esc(pan)}</td>
       <td colspan=11><span class=u>BILL TO :</span><br/><b>${esc(client.name)}</b><br/><br/>${esc(client.address)}${client.city ? ",<br/>" + esc(client.city) : ""}${client.pincode ? " - " + esc(client.pincode) : ""}<br/>STATE: ${esc(String(client.state || "").toUpperCase())}<br/>PAN: ${esc(client.pan)}</td></tr>
   <tr><td colspan=4>GSTIN : ${esc(gstin)}</td><td colspan=11>GSTIN : ${esc(client.gst)}</td></tr>
-  <tr><th rowspan=2 style="width:46px">PO Position No</th><th rowspan=2 style="width:70px">Item Code</th><th rowspan=2>Item Description</th><th rowspan=2 style="width:56px">HSN Code</th><th rowspan=2 style="width:62px">Quantity</th><th rowspan=2 style="width:40px">UOM</th><th rowspan=2 style="width:66px">Basic per Item (Rs)</th><th rowspan=2 style="width:76px">Taxable Amount (Rs)</th><th colspan=2>IGST</th><th colspan=2>CGST</th><th colspan=2>SGST</th><th rowspan=2 style="width:80px">Total Amount (Rs)</th></tr>
-  <tr><th style="width:34px">Rate</th><th style="width:60px">Amount</th><th style="width:34px">Rate</th><th style="width:66px">Amount</th><th style="width:34px">Rate</th><th style="width:66px">Amount</th></tr>
+  <tr><th rowspan=2 style="width:6%">PO Pos. No</th><th rowspan=2 style="width:7%">Item Code</th><th rowspan=2 style="width:17%">Item Description</th><th rowspan=2 style="width:6%">HSN Code</th><th rowspan=2 style="width:5.5%">Qty</th><th rowspan=2 style="width:4.5%">UOM</th><th rowspan=2 style="width:7%">Basic per Item (Rs)</th><th rowspan=2 style="width:8%">Taxable Amt (Rs)</th><th colspan=2>IGST</th><th colspan=2>CGST</th><th colspan=2>SGST</th><th rowspan=2 style="width:8.5%">Total Amt (Rs)</th></tr>
+  <tr><th style="width:4%">Rate</th><th style="width:6.5%">Amount</th><th style="width:4%">Rate</th><th style="width:6.5%">Amount</th><th style="width:4%">Rate</th><th style="width:6.5%">Amount</th></tr>
   ${rows}
   <tr class=b><td></td><td colspan=2 class=c>Sub Total</td><td></td><td></td><td></td><td></td><td class=r>${n2(t.taxable)}</td><td></td><td class=r>${n2(t.igst)}</td><td></td><td class=r>${n2(t.cgst)}</td><td></td><td class=r>${n2(t.sgst)}</td><td class=r>${n2(t.total)}</td></tr>
   <tr><td rowspan=2></td><td colspan=13>Total Invoice Value (In figure):</td><td class="r b">${n2(t.total)}</td></tr>

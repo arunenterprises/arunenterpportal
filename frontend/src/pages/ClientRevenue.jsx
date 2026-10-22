@@ -20,19 +20,19 @@ import { ChangeOrders } from "../components/crm/ChangeOrders";
 import { CrmReports } from "../components/crm/CrmReports";
 
 const TABS = [
-  { k: "dash", l: "Dashboard", icon: LayoutDashboard, C: CrmDashboard },
-  { k: "leads", l: "Leads & Enquiry", icon: Users, C: Leads },
-  { k: "clients", l: "Clients Master", icon: Building2, C: Clients },
-  { k: "comms", l: "Communication", icon: MessagesSquare, C: Comms },
-  { k: "contracts", l: "Contracts / Rates", icon: FileSignature, C: Contracts },
-  { k: "mb", l: "Measurement Book", icon: Ruler, C: MBook },
-  { k: "ra", l: "RA Bills", icon: Receipt, C: RABills },
-  { k: "inv", l: "Client Tax Invoice", icon: FileText, C: Invoices },
-  { k: "invreg", l: "Invoice Register", icon: BookOpen, C: InvoiceRegister },
-  { k: "ms", l: "Milestones", icon: Flag, C: Milestones },
-  { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders },
-  { k: "ret", l: "Retention", icon: ShieldCheck, C: Retention },
-  { k: "reports", l: "Reports", icon: BarChart3, C: CrmReports },
+  { k: "dash", l: "Dashboard", icon: LayoutDashboard, C: CrmDashboard, c: "#1e3a8a" },
+  { k: "leads", l: "Leads & Enquiry", icon: Users, C: Leads, c: "#0891b2" },
+  { k: "clients", l: "Clients Master", icon: Building2, C: Clients, c: "#4f46e5" },
+  { k: "comms", l: "Communication", icon: MessagesSquare, C: Comms, c: "#7c3aed" },
+  { k: "contracts", l: "Contracts / Rates", icon: FileSignature, C: Contracts, c: "#c026d3" },
+  { k: "mb", l: "Measurement Book", icon: Ruler, C: MBook, c: "#db2777" },
+  { k: "ra", l: "RA Bills", icon: Receipt, C: RABills, c: "#dc2626" },
+  { k: "inv", l: "Client Tax Invoice", icon: FileText, C: Invoices, c: "#ea580c" },
+  { k: "invreg", l: "Invoice Register", icon: BookOpen, C: InvoiceRegister, c: "#d97706" },
+  { k: "ms", l: "Milestones", icon: Flag, C: Milestones, c: "#65a30d" },
+  { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders, c: "#16a34a" },
+  { k: "ret", l: "Retention", icon: ShieldCheck, C: Retention, c: "#0d9488" },
+  { k: "reports", l: "Reports", icon: BarChart3, C: CrmReports, c: "#2563eb" },
 ];
 
 const flowSteps = (d) => {
@@ -86,7 +86,7 @@ export default function ClientRevenue() {
           {TABS.map((t) => (
             <button key={t.k} data-testid={`crm-tab-${t.k}`} onClick={() => setTab(t.k)} className="crm-tab"
               style={{ flex: "1 1 0", minWidth: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 7, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
-                border: tab === t.k ? "1px solid #1e3a8a" : "1px solid #e2e8f0", background: tab === t.k ? "#1e3a8a" : "#fff", color: tab === t.k ? "#fff" : "#334155" }}>
+                border: `1px solid ${t.c}${tab === t.k ? "" : "55"}`, background: tab === t.k ? t.c : `${t.c}14`, color: tab === t.k ? "#fff" : t.c }}>
               <t.icon size={12} style={{ flexShrink: 0 }} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis" }} title={t.l}>{t.l}</span>
             </button>
           ))}
