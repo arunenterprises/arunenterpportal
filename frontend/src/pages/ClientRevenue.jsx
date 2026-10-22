@@ -52,16 +52,16 @@ const flowSteps = (d) => {
 };
 
 const WorkflowStrip = ({ data, onGo }) => (
-  <div data-testid="crm-workflow" style={{ display: "flex", alignItems: "stretch", gap: 4, overflowX: "auto", background: "#fff", border: "1px solid #dbeafe", borderRadius: 12, padding: 10, marginBottom: 12 }}>
+  <div data-testid="crm-workflow" className="crm-one-line-flex" style={{ display: "flex", alignItems: "stretch", gap: 3, background: "#fff", border: "1px solid #dbeafe", borderRadius: 12, padding: 8, marginBottom: 12 }}>
     {flowSteps(data).map((s, i, arr) => (
       <React.Fragment key={s.l}>
         <button data-testid={`crm-flow-${i + 1}`} onClick={() => onGo(s.k)} className="crm-tab"
-          style={{ flex: "1 1 0", minWidth: 118, border: "none", background: "#eff6ff", borderRadius: 9, padding: "8px 10px", cursor: "pointer", textAlign: "left" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 800, color: "#1e3a8a", whiteSpace: "nowrap" }}>{s.l}</div>
-          <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>{s.n} <span style={{ fontSize: 10, color: "#64748b", fontWeight: 600 }}>{s.h}</span></div>
-          {s.sub && <div data-testid={`crm-flow-sub-${i + 1}`} style={{ fontSize: 9.5, color: "#475569", fontWeight: 600, whiteSpace: "nowrap" }}>{s.sub}</div>}
+          style={{ flex: "1 1 0", minWidth: 0, overflow: "hidden", border: "none", background: "#eff6ff", borderRadius: 9, padding: "7px 8px", cursor: "pointer", textAlign: "left" }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: "#1e3a8a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.l}</div>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#0f172a", whiteSpace: "nowrap" }}>{s.n} <span style={{ fontSize: 10, color: "#64748b", fontWeight: 600 }}>{s.h}</span></div>
+          {s.sub && <div data-testid={`crm-flow-sub-${i + 1}`} title={s.sub} style={{ fontSize: 9, color: "#475569", fontWeight: 600, lineHeight: 1.25, whiteSpace: "normal", wordBreak: "break-word" }}>{s.sub}</div>}
         </button>
-        {i < arr.length - 1 && <ChevronRight size={16} color="#93c5fd" style={{ alignSelf: "center", flexShrink: 0 }} />}
+        {i < arr.length - 1 && <ChevronRight size={12} color="#93c5fd" style={{ alignSelf: "center", flexShrink: 0 }} />}
       </React.Fragment>
     ))}
   </div>
@@ -82,12 +82,12 @@ export default function ClientRevenue() {
             style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: "#1e3a8a", border: "none", borderRadius: 8, padding: "9px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>
             <BarChart3 size={15} /> Reports</button>} />
         {!crm.loading && <WorkflowStrip data={crm.data} onGo={setTab} />}
-        <div data-testid="crm-tabs" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(132px, 1fr))", gap: 6, marginBottom: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 6 }}>
+        <div data-testid="crm-tabs" className="crm-one-line-flex" style={{ display: "flex", gap: 4, marginBottom: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 5 }}>
           {TABS.map((t) => (
             <button key={t.k} data-testid={`crm-tab-${t.k}`} onClick={() => setTab(t.k)} className="crm-tab"
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 8px", borderRadius: 7, fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
+              style={{ flex: "1 1 0", minWidth: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 7, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
                 border: tab === t.k ? "1px solid #1e3a8a" : "1px solid #e2e8f0", background: tab === t.k ? "#1e3a8a" : "#fff", color: tab === t.k ? "#fff" : "#334155" }}>
-              <t.icon size={13} style={{ flexShrink: 0 }} /> {t.l}
+              <t.icon size={12} style={{ flexShrink: 0 }} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis" }} title={t.l}>{t.l}</span>
             </button>
           ))}
         </div>

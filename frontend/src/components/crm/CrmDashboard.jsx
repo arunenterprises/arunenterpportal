@@ -4,12 +4,12 @@ import { Card, Table, Badge, RA_STEPS, stepTone, inr, num, nameOf } from "./crmS
 import { retentionSummary } from "./Retention";
 
 const Tile = ({ icon: Icon, label, value, sub, testid }) => (
-  <div data-testid={testid} className="crm-tile" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, display: "flex", gap: 12, alignItems: "center" }}>
-    <div style={{ width: 40, height: 40, borderRadius: 10, background: "#e0f2fe", color: "#1d4ed8", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={20} /></div>
-    <div>
-      <div style={{ fontSize: 10.5, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 900, color: "#0f172a" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "#64748b" }}>{sub}</div>}
+  <div data-testid={testid} className="crm-tile" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 10px", display: "flex", gap: 8, alignItems: "center", minWidth: 0 }}>
+    <div style={{ width: 30, height: 30, flexShrink: 0, borderRadius: 8, background: "#e0f2fe", color: "#1d4ed8", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon size={16} /></div>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 9.5, color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={label}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 900, color: "#0f172a", whiteSpace: "nowrap" }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={sub}>{sub}</div>}
     </div>
   </div>
 );
@@ -28,7 +28,7 @@ export const CrmDashboard = ({ data }) => {
   const due = data.leads.flatMap((l) => (l.followUps || []).filter((f) => f.nextDate).map((f) => ({ l, f }))).filter((x) => x.f.nextDate <= new Date().toISOString().slice(0, 10) && !["Won", "Lost"].includes(x.l.status));
   return (
     <>
-      <div className="crm-tiles" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12, marginBottom: 14 }}>
+      <div className="crm-tiles crm-one-line" style={{ display: "grid", gridTemplateColumns: "repeat(8, minmax(0, 1fr))", gap: 8, marginBottom: 14 }}>
         <Tile testid="kpi-open-leads" icon={Users} label="Open Leads" value={openLeads} sub={`${due.length} follow-up due`} />
         <Tile testid="kpi-month-billing" icon={Receipt} label="Is Mahine ki Billing" value={inr(monthBilling)} sub="GM approved RA/Milestone" />
         <Tile testid="kpi-receivable" icon={Wallet} label="Baki Receivable" value={inr(receivable)} sub="Approved / sent, payment pending" />

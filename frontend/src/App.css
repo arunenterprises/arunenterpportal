@@ -1101,4 +1101,7 @@ body {
 @media (max-width: 900px) { .crm-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
 @media (max-width: 560px) { .crm-grid { grid-template-columns: minmax(0,1fr) !important; } .crm-grid > div { grid-column: span 1 !important; } }
 @media (max-width: 600px) { .home-navbar { flex-wrap: wrap; height: auto !important; } .home-navbar .hn-right { flex-wrap: wrap; gap: 6px; } .home-navbar .hn-user b { display: none; } }
+@media (max-width: 1100px) { .crm-one-line { grid-template-columns: repeat(4, minmax(0,1fr)) !important; } .crm-one-line-flex { overflow-x: auto; } .crm-one-line-flex > button { flex: 0 0 auto !important; min-width: 110px !important; } }
+@media (max-width: 600px) { .crm-one-line { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
+
 
