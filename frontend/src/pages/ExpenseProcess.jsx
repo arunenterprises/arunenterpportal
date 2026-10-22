@@ -353,8 +353,8 @@ export default function ExpenseProcess({ embedded = false }) {
           </div>
         </div>
 
-        {/* 4. Expenses Data Sheet */}
-        <div className="section">
+        {/* 4. Expenses Data Sheet — action row shown first (order:-1), right after the form */}
+        <div className="section" style={{ display: "flex", flexDirection: "column" }}>
           <div className="sec-head">Expenses Data Sheet · Click Load to open any row</div>
           <div className="sec-body">
             <div style={{ overflowX: "auto" }}>
@@ -413,7 +413,7 @@ export default function ExpenseProcess({ embedded = false }) {
           </div>
 
           {/* Inline Action Buttons — uniform left-to-right alignment */}
-          <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-start", alignItems: "stretch", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="exp-action-row">
+          <div style={{ order: -1, marginBottom: 12, display: "flex", justifyContent: "flex-start", alignItems: "stretch", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="exp-action-row">
             <button data-testid="exp-btn-new" onClick={handleNew} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: canCreate() ? "#0369a1" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><FilePlus2 size={13} /> New Expense</button>
             <button data-testid="exp-btn-edit" onClick={handleEdit} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", opacity: canCreate() ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Pencil size={13} /> Edit</button>
             <button data-testid="exp-btn-save" onClick={handleSave} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", opacity: canCreate() ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Save size={13} /> Save</button>
