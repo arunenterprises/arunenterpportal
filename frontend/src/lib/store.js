@@ -47,14 +47,19 @@ export const resetLocalCache = () => {
   });
 };
 
+// In-memory fallback: when browser storage is full, data still shows for this session (server stays source of truth).
+const _mem = new Map();
 const read = (k, fallback) => {
+  if (_mem.has(k)) return _mem.get(k);
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }
   catch { return fallback; }
 };
 const write = (k, v) => {
-  try { localStorage.setItem(k, JSON.stringify(v)); }
+  try { localStorage.setItem(k, JSON.stringify(v)); _mem.delete(k); }
   catch (e) {
-    try { console.error("[storage-full]", k, e); _toast.error("Browser storage full — data cloud par save ho raha hai, page refresh karein."); } catch {}
+    _mem.set(k, v);
+    try { localStorage.removeItem(k); } catch {}
+    if (!write._warned) { write._warned = true; try { console.warn("[storage-full] memory fallback", k); _toast.warning("Browser storage full — data server se dikh raha hai. SuperAdmin Local Folder backup chalu rakhein."); } catch {} }
   }
 };
 

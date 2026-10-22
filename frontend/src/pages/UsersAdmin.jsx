@@ -7,6 +7,7 @@ import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiCha
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import AuthSplash from "../components/AuthSplash";
+import LocalFolderPanel from "../components/LocalFolderBackup";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
@@ -510,6 +511,7 @@ export default function UsersAdmin() {
           gradient="linear-gradient(135deg,#7f1d1d 0%,#991b1b 45%,#e11d48 100%)"
           shadowRgba="153,27,27,.28"
         />
+        <LocalFolderPanel />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #0b3d91", paddingBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#0b3d91" }}>
             <Shield />

@@ -21,6 +21,7 @@ import { isAuthed, retryPendingSyncs, getPendingSyncCount, autoSyncFromCloud } f
 import { loadCrmCache } from "./components/crm/crmShared";
 import { MobileBlock, isPhone } from "./components/MobileBlock";
 import ButtonDesigner from "./components/ButtonDesigner";
+import { LocalFolderRunner } from "./components/LocalFolderBackup";
 
 const RequireAuth = ({ children }) => {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -83,6 +84,7 @@ function App() {
       <SplashScreen />
       <BrowserRouter>
         <ButtonDesigner />
+        <LocalFolderRunner />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
