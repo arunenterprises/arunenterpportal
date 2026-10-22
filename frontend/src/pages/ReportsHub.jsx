@@ -2,7 +2,28 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, Printer, FileSpreadsheet, Download, Filter, BarChart3, RefreshCw, Eye } from "lucide-react";
+import { ArrowLeft, Printer, FileSpreadsheet, Download, Filter, BarChart3, RefreshCw, Eye, Settings2 } from "lucide-react";
+
+const PaperL = ({ t, children }) => <label style={{ fontSize: 10.5, fontWeight: 800, color: "#475569", textTransform: "uppercase" }}>{t}{children}</label>;
+const PaperPanel = ({ init, title, onSave, onClose }) => {
+  const [p, setP] = React.useState(init);
+  const [scope, setScope] = React.useState("this");
+  const sel = { width: "100%", padding: "6px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 12, marginTop: 3 };
+  const L = PaperL;
+  return (
+    <div data-testid="rh-paper-panel" style={{ marginTop: 10, padding: 12, background: "#faf5ff", border: "1.5px solid #ddd6fe", borderRadius: 8, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, alignItems: "end" }}>
+      <L t="Paper Size"><select data-testid="rh-paper-size" value={p.size} onChange={(e) => setP({ ...p, size: e.target.value })} style={sel}>{["A4", "A3", "Letter", "Legal"].map((s) => <option key={s}>{s}</option>)}</select></L>
+      <L t="Orientation"><select data-testid="rh-paper-orient" value={p.orient} onChange={(e) => setP({ ...p, orient: e.target.value })} style={sel}><option value="auto">Auto (mode ke hisab se)</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></L>
+      <L t={`Margin: ${p.margin} mm`}><input data-testid="rh-paper-margin" type="range" min={3} max={30} value={p.margin} onChange={(e) => setP({ ...p, margin: Number(e.target.value) })} style={{ width: "100%" }} /></L>
+      <L t={`Font Size: ${p.font}%`}><input data-testid="rh-paper-font" type="range" min={60} max={150} step={5} value={p.font} onChange={(e) => setP({ ...p, font: Number(e.target.value) })} style={{ width: "100%" }} /></L>
+      <L t="Save for"><select data-testid="rh-paper-scope" value={scope} onChange={(e) => setScope(e.target.value)} style={sel}><option value="this">Sirf is report ({title})</option><option value="all">Sabhi reports</option></select></L>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button data-testid="rh-paper-save" onClick={() => onSave(p, scope)} style={{ flex: 1, padding: "7px 10px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 5, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Save</button>
+        <button data-testid="rh-paper-cancel" onClick={onClose} style={{ flex: 1, padding: "7px 10px", background: "#fff", color: "#334155", border: "1px solid #cbd5e1", borderRadius: 5, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Close</button>
+      </div>
+    </div>
+  );
+};
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import {
@@ -592,6 +613,8 @@ const ReportsHub = () => {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [printMode, setPrintMode] = useState("summary"); // summary | full | compact | both  (summary = ek process ek bar; "both" bar bar duplicate dikhata tha)
+  const [paperOpen, setPaperOpen] = useState(false);
+  const [paperAll, setPaperAll] = useState(() => { try { return JSON.parse(localStorage.getItem("rh_paper_v1")) || {}; } catch { return {}; } });
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState(null);
   // Inline biodata view (shown directly inside the datasheet, no new tab).
@@ -636,6 +659,14 @@ const ReportsHub = () => {
   }, []);
 
   const cfg = useMemo(() => DEPT_CONFIG.find((d) => d.id === activeDept), [activeDept]);
+  const PAPER_DEF = { size: "A4", orient: "auto", margin: 10, font: 100 };
+  const paperFor = (id) => ({ ...PAPER_DEF, ...(paperAll.all || {}), ...((paperAll.reports || {})[id] || {}) });
+  const savePaper = (p, scope) => {
+    const next = scope === "all" ? { all: p, reports: {} } : { ...paperAll, reports: { ...(paperAll.reports || {}), [cfg.id]: p } };
+    setPaperAll(next); localStorage.setItem("rh_paper_v1", JSON.stringify(next));
+    toast.success(scope === "all" ? "Paper setting sabhi reports ke liye save" : `Paper setting "${cfg.title}" ke liye save`);
+    setPaperOpen(false);
+  };
   const rawRows = useMemo(() => {
     try {
       const raw = cfg.fetch() || [];
@@ -881,11 +912,14 @@ const ReportsHub = () => {
       bodyContent = summaryHTML + fullBiodataHTML;
     }
 
-    const isPortrait = mode === "full" || mode === "compact";
+    const isPortraitAuto = mode === "full" || mode === "compact";
+    const pp = paperFor(cfg.id);
+    const isPortrait = pp.orient === "portrait" ? true : pp.orient === "landscape" ? false : isPortraitAuto;
 
     win.document.write(`<!doctype html><html><head><title>${co.name} · ${cfg.title}</title>
       <style>
-        @page { size: A4 ${isPortrait ? "portrait" : "landscape"}; margin: 10mm 10mm 14mm 10mm; }
+        @page { size: ${pp.size} ${isPortrait ? "portrait" : "landscape"}; margin: ${pp.margin}mm; }
+        html { zoom: ${pp.font / 100}; }
         * { box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #0f172a; }
         .sum-page, .bio-page, .compact-page { padding: 2mm; }
@@ -1162,8 +1196,11 @@ const ReportsHub = () => {
                 <option value="both">Summary + Full Biodata (both)</option>
               </select>
             </div>
+            <button data-testid="rh-paper-btn" onClick={() => setPaperOpen(!paperOpen)} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <Settings2 size={13} /> Paper Setting
+            </button>
             <button data-testid="rh-print" onClick={() => printReport()} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#64748b,#334155)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <Printer size={13} /> Print A4
+              <Printer size={13} /> Print {paperFor(cfg?.id).size}
             </button>
             <button data-testid="rh-pdf" onClick={exportPDF} style={{ padding: "7px 14px", background: "linear-gradient(135deg,#dc2626,#991b1b)", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>
               <Download size={13} /> PDF
@@ -1172,6 +1209,7 @@ const ReportsHub = () => {
               <FileSpreadsheet size={13} /> Excel
             </button>
           </div>
+          {paperOpen && <PaperPanel init={paperFor(cfg.id)} title={cfg.title} onSave={savePaper} onClose={() => setPaperOpen(false)} />}
         </div>
 
         {/* Data table */}

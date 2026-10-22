@@ -893,6 +893,24 @@ _COMPANY_DEFAULTS = {
 }
 
 
+@api_router.get("/settings/ui-buttons")
+async def get_ui_buttons(user: Dict = Depends(get_current_user)):
+    doc = await db.settings.find_one({"key": "ui_buttons"}, {"_id": 0})
+    return {"value": (doc or {}).get("value") or {"global": {}, "pages": {}, "buttons": {}}}
+
+
+@api_router.post("/settings/ui-buttons")
+async def set_ui_buttons(body: Dict = Body(...), admin: Dict = Depends(get_current_user)):
+    if not _is_super_admin(admin):
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can change button layout")
+    value = body.get("value") or {}
+    if not isinstance(value, dict):
+        raise HTTPException(status_code=400, detail="`value` must be an object")
+    clean = {"global": value.get("global") or {}, "pages": value.get("pages") or {}, "buttons": value.get("buttons") or {}}
+    await db.settings.update_one({"key": "ui_buttons"}, {"$set": {"value": clean, "updated_by": admin.get("email"), "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    return {"ok": True, "value": clean}
+
+
 @api_router.get("/settings/company")
 async def get_company_details(user: Dict = Depends(get_current_user)):
     doc = await db.settings.find_one({"key": "company"}, {"_id": 0})
@@ -1163,6 +1181,9 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
                 raise HTTPException(status_code=400, detail="Cancelled invoice change nahi ho sakta")
             if new_step == 6 and (old_step not in (3, 4) or not str(body.get("cancelReason") or "").strip()):
                 raise HTTPException(status_code=400, detail="Sirf Approved / Sent invoice reason ke saath cancel ho sakta hai")
+            if new_step == 6 and existing:
+                body = {**existing, "step": 6, "cancelReason": str(body.get("cancelReason")).strip(), "history": body.get("history", existing.get("history", [])),
+                        "cancelledBy": user.get("name") or user.get("email"), "cancelledAt": datetime.now(timezone.utc).date().isoformat()}
         if not _crm_power(user) and (new_step > 2 or old_step >= 3 or (name == "invoices" and old_step >= 2)):
             if name == "mb" and existing and new_step == old_step:
                 body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}

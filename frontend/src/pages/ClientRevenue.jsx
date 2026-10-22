@@ -44,7 +44,7 @@ const flowSteps = (d) => {
     { k: "contracts", l: "3. Contracts", n: d.contracts.length, h: "total" },
     { k: "mb", l: "4. MB Entry", n: d.mb.filter((m) => Number(m.step) < 3).length, h: "pending" },
     { k: "ra", l: "5. RA Bills", n: d.ra_bills.length, h: "total", sub: `Draft ${ra(1)} · Approved ${ra(3)}` },
-    { k: "inv", l: "6. Invoice", n: d.invoices.length, h: "total", sub: `Draft ${inv(1)} · Sub ${inv(2)} · Appr ${inv(3)} · Sent ${inv(4)} · Paid ${inv(5)}` },
+    { k: "inv", l: "6. Invoice", n: d.invoices.length, h: "total", sub: `Draft ${inv(1)} · Sub ${inv(2)} · Appr ${inv(3)} · Sent ${inv(4)} · Paid ${inv(5)} · Cxl ${inv(6)}` },
     { k: "ra", l: "7. GM Approval", n: ra(2) + inv(2) + d.mb.filter((m) => Number(m.step) === 2).length, h: "pending", sub: `RA ${ra(2)} · Invoice ${inv(2)}` },
     { k: "invreg", l: "8. Payment Status", n: ra(3) + ra(4) + inv(3) + inv(4), h: "unpaid", sub: `Paid: RA ${ra(5)} · Invoice ${inv(5)}` },
     { k: "ret", l: "9. Retention Status", n: d.contracts.length, h: "contracts" },

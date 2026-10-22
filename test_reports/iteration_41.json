@@ -1,0 +1,36 @@
+{
+  "summary": "Tested Invoice Cancel (API + UI), A4 portrait preview/print, /api/crm-all + localStorage cache instant render (Client & Revenue + GM), and CRM tab colours. Backend 7/7 pytest pass. UI: full flow Save->Submit->Approve (A/E/INV/00053/2627) -> Cancel with empty reason (error toast, unchanged) -> Cancel with reason (Cancelled, number unchanged, inv-cancel-info shown, Edit/Delete disabled). Cancel from Sent (step 4) also works and hides payment box. Register shows Cancelled badge, status filter has Cancelled, KPI 'Total Invoices 0 (+N cancelled)', Total Value excludes cancelled, timeline shows invreg-cancel-reason. Preview iframe: '@page{size:A4 portrait', body 190mm, table 718px within body (no h-overflow), CANCELLED watermark (.cxl); without-company mode has 75mm blank top and no header. Print popup has same A4 portrait CSS + auto print. With /api/crm-all request blocked, /client-revenue and /gm CRM panel still render immediately from ae_crm_cache (no crm-loading). 12 tabs have distinct colours (tint bg + coloured text inactive, solid + white active). All features working; only minor cosmetic issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/invoices (cancel)", "issue": "The cancel request takes the whole body, so lines, total, clientId etc. can change in the same call that moves 3/4 -> 6 (and also on 3->4). cancelledAt/cancelledBy come from the client and the server does not set them. Suggestion: when cancelling, keep the existing record and only set step, cancelReason, plus cancelledBy/cancelledAt from the server."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "buildInvoiceHtml signature block", "issue": "The .sig cell is 95px high but the 'Designation / Status' div is placed at top:100px. It spills below the table's bottom border (visible in preview).", "selector": ".sig div", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Client & Revenue workflow strip", "issues": ["Step '6. Invoice' sub-line (crm-flow-sub-6) has no Cancelled count. It shows '2 total' with 'Draft 0 · Sub 0 · Appr 0 · Sent 0 · Paid 0', which looks inconsistent."]},
+      {"screen": "Invoice A4 preview", "issues": ["Item Description column (17%) is narrow, so short descriptions wrap to 3 lines while IGST/CGST/SGST columns are mostly empty. Consider a wider description column."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter41_invoice_cancel.py", "/app/test_reports/pytest/pytest_iter41.xml"],
+  "action_items": [
+    "(Low) Fix the signature block overflow in buildInvoiceHtml: raise .sig height to about 115px or lower the div tops.",
+    "(Low) Add the Cancelled count to the crm-flow-sub-6 sub-line.",
+    "(Low) On server-side cancel, change only the cancel fields and set cancelledBy/cancelledAt on the server."
+  ],
+  "critical_code_review_comments": [
+    "Logout removes ae_crm_cache (store.js:1217). Good, cached CRM data does not leak to the next user.",
+    "The crmCache module object stays in memory after logout without a page reload. crmCacheReady() checks localStorage, so this is safe.",
+    "The cancel rule check for old_step==6 runs before the power check, so a non-admin gets 400 instead of 403 on a cancelled invoice. Acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter41_invoice_cancel.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% (minor cosmetic issues only)"},
+  "seed_data_creation": "TEST_cl1 client plus TEST invoices were created and then fully cleaned up in Mongo (crm_invoices by clientId TEST_cl1, crm_clients TEST_*). inv_2627/invref_2627 counters were unset.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "test_iter41_invoice_cancel.py creates TEST_cl1 and TEST_inv41* invoices. Cancelled/numbered ones cannot be deleted via the API, so after running: mongosh vendor_management --eval 'db.crm_invoices.deleteMany({clientId:\"TEST_cl1\"});db.crm_clients.deleteMany({id:/^TEST_/});db.counters.updateOne({key:\"crm\"},{$unset:{inv_2627:\"\",invref_2627:\"\"}})'. CrmActionBar testids are inv-btn-save/submit/approve/edit/delete and the status is inv-bar-status. Cancel uses window.prompt."
+}

@@ -19,6 +19,8 @@ import AdvertisementPortal from "./pages/AdvertisementPortal";
 import SplashScreen from "./components/SplashScreen";
 import { isAuthed, retryPendingSyncs, getPendingSyncCount, autoSyncFromCloud } from "./lib/store";
 import { loadCrmCache } from "./components/crm/crmShared";
+import { MobileBlock, isPhone } from "./components/MobileBlock";
+import ButtonDesigner from "./components/ButtonDesigner";
 
 const RequireAuth = ({ children }) => {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -75,10 +77,12 @@ function App() {
     return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
   }, []);
 
+  if (isPhone) return <MobileBlock />;
   return (
     <div className="App">
       <SplashScreen />
       <BrowserRouter>
+        <ButtonDesigner />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />

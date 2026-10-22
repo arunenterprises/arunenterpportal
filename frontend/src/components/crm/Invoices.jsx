@@ -176,7 +176,7 @@ export const buildInvoiceHtml = (inv, t, client, withCompany, autoPrint = true) 
   .c{text-align:center}.r{text-align:right}.b{font-weight:700}.u{text-decoration:underline;font-weight:700}.nb td{border-top:none;border-bottom:none}
   .ttl{text-align:center;font-size:13px;font-weight:700;padding:4px}
   .hdr{display:flex;align-items:center;gap:10px;border-bottom:2.5px solid #c81e2b;padding-bottom:5px;margin-bottom:6px}.hdr img{width:70px;height:60px;object-fit:contain}.hc{flex:1;text-align:center}.hn{font-size:18px;font-weight:900;color:#c81e2b}.ht{font-size:8.5px;font-weight:700;letter-spacing:1px}.hp{display:inline-block;margin:2px 0;padding:1px 10px;background:#0ea5e9;color:#fff;border-radius:10px;font-size:8.5px;font-weight:700}.hd{font-size:8.5px}
-  .sig{height:95px;position:relative}.sig div{position:absolute;right:6px;text-align:right;font-weight:700;font-size:9.5px}
+  .sig{height:115px;position:relative}.sig div{position:absolute;right:6px;text-align:right;font-weight:700;font-size:9.5px}
   </style></head><body>${Number(inv.step) === 6 ? `<div class=cxl>CANCELLED</div>` : ""}${head}
   <table>
   <tr><td colspan=15 class=ttl>TAX INVOICE</td></tr>
