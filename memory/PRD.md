@@ -278,3 +278,11 @@ See `/app/memory/test_credentials.md`.
 - Login rate limit 5 fails / 15 min per identifier (429); fooding delete admin-only.
 - Note: SuperAdmin logout on one device ends SuperAdmin sessions on all devices.
 
+
+## 2026-10-22 — Client Tax Invoice (CRM)
+- New tab "Client Tax Invoice" (separate from RA Bills) in Client & Revenue: user's sample TAX INVOICE format, manual items, Bill To = client select, auto CGST+SGST (UP / GSTIN 09) else IGST.
+- Number on Save: A/E/INV/00049/2627 (5-digit serial per FY counter `crm.inv_<FY>`, floor 48 → first 00049; FY from invoice date, changes 1 April).
+- Workflow New/Save/Edit/Submit/Approval (SuperAdmin/Admin)/Delete/Excel/Print; print with company letterhead or without (75mm blank top for printed letterhead).
+- Dashboard strip steps 10/11/12 (Invoice Draft/Approval/Approved); GM panel lists submitted invoices with Approve/Reject.
+- Purchase WO action row single line, centred; "Final Approval (issue WO No.)" renamed "Approval".
+

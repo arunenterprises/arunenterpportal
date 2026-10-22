@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the Client Tax Invoice feature end to end, plus GM pending and the Purchase WO action row. Backend: 10/10 pytest pass. Covered the inv_ counter (starts at 49, +1 per save, 400 for bad keys, 401 without login), non-admin create/submit allowed, non-admin approve/delete/modify-approved returns 403, SuperAdmin approve sets approvedByName/approvedAt on the server (client-sent value ignored), list persistence and delete. UI (SuperAdmin, 1920px): Saving with no client and with no items both show error toasts. UP client gives CGST+SGST; 10 x 100 @18% shows Taxable 1000, CGST 90, SGST 90, Total 1180. MH (GST 27) client gives IGST 180. First save gives A/E/INV/00049/2627 (clean counter) and the second gives A/E/INV/00050/2627. After save the form is in view mode (inputs disabled). Edit re-enables it, and re-saving keeps the same number. Submit moves it to Submitted and Final Approval moves it to Approved. Print-with window has TAX INVOICE, the company header (.hdr/logo), client name and invoice no. Print-without window has no .hdr or img, has a 75mm top space and still has the TAX INVOICE table. The Excel export downloads Client_Tax_Invoice_Register.xlsx. inv-table lists invoices and inv-open-<id> loads them. Workflow strip crm-flow-10/11/12 show the right counts and crm-flow-11 opens the invoice tab. GM /gm pending table showed the submitted invoice with Approve/Reject, and Reject worked (row disappeared). The WO action row is on one line (9 buttons, all on the same line).",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/crm/invoices", "issue": "Any write user (non-admin) can still overwrite a Submitted (step 2) invoice's amounts/lines via the API, or send it back to step 1. Only step>=3 is locked. Same pattern as other CRM WF collections."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PurchaseManagement wo-action-row", "issue": "Buttons are on one line, but the row overflows by ~13px at 1920 (scrollWidth 1041 > clientWidth 1028), so a horizontal scrollbar appears and 'Delete WO' sits on the edge. Reduce gap/padding or button padding slightly.", "selector": "[data-testid='wo-action-row']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "GM Review button", "issue": "gm-crm-go-<i> for a Client Tax Invoice opens /client-revenue on the Dashboard tab, not the invoice tab or record (same for other types).", "affected_selectors": ["[data-testid^='gm-crm-go-']"]}
+    ],
+    "design_issues": [
+      {"screen": "Client Tax Invoice form", "issues": ["Client dropdown labels start with ' · ' when a client has no clientCode/tempRefId (e.g. '· TEST UP Client'); hide the separator when there is no code.", "Error toasts pile up (an earlier 'Bill To' toast is still showing with the 'items' toast); minor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter39_client_invoice.py", "/app/backend/tests/seed_iter39_inv.py", "/app/test_reports/pytest/pytest_iter39.xml"],
+  "action_items": [
+    "Optional: lock step-2 (Submitted) invoices against non-admin edits on the backend",
+    "Optional: trim the wo-action-row width so it doesn't overflow by ~13px at 1920",
+    "Optional: GM Review should deep-link to the invoice tab",
+    "Decide whether to reset counters.crm.inv_2627 (now 52 because of testing; the next real invoice would be A/E/INV/00053/2627). If the client's first real invoice must be 00049, $unset inv_2627 before go-live."
+  ],
+  "critical_code_review_comments": [
+    "Invoices.jsx persist(): the invoice number is taken from the counter before save; if save fails, that serial is lost (gap in the series). Acceptable but worth noting.",
+    "Invoices.jsx: `client` is a new `{}` on each render when no client is picked, so the useMemo for computeInvoice runs every render (harmless).",
+    "Backend next-number: $max then $inc are two operations; fine in practice, and the floor is correctly per-FY key (inv_YYYY).",
+    "printInvoice falls back to a hardcoded company GSTIN/PAN when company settings are empty; make sure company settings have the GST/PAN set."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter39_client_invoice.py", "/app/backend/tests/seed_iter39_inv.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% of requested flows (minor polish issues only)"},
+  "seed_data_creation": "TEST_cl1 (UP) and TEST_cl2 (MH) clients plus 2 UI invoices and 1 API invoice were created and all deleted. The test key counters.crm.inv_9900 was unset. Final counters.crm = {inv_2627: 52}.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run seed_iter39_inv.py to create TEST_cl1/TEST_cl2 and `seed_iter39_inv.py cleanup` to delete them along with their invoices. test_iter39_client_invoice.py uses up 2 inv_2627 serials per run (and touches inv_9900, which should be unset afterwards). The app clock shows 2026-10-22, so the FY code is 2627. Sel is a native select (use select_option)."
+}
