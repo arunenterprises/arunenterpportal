@@ -75,9 +75,14 @@ export const Invoices = ({ data, save, remove }) => {
         onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 2 ? onSave : null}
         onEdit={f.id && !editing && st < 2 ? () => setEditing(true) : null}
         onSubmit={f.id && st === 1 && !editing ? () => move(2) : null} onApprove={f.id && st === 2 ? () => move(3) : null}
-        onDelete={f.id ? del : null}
+        onDelete={f.id && !f.invoiceNo ? del : null}
         list={{ title: "Client Tax Invoice Register", cols: ["Ref No", "Invoice No", "Date", "Client", "PO No", "Project", "Taxable", "IGST", "CGST", "SGST", "Total", "Status"], rows: data.invoices.map((b) => [b.refNo, b.invoiceNo || "", b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo, b.projectName, num(b.taxable), num(b.igst), num(b.cgst), num(b.sgst), num(b.total), INV_STEPS[b.step]]) }} />
-      <Card testid="inv-form" title={f.id ? `Tax Invoice · Ref ${f.refNo}${f.invoiceNo ? ` · Invoice No ${f.invoiceNo}` : " · Invoice No approval par milega"} · ${INV_STEPS[st]}` : "New Tax Invoice (Save par Reference No, Approval par permanent Invoice No)"}>
+      <Card testid="inv-form" title={f.id ? `Tax Invoice · Reference No: ${f.refNo}${f.invoiceNo ? ` · Invoice No: ${f.invoiceNo}` : " · Invoice No approval par milega"} · ${INV_STEPS[st]}` : "New Tax Invoice · Reference No: Save karte hi milega"}>
+        <Grid cols={4}>
+          <Field label="Reference No"><Inp data-testid="inv-ref-no" disabled value={f.refNo || "Auto — Save par"} style={{ fontWeight: 800, color: "#1e3a8a" }} /></Field>
+          <Field label="Permanent Invoice No"><Inp data-testid="inv-perm-no" disabled value={f.invoiceNo || "Approval ke baad"} style={{ fontWeight: 800, color: "#166534" }} /></Field>
+        </Grid>
+        <div style={{ height: 12 }} />
         <Grid cols={4}>
           <Field label="Bill To (Client) *"><Sel data-testid="inv-client" disabled={locked} value={f.clientId} onChange={set("clientId")} options={clientOpts} /></Field>
           <Field label="Invoice Date"><Inp data-testid="inv-date" type="date" disabled={locked} value={f.invoiceDate} onChange={set("invoiceDate")} /></Field>

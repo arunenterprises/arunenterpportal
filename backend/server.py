@@ -1149,6 +1149,8 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
                 body[f] = existing[f]
         if name == "invoices":
             body["invoiceNo"] = (existing or {}).get("invoiceNo", "")
+            if existing and existing.get("refNo"):
+                body["refNo"] = existing["refNo"]
         if not _crm_power(user) and (new_step > 2 or old_step >= 3 or (name == "invoices" and old_step >= 2)):
             if name == "mb" and existing and new_step == old_step:
                 body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}
@@ -1192,6 +1194,10 @@ def _crm_power(user: Dict) -> bool:
 async def crm_delete(name: str, rid: str, user: Dict = Depends(get_current_user)):
     if not _crm_power(user):
         raise HTTPException(status_code=403, detail="Delete sirf SuperAdmin / Admin kar sakte hain")
+    if name == "invoices":
+        inv = await db[_crm_coll(name)].find_one({"id": rid}, {"_id": 0, "invoiceNo": 1})
+        if inv and inv.get("invoiceNo"):
+            raise HTTPException(status_code=400, detail="Approved invoice (permanent number) delete nahi ho sakta")
     r = await db[_crm_coll(name)].delete_one({"id": rid})
     return {"ok": True, "deleted": r.deleted_count}
 

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Handshake, ArrowRight, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { loadCrmCache, crmCache, crmCacheReady, crmSave, inr, num, nameOf, RA_STEPS } from "./crmShared";
 import { retentionSummary } from "./Retention";
-import { canDelete as crmPower } from "../../lib/store";
+import { canDelete as crmPower, currentUser } from "../../lib/store";
 
 // GM Dashboard section for Client & Revenue Management.
 const stepCount = (a) => ({ pending: a.filter((x) => Number(x.step) === 2).length, approved: a.filter((x) => Number(x.step) >= 3).length, total: a.length });
@@ -34,7 +34,7 @@ export const CrmGmPanel = ({ index = 7 }) => {
     if (step === 1 && !window.confirm(`${label} reject karke Draft mein wapas bhejna hai?`)) return;
     setBusy(rec.id);
     try {
-      await crmSave(name, { ...rec, step, ...(step === 1 ? { rejectedAt: new Date().toISOString() } : {}) });
+      await crmSave(name, { ...rec, step, ...(step === 1 ? { rejectedAt: new Date().toISOString() } : {}), ...(name === "invoices" ? { history: [...(rec.history || []), { action: step === 3 ? "Approved (GM)" : "Rejected (GM)", at: new Date().toISOString(), by: currentUser() }] } : {}) });
       toast.success(`${label} ${step === 3 ? "approved" : "rejected"}`);
       await reload();
     } catch (e) { toast.error(e.message); }

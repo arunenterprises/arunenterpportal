@@ -286,3 +286,12 @@ See `/app/memory/test_credentials.md`.
 - Dashboard strip steps 10/11/12 (Invoice Draft/Approval/Approved); GM panel lists submitted invoices with Approve/Reject.
 - Purchase WO action row single line, centred; "Final Approval (issue WO No.)" renamed "Approval".
 
+## 2026-10-22 — Invoice lock, payment, preview, register
+- Save → Reference No INV-REF/<FY>/0001 (kept by server once set); Approval → server assigns permanent A/E/INV/000NN/<FY> (client-sent invoiceNo ignored).
+- Server lock: non-admin cannot change/revert invoice at step ≥ 2; approved (numbered) invoices cannot be deleted.
+- Steps: Draft → Submitted → Approved → Sent to Client → Paid (amount, date, UTR required).
+- Preview modal (iframe) with/without company letterhead + print.
+- New tab "Invoice Register": KPIs, client/status/search filters, sent/paid/UTR/outstanding days, tracking timeline (history incl. GM approve/reject).
+- Workflow strip 13 Invoice Sent / 14 Invoice Paid; GM panel "Unpaid Client Invoices" list (red > 30 days).
+
+

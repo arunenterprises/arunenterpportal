@@ -1,0 +1,35 @@
+{
+  "summary": "Tested the Client Tax Invoice changes: lock, payment, preview, Ref No / Invoice No, Invoice Register and the GM unpaid list. Backend: 8/8 pytest pass. Covered the invref_2627 counter incrementing, a client-sent invoiceNo ('HACK') being ignored and stored as '', a non-admin User able to submit (step 2), a non-admin getting 403 when changing or reverting a step-2 invoice, 403 on approve and 403 on changing an approved invoice, SuperAdmin able to change a step-2 invoice, and approval giving A/E/INV/00049/2627 on a clean counter with the next invoice getting 00050. Re-saving an approved invoice keeps its number, and Sent (step 4) and Paid (step 5 with UTR) persist. UI (SuperAdmin, 1920): Save shows 'Ref INV-REF/2627/0001 · Invoice No approval par milega'. The draft preview iframe shows TAX INVOICE with '(Draft — pending approval)'. The With/Without toggles show and hide the .hdr header, Print opens a window with TAX INVOICE, and Close closes the modal. Submit locks the inputs. Approve gives A/E/INV/00049/2627, and the preview then shows the number without the Draft text. Mark Sent moves it to step 4 and shows the payment box. Mark Paid without a UTR shows the error toast; with a UTR it moves to Paid and inv-paid-info shows. The second and third invoices got REF 0002/0003, and the third was approved as 00050. MH IGST is correct. Invoice Register: KPIs are correct (3 invoices / ₹2,950 / 1 unpaid ₹590 / received ₹1,180). The table columns (ref, inv, client, status, sent, paid, UTR, days) are correct, and the client, status and search filters work. The timeline shows Created, Submitted, Approved, Sent to Client, Paid and 'Approved by'. crm-flow-13 and crm-flow-14 are there with counts (0 unpaid / 1 paid). GM: gm-crm-unpaid-inv listed 00050 (0 din). Approving INV-REF/2627/0002 from gm-crm-pending gave it A/E/INV/00051/2627 and it moved into the unpaid list.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/invoices", "issue": "refNo and history[] come from the client and the server does not protect them. Any write user can overwrite refNo or make up history entries on a Draft. Approved/locked invoices are protected by the step lock."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "GM Dashboard Approve/Reject of a Client Tax Invoice", "issue": "CrmGmPanel.act() calls crmSave without adding a history entry. An invoice approved (or rejected) from /gm has no 'Approved'/'Rejected' row in the Invoice Register tracking timeline; only 'Approved by' shows. Confirmed in the DB: INV-REF/2627/0002's history is [Created, Submitted] after the GM approve.", "affected_selectors": ["[data-testid^='gm-crm-approve-']", "[data-testid^='gm-crm-reject-']", "[data-testid='invreg-timeline']"]}
+    ],
+    "design_issues": [
+      {"screen": "Client Revenue workflow strip", "issues": ["At 1920px crm-flow-14 (Invoice Paid) is past the right edge and you have to scroll sideways to see it.", "Client dropdown labels still start with ' · ' when a client has no code (carried over from iteration 39)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter40_invoice_lock_payment.py", "/app/backend/tests/seed_iter39_inv.py", "/app/test_reports/pytest/pytest_iter40.xml"],
+  "action_items": [
+    "CrmGmPanel.act(): add a history entry ({action: 'Approved'/'Rejected', at, by: currentUser()}) when approving or rejecting from GM, so the Invoice Register timeline is complete",
+    "Optional: on the server, keep the existing refNo once it is set, and add the history entry on the server instead of trusting the client",
+    "Optional: deleting an approved invoice leaves a gap in the permanent A/E/INV series. Consider blocking delete for step >= 3 or cancelling instead"
+  ],
+  "critical_code_review_comments": [
+    "Invoices.jsx persist(): the Ref No serial is taken from invref_ before the save; if the save fails, that ref serial is lost (minor gap; the permanent number is safe because the server assigns it).",
+    "Server invoiceNo assignment uses $max followed by $inc as two operations. That is fine, and the number is only assigned once, when existing.invoiceNo is empty.",
+    "inv-sent-btn and inv-payment-box only show when canApprove(). That matches the backend 403 for non-admins at step >= 3."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter40_invoice_lock_payment.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% of requested flows; 1 minor integration gap (GM approve history)"},
+  "seed_data_creation": "TEST_cl1 and TEST_cl2 were created via seed_iter39_inv.py, along with 3 UI invoices, 2 API invoices and 1 TEST user. All were deleted. counters.crm inv_2627 and invref_2627 were unset, so counters.crm = {key:'crm'} (clean; the next approved invoice will be 00049).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Seed with `python seed_iter39_inv.py` and clean up with `python seed_iter39_inv.py cleanup`. test_iter40 uses up 2 inv_2627 serials and 2 invref_2627 serials. Reset with: mongosh vendor_management --eval 'db.counters.updateOne({key:\"crm\"},{$unset:{inv_2627:\"\",invref_2627:\"\"}})'. The app clock is 2026-10-22, so the FY is 2627. inv-client and the invreg filters are native selects (use select_option)."
+}
