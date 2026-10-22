@@ -39,20 +39,15 @@ const flowSteps = (d) => {
   const ra = (s) => d.ra_bills.filter((b) => Number(b.step) === s).length;
   const inv = (s) => d.invoices.filter((b) => Number(b.step) === s).length;
   return [
-    { k: "leads", l: "1. Lead / Enquiry", n: d.leads.filter((x) => !["Won", "Lost"].includes(x.status)).length, h: "open" },
+    { k: "leads", l: "1. Leads", n: d.leads.filter((x) => !["Won", "Lost"].includes(x.status)).length, h: "open" },
     { k: "clients", l: "2. Client", n: d.clients.length, h: "total" },
-    { k: "contracts", l: "3. Contract & Rates", n: d.contracts.length, h: "total" },
+    { k: "contracts", l: "3. Contracts", n: d.contracts.length, h: "total" },
     { k: "mb", l: "4. MB Entry", n: d.mb.filter((m) => Number(m.step) < 3).length, h: "pending" },
-    { k: "ra", l: "5. RA Bill Draft", n: ra(1), h: "draft" },
-    { k: "ra", l: "6. GM Approval", n: ra(2), h: "pending" },
-    { k: "ra", l: "7. Sent to Client", n: ra(3) + ra(4), h: "receivable" },
-    { k: "ra", l: "8. Payment Received", n: ra(5), h: "paid" },
-    { k: "ret", l: "9. Retention Release", n: d.contracts.length, h: "contracts" },
-    { k: "inv", l: "10. Invoice Draft", n: inv(1), h: "draft" },
-    { k: "inv", l: "11. Invoice Approval", n: inv(2), h: "pending" },
-    { k: "inv", l: "12. Invoice Approved", n: inv(3), h: "approved" },
-    { k: "invreg", l: "13. Invoice Sent", n: inv(4), h: "unpaid" },
-    { k: "invreg", l: "14. Invoice Paid", n: inv(5), h: "paid" },
+    { k: "ra", l: "5. RA Bills", n: d.ra_bills.length, h: "total", sub: `Draft ${ra(1)} · Approved ${ra(3)}` },
+    { k: "inv", l: "6. Invoice", n: d.invoices.length, h: "total", sub: `Draft ${inv(1)} · Sub ${inv(2)} · Appr ${inv(3)} · Sent ${inv(4)} · Paid ${inv(5)}` },
+    { k: "ra", l: "7. GM Approval", n: ra(2) + inv(2) + d.mb.filter((m) => Number(m.step) === 2).length, h: "pending", sub: `RA ${ra(2)} · Invoice ${inv(2)}` },
+    { k: "invreg", l: "8. Payment Status", n: ra(3) + ra(4) + inv(3) + inv(4), h: "unpaid", sub: `Paid: RA ${ra(5)} · Invoice ${inv(5)}` },
+    { k: "ret", l: "9. Retention Status", n: d.contracts.length, h: "contracts" },
   ];
 };
 
@@ -61,9 +56,10 @@ const WorkflowStrip = ({ data, onGo }) => (
     {flowSteps(data).map((s, i, arr) => (
       <React.Fragment key={s.l}>
         <button data-testid={`crm-flow-${i + 1}`} onClick={() => onGo(s.k)} className="crm-tab"
-          style={{ minWidth: 118, border: "none", background: "#eff6ff", borderRadius: 9, padding: "8px 10px", cursor: "pointer", textAlign: "left" }}>
+          style={{ flex: "1 1 0", minWidth: 118, border: "none", background: "#eff6ff", borderRadius: 9, padding: "8px 10px", cursor: "pointer", textAlign: "left" }}>
           <div style={{ fontSize: 10.5, fontWeight: 800, color: "#1e3a8a", whiteSpace: "nowrap" }}>{s.l}</div>
           <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>{s.n} <span style={{ fontSize: 10, color: "#64748b", fontWeight: 600 }}>{s.h}</span></div>
+          {s.sub && <div data-testid={`crm-flow-sub-${i + 1}`} style={{ fontSize: 9.5, color: "#475569", fontWeight: 600, whiteSpace: "nowrap" }}>{s.sub}</div>}
         </button>
         {i < arr.length - 1 && <ChevronRight size={16} color="#93c5fd" style={{ alignSelf: "center", flexShrink: 0 }} />}
       </React.Fragment>
