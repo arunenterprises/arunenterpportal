@@ -896,7 +896,7 @@ _COMPANY_DEFAULTS = {
 @api_router.get("/settings/ui-buttons")
 async def get_ui_buttons(user: Dict = Depends(get_current_user)):
     doc = await db.settings.find_one({"key": "ui_buttons"}, {"_id": 0})
-    return {"value": (doc or {}).get("value") or {"global": {}, "pages": {}, "buttons": {}}}
+    return {"value": (doc or {}).get("value") or {"global": {}, "pages": {}, "buttons": {}, "elements": {}}}
 
 
 @api_router.post("/settings/ui-buttons")
@@ -906,7 +906,7 @@ async def set_ui_buttons(body: Dict = Body(...), admin: Dict = Depends(get_curre
     value = body.get("value") or {}
     if not isinstance(value, dict):
         raise HTTPException(status_code=400, detail="`value` must be an object")
-    clean = {"global": value.get("global") or {}, "pages": value.get("pages") or {}, "buttons": value.get("buttons") or {}}
+    clean = {"global": value.get("global") or {}, "pages": value.get("pages") or {}, "buttons": value.get("buttons") or {}, "elements": value.get("elements") or {}}
     await db.settings.update_one({"key": "ui_buttons"}, {"$set": {"value": clean, "updated_by": admin.get("email"), "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
     return {"ok": True, "value": clean}
 

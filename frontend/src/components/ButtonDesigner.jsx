@@ -6,8 +6,35 @@ import { apiGetUiButtons, apiSetUiButtons, getToken } from "../lib/api";
 import { isSuperAdmin, currentUserEmail } from "../lib/store";
 
 const LS = "uibtn_cache_v1";
-const EMPTY = { global: {}, pages: {}, buttons: {} };
+const EMPTY = { global: {}, pages: {}, buttons: {}, elements: {} };
 const DEF = { zoom: 1, font: "", radius: "", width: "", margin: "" };
+const EDEF = { font: "", width: "", padding: "", margin: "", bg: "", color: "", hide: false };
+
+const erule = (sel, s = {}) => {
+  const p = [];
+  if (s.hide) p.push("display:none !important");
+  if (s.font) p.push(`font-size:${s.font}px !important`);
+  if (s.width) p.push(`width:${s.width}% !important;max-width:${s.width}% !important`);
+  if (s.padding !== "" && s.padding != null) p.push(`padding:${s.padding}px !important`);
+  if (s.margin !== "" && s.margin != null) p.push(`margin:${s.margin}px !important`);
+  if (s.bg) p.push(`background:${s.bg} !important`);
+  if (s.color) p.push(`color:${s.color} !important`);
+  return p.length ? `${sel}{${p.join(";")}}` : "";
+};
+// Stable selector: nearest data-testid ancestor, then nth-child path down to the element.
+const cssPath = (el) => {
+  const parts = [];
+  let n = el;
+  while (n && n !== document.body) {
+    const id = n.getAttribute && n.getAttribute("data-testid");
+    if (id) { parts.unshift(`[data-testid="${id.replace(/"/g, "")}"]`); return parts.join(" > "); }
+    const p = n.parentElement;
+    if (!p) break;
+    parts.unshift(`${n.tagName.toLowerCase()}:nth-child(${[...p.children].indexOf(n) + 1})`);
+    n = p;
+  }
+  return `> ${parts.join(" > ")}`;
+};
 
 const rule = (sel, s = {}) => {
   const p = [];
@@ -23,6 +50,7 @@ export const buildButtonCss = (v = EMPTY) => [
   rule(`body ${BTN}`, v.global),
   ...Object.entries(v.pages || {}).map(([p, s]) => rule(`body[data-route="${p}"] ${BTN}`, s)),
   ...Object.entries(v.buttons || {}).map(([k, s]) => { const [p, id] = k.split("|"); return rule(`body[data-route="${p}"] button[data-testid="${id}"]:not(.bd-ui), body[data-route="${p}"] a[data-testid="${id}"][data-testid]`, s); }),
+  ...Object.entries(v.elements || {}).map(([k, s]) => { const i = k.indexOf("|"); return erule(`body[data-route="${k.slice(0, i)}"] ${k.slice(i + 1)}`, s); }),
 ].filter(Boolean).join("\n");
 
 const applyCss = (v) => {
@@ -48,6 +76,9 @@ export const ButtonDesigner = () => {
   const [picked, setPicked] = useState(null);
   const [scope, setScope] = useState("button");
   const [s, setS] = useState(DEF);
+  const [mode, setMode] = useState("button");
+  const [el, setEl] = useState(null);
+  const [es, setEs] = useState(EDEF);
   const [tog, setTog] = useState(() => { try { return { x: 6, y: 56, scale: 1, ...(JSON.parse(localStorage.getItem("bd_toggle_v1")) || {}) }; } catch { return { x: 6, y: 56, scale: 1 }; } });
   const saveTog = (t) => { setTog(t); localStorage.setItem("bd_toggle_v1", JSON.stringify(t)); };
   const sa = isSuperAdmin(currentUserEmail());
@@ -63,6 +94,17 @@ export const ButtonDesigner = () => {
   useEffect(() => {
     if (!on) return undefined;
     const h = (e) => {
+      if (e.target.closest && e.target.closest(".bd-ui")) return;
+      if (mode === "layout") {
+        e.preventDefault(); e.stopPropagation();
+        const t = e.target;
+        document.querySelectorAll("[data-bd-sel]").forEach((x) => { x.style.outline = ""; x.removeAttribute("data-bd-sel"); });
+        t.setAttribute("data-bd-sel", "1"); t.style.outline = "2px dashed #7c3aed";
+        const sel = cssPath(t);
+        setEl({ sel, page: loc.pathname, label: `${t.tagName.toLowerCase()} · ${(t.innerText || "").trim().slice(0, 30)}` });
+        setEs({ ...EDEF, ...((val.elements || {})[`${loc.pathname}|${sel}`] || {}) });
+        return;
+      }
       const b = e.target.closest && e.target.closest("button, a[data-testid]");
       if (!b || b.closest(".bd-ui")) return;
       e.preventDefault(); e.stopPropagation();
@@ -73,7 +115,7 @@ export const ButtonDesigner = () => {
     };
     document.addEventListener("click", h, true);
     return () => document.removeEventListener("click", h, true);
-  }, [on, loc.pathname, val]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [on, mode, loc.pathname, val]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!sa) return null;
   const page = picked?.page || loc.pathname;
@@ -83,12 +125,20 @@ export const ButtonDesigner = () => {
     catch (e) { toast.error(e.message); }
   };
   const withScope = (data) => {
-    const next = { global: { ...val.global }, pages: { ...val.pages }, buttons: { ...val.buttons } };
+    const next = { global: { ...val.global }, pages: { ...val.pages }, buttons: { ...val.buttons }, elements: { ...(val.elements || {}) } };
     if (scope === "global") next.global = data || {};
     else if (scope === "page") { if (data) next.pages[page] = data; else delete next.pages[page]; }
     else { const k = `${page}|${picked.id}`; if (data) next.buttons[k] = data; else delete next.buttons[k]; }
     return next;
   };
+  const withEl = (data) => {
+    const next = { ...val, elements: { ...(val.elements || {}) } };
+    const k = `${el.page}|${el.sel}`;
+    if (data) next.elements[k] = data; else delete next.elements[k];
+    return next;
+  };
+  const setE = (x) => { setEs(x); applyCss(withEl(x)); };
+  const clearSel = () => document.querySelectorAll("[data-bd-sel]").forEach((x) => { x.style.outline = ""; x.removeAttribute("data-bd-sel"); });
   const panelTop = Math.min(tog.y + 28 * tog.scale, window.innerHeight - 420);
   const panelLeft = Math.max(6, Math.min(tog.x, window.innerWidth - 310));
   const panel = { position: "fixed", left: panelLeft, top: Math.max(6, panelTop), width: 300, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,.25)", padding: 12, zIndex: 9998 };
@@ -118,16 +168,44 @@ export const ButtonDesigner = () => {
       {on && (
         <div className="bd-ui" data-testid="bd-panel" style={panel}>
           <div className="bd-ui" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <b className="bd-ui" style={{ fontSize: 13 }}>Button Designer</b>
+            <b className="bd-ui" style={{ fontSize: 13 }}>Designer</b>
             <span className="bd-ui" style={{ display: "inline-flex", gap: 4, alignItems: "center", fontSize: 10, color: "#64748b" }}>
               Designer btn:
               <button className="bd-ui" data-testid="bd-tog-smaller" onClick={() => saveTog({ ...tog, scale: Math.max(0.7, +(tog.scale - 0.1).toFixed(2)) })} style={{ padding: "0 6px", cursor: "pointer" }}>−</button>
               <button className="bd-ui" data-testid="bd-tog-bigger" onClick={() => saveTog({ ...tog, scale: Math.min(2.5, +(tog.scale + 0.1).toFixed(2)) })} style={{ padding: "0 6px", cursor: "pointer" }}>+</button>
               <button className="bd-ui" data-testid="bd-tog-reset" onClick={() => saveTog({ x: 6, y: 56, scale: 1 })} style={{ padding: "0 5px", cursor: "pointer" }}>↺</button>
             </span>
-            <button className="bd-ui" data-testid="bd-close" onClick={() => { setOn(false); setPicked(null); applyCss(val); }} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={16} /></button>
+            <button className="bd-ui" data-testid="bd-close" onClick={() => { setOn(false); setPicked(null); setEl(null); clearSel(); applyCss(val); }} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={16} /></button>
           </div>
-          {!picked && scope !== "global" && scope !== "page" ? (
+          <div className="bd-ui" style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+            {[["button", "Buttons"], ["layout", "Page Layout"]].map(([m, l]) => (
+              <button key={m} className="bd-ui" data-testid={`bd-mode-${m}`} onClick={() => { setMode(m); setPicked(null); setEl(null); clearSel(); applyCss(val); }}
+                style={{ flex: 1, padding: "5px 6px", fontSize: 11, fontWeight: 800, cursor: "pointer", borderRadius: 6, border: "1px solid #c4b5fd", background: mode === m ? "#7c3aed" : "#f5f3ff", color: mode === m ? "#fff" : "#5b21b6" }}>{l}</button>
+            ))}
+          </div>
+          {mode === "layout" ? (
+            !el ? <div className="bd-ui" data-testid="bd-layout-hint" style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>Page ka koi bhi hissa (box, card, section, table, input, heading) click karke chunein. Badlav sirf is page ({loc.pathname}) par lagu honge.</div> : (
+              <>
+                <div className="bd-ui" data-testid="bd-el-picked" style={{ fontSize: 11, background: "#f1f5f9", padding: 6, borderRadius: 6, marginBottom: 8, wordBreak: "break-all" }}>Chuna: <b>{el.label}</b></div>
+                <Slider label="Font" k="font" min={8} max={28} step={0.5} s={es} set={setE} unit="px" />
+                <Slider label="Chaudai" k="width" min={10} max={100} step={1} s={es} set={setE} unit="%" />
+                <Slider label="Andar ki jagah (padding)" k="padding" min={0} max={40} step={1} s={es} set={setE} unit="px" />
+                <Slider label="Bahar ki doori (margin)" k="margin" min={0} max={40} step={1} s={es} set={setE} unit="px" />
+                <div className="bd-ui" style={{ display: "flex", gap: 8, fontSize: 11, fontWeight: 700, color: "#334155", alignItems: "center", marginBottom: 6 }}>
+                  Background <input className="bd-ui" data-testid="bd-el-bg" type="color" value={es.bg || "#ffffff"} onChange={(e) => setE({ ...es, bg: e.target.value })} />
+                  Text <input className="bd-ui" data-testid="bd-el-color" type="color" value={es.color || "#0f172a"} onChange={(e) => setE({ ...es, color: e.target.value })} />
+                </div>
+                <label className="bd-ui" style={{ fontSize: 11, fontWeight: 700, color: "#b91c1c", display: "flex", gap: 6, alignItems: "center" }}>
+                  <input className="bd-ui" data-testid="bd-el-hide" type="checkbox" checked={!!es.hide} onChange={(e) => setE({ ...es, hide: e.target.checked })} /> Is hisse ko chhupa dein
+                </label>
+                <div className="bd-ui" style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <button className="bd-ui" data-testid="bd-el-save" onClick={() => commit(withEl(es))} style={{ flex: 1, padding: "7px 8px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 6, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Save</button>
+                  <button className="bd-ui" data-testid="bd-el-reset" onClick={() => { setEs(EDEF); commit(withEl(null)); }} style={{ flex: 1, padding: "7px 8px", background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1", borderRadius: 6, fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Default</button>
+                </div>
+                <button className="bd-ui" data-testid="bd-el-reset-page" onClick={() => { if (!window.confirm("Is page ke saare layout badlav hatayein?")) return; const next = { ...val, elements: Object.fromEntries(Object.entries(val.elements || {}).filter(([k]) => !k.startsWith(`${loc.pathname}|`))) }; setEl(null); clearSel(); commit(next); }} style={{ width: "100%", marginTop: 6, padding: "5px", fontSize: 10.5, cursor: "pointer", background: "#fff", border: "1px dashed #fca5a5", color: "#b91c1c", borderRadius: 6 }}>Is page ka poora layout default karein</button>
+              </>
+            )
+          ) : !picked && scope !== "global" && scope !== "page" ? (
             <div className="bd-ui" style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>
               Kisi bhi button par click karke use chunein. Ya neeche se poore page / poore software ke buttons set karein.
               <div className="bd-ui" style={{ display: "flex", gap: 6, marginTop: 8 }}>
