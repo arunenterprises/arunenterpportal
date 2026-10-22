@@ -48,6 +48,8 @@ export const ButtonDesigner = () => {
   const [picked, setPicked] = useState(null);
   const [scope, setScope] = useState("button");
   const [s, setS] = useState(DEF);
+  const [tog, setTog] = useState(() => { try { return { x: 6, y: 56, scale: 1, ...(JSON.parse(localStorage.getItem("bd_toggle_v1")) || {}) }; } catch { return { x: 6, y: 56, scale: 1 }; } });
+  const saveTog = (t) => { setTog(t); localStorage.setItem("bd_toggle_v1", JSON.stringify(t)); };
   const sa = isSuperAdmin(currentUserEmail());
 
   useEffect(() => { document.body.dataset.route = loc.pathname; }, [loc.pathname]);
@@ -87,17 +89,42 @@ export const ButtonDesigner = () => {
     else { const k = `${page}|${picked.id}`; if (data) next.buttons[k] = data; else delete next.buttons[k]; }
     return next;
   };
-  const panel = { position: "fixed", left: 6, top: 84, width: 300, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,.25)", padding: 12, zIndex: 9998 };
+  const panelTop = Math.min(tog.y + 28 * tog.scale, window.innerHeight - 420);
+  const panelLeft = Math.max(6, Math.min(tog.x, window.innerWidth - 310));
+  const panel = { position: "fixed", left: panelLeft, top: Math.max(6, panelTop), width: 300, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 10, boxShadow: "0 10px 30px rgba(0,0,0,.25)", padding: 12, zIndex: 9998 };
+  const onDown = (e) => {
+    const sx = e.clientX, sy = e.clientY, ox = tog.x, oy = tog.y;
+    let moved = false;
+    const mv = (ev) => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+      moved = true;
+      setTog((t) => ({ ...t, x: Math.max(0, Math.min(window.innerWidth - 40, ox + dx)), y: Math.max(0, Math.min(window.innerHeight - 20, oy + dy)) }));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up);
+      if (moved) setTog((t) => { localStorage.setItem("bd_toggle_v1", JSON.stringify(t)); return t; });
+      else { setOn((o) => { if (o) applyCss(val); return !o; }); setPicked(null); }
+    };
+    window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);
+  };
+  const onWheel = (e) => saveTog({ ...tog, scale: Math.max(0.7, Math.min(2.5, +(tog.scale + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))) });
   return (
     <>
-      <button className="bd-ui" data-testid="bd-toggle" onClick={() => { setOn(!on); setPicked(null); if (on) applyCss(val); }}
-        style={{ position: "fixed", left: 6, top: 56, zIndex: 9999, display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", background: on ? "#dc2626" : "#7c3aed", color: "#fff", border: "none", borderRadius: 999, fontWeight: 700, fontSize: 10, cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,.2)", opacity: on ? 1 : .85 }}>
+      <button className="bd-ui" data-testid="bd-toggle" onPointerDown={onDown} onWheel={onWheel} title="Pakad kar khiskayein · mouse wheel se chota/bada karein"
+        style={{ position: "fixed", left: tog.x, top: tog.y, transform: `scale(${tog.scale})`, transformOrigin: "top left", touchAction: "none", userSelect: "none", zIndex: 9999, display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", background: on ? "#dc2626" : "#7c3aed", color: "#fff", border: "none", borderRadius: 999, fontWeight: 700, fontSize: 10, cursor: "grab", boxShadow: "0 2px 6px rgba(0,0,0,.2)", opacity: on ? 1 : .85 }}>
         <Paintbrush size={11} /> {on ? "Designer band" : "Designer"}
       </button>
       {on && (
         <div className="bd-ui" data-testid="bd-panel" style={panel}>
           <div className="bd-ui" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <b className="bd-ui" style={{ fontSize: 13 }}>Button Designer</b>
+            <span className="bd-ui" style={{ display: "inline-flex", gap: 4, alignItems: "center", fontSize: 10, color: "#64748b" }}>
+              Designer btn:
+              <button className="bd-ui" data-testid="bd-tog-smaller" onClick={() => saveTog({ ...tog, scale: Math.max(0.7, +(tog.scale - 0.1).toFixed(2)) })} style={{ padding: "0 6px", cursor: "pointer" }}>−</button>
+              <button className="bd-ui" data-testid="bd-tog-bigger" onClick={() => saveTog({ ...tog, scale: Math.min(2.5, +(tog.scale + 0.1).toFixed(2)) })} style={{ padding: "0 6px", cursor: "pointer" }}>+</button>
+              <button className="bd-ui" data-testid="bd-tog-reset" onClick={() => saveTog({ x: 6, y: 56, scale: 1 })} style={{ padding: "0 5px", cursor: "pointer" }}>↺</button>
+            </span>
             <button className="bd-ui" data-testid="bd-close" onClick={() => { setOn(false); setPicked(null); applyCss(val); }} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={16} /></button>
           </div>
           {!picked && scope !== "global" && scope !== "page" ? (
