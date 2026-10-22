@@ -791,7 +791,7 @@ const ReportsHub = () => {
         const v = getCellValue(r, c, cfg);
         // IMAGE columns — render <img> in print (not raw data-URL text)
         if (c.image) {
-          const url = v && String(v).trim() !== "" ? String(v).replace(/"/g, "&quot;") : "";
+          const url = v && /^(data:image\/|https?:\/\/|\/)/i.test(String(v).trim()) ? escHtml(String(v).trim()) : "";
           const h = c.key === "signatureUrl" ? 22 : 36;
           const fit = c.key === "signatureUrl" ? "contain" : "cover";
           const imgCell = url
@@ -799,7 +799,7 @@ const ReportsHub = () => {
             : `<span style="color:#94a3b8;font-size:9px">—</span>`;
           return `<td style="padding:3px 5px;border:1px solid #000;text-align:center;background:${i%2?'#f8fafc':'#fff'}">${imgCell}</td>`;
         }
-        const txt = c.key === "_amount" ? inrN(v) : String(v || "—");
+        const txt = c.key === "_amount" ? inrN(v) : escHtml(v || "—");
         return `<td style="padding:4px 7px;border:1px solid #000;font-size:10px;text-align:${c.right?'right':'left'};background:${i%2?'#f8fafc':'#fff'};${c.key==='_amount'?'font-weight:700;color:#166534;font-family:monospace':''}">${txt}</td>`;
       }).join("");
       return `<tr>${tds}</tr>`;
@@ -815,7 +815,7 @@ const ReportsHub = () => {
       fromDate && ["From Date", fromDate],
       toDate && ["To Date", toDate],
       statusFilter && ["Status", statusFilter],
-      search && ["Search", `"${search}"`],
+      search && ["Search", `"${escHtml(search)}"`],
     ].filter(Boolean);
     const filterSummary = filterRows.length
       ? filterRows.map(([k, v]) => `<tr><td style="padding:3px 8px;border:1px solid #cbd5e1;font-weight:700;background:#f1f5f9;width:140px;font-size:10px;letter-spacing:.3px;text-transform:uppercase;color:#334155">${k}</td><td style="padding:3px 8px;border:1px solid #cbd5e1;font-size:11px">${v}</td></tr>`).join("")

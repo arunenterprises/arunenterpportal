@@ -171,6 +171,8 @@ async def _enforce_workflow(coll: str, body: Dict, user: Dict, step_field: str =
             if existing.get(f) is not None:
                 body[f] = existing[f]
     # Approved records: non-approvers may not change financial fields (re-approval needed)
+    if existing and new_step < old_step and old_step >= 3 and not _can_approve(user):
+        raise HTTPException(status_code=403, detail="Approved record can be re-opened only by an approver")
     if existing and new_step == old_step and old_step >= 3 and not _can_approve(user):
         for k in set(existing) | set(body):
             if _PROTECTED_FIN_RE.search(k) and json.dumps(existing.get(k), sort_keys=True, default=str) != json.dumps(body.get(k, existing.get(k)), sort_keys=True, default=str):

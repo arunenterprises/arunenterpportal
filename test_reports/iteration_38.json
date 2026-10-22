@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 38: tested the security audit fixes and the AI Work Order feature, backend (pytest, 9 tests) and frontend (Playwright, logged in as SuperAdmin). Backend: 8/9 pass. POST /api/ai/wo-terms returns 401 without a token. With a token it returns a detailed English scopeOfWork and 10-15 numbered aiTerms in about 20s. The AI terms cover safety, labour law, insurance and measurement, and do not repeat the payment/delivery/penalty/warranty/GST defaults. Logout invalidates the token (401). force_logout invalidates the target user's token (401). After 5 wrong passwords, the 6th attempt returns 429, even with the correct password. DELETE /api/fooding by a non-admin returns 403. SEC-004 same-step lock works: on approved paybills and bills, a User-role amount change gets 403, a remarks/utrNo change gets 200, and an approver can still change amounts. FAILED: a step-demotion bypass (details in critical issues). Frontend: wo-btn-ai is the next element after wo-btn-approve. With no item description, clicking it shows the toast 'Pehle line items add karein' and no modal opens. With items filled, the label shows 'AI likh raha hai…' and the modal opens in about 20s with editable English text in wo-ai-scope and wo-ai-terms. Save closes the modal, and reopening shows the saved, edited text without regenerating. Export opens a print window with 'A-1. Detailed Scope of Work', 'C. Terms & Conditions' (company defaults) and 'D. Additional Terms & Conditions' (AI text) as separate sections. SEC-001: the inline Reports Hub table, expanded row and biodata show '<img src=x onerror=...>' and '<script>' literally, and nothing executes. FAILED: the Print A4 summary window injects the raw HTML (details in critical issues). SEC-003: after UI logout, localStorage has no ae_ keys left. Stale-token 401 redirects to /login. Regression: /gm crm panel, /bill?view=fooding and the /purchase boq/wo/billing tabs all render.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/bills, /api/paybills, /api/loans, /api/advance_requests (and the /api/snapshot push) via _enforce_workflow", "issue": "SEC-004 bypass. The financial-field lock only applies when new_step == old_step and old_step >= 3. A non-approver (role User) can send step:1 together with a changed amount on an approved (step 3) bill. The server returns 200 and stores step=1, basicAmount=777777. Approved records can be silently demoted and altered, and the existing approvedByName is also kept. Reproduced in test_step_demotion_bypass.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/auth/login", "issue": "The rate limit is keyed only on identifier and stored in process memory. Anyone can lock the SuperAdmin out for 15 minutes with 5 bad attempts, there is no per-IP limit, and the counter resets when the server restarts."},
+      {"endpoint": "get_current_user", "issue": "Session invalidation is per user, not per token. A token issued before logout becomes valid again once the user logs in again from any device, because current_session.active flips back to true. Consider adding a session id (sid) claim to the JWT and comparing it with current_session.sid."},
+      {"endpoint": "_PROTECTED_FIN_RE", "issue": "The regex is broad. Substrings like 'net' and 'rate' also match non-financial keys such as 'generatedAt' and 'internetNo'. A non-approver editing an approved record that has such client-side keys could get an unexpected 403. Consider anchoring the regex or using an explicit field list."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "SEC-001 Reports Hub Print A4 / summary export", "issue": "The XSS fix is incomplete. ReportsHub.jsx around line 802 builds the summary table with `String(v || '—')` without escHtml and writes it to the popup with document.write. The vendor firmName '<img src=x onerror=alert(1)>' rendered as a real <img> element in the print window, and the <script> tag was written raw. The popup is same-origin, so it can reach window.opener.localStorage (the JWT). Fix: wrap txt in escHtml(). Also escape `search` at line 818 and the image `url` / c.label at lines 794-798.", "affected_selectors": ["[data-testid='rh-print']", "[data-testid='rh-pdf']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter38_security_ai_wo.py", "/app/test_reports/pytest/pytest_iter38.xml"],
+  "action_items": [
+    "Close the SEC-004 bypass in _enforce_workflow. When existing old_step >= 3 and the user is not an approver, block any new_step < old_step (403), or apply the financial-field comparison for any step change.",
+    "Escape cell values in the ReportsHub summary print/PDF HTML (line ~802 txt, line 818 search, lines 794-798 image url/label) with escHtml.",
+    "Optional: add a per-IP login limit and per-token session ids."
+  ],
+  "critical_code_review_comments": [
+    "AiWoButton 'Export PDF' calls onApply, which upserts the WO even for a brand-new unsaved draft. Every export creates a draft WO row in 'All WOs'. Testing created 2 stray drafts, which were cleaned up.",
+    "AiWoButton onApply saves AI text to an approved/locked WO without checking 'locked'. This may be intended, but it differs from the other fields.",
+    "server.py is 1699 lines; it should be split into routers."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter38_security_ai_wo.py"],
+  "success_rate": {"backend": "89% (8/9)", "frontend": "90% (all requested flows pass except the Reports Hub print export XSS)"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (from /app/memory/test_credentials.md). Temporary test_iter38_* users were created and deleted.",
+  "seed_data_creation": "Created and deleted: vendor TEST_XSS_V1, 2 TEST_ draft WOs, TEST_PB_/TEST_BILL_/TEST_FD_ records and test_iter38_* users. All removed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run the pytest file with `-n 0` to see printed AI output; pytest.ini uses xdist. The UI logout button on /gm is data-testid=hn-logout, and the JWT is stored in localStorage ae_vm_jwt. The print window HTML has h2.sec with an uppercase transform, so check page.content(), not inner_text. The XSS repro is a vendor with firmName '<img src=x onerror=alert(1)>': on /reports-hub open rh-tab-vendors, then rh-print, then count img[src=x] in the popup. Logging out the SuperAdmin invalidates all SA tokens.",
+  "rca of the issue": "SEC-004: _enforce_workflow line 174 only checks `new_step == old_step`. The else branch at line 185 then allows any new_step <= 2 for creators, so a demotion plus amount change passes. SEC-001: escHtml was applied to formatValue (biodata) and the signature panel, but not to the getCellValue output in the summary print builder (exportPDF/print at line ~802)."
+}

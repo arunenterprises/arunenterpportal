@@ -268,3 +268,13 @@ See `/app/memory/test_credentials.md`.
 - Purchase: Vendor Bill Creation embedded as tab (/bill-create → /purchase?tab=billing), no approval button, uniform hero/colours.
 - Bill form labels single-line with ellipsis (aligned inputs).
 
+
+## 2026-10-22 — Security audit fixes + AI Work Order
+- AI Generate Work Order (Purchase > WO, next to Final Approval): GPT (gpt-5.6-terra, Emergent key) via POST /api/ai/wo-terms → editable modal (Detailed Scope + Additional T&C that must not repeat company defaults) → Save to WO (aiScopeOfWork, aiTerms) / Export PDF (sections A-1 and D added in woPrint.js).
+- SEC-001 XSS: ReportsHub escapes all values/keys/refs/status/signatures/image URLs (cards, biodata, summary print).
+- SEC-002: get_current_user rejects tokens when current_session.active is false (logout/force-logout revoke); frontend 401 → /login.
+- SEC-003: logout clears all ae_* localStorage (except logo) when nothing is pending sync.
+- SEC-004: non-approvers cannot change financial fields of approved (step>=3) records nor demote them.
+- Login rate limit 5 fails / 15 min per identifier (429); fooding delete admin-only.
+- Note: SuperAdmin logout on one device ends SuperAdmin sessions on all devices.
+
