@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { Plus, Trash2, Printer, FileText } from "lucide-react";
+import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
-import { canDelete as canApprove, getCompany, getLogo, amountToWords } from "../../lib/store";
+import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUser } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, stepTone, uid, today, inr, num, nameOf, crmNextNo } from "./crmShared";
 
-export const INV_STEPS = { 1: "Draft", 2: "Submitted", 3: "Approved" };
+export const INV_STEPS = { 1: "Draft", 2: "Submitted", 3: "Approved", 4: "Sent to Client", 5: "Paid" };
+export const invLabel = (b) => b.invoiceNo || b.refNo || "—";
 const r2 = (n) => +(Number(n) || 0).toFixed(2);
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "<br/>");
 
@@ -30,11 +31,12 @@ export const computeInvoice = (inv, client = {}) => {
 };
 
 const blankLine = () => ({ poPos: "", itemCode: "", description: "", hsn: "", qty: "", uom: "", rate: "", gstPct: 18 });
-const blank = () => ({ id: "", invoiceNo: "", invoiceDate: today(), poNo: "", poDate: "", projectCode: "", projectName: "", projectManager: "", workPeriod: "", contractorLocation: "", billLocation: "", contractorCode: "", clientId: "", lines: [blankLine()], specialInstructions: "", signatoryName: "", signatoryDesignation: "", step: 1 });
+const blank = () => ({ id: "", refNo: "", invoiceNo: "", invoiceDate: today(), poNo: "", poDate: "", projectCode: "", projectName: "", projectManager: "", workPeriod: "", contractorLocation: "", billLocation: "", contractorCode: "", clientId: "", lines: [blankLine()], specialInstructions: "", signatoryName: "", signatoryDesignation: "", step: 1, history: [], sentAt: "", receivedAmount: "", receivedDate: "", utr: "" });
 
 export const Invoices = ({ data, save, remove }) => {
   const [f, setF] = useState(blank());
   const [editing, setEditing] = useState(true);
+  const [preview, setPreview] = useState(null);
   const client = data.clients.find((c) => c.id === f.clientId) || {};
   const t = useMemo(() => computeInvoice(f, client), [f, client]);
   const st = Number(f.step);
@@ -42,37 +44,43 @@ export const Invoices = ({ data, save, remove }) => {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const setLine = (i, k, v) => setF({ ...f, lines: f.lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)) });
 
-  const persist = async (rec, msg) => {
+  const persist = async (rec, msg, action) => {
     const r = { ...rec, id: rec.id || uid("inv") };
-    if (!r.invoiceNo) { const fy = fyCode(r.invoiceDate); r.invoiceNo = await crmNextNo(`inv_${fy}`, "A/E/INV/", 5) + `/${fy}`; }
+    const fy = fyCode(r.invoiceDate);
+    if (!r.refNo) r.refNo = await crmNextNo(`invref_${fy}`, `INV-REF/${fy}/`, 4);
+    r.history = [...(r.history || []), { action: action || (rec.id ? "Edited" : "Created"), at: new Date().toISOString(), by: currentUser() }];
     const c = computeInvoice(r, data.clients.find((x) => x.id === r.clientId) || {});
     Object.assign(r, { lines: r.lines.filter((l) => l.description || num(l.qty)), taxable: c.taxable, igst: c.igst, cgst: c.cgst, sgst: c.sgst, total: c.total });
     const out = await save("invoices", r, msg);
     if (out) { setF(out); setEditing(false); }
+    return out;
   };
   const onSave = () => {
     if (!f.clientId) return toast.error("Bill To: client select karein");
     if (!f.lines.some((l) => l.description && num(l.qty) && num(l.rate))) return toast.error("Kam se kam ek item (description, qty, rate) bharein");
     persist(f, "Invoice saved");
   };
-  const move = (step) => persist({ ...f, step }, `${f.invoiceNo} → ${INV_STEPS[step]}`);
+  const move = async (step, extra = {}) => {
+    const out = await persist({ ...f, ...extra, step }, null, INV_STEPS[step]);
+    if (out) toast.success(`${invLabel(out)} → ${INV_STEPS[step]}`);
+  };
   const del = async () => { if (await remove("invoices", f.id)) { setF(blank()); setEditing(true); } };
 
   const clientOpts = [{ v: "", l: "— Select client —" }, ...data.clients.map((c) => ({ v: c.id, l: `${c.clientCode || c.tempRefId || ""} · ${c.name}` }))];
   const inp = (i, k, w, type = "text") => <Inp data-testid={`inv-line-${k}-${i}`} type={type} disabled={locked} value={f.lines[i][k]} onChange={(e) => setLine(i, k, e.target.value)} style={{ width: w }} />;
   return (
     <>
-      <CrmActionBar name="inv" status={f.id ? `${f.invoiceNo} · ${INV_STEPS[st]} · ${editing && st < 2 ? "Editing" : "View"}` : "New Tax Invoice"}
+      <CrmActionBar name="inv" status={f.id ? `${invLabel(f)} · ${INV_STEPS[st]} · ${editing && st < 2 ? "Editing" : "View"}` : "New Tax Invoice"}
         labels={{ submit: "Submit for Approval", approve: "Final Approval" }}
         onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 2 ? onSave : null}
         onEdit={f.id && !editing && st < 2 ? () => setEditing(true) : null}
         onSubmit={f.id && st === 1 && !editing ? () => move(2) : null} onApprove={f.id && st === 2 ? () => move(3) : null}
         onDelete={f.id ? del : null}
-        list={{ title: "Client Tax Invoice Register", cols: ["Invoice No", "Date", "Client", "PO No", "Project", "Taxable", "IGST", "CGST", "SGST", "Total", "Status"], rows: data.invoices.map((b) => [b.invoiceNo, b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo, b.projectName, num(b.taxable), num(b.igst), num(b.cgst), num(b.sgst), num(b.total), INV_STEPS[b.step]]) }} />
-      <Card testid="inv-form" title={f.id ? `Tax Invoice · ${f.invoiceNo} · ${INV_STEPS[st]}` : "New Tax Invoice (number Save karne par banega)"}>
+        list={{ title: "Client Tax Invoice Register", cols: ["Ref No", "Invoice No", "Date", "Client", "PO No", "Project", "Taxable", "IGST", "CGST", "SGST", "Total", "Status"], rows: data.invoices.map((b) => [b.refNo, b.invoiceNo || "", b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo, b.projectName, num(b.taxable), num(b.igst), num(b.cgst), num(b.sgst), num(b.total), INV_STEPS[b.step]]) }} />
+      <Card testid="inv-form" title={f.id ? `Tax Invoice · Ref ${f.refNo}${f.invoiceNo ? ` · Invoice No ${f.invoiceNo}` : " · Invoice No approval par milega"} · ${INV_STEPS[st]}` : "New Tax Invoice (Save par Reference No, Approval par permanent Invoice No)"}>
         <Grid cols={4}>
           <Field label="Bill To (Client) *"><Sel data-testid="inv-client" disabled={locked} value={f.clientId} onChange={set("clientId")} options={clientOpts} /></Field>
-          <Field label="Invoice Date"><Inp data-testid="inv-date" type="date" disabled={locked || !!f.invoiceNo} value={f.invoiceDate} onChange={set("invoiceDate")} /></Field>
+          <Field label="Invoice Date"><Inp data-testid="inv-date" type="date" disabled={locked} value={f.invoiceDate} onChange={set("invoiceDate")} /></Field>
           <Field label="PO No"><Inp data-testid="inv-po-no" disabled={locked} value={f.poNo} onChange={set("poNo")} /></Field>
           <Field label="PO Date"><Inp data-testid="inv-po-date" type="date" disabled={locked} value={f.poDate} onChange={set("poDate")} /></Field>
           <Field label="Project Code"><Inp data-testid="inv-project-code" disabled={locked} value={f.projectCode} onChange={set("projectCode")} /></Field>
@@ -103,15 +111,29 @@ export const Invoices = ({ data, save, remove }) => {
         </div>
         {f.id && (
           <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Btn tone="brand" data-testid="inv-preview-btn" onClick={() => setPreview(true)}><Eye size={14} /> Preview Invoice</Btn>
             <Btn tone="dark" data-testid="inv-print-with" onClick={() => printInvoice(f, t, client, true)}><Printer size={14} /> Print (with Company Details)</Btn>
             <Btn tone="ghost" data-testid="inv-print-without" onClick={() => printInvoice(f, t, client, false)}><FileText size={14} /> Print on Letterhead (without Company Details)</Btn>
-            {st < 3 && <span style={{ fontSize: 11, color: "#92400e", alignSelf: "center" }}>Note: Approval ke baad hi final copy client ko dein.</span>}
+            {st < 3 && <span style={{ fontSize: 11, color: "#92400e", alignSelf: "center" }}>Note: Permanent Invoice No approval ke baad milega — tabhi final copy client ko dein.</span>}
+            {st === 3 && canApprove() && <Btn tone="dark" data-testid="inv-sent-btn" onClick={() => move(4, { sentAt: today() })}><Mail size={14} /> Mark Sent to Client</Btn>}
           </div>
         )}
+        {f.id && st === 4 && canApprove() && (
+          <div data-testid="inv-payment-box" style={{ marginTop: 12, padding: 12, border: "1px dashed #86efac", borderRadius: 8 }}>
+            <Grid cols={4}>
+              <Field label="Amount Received (₹)"><Inp data-testid="inv-recv-amt" type="number" value={f.receivedAmount} placeholder={String(t.total)} onChange={(e) => setF({ ...f, receivedAmount: e.target.value })} /></Field>
+              <Field label="Payment Date"><Inp data-testid="inv-recv-date" type="date" value={f.receivedDate} onChange={(e) => setF({ ...f, receivedDate: e.target.value })} /></Field>
+              <Field label="UTR / Cheque No"><Inp data-testid="inv-recv-utr" value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} /></Field>
+              <Field label=" "><Btn tone="green" data-testid="inv-paid-btn" onClick={() => { if (!f.utr) return toast.error("UTR / Cheque No bharein"); move(5, { receivedAmount: num(f.receivedAmount) || t.total, receivedDate: f.receivedDate || today() }); }}><IndianRupee size={14} /> Mark Paid</Btn></Field>
+            </Grid>
+          </div>
+        )}
+        {f.id && st === 5 && <div data-testid="inv-paid-info" style={{ marginTop: 12, fontSize: 12, color: "#166534", fontWeight: 700 }}>Paid — {inr(f.receivedAmount)} on {f.receivedDate} · UTR {f.utr}</div>}
       </Card>
+      {preview && <InvoicePreview inv={f} t={t} client={client} onClose={() => setPreview(null)} />}
       <Card title={`Client Tax Invoices (${data.invoices.length})`}>
-        <Table testid="inv-table" cols={["Invoice No", "Date", "Client", "PO No", "Taxable", "GST", "Total", "Status", ""]}
-          rows={data.invoices.slice().reverse().map((b) => [b.invoiceNo, b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo || "—", inr(b.taxable), inr(num(b.igst) + num(b.cgst) + num(b.sgst)), inr(b.total),
+        <Table testid="inv-table" cols={["Ref No", "Invoice No", "Date", "Client", "PO No", "Taxable", "GST", "Total", "Status", ""]}
+          rows={data.invoices.slice().reverse().map((b) => [b.refNo || "—", b.invoiceNo || "—", b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo || "—", inr(b.taxable), inr(num(b.igst) + num(b.cgst) + num(b.sgst)), inr(b.total),
             <Badge text={INV_STEPS[b.step]} tone={stepTone(b.step)} />,
             <Btn tone="ghost" data-testid={`inv-open-${b.id}`} onClick={() => { setF({ ...blank(), ...b, lines: b.lines?.length ? b.lines : [blankLine()] }); setEditing(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Open</Btn>])} />
       </Card>
@@ -122,7 +144,7 @@ export const Invoices = ({ data, save, remove }) => {
 const fmtD = (d) => (d ? new Date(d).toLocaleDateString("en-GB") : "");
 const n2 = (v) => (Number(v) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export const printInvoice = (inv, t, client, withCompany) => {
+export const buildInvoiceHtml = (inv, t, client, withCompany, autoPrint = true) => {
   const co = getCompany();
   const gstin = co.gst || "09ABWFM0611J1ZY";
   const pan = co.pan || "ABWFM0611J";
@@ -134,9 +156,8 @@ export const printInvoice = (inv, t, client, withCompany) => {
     ? `<div class=hdr><img src="${esc(logo)}" onerror="this.style.display='none'"/><div class=hc><div class=hn>${esc(co.name)}</div>${co.tagline ? `<div class=ht>${esc(co.tagline)}</div>` : ""}${co.pillLine ? `<div class=hp>${esc(co.pillLine)}</div>` : ""}<div class=hd>${esc(co.address)}</div><div class=hd>${[co.tollFree && "Mob: " + co.tollFree, co.email && "Email: " + co.email, co.website].filter(Boolean).map(esc).join(" · ")}</div><div class=hd><b>GSTIN: ${esc(gstin)} · PAN: ${esc(pan)}</b></div></div><div style="width:110px"></div></div>`
     : `<div style="height:75mm"></div>`;
   const cAddr = String(co.address || "").split(",").map((s) => s.trim()).filter(Boolean).map(esc).join(",<br/>");
-  const w = window.open("", "_blank");
-  if (!w) { alert("Pop-up allow karein"); return; }
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(inv.invoiceNo)}</title><style>
+  const invNoTxt = inv.invoiceNo || `${inv.refNo || ""} (Draft — pending approval)`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${esc(invNoTxt)}</title><style>
   @page{size:A4 landscape;margin:8mm}body{font-family:Calibri,Arial,sans-serif;font-size:11px;color:#000;margin:0}
   table{width:100%;border-collapse:collapse}td,th{border:1px solid #000;padding:3px 4px;vertical-align:top}th{font-weight:400;text-align:center;vertical-align:middle}
   .c{text-align:center}.r{text-align:right}.b{font-weight:700}.u{text-decoration:underline;font-weight:700}.nb td{border-top:none;border-bottom:none}
@@ -146,7 +167,7 @@ export const printInvoice = (inv, t, client, withCompany) => {
   </style></head><body>${head}
   <table>
   <tr><td colspan=15 class=ttl>TAX INVOICE</td></tr>
-  <tr><td colspan=2 class=b>Invoice No :</td><td colspan=2 class=b>${esc(inv.invoiceNo)}</td><td colspan=3 class=b>Invoice Date</td><td colspan=8>${fmtD(inv.invoiceDate)}</td></tr>
+  <tr><td colspan=2 class=b>Invoice No :</td><td colspan=2 class=b>${esc(invNoTxt)}</td><td colspan=3 class=b>Invoice Date</td><td colspan=8>${fmtD(inv.invoiceDate)}</td></tr>
   <tr><td colspan=2 class=b>PO No :</td><td colspan=2 class=b>${esc(inv.poNo)}</td><td colspan=3 class=b>PO Date</td><td colspan=8>${fmtD(inv.poDate)}</td></tr>
   <tr><td colspan=2 class=b>Project Code :</td><td colspan=2 class=b>${esc(inv.projectCode)}</td><td colspan=3 class=b>Project Name</td><td colspan=8>${esc(inv.projectName)}</td></tr>
   <tr><td colspan=2 class=b>Project Manager :</td><td colspan=2 class=b>${esc(inv.projectManager)}</td><td colspan=3 class=b>Work Period</td><td colspan=8>${esc(inv.workPeriod)}</td></tr>
@@ -162,6 +183,30 @@ export const printInvoice = (inv, t, client, withCompany) => {
   <tr><td colspan=14 class=b>Net Amount Payable (in words)- ${esc(amountToWords(t.total))}</td></tr>
   <tr><td colspan=15 style="border-bottom:none;font-size:12px">Special Instructions : ${esc(inv.specialInstructions)}</td></tr>
   <tr><td colspan=15 class=sig style="border-top:none"><div style="top:58px">Signature</div><div style="top:80px">${esc(inv.signatoryName) || "Name of Signatory"}</div><div style="top:100px">${esc(inv.signatoryDesignation) || "Designation / Status"}</div></td></tr>
-  </table><script>window.onload=()=>window.print()</script></body></html>`);
+  </table>${autoPrint ? "<script>window.onload=()=>window.print()</script>" : ""}</body></html>`;
+};
+
+export const printInvoice = (inv, t, client, withCompany) => {
+  const w = window.open("", "_blank");
+  if (!w) { alert("Pop-up allow karein"); return; }
+  w.document.write(buildInvoiceHtml(inv, t, client, withCompany));
   w.document.close();
+};
+
+const InvoicePreview = ({ inv, t, client, onClose }) => {
+  const [withCo, setWithCo] = useState(true);
+  return (
+    <div data-testid="inv-preview-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
+      <div style={{ background: "#fff", borderRadius: 10, width: "min(1200px,100%)", height: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap" }}>
+          <b style={{ fontSize: 14, flex: 1 }}>Invoice Preview · {invLabel(inv)}</b>
+          <Btn tone={withCo ? "dark" : "ghost"} data-testid="inv-preview-with" onClick={() => setWithCo(true)}>With Company Details</Btn>
+          <Btn tone={!withCo ? "dark" : "ghost"} data-testid="inv-preview-without" onClick={() => setWithCo(false)}>Without (Letterhead)</Btn>
+          <Btn tone="brand" data-testid="inv-preview-print" onClick={() => printInvoice(inv, t, client, withCo)}><Printer size={13} /> Print</Btn>
+          <button data-testid="inv-preview-close" onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} /></button>
+        </div>
+        <iframe title="invoice-preview" data-testid="inv-preview-frame" srcDoc={buildInvoiceHtml(inv, t, client, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
+      </div>
+    </div>
+  );
 };

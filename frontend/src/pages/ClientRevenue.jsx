@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Toaster } from "sonner";
-import { Handshake, LayoutDashboard, Users, Building2, MessagesSquare, FileSignature, Ruler, Receipt, Flag, ShieldCheck, FilePlus2, BarChart3, ChevronRight, FileText } from "lucide-react";
+import { Handshake, LayoutDashboard, Users, Building2, MessagesSquare, FileSignature, Ruler, Receipt, Flag, ShieldCheck, FilePlus2, BarChart3, ChevronRight, FileText, BookOpen } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import HsnFinder from "../components/HsnFinder";
@@ -13,6 +13,7 @@ import { Contracts } from "../components/crm/Contracts";
 import { MBook } from "../components/crm/MBook";
 import { RABills } from "../components/crm/RABills";
 import { Invoices } from "../components/crm/Invoices";
+import { InvoiceRegister } from "../components/crm/InvoiceRegister";
 import { Milestones } from "../components/crm/Milestones";
 import { Retention } from "../components/crm/Retention";
 import { ChangeOrders } from "../components/crm/ChangeOrders";
@@ -27,6 +28,7 @@ const TABS = [
   { k: "mb", l: "Measurement Book", icon: Ruler, C: MBook },
   { k: "ra", l: "RA Bills", icon: Receipt, C: RABills },
   { k: "inv", l: "Client Tax Invoice", icon: FileText, C: Invoices },
+  { k: "invreg", l: "Invoice Register", icon: BookOpen, C: InvoiceRegister },
   { k: "ms", l: "Milestones", icon: Flag, C: Milestones },
   { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders },
   { k: "ret", l: "Retention", icon: ShieldCheck, C: Retention },
@@ -49,6 +51,8 @@ const flowSteps = (d) => {
     { k: "inv", l: "10. Invoice Draft", n: inv(1), h: "draft" },
     { k: "inv", l: "11. Invoice Approval", n: inv(2), h: "pending" },
     { k: "inv", l: "12. Invoice Approved", n: inv(3), h: "approved" },
+    { k: "invreg", l: "13. Invoice Sent", n: inv(4), h: "unpaid" },
+    { k: "invreg", l: "14. Invoice Paid", n: inv(5), h: "paid" },
   ];
 };
 

@@ -18,6 +18,7 @@ export const crmGmCounts = (d) => ({
 
 const daysSince = (s) => (s ? Math.floor((Date.now() - new Date(s).getTime()) / 86400000) : 0);
 export const overdueRA = (d) => d.ra_bills.filter((b) => Number(b.step) === 4 && daysSince(b.sentAt || b.billDate) > 30);
+export const unpaidInvoices = (d) => (d.invoices || []).filter((b) => [3, 4].includes(Number(b.step)));
 
 const btn = (bg) => ({ padding: "3px 9px", fontSize: 11, background: bg, color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4, marginRight: 4 });
 
@@ -42,6 +43,7 @@ export const CrmGmPanel = ({ index = 7 }) => {
   const month = new Date().toISOString().slice(0, 7);
   const approved = d.ra_bills.filter((b) => Number(b.step) >= 3);
   const overdue = overdueRA(d);
+  const unpaid = unpaidInvoices(d);
   const kpis = [
     ["Open Leads", d.leads.filter((l) => !["Won", "Lost"].includes(l.status)).length],
     ["Is Mahine ki Billing", inr(approved.filter((b) => String(b.billDate).startsWith(month)).reduce((s, b) => s + num(b.net), 0))],
@@ -54,7 +56,7 @@ export const CrmGmPanel = ({ index = 7 }) => {
     ...d.clients.filter((c) => Number(c.step) === 2).map((c) => ({ cells: ["Client Registration", c.tempRefId || c.clientCode, c.name, "—"] })),
     ...d.mb.filter((m) => Number(m.step) === 2).map((m) => ({ cells: ["Measurement Book", m.mbNo, m.itemDesc, `${m.qty} ${m.unit || ""}`], name: "mb", rec: m, label: m.mbNo })),
     ...d.ra_bills.filter((b) => Number(b.step) === 2).map((b) => ({ cells: ["RA / Milestone Bill", b.raNo, nameOf(d.clients, b.clientId), inr(b.net)], name: "ra_bills", rec: b, label: b.raNo })),
-    ...(d.invoices || []).filter((b) => Number(b.step) === 2).map((b) => ({ cells: ["Client Tax Invoice", b.invoiceNo, nameOf(d.clients, b.clientId), inr(b.total)], name: "invoices", rec: b, label: b.invoiceNo })),
+    ...(d.invoices || []).filter((b) => Number(b.step) === 2).map((b) => ({ cells: ["Client Tax Invoice", b.refNo || b.invoiceNo, nameOf(d.clients, b.clientId), inr(b.total)], name: "invoices", rec: b, label: b.refNo || b.invoiceNo })),
     ...d.change_orders.filter((c) => Number(c.step) === 2).map((c) => ({ cells: ["Change Order", c.coNo, c.description, inr(c.value)] })),
   ];
   return (
@@ -81,6 +83,19 @@ export const CrmGmPanel = ({ index = 7 }) => {
             </div>
           ))}
         </div>
+        {unpaid.length > 0 && (
+          <div data-testid="gm-crm-unpaid-inv" style={{ margin: "0 12px 12px", border: "1px solid #fde68a", background: "#fffbeb", borderRadius: 8, padding: "8px 10px" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#92400e", marginBottom: 4 }}>Unpaid Client Invoices ({unpaid.length}) · {inr(unpaid.reduce((s, b) => s + num(b.total), 0))}</div>
+            {unpaid.map((b) => {
+              const days = daysSince(b.sentAt || b.invoiceDate);
+              return (
+                <div key={b.id} data-testid={`gm-crm-unpaid-${b.id}`} style={{ fontSize: 12, color: days > 30 ? "#b91c1c" : "#78350f", display: "flex", gap: 12, flexWrap: "wrap", fontWeight: days > 30 ? 800 : 500 }}>
+                  <b>{b.invoiceNo || b.refNo}</b><span>{nameOf(d.clients, b.clientId)}</span><span>{inr(b.total)}</span><span>{Number(b.step) === 4 ? "Sent" : "Approved"}</span><span>{days} din</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {overdue.length > 0 && (
           <div data-testid="gm-crm-overdue" style={{ margin: "0 12px 12px", border: "1px solid #fecaca", background: "#fef2f2", borderRadius: 8, padding: "8px 10px" }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: "#b91c1c", marginBottom: 4 }}>Receivable Alert · Client payment 30+ din se baaki</div>

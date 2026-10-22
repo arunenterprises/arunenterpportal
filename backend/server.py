@@ -1121,7 +1121,7 @@ async def crm_parse_work_order(body: Dict = Body(...), user: Dict = Depends(requ
 @api_router.post("/crm/next-number/{kind}")
 async def crm_next_number(kind: str, user: Dict = Depends(require_write)):
     import re
-    if kind not in ("lead", "client", "contract", "mb", "co") and not re.fullmatch(r"(ra_[A-Za-z0-9_]+|inv_\d{4})", kind):
+    if kind not in ("lead", "client", "contract", "mb", "co") and not re.fullmatch(r"(ra_[A-Za-z0-9_]+|inv_\d{4}|invref_\d{4})", kind):
         raise HTTPException(status_code=400, detail="Invalid number kind")
     if kind.startswith("inv_"):
         # Client Tax Invoice series starts at 49 (first invoice A/E/INV/00049/2627)
@@ -1147,7 +1147,9 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
             body.pop(f, None)
             if existing and existing.get(f):
                 body[f] = existing[f]
-        if not _crm_power(user) and (new_step > 2 or old_step >= 3):
+        if name == "invoices":
+            body["invoiceNo"] = (existing or {}).get("invoiceNo", "")
+        if not _crm_power(user) and (new_step > 2 or old_step >= 3 or (name == "invoices" and old_step >= 2)):
             if name == "mb" and existing and new_step == old_step:
                 body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}
             else:
@@ -1155,6 +1157,17 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
         if new_step == 3 and old_step < 3:
             body["approvedByName"] = user.get("name") or user.get("email")
             body["approvedAt"] = datetime.now(timezone.utc).isoformat()
+            if name == "invoices" and not (existing or {}).get("invoiceNo"):
+                d = str(body.get("invoiceDate") or datetime.now(timezone.utc).date().isoformat())
+                y, m = int(d[:4]), int(d[5:7])
+                fy_start = y if m >= 4 else y - 1
+                fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
+                k = f"inv_{fy}"
+                await db.counters.update_one({"key": "crm"}, {"$max": {k: 48}}, upsert=True)
+                c = await db.counters.find_one_and_update({"key": "crm"}, {"$inc": {k: 1}}, upsert=True, return_document=True)
+                body["invoiceNo"] = f"A/E/INV/{int(c[k]):05d}/{fy}"
+            elif name == "invoices":
+                body["invoiceNo"] = existing["invoiceNo"]
     if name == "retention_releases":
         if not _crm_power(user):
             raise HTTPException(status_code=403, detail="Approval sirf SuperAdmin / Admin kar sakte hain")
