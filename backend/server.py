@@ -1045,8 +1045,8 @@ async def ai_wo_terms(body: Dict = Body(...), user: Dict = Depends(require_write
 
 
 # ==================== CLIENT & REVENUE (CRM + RA BILLING) ====================
-_CRM_COLLS = {"leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases"}
-_CRM_WF = {"mb", "ra_bills", "change_orders", "clients"}
+_CRM_COLLS = {"leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases", "invoices"}
+_CRM_WF = {"mb", "ra_bills", "change_orders", "clients", "invoices"}
 
 
 def _crm_coll(name: str) -> str:
@@ -1121,8 +1121,11 @@ async def crm_parse_work_order(body: Dict = Body(...), user: Dict = Depends(requ
 @api_router.post("/crm/next-number/{kind}")
 async def crm_next_number(kind: str, user: Dict = Depends(require_write)):
     import re
-    if kind not in ("lead", "client", "contract", "mb", "co") and not re.fullmatch(r"ra_[A-Za-z0-9_]+", kind):
+    if kind not in ("lead", "client", "contract", "mb", "co") and not re.fullmatch(r"(ra_[A-Za-z0-9_]+|inv_\d{4})", kind):
         raise HTTPException(status_code=400, detail="Invalid number kind")
+    if kind.startswith("inv_"):
+        # Client Tax Invoice series starts at 49 (first invoice A/E/INV/00049/2627)
+        await db.counters.update_one({"key": "crm"}, {"$max": {kind: 48}}, upsert=True)
     doc = await db.counters.find_one_and_update(
         {"key": "crm"}, {"$inc": {kind.replace(".", "_"): 1}}, upsert=True, return_document=True,
     )

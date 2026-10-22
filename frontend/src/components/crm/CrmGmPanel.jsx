@@ -54,6 +54,7 @@ export const CrmGmPanel = ({ index = 7 }) => {
     ...d.clients.filter((c) => Number(c.step) === 2).map((c) => ({ cells: ["Client Registration", c.tempRefId || c.clientCode, c.name, "—"] })),
     ...d.mb.filter((m) => Number(m.step) === 2).map((m) => ({ cells: ["Measurement Book", m.mbNo, m.itemDesc, `${m.qty} ${m.unit || ""}`], name: "mb", rec: m, label: m.mbNo })),
     ...d.ra_bills.filter((b) => Number(b.step) === 2).map((b) => ({ cells: ["RA / Milestone Bill", b.raNo, nameOf(d.clients, b.clientId), inr(b.net)], name: "ra_bills", rec: b, label: b.raNo })),
+    ...(d.invoices || []).filter((b) => Number(b.step) === 2).map((b) => ({ cells: ["Client Tax Invoice", b.invoiceNo, nameOf(d.clients, b.clientId), inr(b.total)], name: "invoices", rec: b, label: b.invoiceNo })),
     ...d.change_orders.filter((c) => Number(c.step) === 2).map((c) => ({ cells: ["Change Order", c.coNo, c.description, inr(c.value)] })),
   ];
   return (

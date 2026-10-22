@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Toaster } from "sonner";
-import { Handshake, LayoutDashboard, Users, Building2, MessagesSquare, FileSignature, Ruler, Receipt, Flag, ShieldCheck, FilePlus2, BarChart3, ChevronRight } from "lucide-react";
+import { Handshake, LayoutDashboard, Users, Building2, MessagesSquare, FileSignature, Ruler, Receipt, Flag, ShieldCheck, FilePlus2, BarChart3, ChevronRight, FileText } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import HsnFinder from "../components/HsnFinder";
@@ -12,6 +12,7 @@ import { Comms } from "../components/crm/Comms";
 import { Contracts } from "../components/crm/Contracts";
 import { MBook } from "../components/crm/MBook";
 import { RABills } from "../components/crm/RABills";
+import { Invoices } from "../components/crm/Invoices";
 import { Milestones } from "../components/crm/Milestones";
 import { Retention } from "../components/crm/Retention";
 import { ChangeOrders } from "../components/crm/ChangeOrders";
@@ -25,6 +26,7 @@ const TABS = [
   { k: "contracts", l: "Contracts / Rates", icon: FileSignature, C: Contracts },
   { k: "mb", l: "Measurement Book", icon: Ruler, C: MBook },
   { k: "ra", l: "RA Bills", icon: Receipt, C: RABills },
+  { k: "inv", l: "Client Tax Invoice", icon: FileText, C: Invoices },
   { k: "ms", l: "Milestones", icon: Flag, C: Milestones },
   { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders },
   { k: "ret", l: "Retention", icon: ShieldCheck, C: Retention },
@@ -33,6 +35,7 @@ const TABS = [
 
 const flowSteps = (d) => {
   const ra = (s) => d.ra_bills.filter((b) => Number(b.step) === s).length;
+  const inv = (s) => d.invoices.filter((b) => Number(b.step) === s).length;
   return [
     { k: "leads", l: "1. Lead / Enquiry", n: d.leads.filter((x) => !["Won", "Lost"].includes(x.status)).length, h: "open" },
     { k: "clients", l: "2. Client", n: d.clients.length, h: "total" },
@@ -43,6 +46,9 @@ const flowSteps = (d) => {
     { k: "ra", l: "7. Sent to Client", n: ra(3) + ra(4), h: "receivable" },
     { k: "ra", l: "8. Payment Received", n: ra(5), h: "paid" },
     { k: "ret", l: "9. Retention Release", n: d.contracts.length, h: "contracts" },
+    { k: "inv", l: "10. Invoice Draft", n: inv(1), h: "draft" },
+    { k: "inv", l: "11. Invoice Approval", n: inv(2), h: "pending" },
+    { k: "inv", l: "12. Invoice Approved", n: inv(3), h: "approved" },
   ];
 };
 

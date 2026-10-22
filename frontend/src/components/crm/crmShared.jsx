@@ -38,7 +38,7 @@ export const today = () => new Date().toISOString().slice(0, 10);
 export const inr = (n) => "₹" + (Number(n) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const num = (v) => Number(v) || 0;
 
-export const CRM_NAMES = ["leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases"];
+export const CRM_NAMES = ["leads", "clients", "comms", "contracts", "mb", "ra_bills", "milestones", "change_orders", "retention_releases", "invoices"];
 
 // Module-level cache so Reports Hub (sync getters) can read CRM data.
 const CRM_LS = "ae_crm_cache";
