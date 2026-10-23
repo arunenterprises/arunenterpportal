@@ -1,10 +1,28 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { X, Search, RotateCcw } from "lucide-react";
-import { apiNightlyMissing, apiNightlyRestoreMissing } from "../lib/api";
+import { apiNightlyMissing, apiNightlyRestoreMissing, apiFixDuplicateNumbers } from "../lib/api";
 
 const LBL = { bills: "Bill", boqs: "BOQ", work_orders: "Work Order", payments: "Payment Voucher", paybills: "Pay Bill", advance_requests: "Advance", vendors: "Vendor", employees: "Employee", expenses: "Expense", fooding: "Fooding", loans: "Loan" };
 const sm = (bg, c = "#fff") => ({ padding: "3px 10px", fontSize: 10, background: bg, color: c, border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, marginRight: 4, display: "inline-flex", alignItems: "center", gap: 3 });
+
+export const DupFixBtn = () => {
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const p = await apiFixDuplicateNumbers(true);
+      const lines = [...p.renumbered.map((r) => `${r.old} → ${r.new}`), ...p.removed_copies.map((r) => `${r.collection} ${r.id}: ${r.copies_removed} extra copy hategi`)];
+      if (!lines.length) { toast.success("Koi duplicate number nahi mila"); setBusy(false); return; }
+      if (window.confirm(`Yeh badlav honge:\n\n${lines.slice(0, 30).join("\n")}\n\nPurana number har record mein 'oldRefNo' mein save rahega. Aage badhein?`)) {
+        const r = await apiFixDuplicateNumbers(false);
+        toast.success(`${r.renumbered.length} record ko naya number · ${r.removed_copies.length} double copy hatai`);
+      }
+    } catch (e) { toast.error(e.message); }
+    setBusy(false);
+  };
+  return <button data-testid="dup-fix-btn" disabled={busy} onClick={run} style={{ ...sm("#b45309"), padding: "6px 12px", fontSize: 11 }}><RotateCcw size={12} /> {busy ? "Checking…" : "Duplicate Number Fix"}</button>;
+};
 
 export const NightlyMissingBtn = ({ id }) => {
   const [items, setItems] = useState(null);

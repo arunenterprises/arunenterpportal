@@ -4,7 +4,7 @@ import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
-import { NightlyMissingBtn } from "../components/NightlyMissingBtn";
+import { NightlyMissingBtn, DupFixBtn } from "../components/NightlyMissingBtn";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import AuthSplash from "../components/AuthSplash";
@@ -923,6 +923,7 @@ export default function UsersAdmin() {
                   ><Moon size={12} /> {triggerBusy ? "Running…" : "Run Backup Now"}</button>
                 </div>
               </div>
+              <div style={{ marginBottom: 6 }}><DupFixBtn /></div>
               <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #c7d2fe", borderRadius: 5, background: "#fff" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>

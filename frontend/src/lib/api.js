@@ -203,3 +203,5 @@ export const apiTriggerNightlyBackup = () =>
 export const apiNightlyMissing = (id) => req(`/admin/nightly-backups/${encodeURIComponent(id)}/missing`);
 export const apiNightlyRestoreMissing = (id, ids) =>
   req(`/admin/nightly-backups/${encodeURIComponent(id)}/restore-missing`, { method: "POST", body: JSON.stringify({ ids }) });
+export const apiFixDuplicateNumbers = (dry_run) => req("/admin/fix-duplicate-numbers", { method: "POST", body: JSON.stringify({ dry_run }) });
+

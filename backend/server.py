@@ -1792,6 +1792,55 @@ async def delete_nightly_backup(backup_id: str, admin: Dict = Depends(require_su
     return {"ok": True}
 
 
+DUP_FIX = [
+    ("vendors", "vendorCode", r"^(AE)(\d{4})(JV\d{4})$"),
+    ("advance_requests", "refNo", r"^(ADV/\d{4}/)(\d{4})()$"),
+    ("expenses", "refNo", r"^(EXR)(\d{4})(\d{4})$"),
+]
+
+
+@api_router.post("/admin/fix-duplicate-numbers")
+async def fix_duplicate_numbers(body: Dict = Body(default={}), admin: Dict = Depends(require_super_admin)):
+    import re
+    dry = bool(body.get("dry_run"))
+    now = datetime.now(timezone.utc).isoformat()
+    report: Dict[str, Any] = {"renumbered": [], "removed_copies": []}
+    for coll in ["payments", "vendors", "advance_requests", "expenses", "bills", "boqs", "work_orders", "paybills", "employees"]:
+        async for g in db[coll].aggregate([{"$match": {"id": {"$ne": None}}}, {"$group": {"_id": "$id", "oids": {"$push": "$_id"}, "n": {"$sum": 1}}}, {"$match": {"n": {"$gt": 1}}}]):
+            report["removed_copies"].append({"collection": coll, "id": g["_id"], "copies_removed": g["n"] - 1})
+            if not dry:
+                await db[coll].delete_many({"_id": {"$in": g["oids"][1:]}})
+    for coll, key, pat in DUP_FIX:
+        rx = re.compile(pat)
+        docs = await db[coll].find({key: {"$regex": pat}}, {"_id": 1, "id": 1, key: 1, "createdAt": 1}).to_list(100000)
+        max_serial = max([int(rx.match(d[key]).group(2)) for d in docs] or [0])
+        groups: Dict[str, List[Dict]] = {}
+        for d in docs:
+            groups.setdefault(d[key], []).append(d)
+        for no, rows in groups.items():
+            if len({r.get("id") for r in rows}) < 2:
+                continue
+            rows.sort(key=lambda r: (str(r.get("createdAt") or ""), str(r.get("id") or "")))
+            seen = {rows[0].get("id")}
+            for r in rows[1:]:
+                if r.get("id") in seen:
+                    continue
+                seen.add(r.get("id"))
+                max_serial += 1
+                m = rx.match(no)
+                new_no = f"{m.group(1)}{max_serial:04d}{m.group(3)}"
+                report["renumbered"].append({"collection": coll, "id": r.get("id"), "old": no, "new": new_no})
+                if not dry:
+                    await db[coll].update_many({"id": r.get("id")}, {"$set": {key: new_no, "oldRefNo": no, "updatedAt": now}})
+        if not dry and coll == "vendors":
+            await db.counters.update_one({"key": "global"}, {"$max": {"vendorSerial": max_serial}}, upsert=True)
+        if not dry and coll == "expenses":
+            await db.counters.update_one({"key": "global"}, {"$max": {"expenseSerial": max_serial}}, upsert=True)
+    logger.info(f"fix-duplicate-numbers dry={dry} by {admin.get('email')}: {report}")
+    return {"ok": True, "dry_run": dry, **report}
+
+
+
 RESTORE_COLLECTIONS = ["bills", "boqs", "work_orders", "payments", "paybills", "advance_requests", "vendors", "employees", "expenses", "fooding", "loans"]
 RESTORE_KEYS = {"bills": "refNo", "boqs": "boqNo", "work_orders": "woNo", "payments": "pvNo", "paybills": "refNo", "advance_requests": "refNo", "vendors": "vendorCode", "employees": "empCode", "expenses": "refNo", "fooding": "refNo", "loans": "id"}
 

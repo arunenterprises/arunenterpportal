@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpenCheck, X, ChevronLeft, ChevronRight, Compass } from "lucide-react";
+import { BookOpenCheck, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const NORMS = [
   { m: "Cement (OPC 43 / 53)", code: "IS 269:2015 · IS 4031", rows: [
@@ -59,7 +59,6 @@ export const QcNormsGuide = () => {
   return (
     <>
       <button data-testid="qc-norms-btn" onClick={() => setOpen("norms")} style={{ padding: "8px 14px", background: "#fff", color: "#6d28d9", border: "1px dashed #7c3aed", borderRadius: 7, cursor: "pointer", fontWeight: 800, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><BookOpenCheck size={14} /> Norms & Default Values</button>
-      <button data-testid="qc-tour-btn" onClick={() => setOpen("tour")} style={{ padding: "8px 14px", background: "#fff", color: "#6d28d9", border: "1px dashed #7c3aed", borderRadius: 7, cursor: "pointer", fontWeight: 800, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Compass size={14} /> Guided Tour</button>
       {open && (
         <div data-testid="qc-guide-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.55)", zIndex: 1000, display: "grid", placeItems: "center", padding: 14 }}>
           <div style={{ background: "#fff", borderRadius: 12, width: "min(980px,100%)", maxHeight: "88vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
