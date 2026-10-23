@@ -27,7 +27,7 @@ const F = ({ label, req, children, test }) => (
   </div>
 );
 
-export default function VendorRegistration() {
+export default function VendorRegistration({ embedded = false }) {
   const nav = useNavigate();
   const [vendor, setVendor] = useState(() => createVendorDraft());
   const [locked, setLocked] = useState(false);
@@ -224,9 +224,9 @@ export default function VendorRegistration() {
 
   return (
     <>
-      <Toaster position="top-center" richColors />
-      <HomeNavBar />
-      <div className="app-shell">
+      {!embedded && <><Toaster position="top-center" richColors />
+      <HomeNavBar /></>}
+      <div className={embedded ? "" : "app-shell"}>
         <TopActionBar
           searchPlaceholder="Vendor Code / Temp ID / Firm Name / Mobile"
           searchLabel="Search"
@@ -252,7 +252,8 @@ export default function VendorRegistration() {
           onLoad={(v) => { setVendor(v); setLocked(v.step === 3); toast.success(`Loaded ${v.firmName || v.tempRefId}`); }}
         />
 
-        <div className="a4" data-testid="vendor-page">
+        <div className={embedded ? "" : "a4"} data-testid="vendor-page">
+          {!embedded && <>
           <div className="module-doc-header"><Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" /></div>
           <ModuleHero
             tag="Vendor Management"
@@ -262,6 +263,7 @@ export default function VendorRegistration() {
             gradient="linear-gradient(135deg,#075985 0%,#0369a1 45%,#06b6d4 100%)"
             shadowRgba="3,105,161,.28"
           />
+          </>}
           <StepTabs step={vendor.step} />
 
           {vendor.step === 3 && vendor.vendorCode && (

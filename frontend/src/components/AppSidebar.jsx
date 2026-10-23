@@ -8,7 +8,7 @@ const ITEMS = [
   { n: 1, l: "GM Dashboard", to: "/gm", d: "gm", icon: Gauge, c: "#f59e0b" },
   { n: 2, l: "Client & Revenue", to: "/client-revenue", d: "client", icon: BadgeIndianRupee, c: "#0ea5e9" },
   { n: 3, l: "HR & Labour", to: "/hr", d: "hr", icon: UsersRound, c: "#ec4899" },
-  { n: 4, l: "Procurement", to: "/purchase", d: "procurement", icon: PackageSearch, c: "#22c55e", subs: [{ l: "Vendor Registration", to: "/vendor" }, { l: "BOQ · WO · Bill Inward", to: "/purchase" }] },
+  { n: 4, l: "Procurement", to: "/purchase", d: "procurement", icon: PackageSearch, c: "#22c55e" },
   { n: 5, l: "Accounts & Vouchers", to: "/bill", d: "accounts", icon: Calculator, c: "#14b8a6", subs: [{ l: "Bills · Expenses · Fooding", to: "/bill" }, { l: "Payment Vouchers", to: "/final" }] },
   { n: 6, l: "Project & Site", to: "/site", d: "site", icon: Construction, c: "#f97316", subs: [{ l: "DPR · Material Indent", to: "/site" }, { l: "Projects Register", to: "/project" }] },
   { n: 7, l: "QC & Safety", to: "/qc-safety", d: "qc", icon: ShieldCheck, c: "#8b5cf6" },

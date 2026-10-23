@@ -2,6 +2,8 @@ import * as XLSX from "xlsx";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BillProcessing from "./BillProcessing";
+import VendorRegistration from "./VendorRegistration";
+import { Users } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash2, Save, Send, FilePlus2, Paperclip, Printer, ShoppingCart } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
@@ -82,6 +84,7 @@ const logBOQDeletion = (b, approved) => {
 };
 
 const TABS = [
+  { id: "vendor", title: "Vendor Registration", subtitle: "KYC · Vendor Code", icon: Users, color: "#166534" },
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#166534" },
   { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#166534" },
   { id: "billing", title: "Vendor Bill Creation", subtitle: "Vendor select · bill feed · submit", icon: Receipt, color: "#166534" },
@@ -1171,7 +1174,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
 
 export default function PurchaseManagement() {
   const nav = useNavigate();
-  const [active, setActive] = useState(() => new URLSearchParams(window.location.search).get("tab") || "boq");
+  const [active, setActive] = useState(() => new URLSearchParams(window.location.search).get("tab") || "vendor");
   const role = currentRole();
   const write = canCreate();
   const approve = canApprove();
@@ -1236,6 +1239,7 @@ export default function PurchaseManagement() {
             <span>Signed in as <b>{role}</b> · Purchase Management me sirf <b>Create / Prepare / Submit</b> permission hai — Final Approval Accounts / GM karega.</span>
           </div>
 
+          {activeTab.id === "vendor" && <VendorRegistration embedded />}
           {activeTab.id === "boq" && <BOQEditor writeAllowed={write} approveAllowed={approve} />}
           {activeTab.id === "wo" && <WOEditor writeAllowed={write} approveAllowed={approve} />}
           {activeTab.id === "billing" && <BillProcessing key="create" mode="create" embedded />}
