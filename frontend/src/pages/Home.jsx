@@ -338,7 +338,7 @@ export default function Home() {
   const totalApprovedAmount = payments.filter((p) => p.status === "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
   const pendingAmount = payments.filter((p) => p.status !== "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
 
-  const sidebarBg = "linear-gradient(180deg,#0f172a 0%,#1e293b 50%,#0f172a 100%)";
+  const sidebarBg = "linear-gradient(180deg,#0b1f4d 0%,#13306e 55%,#1e3a8a 100%)";
 
   return (
     <>
@@ -409,10 +409,6 @@ export default function Home() {
 
 
             <HomeProgressChart tick={syncTick} />
-
-            <div style={{ fontSize: 10.5, color: "#64748b", textAlign: "center", padding: 6 }}>
-              Left list se 1-10 department kholein · System Admin mein SuperAdmin permissions set kar sakte hain.
-            </div>
           </div>
         </main>
       </div>

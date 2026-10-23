@@ -6,6 +6,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import OpsModule from "../components/ops/OpsModule";
 import { OPS, DEPTS } from "../components/ops/opsConfig";
+import { QcNormsGuide } from "../components/ops/QcNormsGuide";
 
 export default function OpsDepartment({ dept }) {
   const d = DEPTS[dept];
@@ -24,6 +25,7 @@ export default function OpsDepartment({ dept }) {
           {d.tabs.map((k) => (
             <button key={k} data-testid={`dept-tab-${k}`} onClick={() => setTab(k)} style={{ padding: "8px 16px", background: tab === k ? OPS[k].color : `${OPS[k].color}14`, color: tab === k ? "#fff" : OPS[k].color, border: `1px solid ${OPS[k].color}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{OPS[k].title}</button>
           ))}
+          {dept === "qc" && <QcNormsGuide />}
         </div>
         <OpsModule cfg={OPS[tab]} />
       </div>
