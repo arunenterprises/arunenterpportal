@@ -79,8 +79,8 @@ export const ButtonDesigner = () => {
   const [mode, setMode] = useState("button");
   const [el, setEl] = useState(null);
   const [es, setEs] = useState(EDEF);
-  const [tog, setTog] = useState(() => { try { return { x: 6, y: 56, scale: 1, ...(JSON.parse(localStorage.getItem("bd_toggle_v1")) || {}) }; } catch { return { x: 6, y: 56, scale: 1 }; } });
-  const saveTog = (t) => { setTog(t); localStorage.setItem("bd_toggle_v1", JSON.stringify(t)); };
+  const [tog, setTog] = useState(() => { try { return { x: 222, y: 56, scale: 1, ...(JSON.parse(localStorage.getItem("bd_toggle_v2")) || {}) }; } catch { return { x: 222, y: 56, scale: 1 }; } });
+  const saveTog = (t) => { setTog(t); localStorage.setItem("bd_toggle_v2", JSON.stringify(t)); };
   const sa = isSuperAdmin(currentUserEmail());
 
   useEffect(() => { document.body.dataset.route = loc.pathname; }, [loc.pathname]);
@@ -153,7 +153,7 @@ export const ButtonDesigner = () => {
     };
     const up = () => {
       window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up);
-      if (moved) setTog((t) => { localStorage.setItem("bd_toggle_v1", JSON.stringify(t)); return t; });
+      if (moved) setTog((t) => { localStorage.setItem("bd_toggle_v2", JSON.stringify(t)); return t; });
       else { setOn((o) => { if (o) applyCss(val); return !o; }); setPicked(null); }
     };
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up);

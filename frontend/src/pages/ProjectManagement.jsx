@@ -9,6 +9,7 @@ import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import { currentUserProfile, currentRole, canApprove, canDelete, isSuperAdmin } from "../lib/store";
+import { apiOpsList, apiOpsSave, apiOpsDelete } from "../lib/api";
 
 // ---------- Local persistence (Project Management is a draft layout for now) ----------
 const PM_KEY = "ae_vm_projects";
@@ -95,6 +96,19 @@ export default function ProjectManagement() {
     return { total: projects.length, inProgress, completed, totalBudget, totalSpent, utilizationPct: totalBudget ? Math.round((totalSpent / totalBudget) * 100) : 0 };
   }, [projects]);
 
+  // Projects live on server (shared by all users); old browser-only projects are pushed up once.
+  useEffect(() => {
+    apiOpsList("projects").then((srv) => {
+      const local = getProjects();
+      const ids = new Set(srv.map((p) => p.id));
+      local.filter((p) => !ids.has(p.id)).forEach((p) => apiOpsSave("projects", p).catch(() => {}));
+      const m = new Map(local.map((p) => [p.id, p]));
+      srv.forEach((p) => m.set(p.id, p));
+      saveProjects([...m.values()]);
+      setTick((t) => t + 1);
+    }).catch(() => {});
+  }, []);
+
   // Live refresh on cross-user sync
   useEffect(() => {
     const onSync = () => setTick((t) => t + 1);
@@ -122,6 +136,7 @@ export default function ProjectManagement() {
     const idx = list.findIndex((x) => x.id === next.id);
     if (idx >= 0) list[idx] = next; else list.push(next);
     saveProjects(list);
+    apiOpsSave("projects", next).catch((e) => toast.error(`Server save failed: ${e.message}`));
     setTick((t) => t + 1);
     toast.success(`${next.code} saved`);
     close();
@@ -133,6 +148,7 @@ export default function ProjectManagement() {
     if (!p) return;
     if (!window.confirm(`Delete project "${p.name}" (${p.code})?\n\nThis is permanent.`)) return;
     saveProjects(getProjects().filter((x) => x.id !== id));
+    apiOpsDelete("projects", id).catch(() => {});
     setTick((t) => t + 1);
     toast.success(`${p.code} deleted`);
     if (editing?.id === id) close();

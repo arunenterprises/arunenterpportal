@@ -329,3 +329,17 @@ See `/app/memory/test_credentials.md`.
 - WeeklyFoodingTab: employees loaded from /api/employees (merged with local) so dropdown never empties; Employee Name field has name search (wf-name-list) that auto-fills Employee ID + designation.
 - Action row shown right after form, above data sheet (wrapper flex-column + order:-1): Expenses, Vendor Bill Process, Vendor Registration, HR Employees. BOQ / Work Order rows were already above their sheets.
 
+
+
+## 2026-10-23 — New ERP blueprint (10 departments) · Phase 1
+- Global left sidebar (components/AppSidebar.jsx) on every logged-in page incl. Home & GM: 1 GM · 2 Client & Rev · 3 HR & Labour · 4 Procurement · 5 Accounts & Vouchers · 6 Project & Site · 7 QC & Safety · 8 Plant & Machinery · 9 Reports Hub · 10 System Admin; collapsible (ae_sidebar_mini).
+- Generic server-side module API: /api/ops/{kind} GET/POST, DELETE /api/ops/{kind}/{id} (Admin/SA). Kinds: projects, dpr, indent, qc_test, safety_audit, machine, machine_log, diesel_log, booking, demand_letter, tender, agreement, geo_site, geo_att. Doc No AE/<PFX>/00001/<FY>; status Draft→Submitted→Approved/Rejected (approve/reject + approved edits only Admin/SA). ops_* in backups.
+- components/ops/OpsModule.jsx + opsConfig.js (form → action row → data sheet, Excel/Print, alerts: QC Fail, Safety incident/low score, Diesel chori >10% over norm).
+- New pages (OpsDepartment.jsx): /site (DPR, Material Indent), /qc-safety, /plant. Home cards added.
+- Client & Revenue new tabs: Booking, Demand Letter, Tenders (Govt/Private), Legal Agreements.
+- HR: Geo Attendance tab (GeoAttendance.jsx) — admin sets site lat/lng/radius; GPS attendance blocked outside radius.
+- GM: GmMasterView (Project selector, Active Projects, Today's Expenses, Labour on-site, Progress tracker, Critical alerts, One-click approval grid incl. legacy Bills/Vouchers/WOs/Expenses + all ops Submitted).
+- Projects Register now synced to server (ops_projects); old browser-only projects auto-pushed once.
+- Reports Hub: all new ops modules added as report sources.
+- Local Folder panel visible only to SuperAdmin.
+- Pending (Phase 2): ACL matrix in System Admin, Labour daily wages/auto-payroll link, 3-way match in bill audit.

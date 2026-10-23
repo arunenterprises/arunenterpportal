@@ -35,6 +35,8 @@ import {
 } from "../lib/store";
 import { loadCrmCache, crmReportRows, RA_STEPS, STEP_WF } from "../components/crm/crmShared";
 import { CRM_REPORTS } from "../components/crm/CrmReports";
+import { OPS } from "../components/ops/opsConfig";
+import { apiOpsList } from "../lib/api";
 
 const CRM_AMOUNT = { ra_bills: "net", contracts: "contractValue", change_orders: "value", retention: "balance", leads: "value" };
 const CRM_STATUS = { ra_bills: ["step", RA_STEPS], mb: ["step", STEP_WF], change_orders: ["step", STEP_WF], clients: ["step", STEP_WF], leads: ["status", null] };
@@ -46,6 +48,19 @@ const CRM_DEPTS = CRM_REPORTS.map((r) => ({
   statusKey: (CRM_STATUS[r.k] || [])[0],
   statusMap: (CRM_STATUS[r.k] || [])[1] || undefined,
   columns: r.cols.map(([key, label, money]) => ({ key, label, width: money ? 120 : 140, right: !!money })),
+}));
+
+const OPS_CACHE = {};
+const OPS_DATE = { machine: null, booking: "bookingDate", demand_letter: "dueDate", tender: "submissionDate", agreement: "startDate" };
+const OPS_AMT = { booking: "totalValue", demand_letter: "total", tender: "estValue", agreement: "value", diesel_log: "issued" };
+const loadOpsCache = () => Promise.all(Object.keys(OPS).map((k) => apiOpsList(k).then((r) => { OPS_CACHE[k] = r; }).catch(() => null)));
+const OPS_DEPTS = Object.values(OPS).map((c) => ({
+  id: `ops_${c.kind}`, title: c.title, icon: "◆",
+  fetch: () => OPS_CACHE[c.kind] || [],
+  dateKey: c.kind in OPS_DATE ? OPS_DATE[c.kind] : "date",
+  amountKey: OPS_AMT[c.kind] || null,
+  statusKey: "status",
+  columns: ["docNo", ...c.columns.filter((k) => k !== "docNo"), "status"].map((key) => ({ key, label: key === "docNo" ? "Doc No" : key === "status" ? "Status" : c.fields.find((f) => f.k === key)?.l || key, width: 130 })),
 }));
 
 // Alias — WO getter is exported as getWOs in store.js
@@ -358,6 +373,7 @@ const DEPT_CONFIG = [
     ],
   },
   ...CRM_DEPTS,
+  ...OPS_DEPTS,
 ];
 
 const getCellValue = (row, col, cfg) => {
@@ -632,7 +648,7 @@ const ReportsHub = () => {
     if (syncing) return;
     setSyncing(true);
     try {
-      await Promise.all([syncFromCloud(), loadCrmCache().catch(() => null)]);
+      await Promise.all([syncFromCloud(), loadCrmCache().catch(() => null), loadOpsCache()]);
       setRefresh((v) => v + 1);
       setLastSyncAt(new Date());
       if (!silent) toast.success("✓ Latest data pulled from server");

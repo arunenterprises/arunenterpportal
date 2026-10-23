@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, BarChart3, Handshake } from "lucide-react";
+import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, BarChart3, Handshake, HardHat, FlaskConical, Tractor } from "lucide-react";
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import LocalFolderPanel from "../components/LocalFolderBackup";
@@ -134,6 +134,42 @@ const DEPARTMENTS = [
       "Budget vs spent · progress %",
     ],
     roles: ALL_ROLES,
+  },
+  {
+    id: "site_ops",
+    title: "Project & Site Management",
+    subtitle: "DPR · Material Indent / Issue",
+    to: "/site",
+    icon: HardHat,
+    color: "#b45309",
+    dark: "#78350f",
+    lines: ["Daily Progress Report (DPR)", "Labour count · progress %", "Material Indent · Issue · Balance", "GM Approval · Excel · Print"],
+    roles: ALL_ROLES,
+    badge: "NEW",
+  },
+  {
+    id: "qc_safety",
+    title: "QC & Safety Management",
+    subtitle: "Lab Tests · Site Safety Audits",
+    to: "/qc-safety",
+    icon: FlaskConical,
+    color: "#7c3aed",
+    dark: "#4c1d95",
+    lines: ["Material lab test reports", "Pass / Fail alert to GM", "Daily site safety audit", "Incident · near-miss · score"],
+    roles: ALL_ROLES,
+    badge: "NEW",
+  },
+  {
+    id: "plant",
+    title: "Plant & Machinery (P&M)",
+    subtitle: "Allocation · Running Hours · Diesel",
+    to: "/plant",
+    icon: Tractor,
+    color: "#a16207",
+    dark: "#422006",
+    lines: ["Machinery register & allocation", "Running hours log", "Diesel issue vs norm", "Diesel chori alert"],
+    roles: ALL_ROLES,
+    badge: "NEW",
   },
   {
     id: "client_revenue",
@@ -390,7 +426,7 @@ export default function Home() {
               </div>
             </div>
 
-            <LocalFolderPanel />
+            {superAdmin && <LocalFolderPanel />}
 
             {/* KPI tiles */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }} data-testid="home-kpis">

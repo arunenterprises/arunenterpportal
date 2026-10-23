@@ -1775,6 +1775,65 @@ async def on_shutdown():
 
 
 # ---- Include router & CORS ----
+OPS_KINDS = {
+    "projects": "PRJ", "dpr": "DPR", "indent": "IND", "qc_test": "QCT", "safety_audit": "SFA",
+    "machine": "PM", "machine_log": "RHL", "diesel_log": "DSL", "booking": "BKG", "demand_letter": "DML",
+    "tender": "TND", "agreement": "AGR", "geo_site": "GEO", "geo_att": "GAT",
+}
+BACKUP_COLLECTIONS.extend(f"ops_{k}" for k in OPS_KINDS)
+
+
+def _ops_coll(kind: str) -> str:
+    if kind not in OPS_KINDS:
+        raise HTTPException(status_code=404, detail="Unknown module")
+    return f"ops_{kind}"
+
+
+@api_router.get("/ops/{kind}")
+async def ops_list(kind: str, user: Dict = Depends(get_current_user)):
+    return await db[_ops_coll(kind)].find({}, {"_id": 0}).sort("updatedAt", -1).to_list(20000)
+
+
+@api_router.post("/ops/{kind}")
+async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(require_write)):
+    coll = _ops_coll(kind)
+    rid = body.get("id")
+    if not rid:
+        raise HTTPException(status_code=400, detail="id required")
+    body.pop("_id", None)
+    ex = await db[coll].find_one({"id": rid}, {"_id": 0}) or {}
+    old, new = ex.get("status") or "Draft", body.get("status") or ex.get("status") or "Draft"
+    if not _crm_power(user) and ((new in ("Approved", "Rejected") and new != old) or old == "Approved"):
+        raise HTTPException(status_code=403, detail="Approval / approved record change sirf SuperAdmin / Admin kar sakte hain")
+    now = datetime.now(timezone.utc)
+    if new == "Approved" and old != "Approved":
+        body["approvedByName"] = user.get("name") or user.get("email")
+        body["approvedAt"] = now.isoformat()
+    for f in ("docNo", "createdAt", "createdByName"):
+        if ex.get(f):
+            body[f] = ex[f]
+    if not body.get("docNo"):
+        fy_start = now.year if now.month >= 4 else now.year - 1
+        fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
+        k = f"{kind}_{fy}"
+        c = await db.counters.find_one_and_update({"key": "ops"}, {"$inc": {k: 1}}, upsert=True, return_document=True)
+        body["docNo"] = f"AE/{OPS_KINDS[kind]}/{int(c[k]):05d}/{fy}"
+    body.setdefault("createdAt", now.isoformat())
+    body.setdefault("createdByName", user.get("name") or user.get("email"))
+    body["status"] = new
+    body["updatedAt"] = now.isoformat()
+    await db[coll].replace_one({"id": rid}, body, upsert=True)
+    return body
+
+
+@api_router.delete("/ops/{kind}/{rid}")
+async def ops_delete(kind: str, rid: str, user: Dict = Depends(get_current_user)):
+    if not _crm_power(user):
+        raise HTTPException(status_code=403, detail="Delete sirf SuperAdmin / Admin kar sakte hain")
+    await db[_ops_coll(kind)].delete_one({"id": rid})
+    return {"ok": True}
+
+
 app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,

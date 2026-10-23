@@ -23,6 +23,8 @@ import { MobileBlock, isPhone } from "./components/MobileBlock";
 import ButtonDesigner from "./components/ButtonDesigner";
 import { LocalFolderRunner } from "./components/LocalFolderBackup";
 import ActionStripToggle from "./components/ActionStripToggle";
+import { AppSidebar } from "./components/AppSidebar";
+import OpsDepartment from "./pages/OpsDepartment";
 
 const RequireAuth = ({ children }) => {
   return isAuthed() ? children : <Navigate to="/login" replace />;
@@ -87,6 +89,7 @@ function App() {
         <ButtonDesigner />
         <LocalFolderRunner />
         <ActionStripToggle />
+        <AppSidebar />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
@@ -104,6 +107,9 @@ function App() {
           <Route path="/project" element={<RequireAuth><ProjectManagement /></RequireAuth>} />
           <Route path="/client-revenue" element={<RequireAuth><ClientRevenue /></RequireAuth>} />
           <Route path="/reports-hub" element={<RequireAuth><ReportsHub /></RequireAuth>} />
+          <Route path="/site" element={<RequireAuth><OpsDepartment key="site" dept="site" /></RequireAuth>} />
+          <Route path="/qc-safety" element={<RequireAuth><OpsDepartment key="qc" dept="qc" /></RequireAuth>} />
+          <Route path="/plant" element={<RequireAuth><OpsDepartment key="plant" dept="plant" /></RequireAuth>} />
           <Route path="/vendor-portal/wo/:id" element={<VendorPortalWO />} />
           <Route path="/careers" element={<AdvertisementPortal />} />
           <Route path="/jobs" element={<Navigate to="/careers" replace />} />

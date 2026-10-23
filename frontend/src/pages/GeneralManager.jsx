@@ -7,6 +7,7 @@ import {
   UserCheck, Calendar, LogOut, Briefcase, Banknote, XCircle, Trash2, Handshake,
 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
+import GmMasterView from "../components/GmMasterView";
 import CrmGmPanel, { crmGmCounts } from "../components/crm/CrmGmPanel";
 import { loadCrmCache, crmCache, crmCacheReady } from "../components/crm/crmShared";
 import {
@@ -492,6 +493,13 @@ export default function GeneralManager() {
         <div style={{ maxWidth: "100%", margin: "0 auto", padding: "18px 24px" }} data-testid="gm-page">
           {/* Hero header */}
           <HeroHeader gmName={gmName} canDo={canDo} totalPending={totalPending} totalApproved={totalApproved} />
+
+          <GmMasterView tick={tick} canDo={canDo} expenses={expenses} approvals={[
+            ...stats.billsPending.map((b) => ({ key: `bill-${b.id}`, type: "Bill", no: b.permanentBillNo || b.refNo, party: b.vendorSnapshot?.firmName || b.vendorCode || "", amt: (Number(b.basicAmount) || 0) * (1 + (Number(b.gstSlab) || 0) / 100), view: () => nav("/bill"), ok: () => approveBill(b), no2: () => rejectBill(b) })),
+            ...stats.vouchersPending.map((p) => ({ key: `pv-${p.id}`, type: "Voucher", no: p.pvNo, party: p.vendorName || p.payeeName || p.paidTo || "", amt: p.amount ?? p.netAmount ?? p.netPayable ?? "", view: () => nav("/final"), ok: () => approveVoucher(p), no2: () => rejectVoucher(p) })),
+            ...stats.wosPending.map((w) => ({ key: `wo-${w.id}`, type: "Work Order", no: w.woNo || w.boqRefNo, party: w.vendorName || "", amt: w.total ?? "", view: () => nav("/purchase"), ok: () => approveWO(w), no2: () => rejectWO(w) })),
+            ...stats.expensesPending.map((x) => ({ key: `exp-${x.id}`, type: "Expense", no: x.permanentExpenseNo || x.refNo, party: x.description || x.category || "", amt: (Number(x.basicAmount) || 0) + (Number(x.gstAmount) || 0), view: () => nav("/expense"), ok: () => approveExpense(x), no2: () => rejectExpense(x) })),
+          ]} />
 
           {/* KPI grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginTop: 16 }} data-testid="gm-kpi-grid">

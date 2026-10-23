@@ -18,6 +18,11 @@ import { Milestones } from "../components/crm/Milestones";
 import { Retention } from "../components/crm/Retention";
 import { ChangeOrders } from "../components/crm/ChangeOrders";
 import { CrmReports } from "../components/crm/CrmReports";
+import OpsModule from "../components/ops/OpsModule";
+import { OPS } from "../components/ops/opsConfig";
+import { CalendarCheck, Mail, Gavel, Scale } from "lucide-react";
+
+const opsTab = (k) => function OpsTab() { return <OpsModule cfg={OPS[k]} />; };
 
 const TABS = [
   { k: "dash", l: "Dashboard", icon: LayoutDashboard, C: CrmDashboard, c: "#1e3a8a" },
@@ -32,6 +37,10 @@ const TABS = [
   { k: "ms", l: "Milestones", icon: Flag, C: Milestones, c: "#65a30d" },
   { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders, c: "#16a34a" },
   { k: "ret", l: "Retention", icon: ShieldCheck, C: Retention, c: "#0d9488" },
+  { k: "booking", l: "Booking", icon: CalendarCheck, C: opsTab("booking"), c: "#0891b2" },
+  { k: "demand", l: "Demand Letter", icon: Mail, C: opsTab("demand_letter"), c: "#2563eb" },
+  { k: "tender", l: "Tenders", icon: Gavel, C: opsTab("tender"), c: "#4f46e5" },
+  { k: "agreement", l: "Legal Agreements", icon: Scale, C: opsTab("agreement"), c: "#be185d" },
   { k: "reports", l: "Reports", icon: BarChart3, C: CrmReports, c: "#2563eb" },
 ];
 
