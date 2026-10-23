@@ -537,6 +537,8 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         </div>
       </div>
 
+      <div style={{ display: "flex", flexDirection: "column" }}>
+
       {/* All employees list */}
       {list.length > 0 && (
         <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8 }}>
@@ -572,7 +574,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
       )}
 
       {/* Workflow Action Bar — matches BOQ / WO / Bill style (compact, 3-group) */}
-      <div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="hr-emp-action-row">
+      <div style={{ order: -1, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="hr-emp-action-row">
         {/* Left — Workflow */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button data-testid="wf-new" onClick={startNew} style={{ padding: "7px 12px", background: "#0369a1", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><UserPlus size={13} /> New</button>
@@ -609,6 +611,8 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
           <button data-testid="wf-print" onClick={() => printEmployeeApplication(emp)} style={{ padding: "7px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 }}><Printer size={13} /> Print A4</button>
         </div>
       </div>
+      </div>
+
     </div>
   );
 };

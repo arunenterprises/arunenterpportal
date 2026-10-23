@@ -430,6 +430,8 @@ export default function VendorRegistration() {
             </div>
           </div>
 
+          <div style={{ display: "flex", flexDirection: "column" }}>
+
           {/* Vendors Data Sheet — bottom of page, all vendors listed */}
           {allVendors.length > 0 && (
             <div className="section" data-testid="vendors-data-sheet" style={{ marginTop: 14 }}>
@@ -489,7 +491,7 @@ export default function VendorRegistration() {
           )}
 
           {/* Inline Action Buttons — uniform left-to-right alignment */}
-          <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-start", alignItems: "stretch", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="vendor-action-row">
+          <div style={{ order: -1, marginBottom: 12, display: "flex", justifyContent: "flex-start", alignItems: "stretch", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }} data-testid="vendor-action-row">
             <button data-testid="vendor-btn-query" onClick={() => openQuery()} style={{ padding: "7px 12px", height: 32, background: "#0891b2", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><FileSearch size={13} /> Query</button>
             <button data-testid="vendor-btn-new" onClick={handleNew} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: canCreate() ? "#0369a1" : "#94a3b8", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><FilePlus2 size={13} /> New Vendor</button>
             <button data-testid="vendor-btn-edit" onClick={handleEdit} disabled={!canCreate()} style={{ padding: "7px 12px", height: 32, background: "#eab308", color: "#fff", border: "none", borderRadius: 5, cursor: canCreate() ? "pointer" : "not-allowed", opacity: canCreate() ? 1 : .5, fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, lineHeight: 1 }}><Pencil size={13} /> Edit</button>
@@ -502,6 +504,8 @@ export default function VendorRegistration() {
             <button data-testid="vendor-btn-export-excel" onClick={handleExportExcel} style={{ padding: "7px 12px", height: 32, background: "#059669", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(5,150,105,.3)", lineHeight: 1 }}>⬇ Excel</button>
             <button data-testid="vendor-btn-print" onClick={handlePrint} style={{ padding: "7px 12px", height: 32, background: "#ea580c", color: "#fff", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: "0 1px 3px rgba(234,88,12,.3)", lineHeight: 1 }}><Printer size={13} /> Print</button>
           </div>
+          </div>
+
         </div>
       </div>
     </>

@@ -324,3 +324,8 @@ See `/app/memory/test_credentials.md`.
 - BACKUP_COLLECTIONS now include fooding + all crm_* collections.
 - Desktop Sync App (components/DesktopSyncApp.jsx): SuperAdmin downloads ERP_Sync.ps1 (embedded URL + sync key) + Install_ERP_Sync.bat (Windows Task Scheduler, every 30 min). Backend: POST /api/admin/sync-key (SA, sha256 hash in settings.desktop_sync_key), GET /api/sync-agent/backup (X-Sync-Key header).
 - Daily Sync Report: db.sync_reports per IST date counts on each full backup; GET /api/admin/sync-report shows +new per day.
+
+## 2026-10-23 — Fooding employee fix + name search, buttons above data sheets
+- WeeklyFoodingTab: employees loaded from /api/employees (merged with local) so dropdown never empties; Employee Name field has name search (wf-name-list) that auto-fills Employee ID + designation.
+- Action row shown right after form, above data sheet (wrapper flex-column + order:-1): Expenses, Vendor Bill Process, Vendor Registration, HR Employees. BOQ / Work Order rows were already above their sheets.
+

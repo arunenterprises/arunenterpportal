@@ -109,6 +109,15 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
         lines[idx].designation = emp.designation || "";
       }
     }
+    // Name typed / picked → auto-fill Employee ID & designation
+    if (patch.empName !== undefined) {
+      const q = patch.empName.trim().toLowerCase();
+      const emp = q && emps.find((e) => (e.fullName || "").trim().toLowerCase() === q);
+      if (emp) {
+        lines[idx].empId = emp.empCode || emp.id;
+        lines[idx].designation = emp.designation || "";
+      }
+    }
     setCur({ ...cur, lines });
   };
 
@@ -306,7 +315,7 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
                   <input list="wf-emp-list" value={l.empId} onChange={(e) => setLine(i, { empId: e.target.value })} disabled={locked} data-testid={`wf-emp-${i}`} placeholder="EMP ID" style={{ ...cellInp, background: "#fef3c7", fontWeight: 700, color: "#92400e" }} />
                 </td>
                 <td style={{ padding: 3, border: "1px solid #e2e8f0" }}>
-                  <input value={l.empName} onChange={(e) => setLine(i, { empName: e.target.value })} disabled={locked} style={cellInp} />
+                  <input list="wf-name-list" value={l.empName} onChange={(e) => setLine(i, { empName: e.target.value })} disabled={locked} data-testid={`wf-name-${i}`} placeholder="Naam type karein" style={cellInp} />
                 </td>
                 <td style={{ padding: 3, border: "1px solid #e2e8f0" }}>
                   <input value={l.designation} onChange={(e) => setLine(i, { designation: e.target.value })} disabled={locked} style={cellInp} />
@@ -350,6 +359,9 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
         </table>
         <datalist id="wf-emp-list">
           {emps.map((e) => <option key={e.id} value={e.empCode || e.id}>{`${e.fullName} · ${e.designation}`}</option>)}
+        </datalist>
+        <datalist id="wf-name-list">
+          {emps.map((e) => <option key={e.id} value={e.fullName}>{`${e.empCode || e.id} · ${e.designation || ""}`}</option>)}
         </datalist>
       </div>
 
