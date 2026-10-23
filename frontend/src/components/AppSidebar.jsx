@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock } from "lucide-react";
 import { getToken } from "../lib/api";
-import { canApprove } from "../lib/store";
+import { canApprove, canDelete } from "../lib/store";
 import { can, deptOfPath, loadAcl } from "../lib/acl";
 
 const ITEMS = [
@@ -80,7 +80,7 @@ export const AclGate = () => {
   useAclRev();
   const authed = !!getToken() && !["/login", "/careers", "/jobs", "/vendor-portal"].some((p) => loc.pathname.startsWith(p));
   useEffect(() => { if (authed) loadAcl(); }, [authed, loc.pathname]);
-  useEffect(() => { document.body.classList.toggle("ae-no-approve", authed && !canApprove()); });
+  useEffect(() => { document.body.classList.toggle("ae-no-approve", authed && !canApprove()); document.body.classList.toggle("ae-no-delete", authed && !canDelete()); });
   if (!authed || can(deptOfPath(loc.pathname), "v")) return null;
   return (
     <div data-testid="acl-blocked" style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(241,245,249,.97)", display: "grid", placeItems: "center" }}>
