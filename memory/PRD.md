@@ -361,3 +361,7 @@ See `/app/memory/test_credentials.md`.
 - Server ACL lock for old modules: ACL_COLL_DEPT + _acl_guard/_acl_filter on vendors, bills, payments/bulk, employees, attendance, expenses, boqs, work_orders, HR CRUD (paybills/loans/advances/recruit/exits), fooding, and /snapshot push (blocked items silently dropped). Verified: Admin with procurement c=false → POST /api/vendors 403, expenses 200.
 - Wage Bill → "Payment Voucher banayein" (approved bills): creates PV (id pv_wage_<billId>, nextPvNo, status Submitted) in Accounts; bill stores linkedPvNo.
 
+
+
+## 2026-10-23 — Progress chart project filter + monthly trend
+- HomeProgressChart: project selector (names from Projects Register + project/projectSite fields); Vendors & HR rows hidden when a project is chosen. Monthly Progress Trend card: last 6 months, one line per department (2-8), approved records counted by approvedAt/approvalDate/gmApprovedAt/updatedAt month.
