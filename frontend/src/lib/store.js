@@ -168,10 +168,11 @@ export const saveCounters = (c) => {
   if (getToken()) apiSetCounters(c).catch(() => {});
 };
 
-// Temp Bill Ref: AE + 4-digit + FY (before final approval)
-const buildTempBillRef = (serial) => `AE${String(serial).padStart(4, "0")}${getFY()}`;
-// Permanent Bill No (Primary Key): BILL + 4-digit + FY (after final approval)
-const buildPermanentBillNo = (serial) => `BILL${String(serial).padStart(4, "0")}${getFY()}`;
+// Unified ERP number: AE/<4-letter process>/<T for temp><4-digit serial>/<FY e.g. 2627>
+const aeNo = (code, serial, temp = false) => `AE/${code}/${temp ? "T" : ""}${String(serial).padStart(4, "0")}/${getFY()}`;
+// Temp Bill Ref (before final approval) → Permanent Bill No (primary key after approval)
+const buildTempBillRef = (serial) => aeNo("BILL", serial, true);
+const buildPermanentBillNo = (serial) => aeNo("BILL", serial);
 
 // Vendor Code: AE + 4-digit serial + JV + FY (e.g., AE0001JV2526)
 // IMPORTANT (Feb 2026 fix for "vendor code repeat / data overwrite"):
@@ -275,8 +276,8 @@ const _schedulePush = () => {
 };
 
 // ---- Expenses ----
-const buildExpenseTempRef = (serial) => `EXR${String(serial).padStart(4, "0")}${getFY()}`;
-const buildExpensePermNo = (serial) => `EXP${String(serial).padStart(4, "0")}${getFY()}`;
+const buildExpenseTempRef = (serial) => aeNo("EXPN", serial, true);
+const buildExpensePermNo = (serial) => aeNo("EXPN", serial);
 
 export const getExpenses = () => read(KEYS.EXPENSES, []);
 export const saveExpenses = (list) => {
@@ -383,7 +384,7 @@ export const BOQ_STEP_LABEL = {
   4: "4. Approved",
 };
 
-const buildBOQNo = (serial) => `BOQ${String(serial).padStart(4, "0")}${getFY()}`;
+const buildBOQNo = (serial) => aeNo("BOQS", serial);
 
 export const getBOQs = () => read(KEYS.BOQS, []);
 export const saveBOQs = (list) => { write(KEYS.BOQS, list); _schedulePush(); };
@@ -398,7 +399,7 @@ export const createBOQDraft = () => {
     // Permanent BOQ No is issued only on approval (step === 4).
     // Until then a temp reference identifies the draft.
     boqNo: "",
-    tempRefId: `TEMP-BOQ-${String(c.boqSerial).padStart(4, "0")}`,
+    tempRefId: aeNo("BOQS", c.boqSerial, true),
     step: 1,
     date: new Date().toISOString().slice(0, 10),
     projectSite: "",
@@ -480,7 +481,7 @@ export const WO_STEP_LABEL = {
   4: "4. Approved (WO No. issued)",
 };
 
-const buildWONo = (serial) => `AE${String(serial).padStart(6, "0")}JV${getFY()}`;
+const buildWONo = (serial) => aeNo("WORK", serial);
 export const UNITS_DEFAULT = [
   // Count / piece
   "Nos", "No.", "Pcs", "Piece", "Each", "Ea", "Set", "Pair", "Unit", "Dozen", "Gross", "Score", "Item",
@@ -1143,7 +1144,7 @@ export const nextPvNo = () => {
   const c = getCounters();
   c.pvSerial = (c.pvSerial || 0) + 1;
   saveCounters(c);
-  return `GPV/${getFY()}/${String(c.pvSerial).padStart(4, "0")}`;
+  return aeNo("PYMT", c.pvSerial, true);
 };
 
 // On approval, convert draft GPV prefix → final PN prefix (same serial retained).
@@ -1151,6 +1152,7 @@ export const nextPvNo = () => {
 export const toApprovedPvNo = (draftNo) => {
   const s = String(draftNo || "");
   if (s.startsWith("GPV/")) return "PN/" + s.slice(4);
+  if (/^AE\/[A-Z]{4}\/T\d{4}\//.test(s)) return s.replace(/^(AE\/[A-Z]{4}\/)T/, "$1");
   return s; // legacy PV/... or already PN/... — leave as-is
 };
 
@@ -1383,8 +1385,8 @@ export const EMPLOYEE_STEP_LABEL = {
   5: "5. Finalized · Permanent EMP Code Issued",
 };
 
-const buildEmpCode = (serial) => `AE/EMP/${String(serial).padStart(6, "0")}/${getFYHyphen()}`;
-const buildEmpTempCode = (serial) => `AE/TMP/${String(serial).padStart(6, "0")}/${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+const buildEmpCode = (serial) => aeNo("EMPL", serial);
+const buildEmpTempCode = (serial) => aeNo("EMPL", serial, true);
 
 export const getEmployees = () => read(KEYS.EMPLOYEES, []);
 export const saveEmployees = (list) => { write(KEYS.EMPLOYEES, list); _schedulePush(); };
@@ -1603,7 +1605,7 @@ const nextAdvertisementNo = () => {
   const c = getCounters();
   c.adsSerial = (c.adsSerial || 0) + 1;
   saveCounters(c);
-  return `ADV${String(c.adsSerial).padStart(4, "0")}-${getFY()}`;
+  return aeNo("RCRT", c.adsSerial);
 };
 export const createRecruitDraft = () => ({
   id: `rec_${Date.now()}`,
@@ -2113,7 +2115,7 @@ export const createAdvanceRequestDraft = (empId = "") => {
   const now = new Date();
   return {
     id: `ar_${Date.now()}`,
-    refNo: `ADV/${getFY()}/${String(seq).padStart(4, "0")}`,
+    refNo: aeNo("ADVR", seq),
     empId: emp.id || "", empCode: emp.empCode || "", empName: emp.fullName || "",
     department: emp.department || "", designation: emp.designation || "",
     requestDate: now.toISOString().slice(0, 10),

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUser } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
@@ -208,6 +208,21 @@ export const printInvoice = (inv, t, client, withCompany) => {
 
 const InvoicePreview = ({ inv, t, client, onClose }) => {
   const [withCo, setWithCo] = useState(true);
+  const [edit, setEdit] = useState(false);
+  const [zoom, setZoom] = useState(100);
+  const [margin, setMargin] = useState(10);
+  const ref = useRef(null);
+  const allowed = canApprove();
+  const apply = () => {
+    const d = ref.current?.contentDocument;
+    if (!d?.body) return;
+    d.body.contentEditable = edit ? "true" : "false";
+    let s = d.getElementById("ae-adjust");
+    if (!s) { s = d.createElement("style"); s.id = "ae-adjust"; d.head.appendChild(s); }
+    s.textContent = `body{zoom:${zoom}%}@page{margin:${margin}mm}${edit ? "th,td{resize:horizontal;overflow:auto}body{outline:2px dashed #f59e0b;outline-offset:-6px}" : ""}`;
+  };
+  useEffect(apply);
+  const ctl = { padding: "4px 6px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 5, width: 64 };
   return (
     <div data-testid="inv-preview-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
       <div style={{ background: "#fff", borderRadius: 10, width: "min(1200px,100%)", height: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -215,10 +230,14 @@ const InvoicePreview = ({ inv, t, client, onClose }) => {
           <b style={{ fontSize: 14, flex: 1 }}>Invoice Preview · {invLabel(inv)}</b>
           <Btn tone={withCo ? "dark" : "ghost"} data-testid="inv-preview-with" onClick={() => setWithCo(true)}>With Company Details</Btn>
           <Btn tone={!withCo ? "dark" : "ghost"} data-testid="inv-preview-without" onClick={() => setWithCo(false)}>Without (Letterhead)</Btn>
-          <Btn tone="brand" data-testid="inv-preview-print" onClick={() => printInvoice(inv, t, client, withCo)}><Printer size={13} /> Print</Btn>
+          {allowed && <Btn tone={edit ? "brand" : "ghost"} data-testid="inv-preview-edit" onClick={() => setEdit(!edit)}><Pencil size={13} /> {edit ? "Editing ON" : "Edit Layout / Data"}</Btn>}
+          {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Size % <input data-testid="inv-preview-zoom" type="number" min="60" max="140" value={zoom} onChange={(e) => setZoom(Number(e.target.value) || 100)} style={ctl} /></label>}
+          {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Margin mm <input data-testid="inv-preview-margin" type="number" min="0" max="30" value={margin} onChange={(e) => setMargin(Number(e.target.value) || 0)} style={ctl} /></label>}
+          <Btn tone="brand" data-testid="inv-preview-print" onClick={() => (allowed ? ref.current?.contentWindow?.print() : printInvoice(inv, t, client, withCo))}><Printer size={13} /> Print</Btn>
           <button data-testid="inv-preview-close" onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} /></button>
         </div>
-        <iframe title="invoice-preview" data-testid="inv-preview-frame" srcDoc={buildInvoiceHtml(inv, t, client, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
+        {edit && <div style={{ padding: "5px 14px", background: "#fef3c7", fontSize: 11.5, fontWeight: 700, color: "#92400e" }}>Invoice par click karke text / amount badlein · table column ke kone (right-bottom) ko kheench kar chauda karein · badlav sirf is print ke liye hain, saved invoice nahi badlega</div>}
+        <iframe ref={ref} onLoad={apply} title="invoice-preview" data-testid="inv-preview-frame" srcDoc={buildInvoiceHtml(inv, t, client, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const blank = (cfg) => ({ id: uid(), status: "Draft", ...Object.fromEntries(cfg.fields.map((f) => [f.k, f.type === "date" && f.req ? today() : f.options && f.req ? "" : f.options ? f.options[0] : ""])) });
 const inp = { width: "100%", padding: "7px 9px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 5, background: "#fff", boxSizing: "border-box" };
 const btn = (bg, off) => ({ padding: "7px 12px", height: 32, background: off ? "#94a3b8" : bg, color: "#fff", border: "none", borderRadius: 5, cursor: off ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 });
-const label = (cfg, k) => ({ docNo: "Doc No", status: "Status" }[k] || cfg.fields.find((f) => f.k === k)?.l || k);
+const label = (cfg, k) => ({ docNo: "Permanent / Ref No", tempNo: "Temp No", status: "Status" }[k] || cfg.fields.find((f) => f.k === k)?.l || k);
 
 const Field = ({ f, v, set, ro, lists }) => {
   const p = { value: v ?? "", disabled: ro || f.ro, "data-testid": `ops-f-${f.k}`, style: { ...inp, background: ro || f.ro ? "#f8fafc" : "#fff" }, onChange: (e) => set(f.k, e.target.value) };
@@ -61,10 +61,10 @@ export default function OpsModule({ cfg }) {
     if (!rows.some((r) => r.id === cur.id) || !window.confirm(`Delete ${cur.docNo}?`)) return;
     try { await apiOpsDelete(cfg.kind, cur.id); toast.success("Deleted"); setCur(blank(cfg)); setLocked(false); load(); } catch (e) { toast.error(e.message); }
   };
-  const cols = ["docNo", ...cfg.columns.filter((c) => c !== "docNo"), "status"];
+  const cols = ["docNo", "tempNo", ...cfg.columns.filter((c) => c !== "docNo"), "status"];
   const shown = useMemo(() => rows.filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase())), [rows, q]);
   const excel = () => {
-    const ws = XLSX.utils.json_to_sheet(shown.map((r) => Object.fromEntries([["Doc No", r.docNo], ...cfg.fields.map((f) => [f.l, r[f.k]]), ["Status", r.status], ["Approved By", r.approvedByName || ""]])));
+    const ws = XLSX.utils.json_to_sheet(shown.map((r) => Object.fromEntries([["Permanent / Ref No", r.permNo || r.docNo], ["Temp No", r.tempNo || ""], ...cfg.fields.map((f) => [f.l, r[f.k]]), ["Status", r.status], ["Approved By", r.approvedByName || ""]])));
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, cfg.kind); XLSX.writeFile(wb, `${cfg.kind}_${today()}.xlsx`);
   };
   const print = () => {
@@ -82,7 +82,7 @@ export default function OpsModule({ cfg }) {
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ padding: "9px 14px", background: cfg.color, color: "#fff", fontWeight: 800, fontSize: 13, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
           <span>{cfg.title}</span>
-          <span data-testid="ops-docno">{cur.docNo || "Doc No: Save par milega"} · <span style={{ background: "#fff", color: sc, padding: "1px 8px", borderRadius: 999 }} data-testid="ops-status">{cur.status}</span></span>
+          <span data-testid="ops-docno">{cur.tempNo ? `Temp: ${cur.tempNo}` : ""}{cur.permNo ? ` · Permanent: ${cur.permNo}` : cur.tempNo ? " · Permanent: approval par" : cur.docNo || "Temp No: Save par milega"} · <span style={{ background: "#fff", color: sc, padding: "1px 8px", borderRadius: 999 }} data-testid="ops-status">{cur.status}</span></span>
         </div>
         {cur.rejectReason && cur.status === "Rejected" && <div style={{ padding: "6px 14px", background: "#fee2e2", color: "#991b1b", fontSize: 12, fontWeight: 700 }}>Rejected: {cur.rejectReason}</div>}
         <div style={{ padding: 14, display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: "10px 12px" }}>

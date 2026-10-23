@@ -373,3 +373,12 @@ See `/app/memory/test_credentials.md`.
 - Removed per-module pending/approved sections (Vendor Mgmt, BOQ & WO, Bills, Expenses, PV, HR…), Pending/Approved tabs, CRM GM panel and footer from GeneralManager.jsx. GM page now: Hero → Master View (project selector, tiles, progress, alerts, one-click approval grid) → KPI grid → Vendor Code Doctor (SA). Module access via sidebar.
 
 
+## 2026-10-23 — Unified AE numbering + invoice preview edit
+- Format AE/<4-letter code>/<T temp>NNNN/<FY>. Temp on save, Permanent on approval (new records only; old numbers untouched; Vendor Code & Tax Invoice formats unchanged).
+- Legacy (store.js aeNo): BILL, EXPN, BOQS (temp + perm), WORK, PYMT (toApprovedPvNo strips T), EMPL (temp+perm), RCRT, ADVR. Not changed: HR Pay Bills monthly refs, CRM MB/RA/Contract numbers (crmNextNo).
+- Ops server: tempNo / permNo / docNo, 4-letter codes (PRJT, DPRS, INDT, QCTS, SAFE, MACH, RUNH, DESL, BOOK, DMND, TNDR, AGMT, GEOS, GATT, LABR, LATT, WAGE); OpsModule shows Temp + Permanent.
+- Tax Invoice serial start changed to 0040 ($max 39 — only effective if fewer than 40 already issued this FY).
+- Invoice Preview: Admin/SA "Edit Layout / Data" (contentEditable, size %, margin mm, resizable columns; print uses edited preview; saved invoice unchanged).
+- Pending: ABSTRACT (Summary of Item Schedules) form in Client & Revenue — waiting for customer's photo.
+
+

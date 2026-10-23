@@ -1280,7 +1280,7 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
                 fy_start = y if m >= 4 else y - 1
                 fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
                 k = f"inv_{fy}"
-                await db.counters.update_one({"key": "crm"}, {"$max": {k: 48}}, upsert=True)
+                await db.counters.update_one({"key": "crm"}, {"$max": {k: 39}}, upsert=True)
                 c = await db.counters.find_one_and_update({"key": "crm"}, {"$inc": {k: 1}}, upsert=True, return_document=True)
                 body["invoiceNo"] = f"A/E/INV/{int(c[k]):05d}/{fy}"
             elif name == "invoices":
@@ -1860,10 +1860,10 @@ async def on_shutdown():
 
 # ---- Include router & CORS ----
 OPS_KINDS = {
-    "projects": "PRJ", "dpr": "DPR", "indent": "IND", "qc_test": "QCT", "safety_audit": "SFA",
-    "machine": "PM", "machine_log": "RHL", "diesel_log": "DSL", "booking": "BKG", "demand_letter": "DML",
-    "tender": "TND", "agreement": "AGR", "geo_site": "GEO", "geo_att": "GAT",
-    "labour": "LBR", "labour_att": "LAT", "labour_bill": "LWB",
+    "projects": "PRJT", "dpr": "DPRS", "indent": "INDT", "qc_test": "QCTS", "safety_audit": "SAFE",
+    "machine": "MACH", "machine_log": "RUNH", "diesel_log": "DESL", "booking": "BOOK", "demand_letter": "DMND",
+    "tender": "TNDR", "agreement": "AGMT", "geo_site": "GEOS", "geo_att": "GATT",
+    "labour": "LABR", "labour_att": "LATT", "labour_bill": "WAGE",
 }
 OPS_DEPT = {
     "projects": "site", "dpr": "site", "indent": "site", "qc_test": "qc", "safety_audit": "qc",
@@ -1902,15 +1902,22 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     if new == "Approved" and old != "Approved":
         body["approvedByName"] = user.get("name") or user.get("email")
         body["approvedAt"] = now.isoformat()
-    for f in ("docNo", "createdAt", "createdByName"):
+    for f in ("docNo", "tempNo", "permNo", "createdAt", "createdByName"):
         if ex.get(f):
             body[f] = ex[f]
-    if not body.get("docNo"):
-        fy_start = now.year if now.month >= 4 else now.year - 1
-        fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
-        k = f"{kind}_{fy}"
+    fy_start = now.year if now.month >= 4 else now.year - 1
+    fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
+    code = OPS_KINDS[kind]
+
+    async def _serial(k: str) -> int:
         c = await db.counters.find_one_and_update({"key": "ops"}, {"$inc": {k: 1}}, upsert=True, return_document=True)
-        body["docNo"] = f"AE/{OPS_KINDS[kind]}/{int(c[k]):05d}/{fy}"
+        return int(c[k])
+    if not body.get("docNo"):
+        body["tempNo"] = f"AE/{code}/T{await _serial(f'{kind}_tmp_{fy}'):04d}/{fy}"
+        body["docNo"] = body["tempNo"]
+    if new == "Approved" and body.get("tempNo") and not body.get("permNo"):
+        body["permNo"] = f"AE/{code}/{await _serial(f'{kind}_{fy}'):04d}/{fy}"
+        body["docNo"] = body["permNo"]
     body.setdefault("createdAt", now.isoformat())
     body.setdefault("createdByName", user.get("name") or user.get("email"))
     body["status"] = new
