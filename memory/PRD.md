@@ -381,4 +381,8 @@ See `/app/memory/test_credentials.md`.
 - Invoice Preview: Admin/SA "Edit Layout / Data" (contentEditable, size %, margin mm, resizable columns; print uses edited preview; saved invoice unchanged).
 - Pending: ABSTRACT (Summary of Item Schedules) form in Client & Revenue — waiting for customer's photo.
 
+## 2026-10-23 — ABSTRACT (Summary of Item Schedules)
+- Client & Revenue tab "Abstract" (components/crm/Abstract.jsx, ops kind abstract / ABST, dept client): To (client auto address), PO No/date, Invoice No/date, work period, location, contractor/PAN/GSTIN from Company Master; lines PO Pos, desc, item code, UOM, HSN, PO qty, rate, prev qty (auto from earlier abstracts of same PO+pos+code), current qty → prev/current/cumulative amounts, cumulative qty, balance; totals; New/Edit/Save/Submit/Approve/Delete/Print (Annexure "A", A4 landscape).
+
+
 

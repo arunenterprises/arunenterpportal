@@ -1863,12 +1863,12 @@ OPS_KINDS = {
     "projects": "PRJT", "dpr": "DPRS", "indent": "INDT", "qc_test": "QCTS", "safety_audit": "SAFE",
     "machine": "MACH", "machine_log": "RUNH", "diesel_log": "DESL", "booking": "BOOK", "demand_letter": "DMND",
     "tender": "TNDR", "agreement": "AGMT", "geo_site": "GEOS", "geo_att": "GATT",
-    "labour": "LABR", "labour_att": "LATT", "labour_bill": "WAGE",
+    "labour": "LABR", "labour_att": "LATT", "labour_bill": "WAGE", "abstract": "ABST",
 }
 OPS_DEPT = {
     "projects": "site", "dpr": "site", "indent": "site", "qc_test": "qc", "safety_audit": "qc",
     "machine": "plant", "machine_log": "plant", "diesel_log": "plant", "booking": "client", "demand_letter": "client",
-    "tender": "client", "agreement": "client", "geo_site": "hr", "geo_att": "hr", "labour": "hr", "labour_att": "hr", "labour_bill": "hr",
+    "tender": "client", "agreement": "client", "geo_site": "hr", "geo_att": "hr", "labour": "hr", "labour_att": "hr", "labour_bill": "hr", "abstract": "client",
 }
 BACKUP_COLLECTIONS.extend(f"ops_{k}" for k in OPS_KINDS)
 

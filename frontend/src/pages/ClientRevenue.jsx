@@ -14,6 +14,7 @@ import { MBook } from "../components/crm/MBook";
 import { RABills } from "../components/crm/RABills";
 import { Invoices } from "../components/crm/Invoices";
 import { InvoiceRegister } from "../components/crm/InvoiceRegister";
+import { Abstract } from "../components/crm/Abstract";
 import { Milestones } from "../components/crm/Milestones";
 import { Retention } from "../components/crm/Retention";
 import { ChangeOrders } from "../components/crm/ChangeOrders";
@@ -34,6 +35,7 @@ const TABS = [
   { k: "ra", l: "RA Bills", icon: Receipt, C: RABills, c: "#dc2626" },
   { k: "inv", l: "Tax Invoice", icon: FileText, C: Invoices, c: "#ea580c" },
   { k: "invreg", l: "Invoice Register", icon: BookOpen, C: InvoiceRegister, c: "#d97706" },
+  { k: "abstract", l: "Abstract", icon: FileText, C: Abstract, c: "#1e3a8a" },
   { k: "ms", l: "Milestones", icon: Flag, C: Milestones, c: "#65a30d" },
   { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders, c: "#16a34a" },
   { k: "ret", l: "Retention", icon: ShieldCheck, C: Retention, c: "#0d9488" },

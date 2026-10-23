@@ -9,7 +9,7 @@ export const ACL_DEPTS = [
 export const ACL_ROLES = ["Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
 export const OPS_DEPT = {
   projects: "site", dpr: "site", indent: "site", qc_test: "qc", safety_audit: "qc", machine: "plant", machine_log: "plant", diesel_log: "plant",
-  booking: "client", demand_letter: "client", tender: "client", agreement: "client", geo_site: "hr", geo_att: "hr", labour: "hr", labour_att: "hr", labour_bill: "hr",
+  booking: "client", demand_letter: "client", tender: "client", agreement: "client", geo_site: "hr", geo_att: "hr", labour: "hr", labour_att: "hr", labour_bill: "hr", abstract: "client",
 };
 const PATH_DEPT = [["/gm", "gm"], ["/client-revenue", "client"], ["/hr", "hr"], ["/vendor", "procurement"], ["/purchase", "procurement"], ["/bill", "accounts"], ["/final", "accounts"],
   ["/site", "site"], ["/project", "site"], ["/qc-safety", "qc"], ["/plant", "plant"], ["/reports-hub", "reports"], ["/users", "admin"]];
