@@ -4,6 +4,7 @@ import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
+import { NightlyMissingBtn } from "../components/NightlyMissingBtn";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import AuthSplash from "../components/AuthSplash";
@@ -959,6 +960,7 @@ export default function UsersAdmin() {
                             }}
                             style={{ padding: "3px 10px", fontSize: 10, background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 700, marginRight: 4 }}
                           >⬇ Download</button>
+                          <NightlyMissingBtn id={nb.id} />
                           <button
                             data-testid={`nightly-del-${nb.id}`}
                             onClick={async () => {

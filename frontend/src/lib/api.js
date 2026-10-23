@@ -199,3 +199,7 @@ export const apiDeleteNightlyBackup = (id) =>
   req(`/admin/nightly-backups/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const apiTriggerNightlyBackup = () =>
   req("/admin/nightly-backups/trigger", { method: "POST", body: "{}" });
+
+export const apiNightlyMissing = (id) => req(`/admin/nightly-backups/${encodeURIComponent(id)}/missing`);
+export const apiNightlyRestoreMissing = (id, ids) =>
+  req(`/admin/nightly-backups/${encodeURIComponent(id)}/restore-missing`, { method: "POST", body: JSON.stringify({ ids }) });

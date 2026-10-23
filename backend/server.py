@@ -1792,6 +1792,48 @@ async def delete_nightly_backup(backup_id: str, admin: Dict = Depends(require_su
     return {"ok": True}
 
 
+RESTORE_COLLECTIONS = ["bills", "boqs", "work_orders", "payments", "paybills", "advance_requests", "vendors", "employees", "expenses", "fooding", "loans"]
+RESTORE_KEYS = {"bills": "refNo", "boqs": "boqNo", "work_orders": "woNo", "payments": "pvNo", "paybills": "refNo", "advance_requests": "refNo", "vendors": "vendorCode", "employees": "empCode", "expenses": "refNo", "fooding": "refNo", "loans": "id"}
+
+
+async def _missing_from_backup(backup_id: str) -> Dict[str, List[Dict]]:
+    doc = await db.backups.find_one({"id": backup_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Backup not found")
+    out: Dict[str, List[Dict]] = {}
+    for coll in RESTORE_COLLECTIONS:
+        rows = [r for r in (doc.get("collections") or {}).get(coll, []) if isinstance(r, dict) and r.get("id")]
+        if not rows:
+            continue
+        have = set(await db[coll].distinct("id", {"id": {"$in": [r["id"] for r in rows]}}))
+        miss = [r for r in rows if r["id"] not in have]
+        if miss:
+            out[coll] = miss
+    return out
+
+
+@api_router.get("/admin/nightly-backups/{backup_id}/missing")
+async def nightly_backup_missing(backup_id: str, admin: Dict = Depends(require_super_admin)):
+    miss = await _missing_from_backup(backup_id)
+    items = [{"collection": c, "id": r["id"], "ref": r.get(RESTORE_KEYS[c]) or r.get("tempRefId") or r.get("permanentBillNo") or "", "name": r.get("vendorName") or r.get("name") or r.get("partyName") or r.get("description") or "", "amount": r.get("netPayable") or r.get("amount") or r.get("total") or r.get("grandTotal") or ""} for c, rs in miss.items() for r in rs]
+    return {"backup_id": backup_id, "count": len(items), "items": items}
+
+
+@api_router.post("/admin/nightly-backups/{backup_id}/restore-missing")
+async def nightly_backup_restore_missing(backup_id: str, body: Dict = Body(default={}), admin: Dict = Depends(require_super_admin)):
+    want = set(body.get("ids") or [])
+    miss = await _missing_from_backup(backup_id)
+    restored: Dict[str, int] = {}
+    for coll, rows in miss.items():
+        pick = [r for r in rows if not want or r["id"] in want]
+        if pick:
+            await db[coll].insert_many([dict(r) for r in pick])
+            restored[coll] = len(pick)
+    logger.info(f"Restore-missing from {backup_id} by {admin.get('email')}: {restored}")
+    return {"ok": True, "restored": restored, "total": sum(restored.values())}
+
+
+
 @api_router.post("/admin/nightly-backups/trigger")
 async def trigger_nightly_backup_now(background: BackgroundTasks, admin: Dict = Depends(require_super_admin)):
     """Allow SuperAdmin to manually trigger the same nightly backup flow (test / on-demand)."""
