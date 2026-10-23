@@ -343,3 +343,9 @@ See `/app/memory/test_credentials.md`.
 - Reports Hub: all new ops modules added as report sources.
 - Local Folder panel visible only to SuperAdmin.
 - Pending (Phase 2): ACL matrix in System Admin, Labour daily wages/auto-payroll link, 3-way match in bill audit.
+
+
+## 2026-10-23 — ACL Matrix, Labour Wages, Home/Sidebar
+- ACL: settings.acl {role:{dept:{v,c,a}}}; GET/POST /api/settings/acl (POST SuperAdmin). Defaults: view all, create all except Viewer, approve Admin+GM. lib/acl.js (can, deptOfPath, loadAcl); AclMatrix in System Admin (SA only); AclGate blocks pages without View; sidebar locks; backend ops_upsert enforces create/approve per dept. Legacy modules: only View enforced (their approve still uses old canApprove).
+- Labour & Wages (HR tab, LabourWages.jsx): Labour Master (ops labour), Daily Labour Attendance P/H/A + OT (ops labour_att), Monthly Wage Bill = man-days × wage + OT × rate (ops labour_bill, Submit → GM approval grid), print.
+- Sidebar: new icons; global bar hidden on /home — Home's own left Departments list shows same 1-10 list (DeptNavList); duplicate sub-links removed.

@@ -894,6 +894,30 @@ _COMPANY_DEFAULTS = {
 }
 
 
+@api_router.get("/settings/acl")
+async def get_acl(user: Dict = Depends(get_current_user)):
+    doc = await db.settings.find_one({"key": "acl"}, {"_id": 0})
+    return {"value": (doc or {}).get("value") or {}}
+
+
+@api_router.post("/settings/acl")
+async def set_acl(body: Dict = Body(...), admin: Dict = Depends(require_super_admin)):
+    value = body.get("value")
+    if not isinstance(value, dict):
+        raise HTTPException(status_code=400, detail="`value` must be an object")
+    await db.settings.update_one({"key": "acl"}, {"$set": {"key": "acl", "value": value, "updated_by": admin.get("email"), "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    return {"ok": True, "value": value}
+
+
+async def _acl_ok(user: Dict, dept: str, op: str) -> bool:
+    if _is_super_admin(user):
+        return True
+    role = (user.get("role") or "User").strip()
+    cell = (((await db.settings.find_one({"key": "acl"}, {"_id": 0})) or {}).get("value") or {}).get(role, {}).get(dept) or {}
+    default = role in ("Admin", "GM") if op == "a" else (role != "Viewer")
+    return bool(cell.get(op, default))
+
+
 @api_router.get("/settings/ui-buttons")
 async def get_ui_buttons(user: Dict = Depends(get_current_user)):
     doc = await db.settings.find_one({"key": "ui_buttons"}, {"_id": 0})
@@ -1779,6 +1803,12 @@ OPS_KINDS = {
     "projects": "PRJ", "dpr": "DPR", "indent": "IND", "qc_test": "QCT", "safety_audit": "SFA",
     "machine": "PM", "machine_log": "RHL", "diesel_log": "DSL", "booking": "BKG", "demand_letter": "DML",
     "tender": "TND", "agreement": "AGR", "geo_site": "GEO", "geo_att": "GAT",
+    "labour": "LBR", "labour_att": "LAT", "labour_bill": "LWB",
+}
+OPS_DEPT = {
+    "projects": "site", "dpr": "site", "indent": "site", "qc_test": "qc", "safety_audit": "qc",
+    "machine": "plant", "machine_log": "plant", "diesel_log": "plant", "booking": "client", "demand_letter": "client",
+    "tender": "client", "agreement": "client", "geo_site": "hr", "geo_att": "hr", "labour": "hr", "labour_att": "hr", "labour_bill": "hr",
 }
 BACKUP_COLLECTIONS.extend(f"ops_{k}" for k in OPS_KINDS)
 
@@ -1803,8 +1833,11 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     body.pop("_id", None)
     ex = await db[coll].find_one({"id": rid}, {"_id": 0}) or {}
     old, new = ex.get("status") or "Draft", body.get("status") or ex.get("status") or "Draft"
-    if not _crm_power(user) and ((new in ("Approved", "Rejected") and new != old) or old == "Approved"):
-        raise HTTPException(status_code=403, detail="Approval / approved record change sirf SuperAdmin / Admin kar sakte hain")
+    dept = OPS_DEPT[kind]
+    if not await _acl_ok(user, dept, "c"):
+        raise HTTPException(status_code=403, detail="Aapko is department mein entry ki permission nahi hai")
+    if ((new in ("Approved", "Rejected") and new != old) or old == "Approved") and not await _acl_ok(user, dept, "a"):
+        raise HTTPException(status_code=403, detail="Approval / approved record change ki permission nahi hai")
     now = datetime.now(timezone.utc)
     if new == "Approved" and old != "Approved":
         body["approvedByName"] = user.get("name") or user.get("email")

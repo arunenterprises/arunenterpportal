@@ -5,6 +5,7 @@ import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCh
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import LocalFolderPanel from "../components/LocalFolderBackup";
+import { DeptNavList } from "../components/AppSidebar";
 import {
   currentUserProfile,
   isSuperAdmin,
@@ -368,38 +369,8 @@ export default function Home() {
           <div style={{ padding: "12px 18px 6px", fontSize: 9, letterSpacing: 2, color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Departments</div>
 
           {/* Menu items */}
-          <nav style={{ flex: 1, overflowY: "auto", padding: "0 10px" }}>
-            {visibleDepts.map((d) => {
-              const allowed = d.roles.includes(role) || superAdmin;
-              const Icon = d.icon;
-              const badge = badges[d.id];
-              return (
-                <button
-                  key={d.id}
-                  data-testid={`sidebar-${d.id}`}
-                  onClick={() => allowed && nav(d.to)}
-                  disabled={!allowed}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 11,
-                    padding: "10px 12px", marginBottom: 3,
-                    background: "transparent", color: allowed ? "#e2e8f0" : "#475569",
-                    border: "1px solid transparent", borderRadius: 7,
-                    cursor: allowed ? "pointer" : "not-allowed",
-                    textAlign: "left", fontSize: 12.5, fontWeight: 700,
-                    transition: "all .15s",
-                  }}
-                  onMouseEnter={(e) => { if (allowed) { e.currentTarget.style.background = "rgba(255,255,255,.07)"; e.currentTarget.style.borderColor = d.color; } }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}
-                >
-                  <div style={{ width: 32, height: 32, borderRadius: 6, background: `linear-gradient(135deg,${d.color},${d.dark})`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon size={16} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ whiteSpace: "normal", lineHeight: 1.25, fontSize: d.title.length > 20 ? 11 : undefined, textTransform: "uppercase", letterSpacing: 0.3, wordBreak: "break-word" }}>{d.title}</div>
-                  </div>
-                </button>
-              );
-            })}
+          <nav className="home-deptnav" data-testid="home-dept-nav" style={{ flex: 1, overflowY: "auto", padding: "0 6px" }}>
+            <DeptNavList showSubs={false} />
           </nav>
         </aside>
 
@@ -438,7 +409,7 @@ export default function Home() {
             </div>
 
             <div style={{ fontSize: 10.5, color: "#64748b", textAlign: "center", padding: 6 }}>
-              💡 DRAFT · Left sidebar menu + dashboard layout · agar approve karo toh is design ko lock kar dunga. Rollback bhi ek line change me ho jayega.
+              Left list se 1-10 department kholein · System Admin mein SuperAdmin permissions set kar sakte hain.
             </div>
           </div>
         </main>

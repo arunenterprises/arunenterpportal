@@ -30,7 +30,8 @@ import { exportBankTransferXLSX, printBankTransferAdvice } from "../lib/bankTran
 import { apiAttendancePunch, apiAttendanceToday } from "../lib/api";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import GeoAttendance from "../components/GeoAttendance";
-import { MapPin } from "lucide-react";
+import LabourWages from "../components/LabourWages";
+import { MapPin, HardHat } from "lucide-react";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Sr. Operation Manager", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
@@ -2835,6 +2836,7 @@ export default function HRManagement() {
               { id: "idcard", label: "ID Card", tone: "#0ea5e9", icon: UserCheck },
               { id: "attendance", label: "Attendance", tone: "#f59e0b", icon: Calendar },
               { id: "geo", label: "Geo Attendance", tone: "#059669", icon: MapPin },
+              { id: "labour", label: "Labour & Wages", tone: "#be185d", icon: HardHat },
               { id: "leaves", label: "Leaves", tone: "#0ea5e9", icon: FileText },
               { id: "advance", label: "Advance Reg.", tone: "#f59e0b", icon: Wallet },
               { id: "loans", label: "Loan Mgmt.", tone: "#0891b2", icon: Landmark },
@@ -2894,6 +2896,7 @@ export default function HRManagement() {
             {tab === "employees" && <EmployeeEditor writeAllowed={write} approveAllowed={approve} />}
             {tab === "attendance" && <AttendanceGrid />}
             {tab === "geo" && <GeoAttendance />}
+            {tab === "labour" && <LabourWages />}
             {tab === "leaves" && <LeavesTab writeAllowed={write} approveAllowed={approve} />}
             {tab === "payroll" && <PayrollTab />}
             {tab === "paybill" && <PayBillTab writeAllowed={write} approveAllowed={approve} />}

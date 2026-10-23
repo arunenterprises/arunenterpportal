@@ -3,7 +3,8 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { FilePlus2, Save, Pencil, Send, CheckCircle2, XCircle, Trash2, Download, Printer, Search } from "lucide-react";
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
-import { canApprove, canDelete } from "../../lib/store";
+import { canDelete } from "../../lib/store";
+import { can, OPS_DEPT } from "../../lib/acl";
 
 export const STATUS_COLOR = { Draft: "#64748b", Submitted: "#d97706", Approved: "#15803d", Rejected: "#dc2626" };
 const uid = () => `op_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -36,7 +37,10 @@ export default function OpsModule({ cfg }) {
   const calc = (r) => (cfg.calc ? { ...r, ...cfg.calc(r) } : r);
   const set = (k, v) => setCur((c) => calc({ ...c, [k]: v }));
   const approved = cur.status === "Approved";
-  const ro = locked || approved;
+  const dept = OPS_DEPT[cfg.kind];
+  const canApprove = () => can(dept, "a");
+  const noCreate = !can(dept, "c");
+  const ro = locked || approved || noCreate;
 
   const save = async (patch = {}, msg = "Saved") => {
     const miss = cfg.fields.find((f) => f.req && !String(cur[f.k] ?? "").trim());
@@ -94,7 +98,7 @@ export default function OpsModule({ cfg }) {
         <button data-testid="ops-new" onClick={() => { setCur(blank(cfg)); setLocked(false); }} style={btn("#0369a1")}><FilePlus2 size={13} /> New</button>
         <button data-testid="ops-edit" onClick={() => (approved && !canApprove() ? toast.error("Approved record sirf Admin badal sakte hain") : setLocked(false))} style={btn("#eab308")}><Pencil size={13} /> Edit</button>
         <button data-testid="ops-save" disabled={ro} onClick={() => save()} style={btn("#16a34a", ro)}><Save size={13} /> Save</button>
-        <button data-testid="ops-submit" disabled={approved} onClick={() => save({ status: "Submitted" }, "Submitted for GM Approval")} style={btn("#7c3aed", approved)}><Send size={13} /> Submit</button>
+        <button data-testid="ops-submit" disabled={approved || noCreate} onClick={() => save({ status: "Submitted" }, "Submitted for GM Approval")} style={btn("#7c3aed", approved || noCreate)}><Send size={13} /> Submit</button>
         <button data-testid="ops-approve" disabled={approved} onClick={approve} style={btn("#15803d", approved)}><CheckCircle2 size={13} /> Approve</button>
         <button data-testid="ops-reject" disabled={approved} onClick={reject} style={btn("#b91c1c", approved)}><XCircle size={13} /> Reject</button>
         <button data-testid="ops-delete" onClick={del} style={btn("#991b1b")}><Trash2 size={13} /> Delete</button>

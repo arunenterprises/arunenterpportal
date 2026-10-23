@@ -5,7 +5,7 @@ import { FolderKanban, Wallet, HardHat, TrendingUp, AlertTriangle, ListChecks, E
 import { apiOpsList, apiOpsSave } from "../lib/api";
 import { OPS } from "./ops/opsConfig";
 
-const OPS_ROUTE = { dpr: "/site", indent: "/site", qc_test: "/qc-safety", safety_audit: "/qc-safety", machine: "/plant", machine_log: "/plant", diesel_log: "/plant", booking: "/client-revenue", demand_letter: "/client-revenue", tender: "/client-revenue", agreement: "/client-revenue" };
+const OPS_ROUTE = { dpr: "/site", indent: "/site", qc_test: "/qc-safety", safety_audit: "/qc-safety", machine: "/plant", machine_log: "/plant", diesel_log: "/plant", booking: "/client-revenue", demand_letter: "/client-revenue", tender: "/client-revenue", agreement: "/client-revenue", labour_bill: "/hr" };
 const today = () => new Date().toISOString().slice(0, 10);
 const inr = (v) => `₹${Math.round(Number(v) || 0).toLocaleString("en-IN")}`;
 const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 };
@@ -25,20 +25,20 @@ export default function GmMasterView({ approvals, expenses, canDo, tick }) {
   const [d, setD] = useState({ projects: [] });
   const [rev, setRev] = useState(0);
   useEffect(() => {
-    const kinds = ["projects", "geo_att", ...Object.keys(OPS_ROUTE)];
+    const kinds = ["projects", "geo_att", "labour_att", ...Object.keys(OPS_ROUTE)];
     Promise.all(kinds.map((k) => apiOpsList(k).catch(() => []))).then((r) => setD(Object.fromEntries(kinds.map((k, i) => [k, r[i]]))));
   }, [tick, rev]);
   const pf = (r) => proj === "all" || (r.project || "") === proj;
   const t = today();
   const active = (d.projects || []).filter((p) => !["Completed", "Cancelled"].includes(p.status));
   const todayExp = expenses.filter((x) => x.date === t).reduce((s, x) => s + (Number(x.basicAmount) || 0) + (Number(x.gstAmount) || 0), 0);
-  const labour = (d.dpr || []).filter((r) => r.date === t && pf(r)).reduce((s, r) => s + (Number(r.labourTotal) || 0), 0) + (d.geo_att || []).filter((r) => (r.at || "").slice(0, 10) === t).length;
+  const labour = (d.dpr || []).filter((r) => r.date === t && pf(r)).reduce((s, r) => s + (Number(r.labourTotal) || 0), 0) + (d.geo_att || []).filter((r) => (r.at || "").slice(0, 10) === t).length + (d.labour_att || []).filter((r) => r.date === t && pf(r)).reduce((s, r) => s + (Number(r.present) || 0), 0);
   const progress = (d.projects || []).filter((p) => proj === "all" || p.name === proj).map((p) => {
     const last = (d.dpr || []).filter((r) => r.project === p.name && r.progressPct !== "").sort((a, b) => (b.date || "").localeCompare(a.date || ""))[0];
     return { name: p.name, pct: Math.min(100, Number(last?.progressPct ?? p.progress) || 0) };
   });
   const opsItems = Object.keys(OPS_ROUTE).flatMap((k) => (d[k] || []).filter((r) => r.status === "Submitted" && pf(r)).map((r) => ({
-    key: `${k}-${r.id}`, type: OPS[k].title, no: r.docNo, party: r.project || r.clientName || r.party || r.machineCode || "", amt: r.total || r.totalValue || r.value || r.estValue || "",
+    key: `${k}-${r.id}`, type: OPS[k].title, no: r.docNo, party: r.project || r.clientName || r.party || r.machineCode || "", amt: r.totalAmount || r.total || r.totalValue || r.value || r.estValue || "",
     view: () => nav(OPS_ROUTE[k]),
     ok: async () => { try { await apiOpsSave(k, { ...r, status: "Approved" }); toast.success(`${r.docNo} approved`); setRev((v) => v + 1); } catch (e) { toast.error(e.message); } },
     no2: async () => { const why = window.prompt("Reject reason:"); if (why == null) return; try { await apiOpsSave(k, { ...r, status: "Rejected", rejectReason: why || "Rejected" }); toast.success(`${r.docNo} rejected`); setRev((v) => v + 1); } catch (e) { toast.error(e.message); } },
@@ -68,7 +68,7 @@ export default function GmMasterView({ approvals, expenses, canDo, tick }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 12 }}>
         <Tile testid="gm-tile-projects" icon={FolderKanban} label="Active Projects" value={String(active.length).padStart(2, "0")} sub={`${(d.projects || []).length} total projects`} c="#0369a1" />
         <Tile testid="gm-tile-expenses" icon={Wallet} label="Today's Expenses" value={inr(todayExp)} sub={`${expenses.filter((x) => x.date === t).length} expense entries aaj`} c="#d97706" />
-        <Tile testid="gm-tile-labour" icon={HardHat} label="Total Labour On-Site" value={labour} sub="Aaj ki DPR + Geo attendance" c="#15803d" />
+        <Tile testid="gm-tile-labour" icon={HardHat} label="Total Labour On-Site" value={labour} sub="Aaj ki DPR + Geo + Labour attendance" c="#15803d" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.3fr) minmax(0,1fr)", gap: 12 }}>
         <div style={card} data-testid="gm-progress-tracker">

@@ -96,6 +96,18 @@ export const OPS = {
       { k: "stampDuty", l: "Stamp Duty (₹)", type: "number" }, { k: "registered", l: "Registered", type: "select", options: ["Yes", "No"] }, { k: "terms", l: "Key Terms", type: "textarea", span: 3 }],
     columns: ["docNo", "atype", "party", "project", "startDate", "endDate", "value"],
   },
+  labour: {
+    kind: "labour", title: "Labour Master", color: "#be185d",
+    fields: [{ k: "name", l: "Labour Name", req: true }, { k: "trade", l: "Trade", type: "select", options: ["Mason", "Helper / Beldar", "Carpenter", "Bar Bender", "Electrician", "Plumber", "Painter", "Welder", "Operator", "Other"] },
+      P, { k: "contractor", l: "Contractor / Thekedar" }, { k: "dailyWage", l: "Daily Wage (₹)", type: "number", req: true }, { k: "otRate", l: "OT Rate (₹/hr)", type: "number" },
+      { k: "mobile", l: "Mobile" }, { k: "aadhaar", l: "Aadhaar No" }, { k: "lstatus", l: "Status", type: "select", options: ["Active", "Left"] }],
+    columns: ["docNo", "name", "trade", "project", "dailyWage", "lstatus"],
+  },
+  labour_bill: {
+    kind: "labour_bill", title: "Labour Wage Bill (Monthly)", color: "#9d174d",
+    fields: [{ k: "month", l: "Month" }, P, { k: "labourCount", l: "Labour", type: "number" }, { k: "totalDays", l: "Man-days", type: "number" }, { k: "totalAmount", l: "Total Wages (₹)", type: "number" }],
+    columns: ["docNo", "month", "project", "labourCount", "totalDays", "totalAmount"],
+  },
 };
 
 export const DEPTS = {

@@ -23,7 +23,7 @@ import { MobileBlock, isPhone } from "./components/MobileBlock";
 import ButtonDesigner from "./components/ButtonDesigner";
 import { LocalFolderRunner } from "./components/LocalFolderBackup";
 import ActionStripToggle from "./components/ActionStripToggle";
-import { AppSidebar } from "./components/AppSidebar";
+import { AppSidebar, AclGate } from "./components/AppSidebar";
 import OpsDepartment from "./pages/OpsDepartment";
 
 const RequireAuth = ({ children }) => {
@@ -90,6 +90,7 @@ function App() {
         <LocalFolderRunner />
         <ActionStripToggle />
         <AppSidebar />
+        <AclGate />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />

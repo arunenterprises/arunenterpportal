@@ -51,8 +51,8 @@ const CRM_DEPTS = CRM_REPORTS.map((r) => ({
 }));
 
 const OPS_CACHE = {};
-const OPS_DATE = { machine: null, booking: "bookingDate", demand_letter: "dueDate", tender: "submissionDate", agreement: "startDate" };
-const OPS_AMT = { booking: "totalValue", demand_letter: "total", tender: "estValue", agreement: "value", diesel_log: "issued" };
+const OPS_DATE = { machine: null, labour: null, labour_bill: null, booking: "bookingDate", demand_letter: "dueDate", tender: "submissionDate", agreement: "startDate" };
+const OPS_AMT = { booking: "totalValue", demand_letter: "total", tender: "estValue", agreement: "value", diesel_log: "issued", labour_bill: "totalAmount" };
 const loadOpsCache = () => Promise.all(Object.keys(OPS).map((k) => apiOpsList(k).then((r) => { OPS_CACHE[k] = r; }).catch(() => null)));
 const OPS_DEPTS = Object.values(OPS).map((c) => ({
   id: `ops_${c.kind}`, title: c.title, icon: "◆",
