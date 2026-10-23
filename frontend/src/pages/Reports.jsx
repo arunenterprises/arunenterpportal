@@ -7,6 +7,7 @@ import ModuleHero from "../components/ModuleHero";
 import { FileBarChart as FileBarChartIcon } from "lucide-react";
 import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
+import AccountsTabs from "../components/AccountsTabs";
 import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { exportBankTransferXLSX, printBankTransferAdvice, printBulkBankAdvice } from "../lib/bankTransfer";
@@ -591,6 +592,7 @@ export default function Reports() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div className="app-shell">
+        <AccountsTabs active="vouchers" />
         <TopActionBar
           searchPlaceholder="Vendor Code / Firm / Bill Ref"
           searchLabel="Query"

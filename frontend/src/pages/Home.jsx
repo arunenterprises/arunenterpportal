@@ -5,6 +5,7 @@ import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCh
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import { DeptNavList } from "../components/AppSidebar";
+import { apiOpsList } from "../lib/api";
 import {
   currentUserProfile,
   isSuperAdmin,
@@ -269,6 +270,18 @@ const DepartmentCard = ({ dept, onClick, badge, allowed }) => {
 
 export default function Home() {
   const nav = useNavigate();
+  const [ops, setOps] = useState({ dpr: [], labour_att: [], labour_bill: [], geo_att: [] });
+  useEffect(() => {
+    const kinds = Object.keys(ops);
+    Promise.all(kinds.map((k) => apiOpsList(k).catch(() => []))).then((r) => setOps(Object.fromEntries(kinds.map((k, i) => [k, r[i]]))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const today = new Date().toISOString().slice(0, 10);
+  const dprToday = ops.dpr.filter((r) => r.date === today);
+  const labourToday = dprToday.reduce((s, r) => s + (Number(r.labourTotal) || 0), 0)
+    + ops.labour_att.filter((r) => r.date === today).reduce((s, r) => s + (Number(r.present) || 0), 0)
+    + ops.geo_att.filter((r) => (r.at || "").slice(0, 10) === today).length;
+  const wageBillsPending = ops.labour_bill.filter((r) => r.status === "Submitted");
   const me = currentUserProfile();
   const superAdmin = isSuperAdmin(me?.user);
   const role = currentRole();
@@ -404,6 +417,12 @@ export default function Home() {
               <Kpi title="Approved Vouchers" value={paidVouchers} total={payments.length} color="#7c3aed" />
               <Kpi title="HR Finalized" value={hrFinalized} total={hrEmps} color="#db2777" />
               <Kpi title="Approved ₹" value={`₹${Math.round(totalApprovedAmount / 100000)}L`} subtitle={`of ₹${Math.round((totalApprovedAmount + pendingAmount) / 100000)}L`} color="#059669" />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 12 }} data-testid="home-quick-tiles">
+              <button data-testid="home-tile-dpr" onClick={() => nav("/site")} style={{ all: "unset", cursor: "pointer" }}><Kpi title="Aaj ki DPR" value={dprToday.length} subtitle={`${new Set(dprToday.map((r) => r.project)).size} project / site se`} color="#b45309" /></button>
+              <button data-testid="home-tile-labour" onClick={() => nav("/hr")} style={{ all: "unset", cursor: "pointer" }}><Kpi title="Labour On-Site (Aaj)" value={labourToday} subtitle="DPR + Labour + Geo attendance" color="#15803d" /></button>
+              <button data-testid="home-tile-wagebills" onClick={() => nav("/gm")} style={{ all: "unset", cursor: "pointer" }}><Kpi title="Pending Wage Bills" value={wageBillsPending.length} subtitle={`₹${Math.round(wageBillsPending.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0)).toLocaleString("en-IN")} GM approval baki`} color="#be185d" /></button>
             </div>
 
             <div style={{ fontSize: 10.5, color: "#64748b", textAlign: "center", padding: 6 }}>

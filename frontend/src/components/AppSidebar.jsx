@@ -9,8 +9,8 @@ const ITEMS = [
   { n: 2, l: "Client & Revenue", to: "/client-revenue", d: "client", icon: HandCoins, c: "#0ea5e9" },
   { n: 3, l: "HR & Labour", to: "/hr", d: "hr", icon: UserRoundCog, c: "#ec4899" },
   { n: 4, l: "Procurement", to: "/purchase", d: "procurement", icon: ShoppingBag, c: "#22c55e" },
-  { n: 5, l: "Accounts & Vouchers", to: "/bill", d: "accounts", icon: Wallet, c: "#14b8a6", subs: [{ l: "Bills · Expenses · Fooding", to: "/bill" }, { l: "Payment Vouchers", to: "/final" }] },
-  { n: 6, l: "Project & Site", to: "/site", d: "site", icon: Building2, c: "#f97316", subs: [{ l: "DPR · Material Indent", to: "/site" }, { l: "Projects Register", to: "/project" }] },
+  { n: 5, l: "Accounts & Vouchers", to: "/bill", d: "accounts", icon: Wallet, c: "#14b8a6" },
+  { n: 6, l: "Project & Site", to: "/site", d: "site", icon: Building2, c: "#f97316" },
   { n: 7, l: "QC & Safety", to: "/qc-safety", d: "qc", icon: FlaskConical, c: "#8b5cf6" },
   { n: 8, l: "Plant & Machinery", to: "/plant", d: "plant", icon: Tractor, c: "#eab308" },
   { n: 9, l: "Reports Hub", to: "/reports-hub", d: "reports", icon: BarChart3, c: "#6366f1" },
@@ -35,7 +35,7 @@ export const DeptNavList = ({ mini = false, showSubs = true }) => {
   return ITEMS.map((it) => {
     const Icon = it.icon;
     const ok = can(it.d, "v");
-    const act = at(it.to) || (it.subs || []).some((s) => at(s.to));
+    const act = deptOfPath(loc.pathname) === it.d;
     return (
       <div key={it.n}>
         <button data-testid={`sidebar-${it.n}`} disabled={!ok} onClick={() => nav(it.to)} title={ok ? it.l : `${it.l} · permission nahi`} className={`sb-item${act ? " active" : ""}`} style={{ "--c": it.c, opacity: ok ? 1 : 0.4 }}>

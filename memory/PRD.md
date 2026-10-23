@@ -349,3 +349,9 @@ See `/app/memory/test_credentials.md`.
 - ACL: settings.acl {role:{dept:{v,c,a}}}; GET/POST /api/settings/acl (POST SuperAdmin). Defaults: view all, create all except Viewer, approve Admin+GM. lib/acl.js (can, deptOfPath, loadAcl); AclMatrix in System Admin (SA only); AclGate blocks pages without View; sidebar locks; backend ops_upsert enforces create/approve per dept. Legacy modules: only View enforced (their approve still uses old canApprove).
 - Labour & Wages (HR tab, LabourWages.jsx): Labour Master (ops labour), Daily Labour Attendance P/H/A + OT (ops labour_att), Monthly Wage Bill = man-days × wage + OT × rate (ops labour_bill, Submit → GM approval grid), print.
 - Sidebar: new icons; global bar hidden on /home — Home's own left Departments list shows same 1-10 list (DeptNavList); duplicate sub-links removed.
+
+## 2026-10-23 — Sub-tabs merged, legacy ACL, Home quick tiles
+- Sidebar has no sub-links; Accounts tab bar got "Payment Vouchers" (→ /final, which also shows AccountsTabs); Procurement tabs: Vendor Registration → BOQ → WO → Bill Creation; Project & Site page has Projects Register tab first. Sidebar active state via deptOfPath.
+- Legacy permissions: store.canCreate / canApprove now also check ACL tick for the department of the current page (frontend only; legacy snapshot backend not ACL-enforced).
+- Home quick tiles: Aaj ki DPR, Labour On-Site, Pending Wage Bills. Local Folder panel moved to System Admin (SA only). Sidebar icons restyled.
+

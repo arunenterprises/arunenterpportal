@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Receipt, Wallet, IndianRupee, Utensils, LogOut } from "lucide-react";
+import { Receipt, Wallet, IndianRupee, Utensils, LogOut, FileCheck2 } from "lucide-react";
 
 const TABS = [
   { id: "vendor", label: "Vendor Bill Process", tone: "#065f46", icon: Receipt },
@@ -9,15 +9,16 @@ const TABS = [
   { id: "paybill", label: "Pay Bills Process", tone: "#065f46", icon: IndianRupee },
   { id: "fooding", label: "Weekly Fooding", tone: "#065f46", icon: Utensils },
   { id: "exit", label: "Exit & F&F", tone: "#065f46", icon: LogOut },
+  { id: "vouchers", label: "Payment Vouchers", tone: "#065f46", icon: FileCheck2 },
 ];
 
 // Shared Accounts department tab bar (same on /bill and /expense so the heading stays fixed).
 export const AccountsTabs = ({ active, onSelect }) => {
   const nav = useNavigate();
   const go = (id) => {
+    if (id === "vouchers") { nav("/final"); return; }
     if (onSelect) { onSelect(id); return; }
-    if (id === "expense") return;
-    nav(`/bill?view=${id}`);
+    nav(id === "vendor" ? "/bill" : `/bill?view=${id}`);
   };
   return (
     <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="accounts-view-tabs">

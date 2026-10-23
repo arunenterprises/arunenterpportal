@@ -10,6 +10,13 @@ import {
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
 import { toast as _toast } from "sonner";
+import { getAcl, aclCell, deptOfPath } from "./acl";
+
+// Per-department ACL tick (System Admin → Permissions) for the page currently open.
+const _aclAllows = (op) => {
+  const dept = typeof window !== "undefined" ? deptOfPath(window.location.pathname) : null;
+  return !dept || !!aclCell(getAcl(), currentRole(), dept)[op];
+};
 
 const KEYS = {
   VENDORS: "ae_vm_vendors",
@@ -1295,6 +1302,7 @@ const _myPerms = () => {
 };
 export const canCreate = () => {
   if (isSuperAdmin(currentUserEmail())) return true;
+  if (!_aclAllows("c")) return false;
   const p = _myPerms();
   if (p && typeof p.create === "boolean") return p.create;
   return currentRole() !== "Viewer";
@@ -1314,6 +1322,7 @@ export const canSubmit = () => {
 export const canDownload = () => true; // everyone (including Viewer) can download
 export const canApprove = () => {
   if (isSuperAdmin(currentUserEmail())) return true;
+  if (!_aclAllows("a")) return false;
   const p = _myPerms();
   if (p && typeof p.approve === "boolean") return p.approve;
   const r = currentRole();
