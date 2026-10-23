@@ -23,9 +23,11 @@ export default function OpsDepartment({ dept }) {
             <button data-testid="dept-tab-projects" onClick={() => nav("/project")} style={{ padding: "8px 16px", background: "#0f766e", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><FolderKanban size={13} /> Projects Register</button>
           )}
           {d.tabs.map((k) => (
-            <button key={k} data-testid={`dept-tab-${k}`} onClick={() => setTab(k)} style={{ padding: "8px 16px", background: tab === k ? OPS[k].color : `${OPS[k].color}14`, color: tab === k ? "#fff" : OPS[k].color, border: `1px solid ${OPS[k].color}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{OPS[k].title}</button>
+            <React.Fragment key={k}>
+            <button data-testid={`dept-tab-${k}`} onClick={() => setTab(k)} style={{ padding: "8px 16px", background: tab === k ? OPS[k].color : `${OPS[k].color}14`, color: tab === k ? "#fff" : OPS[k].color, border: `1px solid ${OPS[k].color}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{OPS[k].title}</button>
+            {k === "qc_test" && <QcNormsGuide />}
+            </React.Fragment>
           ))}
-          {dept === "qc" && <QcNormsGuide />}
         </div>
         <OpsModule cfg={OPS[tab]} />
       </div>
