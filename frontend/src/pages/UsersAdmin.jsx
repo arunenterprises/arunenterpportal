@@ -8,6 +8,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import AuthSplash from "../components/AuthSplash";
 import AclMatrix from "../components/AclMatrix";
+import LocalFolderPanel from "../components/LocalFolderBackup";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
 const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
@@ -535,6 +536,7 @@ export default function UsersAdmin() {
         <FinancialYearCard isAdmin={isSuperAdmin(me?.user) || (me?.role || "").toLowerCase() === "admin"} />
         <CompanyMasterCard isSuper={isSuperAdmin(me?.user)} />
         {isSuperAdmin(me?.user) && <AclMatrix />}
+        {isSuperAdmin(me?.user) && <LocalFolderPanel />}
         <div style={{ marginTop: 18, border: "1px solid #cbd5e1", borderRadius: 6 }}>
           <div style={{ background: "#fef9c3", padding: "6px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#854d0e", display: "flex", alignItems: "center", gap: 6 }}>
             <Lock size={12} /> CHANGE MY PASSWORD ({me?.user})
