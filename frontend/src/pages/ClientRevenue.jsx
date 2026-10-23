@@ -34,8 +34,8 @@ const TABS = [
   { k: "mb", l: "Measurement Book", icon: Ruler, C: MBook, c: "#db2777" },
   { k: "ra", l: "RA Bills", icon: Receipt, C: RABills, c: "#dc2626" },
   { k: "inv", l: "Tax Invoice", icon: FileText, C: Invoices, c: "#ea580c" },
-  { k: "invreg", l: "Invoice Register", icon: BookOpen, C: InvoiceRegister, c: "#d97706" },
   { k: "abstract", l: "Abstract", icon: FileText, C: Abstract, c: "#1e3a8a" },
+  { k: "invreg", l: "Invoice Register", icon: BookOpen, C: InvoiceRegister, c: "#d97706" },
   { k: "ms", l: "Milestones", icon: Flag, C: Milestones, c: "#65a30d" },
   { k: "co", l: "Change Orders", icon: FilePlus2, C: ChangeOrders, c: "#16a34a" },
   { k: "ret", l: "Retention", icon: ShieldCheck, C: Retention, c: "#0d9488" },
@@ -88,10 +88,7 @@ export default function ClientRevenue() {
       <HomeNavBar />
       <div data-testid="client-revenue-page" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px) 110px" }}>
         <ModuleHero tag="Client & Revenue Management" title="CRM · Measurement Book · RA Billing · Retention" subtitle="Lead se lekar client payment aur retention release tak ka poora workflow"
-          icon={Handshake} gradient="linear-gradient(135deg, #0b1f4d 0%, #1e3a8a 55%, #0891b2 100%)" shadowRgba="30,58,138,.28"
-          rightSlot={<button data-testid="crm-hero-reports-btn" onClick={() => setTab("reports")} className="crm-btn"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: "#1e3a8a", border: "none", borderRadius: 8, padding: "9px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>
-            <BarChart3 size={15} /> Reports</button>} />
+          icon={Handshake} gradient="linear-gradient(135deg, #0b1f4d 0%, #1e3a8a 55%, #0891b2 100%)" shadowRgba="30,58,138,.28" />
         {!crm.loading && <WorkflowStrip data={crm.data} onGo={setTab} />}
         <div data-testid="crm-tabs" className="crm-one-line-flex" style={{ display: "flex", gap: 4, marginBottom: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 5 }}>
           {TABS.map((t) => (
