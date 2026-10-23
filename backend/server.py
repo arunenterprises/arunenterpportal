@@ -623,6 +623,7 @@ async def upsert_vendor(body: Dict = Body(...), user: Dict = Depends(require_wri
     if not vid:
         raise HTTPException(status_code=400, detail="id required")
     body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await _acl_guard("vendors", body, user)
     await db.vendors.update_one({"id": vid}, {"$set": body}, upsert=True)
     return _clean(body)
 
@@ -646,6 +647,7 @@ async def upsert_bill(body: Dict = Body(...), user: Dict = Depends(require_write
         raise HTTPException(status_code=400, detail="id required")
     body = await _enforce_workflow("bills", body, user, step_field="step")
     body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await _acl_guard("bills", body, user)
     await db.bills.update_one({"id": bid}, {"$set": body}, upsert=True)
     return _clean(body)
 
@@ -668,7 +670,7 @@ async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_
     insert flow allowed any logged-in user to wipe the full payments ledger.
     Feb 2026 fix: switched from require_approver → require_write so creator-tier
     users can save their own voucher drafts and sync them cross-device."""
-    items = body.get("items") or []
+    items = await _acl_filter("payments", body.get("items") or [], user)
     count = 0
     for p in items:
         pid = p.get("id") or p.get("pvNo")
@@ -804,6 +806,7 @@ async def upsert_employee(body: Dict = Body(...), user: Dict = Depends(require_w
     if not eid:
         raise HTTPException(status_code=400, detail="id required")
     body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await _acl_guard("employees", body, user)
     await db.employees.update_one({"id": eid}, {"$set": body}, upsert=True)
     return _clean(body)
 
@@ -826,6 +829,7 @@ async def upsert_attendance(body: Dict = Body(...), user: Dict = Depends(require
     if not aid:
         raise HTTPException(status_code=400, detail="id required")
     body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await _acl_guard("attendance", body, user)
     await db.attendance.update_one({"id": aid}, {"$set": body}, upsert=True)
     return _clean(body)
 
@@ -918,6 +922,56 @@ async def _acl_ok(user: Dict, dept: str, op: str) -> bool:
     return bool(cell.get(op, default))
 
 
+ACL_COLL_DEPT = {
+    "vendors": "procurement", "boqs": "procurement", "work_orders": "procurement",
+    "bills": "accounts", "payments": "accounts", "expenses": "accounts", "fooding": "accounts",
+    "paybills": "accounts", "loans": "accounts", "advance_requests": "accounts",
+    "employees": "hr", "attendance": "hr", "recruitments": "hr", "exits": "hr",
+}
+_APPROVE_WORDS = {"approved", "rejected", "paid", "settled"}
+
+
+async def _acl_restricted(user: Dict, coll: str) -> bool:
+    dept = ACL_COLL_DEPT.get(coll)
+    return bool(dept) and not (await _acl_ok(user, dept, "c") and await _acl_ok(user, dept, "a"))
+
+
+async def _acl_guard(coll: str, body: Dict, user: Dict) -> None:
+    """Old modules: block create/edit or approval when the role's ACL tick is removed."""
+    if not await _acl_restricted(user, coll):
+        return
+    dept = ACL_COLL_DEPT[coll]
+    key = {"id": body["id"]} if body.get("id") else ({"pvNo": body["pvNo"]} if body.get("pvNo") else None)
+    ex = await db[coll].find_one(key, {"_id": 0}) if key else None
+    if ex and all(json.dumps(ex.get(k), sort_keys=True, default=str) == json.dumps(v, sort_keys=True, default=str) for k, v in body.items()):
+        return
+
+    def lvl(d):
+        try:
+            s = int((d or {}).get("step") or 0)
+        except (TypeError, ValueError):
+            s = 0
+        return s, str((d or {}).get("status") or "").lower()
+    (os_, ost), (ns, nst) = lvl(ex), lvl(body)
+    if ((ns > os_ and ns > 2) or (nst != ost and nst in _APPROVE_WORDS)) and not await _acl_ok(user, dept, "a"):
+        raise HTTPException(status_code=403, detail="Approval ki permission nahi hai (System Admin → Permissions)")
+    if not await _acl_ok(user, dept, "c"):
+        raise HTTPException(status_code=403, detail="Entry / edit ki permission nahi hai (System Admin → Permissions)")
+
+
+async def _acl_filter(coll: str, items: List[dict], user: Dict) -> List[dict]:
+    if not await _acl_restricted(user, coll):
+        return items
+    out = []
+    for it in items:
+        try:
+            await _acl_guard(coll, it, user)
+            out.append(it)
+        except HTTPException:
+            continue
+    return out
+
+
 @api_router.get("/settings/ui-buttons")
 async def get_ui_buttons(user: Dict = Depends(get_current_user)):
     doc = await db.settings.find_one({"key": "ui_buttons"}, {"_id": 0})
@@ -987,6 +1041,7 @@ async def push_snapshot(body: Dict = Body(...), user: Dict = Depends(require_wri
                 except HTTPException:
                     continue
             items = allowed
+        items = await _acl_filter(c, items, user)
         result[c] = await _merge_upsert(c, items)
     if body.get("counters"):
         await _bump_counters(body["counters"])
@@ -1011,6 +1066,7 @@ def _make_hr_crud(coll_name: str, path: str, step_field: str = "step"):
         if not rid:
             raise HTTPException(status_code=400, detail="id required")
         body = await _enforce_workflow(coll_name, body, user, step_field=step_field)
+        await _acl_guard(coll_name, body, user)
         await db[coll_name].update_one({"id": rid}, {"$set": body}, upsert=True)
         return {"ok": True, "id": rid}
     @api_router.delete(f"/{path}/{{rid}}")
@@ -1033,6 +1089,7 @@ _make_hr_crud("exits", "exits", step_field="step")
 async def upsert_fooding(body: Dict = Body(...), user: Dict = Depends(require_write)):
     if not body.get("id"):
         raise HTTPException(status_code=400, detail="id is required")
+    await _acl_guard("fooding", body, user)
     await _merge_upsert("fooding", [body])
     return {"ok": True, "id": body["id"]}
 
@@ -1266,6 +1323,7 @@ async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(require_wr
     xid = body.get("id")
     if not xid:
         raise HTTPException(status_code=400, detail="id is required")
+    await _acl_guard("expenses", body, user)
     await db.expenses.update_one({"id": xid}, {"$set": body}, upsert=True)
     return {"ok": True, "id": xid}
 
@@ -1288,6 +1346,7 @@ async def upsert_boq(body: Dict = Body(...), user: Dict = Depends(get_current_us
     if not bid:
         raise HTTPException(status_code=400, detail="id is required")
     body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await _acl_guard("boqs", body, user)
     await db.boqs.update_one({"id": bid}, {"$set": body}, upsert=True)
     return {"ok": True, "id": bid}
 
@@ -1310,6 +1369,7 @@ async def upsert_wo(body: Dict = Body(...), user: Dict = Depends(get_current_use
     if not wid:
         raise HTTPException(status_code=400, detail="id is required")
     body["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await _acl_guard("work_orders", body, user)
     await db.work_orders.update_one({"id": wid}, {"$set": body}, upsert=True)
     return {"ok": True, "id": wid}
 

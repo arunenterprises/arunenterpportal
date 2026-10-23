@@ -5,6 +5,7 @@ import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCh
 import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import { DeptNavList } from "../components/AppSidebar";
+import HomeProgressChart from "../components/HomeProgressChart";
 import { apiOpsList } from "../lib/api";
 import {
   currentUserProfile,
@@ -293,7 +294,7 @@ export default function Home() {
     : (me?.name || me?.user?.split("@")[0] || "");
 
   // REAL-TIME CROSS-USER SYNC: re-render badges when App.js dispatches ae-sync-done.
-  const [, setSyncTick] = useState(0);
+  const [syncTick, setSyncTick] = useState(0);
   useEffect(() => {
     const onSync = () => setSyncTick((v) => v + 1);
     window.addEventListener("ae-sync-done", onSync);
@@ -424,6 +425,8 @@ export default function Home() {
               <button data-testid="home-tile-labour" onClick={() => nav("/hr")} style={{ all: "unset", cursor: "pointer" }}><Kpi title="Labour On-Site (Aaj)" value={labourToday} subtitle="DPR + Labour + Geo attendance" color="#15803d" /></button>
               <button data-testid="home-tile-wagebills" onClick={() => nav("/gm")} style={{ all: "unset", cursor: "pointer" }}><Kpi title="Pending Wage Bills" value={wageBillsPending.length} subtitle={`₹${Math.round(wageBillsPending.reduce((s, r) => s + (Number(r.totalAmount) || 0), 0)).toLocaleString("en-IN")} GM approval baki`} color="#be185d" /></button>
             </div>
+
+            <HomeProgressChart tick={syncTick} />
 
             <div style={{ fontSize: 10.5, color: "#64748b", textAlign: "center", padding: 6 }}>
               Left list se 1-10 department kholein · System Admin mein SuperAdmin permissions set kar sakte hain.

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Save, Send, Calculator, Printer } from "lucide-react";
+import { Save, Send, Calculator, Printer, FileCheck2 } from "lucide-react";
 import { apiOpsList, apiOpsSave } from "../lib/api";
+import { getPayments, savePayments, nextPvNo, currentUser } from "../lib/store";
 import { can } from "../lib/acl";
 import OpsModule, { STATUS_COLOR } from "./ops/OpsModule";
 import { OPS } from "./ops/opsConfig";
@@ -93,6 +94,22 @@ const WageBill = ({ data, onSaved }) => {
       toast.success(`${s.docNo} ${status === "Submitted" ? "GM approval ko bheja" : "saved"}`); onSaved();
     } catch (e) { toast.error(e.message); }
   };
+  const makePV = async () => {
+    const payments = getPayments();
+    const pvId = `pv_wage_${existing.id}`;
+    const ex = payments.find((p) => p.id === pvId);
+    if (ex) { toast.info(`Voucher pehle se bana hai: ${ex.pvNo}`); return; }
+    const pvNo = nextPvNo();
+    const now = new Date().toISOString();
+    payments.push({
+      id: pvId, pvNo, pvDate: now.slice(0, 10), source: "Labour Wages", sourceRef: existing.id, vendorCode: "AE-LABOUR",
+      vendorSnapshot: { firmName: `Labour Wages · ${existing.project} · ${existing.month}` }, amount: Number(existing.totalAmount) || 0,
+      remarks: `Auto from Wage Bill ${existing.docNo} · ${existing.labourCount} labour · ${existing.totalDays} man-days`, status: "Submitted", createdByName: currentUser(), createdAt: now,
+    });
+    savePayments(payments);
+    try { await apiOpsSave("labour_bill", { ...existing, linkedPvNo: pvNo }); } catch {}
+    toast.success(`Payment Voucher ${pvNo} ban gaya · Accounts → Payment Vouchers mein dekhein`); onSaved();
+  };
   const print = () => {
     const w = window.open("", "_blank"); if (!w) return;
     const tr = lines.map((l, i) => `<tr><td>${i + 1}</td><td>${l.name}</td><td>${l.trade}</td><td>${l.days}</td><td>${l.wage}</td><td>${l.ot}</td><td>${l.otRate}</td><td style="text-align:right">${l.amount.toFixed(2)}</td><td></td></tr>`).join("");
@@ -117,6 +134,9 @@ const WageBill = ({ data, onSaved }) => {
         <button data-testid="lbill-save" disabled={locked || !can("hr", "c")} onClick={() => save("Draft")} style={btn("#16a34a", locked || !can("hr", "c"))}><Save size={13} /> Save Bill</button>
         <button data-testid="lbill-submit" disabled={locked || !can("hr", "c")} onClick={() => save("Submitted")} style={btn("#7c3aed", locked || !can("hr", "c"))}><Send size={13} /> Submit to GM</button>
         <button data-testid="lbill-print" onClick={print} style={btn("#0f172a")}><Printer size={13} /> Print</button>
+        {existing?.status === "Approved" && (existing.linkedPvNo
+          ? <span data-testid="lbill-pv" style={{ fontWeight: 800, fontSize: 12, color: "#15803d", alignSelf: "center" }}>Voucher: {existing.linkedPvNo}</span>
+          : <button data-testid="lbill-make-pv" disabled={!can("accounts", "c")} onClick={makePV} style={btn("#0f766e", !can("accounts", "c"))}><FileCheck2 size={13} /> Payment Voucher banayein</button>)}
       </div>
     </div>
   );

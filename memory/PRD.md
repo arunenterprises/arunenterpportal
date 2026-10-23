@@ -355,3 +355,9 @@ See `/app/memory/test_credentials.md`.
 - Legacy permissions: store.canCreate / canApprove now also check ACL tick for the department of the current page (frontend only; legacy snapshot backend not ACL-enforced).
 - Home quick tiles: Aaj ki DPR, Labour On-Site, Pending Wage Bills. Local Folder panel moved to System Admin (SA only). Sidebar icons restyled.
 
+
+## 2026-10-23 — Progress chart, Server permission lock, Wage PV
+- Home: HomeProgressChart — module-wise stacked bars (Approved / Pending / Draft / Rejected) for Vendors, BOQ, WO, Bills, Expenses, PVs, HR + all new ops modules; click opens module.
+- Server ACL lock for old modules: ACL_COLL_DEPT + _acl_guard/_acl_filter on vendors, bills, payments/bulk, employees, attendance, expenses, boqs, work_orders, HR CRUD (paybills/loans/advances/recruit/exits), fooding, and /snapshot push (blocked items silently dropped). Verified: Admin with procurement c=false → POST /api/vendors 403, expenses 200.
+- Wage Bill → "Payment Voucher banayein" (approved bills): creates PV (id pv_wage_<billId>, nextPvNo, status Submitted) in Accounts; bill stores linkedPvNo.
+
