@@ -1080,7 +1080,7 @@ export const dedupeAllStores = () => {
       const clean = [];
       let removed = 0;
       for (const row of raw) {
-        const k = keyFn(row);
+        const k = row?.id ? `${row.id}|${keyFn(row) || ""}` : null;
         if (!k) { clean.push(row); continue; }
         if (seen.has(k)) { removed++; continue; }
         seen.add(k);

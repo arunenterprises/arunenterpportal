@@ -94,10 +94,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
       setRefresh((r) => r + 1);
       try { toast.success(`Legacy HR-INTERNAL bills cleaned up (${removed} rows). HR Pay Bills ab sirf 'Pay Bills Process' tab mein hain.`); } catch (_e) {}
     }
-    if (dupRemoved > 0) {
-      setRefresh((r) => r + 1);
-      try { toast.success(`Duplicate process numbers removed (${dupRemoved} rows across all modules).`); } catch (_e) {}
-    }
+    if (dupRemoved > 0) setRefresh((r) => r + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
