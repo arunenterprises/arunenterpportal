@@ -495,6 +495,8 @@ export default function GeneralManager() {
           <HeroHeader gmName={gmName} canDo={canDo} totalPending={totalPending} totalApproved={totalApproved} />
 
           <GmMasterView tick={tick} canDo={canDo} expenses={expenses} approvals={[
+            ...stats.vendorPending.map((v) => ({ key: `ven-${v.id}`, type: "Vendor", no: v.tempRefId || v.vendorCode, party: v.firmName || "", amt: "", view: () => nav("/purchase"), ok: () => approveVendor(v), no2: () => rejectVendor(v) })),
+            ...stats.boqsPending.map((b) => ({ key: `boq-${b.id}`, type: "BOQ", no: b.boqNo, party: b.projectSite || b.projectName || "", amt: b.grandTotal ?? b.total ?? "", view: () => nav("/purchase?tab=boq"), ok: () => approveBOQ(b), no2: () => rejectBOQ(b) })),
             ...stats.billsPending.map((b) => ({ key: `bill-${b.id}`, type: "Bill", no: b.permanentBillNo || b.refNo, party: b.vendorSnapshot?.firmName || b.vendorCode || "", amt: (Number(b.basicAmount) || 0) * (1 + (Number(b.gstSlab) || 0) / 100), view: () => nav("/bill"), ok: () => approveBill(b), no2: () => rejectBill(b) })),
             ...stats.vouchersPending.map((p) => ({ key: `pv-${p.id}`, type: "Voucher", no: p.pvNo, party: p.vendorName || p.payeeName || p.paidTo || "", amt: p.amount ?? p.netAmount ?? p.netPayable ?? "", view: () => nav("/final"), ok: () => approveVoucher(p), no2: () => rejectVoucher(p) })),
             ...stats.wosPending.map((w) => ({ key: `wo-${w.id}`, type: "Work Order", no: w.woNo || w.boqRefNo, party: w.vendorName || "", amt: w.total ?? "", view: () => nav("/purchase"), ok: () => approveWO(w), no2: () => rejectWO(w) })),
@@ -525,49 +527,7 @@ export default function GeneralManager() {
             ))}
           </div>
 
-          {/* Segmented tab bar */}
-          <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            <div style={{
-              background: "#fff", borderRadius: 10,
-              padding: 5, display: "inline-flex", gap: 3,
-              border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(15,23,42,.05)",
-            }} data-testid="gm-tabs">
-            {[
-              { id: "pending", icon: Clock, label: "Pending Approval", count: totalPending, tone: "#ea580c" },
-              { id: "approved", icon: CheckCircle2, label: "Approved · Re-Approve", count: totalApproved, tone: "#16a34a" },
-            ].map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  data-testid={`gm-tab-${t.id}`}
-                  onClick={() => setTab(t.id)}
-                  style={{
-                    padding: "8px 16px",
-                    background: active ? t.tone : "transparent",
-                    color: active ? "#fff" : "#334155",
-                    border: "none", borderRadius: 7,
-                    cursor: "pointer",
-                    fontWeight: 700, fontSize: 12,
-                    letterSpacing: .3,
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    boxShadow: active ? `0 2px 8px ${t.tone}55` : "none",
-                    transition: "all .15s ease",
-                  }}
-                >
-                  <Icon size={13} />
-                  {t.label}
-                  <span style={{
-                    marginLeft: 3, padding: "1px 7px",
-                    background: active ? "rgba(255,255,255,.25)" : "#f1f5f9",
-                    color: active ? "#fff" : "#64748b",
-                    borderRadius: 999, fontSize: 10.5, fontWeight: 800,
-                  }}>{t.count}</span>
-                </button>
-              );
-            })}
-            </div>
+          <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "flex-end", flexWrap: "wrap", gap: 12 }}>
             {/* Vendor Code Doctor — SuperAdmin only, fixes legacy collisions */}
             {isSuperAdmin(currentUserEmail()) && (
               <button
@@ -592,23 +552,6 @@ export default function GeneralManager() {
                 <ShieldCheck size={14} /> Vendor Code Doctor
               </button>
             )}
-          </div>
-
-          <div style={{ marginTop: 18 }}>
-            {tab === "pending" ? pendingInbox : approvedInbox}
-          </div>
-
-          <CrmGmPanel index={7} />
-
-          {/* Footer helper */}
-          <div style={{
-            marginTop: 12, padding: "10px 14px",
-            background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
-            fontSize: 11.5, color: "#64748b", textAlign: "center",
-          }}>
-            {tab === "pending"
-              ? "Approve karne pe aapka naam auto-fill ho jayega — item aage badh jaayega."
-              : "Re-Approve karne pe existing approver ka naam replace ho ke aapka naam save ho jayega + date bump hogi."}
           </div>
         </div>
       </div>

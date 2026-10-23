@@ -369,3 +369,7 @@ See `/app/memory/test_credentials.md`.
 ## 2026-10-23 — Home dashboard restyle (customer reference image)
 - HomeProgressChart rewritten: project selector bar → Project Snapshot (5 solid KPI cards: DPR, Labour on-site, Expenses ₹, Pending approvals, Approved this month) → Smooth-curve Monthly Approved Trend with Entries / ₹ Amount switch + Module-wise progress table → 3 donuts (Approval Status, Department-wise Entries, Amount Status). Old Home quick tiles removed (covered by snapshot).
 
+## 2026-10-23 — GM Dashboard cleanup
+- Removed per-module pending/approved sections (Vendor Mgmt, BOQ & WO, Bills, Expenses, PV, HR…), Pending/Approved tabs, CRM GM panel and footer from GeneralManager.jsx. GM page now: Hero → Master View (project selector, tiles, progress, alerts, one-click approval grid) → KPI grid → Vendor Code Doctor (SA). Module access via sidebar.
+
+
