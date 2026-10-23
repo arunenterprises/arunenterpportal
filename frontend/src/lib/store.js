@@ -9,7 +9,6 @@ import {
   apiNextVendorSerial, apiNextExpenseSerial,
   apiLogin, apiRegister, setToken, clearToken, getToken,
 } from "./api";
-import { toast as _toast } from "sonner";
 import { getAcl, aclCell, deptOfPath } from "./acl";
 
 // Per-department ACL tick (System Admin → Permissions) for the page currently open.
@@ -66,7 +65,7 @@ const write = (k, v) => {
   catch (e) {
     _mem.set(k, v);
     try { localStorage.removeItem(k); } catch {}
-    if (!write._warned) { write._warned = true; try { console.warn("[storage-full] memory fallback", k); _toast.warning("Browser storage full — data server se dikh raha hai. SuperAdmin Local Folder backup chalu rakhein."); } catch {} }
+    if (!write._warned) { write._warned = true; try { console.warn("[storage-full] memory fallback", k); } catch {} }
   }
 };
 
