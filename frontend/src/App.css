@@ -1124,6 +1124,8 @@ body.sidebar-mini .app-sidebar { width: 60px; }
 :is(.app-sidebar, .home-deptnav) .sb-ico { width: 30px; height: 30px; border-radius: 10px; display: inline-grid; place-items: center; flex-shrink: 0; color: #fff; background: linear-gradient(145deg, color-mix(in srgb, var(--c) 70%, #fff) 0%, var(--c) 45%, color-mix(in srgb, var(--c) 70%, #000) 100%); border: 1px solid rgba(255,255,255,.25); box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 4px 10px color-mix(in srgb, var(--c) 45%, transparent); filter: drop-shadow(0 1px 0 rgba(0,0,0,.15)); transition: transform .15s, box-shadow .15s; }
 :is(.app-sidebar, .home-deptnav) .sb-item.active .sb-ico, :is(.app-sidebar, .home-deptnav) .sb-item:hover .sb-ico { box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 0 2px #fff, 0 0 16px var(--c); color: #fff; }
 :is(.app-sidebar, .home-deptnav) .sb-item:hover .sb-ico { transform: scale(1.08); }
+body.ae-no-approve button:is([data-testid$="approve"], [data-testid*="approve-"], [data-testid*="reapprove"], [data-testid$="reject"], [data-testid*="-reject-"], .ae-approver-only) { display: none !important; }
+
 body.sidebar-mini :is(.app-sidebar, .home-deptnav) .sb-item { justify-content: center; padding: 11px 0; }
 :is(.app-sidebar, .home-deptnav) .sb-item:hover { background: #111c33; color: #fff; }
 :is(.app-sidebar, .home-deptnav) .sb-item.active { background: #16223d; color: #fff; border-left-color: var(--c); }
