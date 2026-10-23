@@ -365,3 +365,7 @@ See `/app/memory/test_credentials.md`.
 
 ## 2026-10-23 — Progress chart project filter + monthly trend
 - HomeProgressChart: project selector (names from Projects Register + project/projectSite fields); Vendors & HR rows hidden when a project is chosen. Monthly Progress Trend card: last 6 months, one line per department (2-8), approved records counted by approvedAt/approvalDate/gmApprovedAt/updatedAt month.
+
+## 2026-10-23 — Home dashboard restyle (customer reference image)
+- HomeProgressChart rewritten: project selector bar → Project Snapshot (5 solid KPI cards: DPR, Labour on-site, Expenses ₹, Pending approvals, Approved this month) → Smooth-curve Monthly Approved Trend with Entries / ₹ Amount switch + Module-wise progress table → 3 donuts (Approval Status, Department-wise Entries, Amount Status). Old Home quick tiles removed (covered by snapshot).
+
