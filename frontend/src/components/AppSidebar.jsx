@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Crown, HandCoins, UserRoundCog, ShoppingBag, Wallet, Building2, FlaskConical, Tractor, BarChart3, Settings2, ChevronLeft, ChevronRight, Home, Lock } from "lucide-react";
+import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock } from "lucide-react";
 import { getToken } from "../lib/api";
 import { can, deptOfPath, loadAcl } from "../lib/acl";
 
 const ITEMS = [
-  { n: 1, l: "GM Dashboard", to: "/gm", d: "gm", icon: Crown, c: "#f59e0b" },
-  { n: 2, l: "Client & Revenue", to: "/client-revenue", d: "client", icon: HandCoins, c: "#0ea5e9" },
-  { n: 3, l: "HR & Labour", to: "/hr", d: "hr", icon: UserRoundCog, c: "#ec4899" },
-  { n: 4, l: "Procurement", to: "/purchase", d: "procurement", icon: ShoppingBag, c: "#22c55e" },
-  { n: 5, l: "Accounts & Vouchers", to: "/bill", d: "accounts", icon: Wallet, c: "#14b8a6" },
-  { n: 6, l: "Project & Site", to: "/site", d: "site", icon: Building2, c: "#f97316" },
-  { n: 7, l: "QC & Safety", to: "/qc-safety", d: "qc", icon: FlaskConical, c: "#8b5cf6" },
-  { n: 8, l: "Plant & Machinery", to: "/plant", d: "plant", icon: Tractor, c: "#eab308" },
-  { n: 9, l: "Reports Hub", to: "/reports-hub", d: "reports", icon: BarChart3, c: "#6366f1" },
-  { n: 10, l: "System Admin", to: "/users", d: "admin", icon: Settings2, c: "#64748b" },
+  { n: 1, l: "GM Dashboard", to: "/gm", d: "gm", icon: Gauge, c: "#f59e0b" },
+  { n: 2, l: "Client & Revenue", to: "/client-revenue", d: "client", icon: BadgeIndianRupee, c: "#0ea5e9" },
+  { n: 3, l: "HR & Labour", to: "/hr", d: "hr", icon: UsersRound, c: "#ec4899" },
+  { n: 4, l: "Procurement", to: "/purchase", d: "procurement", icon: PackageSearch, c: "#22c55e" },
+  { n: 5, l: "Accounts & Vouchers", to: "/bill", d: "accounts", icon: Landmark, c: "#14b8a6" },
+  { n: 6, l: "Project & Site", to: "/site", d: "site", icon: HardHat, c: "#f97316" },
+  { n: 7, l: "QC & Safety", to: "/qc-safety", d: "qc", icon: ShieldCheck, c: "#8b5cf6" },
+  { n: 8, l: "Plant & Machinery", to: "/plant", d: "plant", icon: Forklift, c: "#eab308" },
+  { n: 9, l: "Reports Hub", to: "/reports-hub", d: "reports", icon: PieChart, c: "#6366f1" },
+  { n: 10, l: "System Admin", to: "/users", d: "admin", icon: ShieldEllipsis, c: "#64748b" },
 ];
 const NO_BAR = ["/login", "/careers", "/jobs", "/vendor-portal", "/home"];
 
@@ -39,7 +39,7 @@ export const DeptNavList = ({ mini = false, showSubs = true }) => {
     return (
       <div key={it.n}>
         <button data-testid={`sidebar-${it.n}`} disabled={!ok} onClick={() => nav(it.to)} title={ok ? it.l : `${it.l} · permission nahi`} className={`sb-item${act ? " active" : ""}`} style={{ "--c": it.c, opacity: ok ? 1 : 0.4 }}>
-          <span className="sb-ico" style={{ "--c": it.c }}><Icon size={16} strokeWidth={2} /></span>
+          <span className="sb-ico" style={{ "--c": it.c }}><Icon size={17} strokeWidth={2.3} /></span>
           {!mini && <span>{it.n}. {it.l}</span>}
           {!mini && !ok && <Lock size={11} style={{ marginLeft: "auto" }} />}
         </button>

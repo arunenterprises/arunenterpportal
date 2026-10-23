@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, FilePlus2, Save, Send, CheckCircle2, Printer } from "lucide-react";
+import { Plus, Trash2, FilePlus2, Save, Send, CheckCircle2, Printer, Eye, X, Pencil } from "lucide-react";
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
-import { getCompany } from "../../lib/store";
+import { getCompany, getLogo } from "../../lib/store";
 import { can } from "../../lib/acl";
 
 const n = (v) => Number(v) || 0;
@@ -20,26 +20,72 @@ const th = { padding: "6px 4px", border: "1px solid #94a3b8", background: "#f1f5
 const td = { padding: 3, border: "1px solid #cbd5e1", fontSize: 11.5 };
 const dmy = (d) => (d ? d.split("-").reverse().join("-") : "");
 
-const printAbstract = (f, co) => {
-  const w = window.open("", "_blank"); if (!w) return;
-  const rows = f.lines.map((l, i) => { const c = calc(l); return `<tr><td>${i + 1}</td><td>${l.poPos}</td><td class=l>${l.desc}</td><td>${l.code}</td><td>${l.uom}</td><td>${l.hsn}</td><td>${f2(l.poQty)}</td><td>${f2(l.rate)}</td><td>${f2(l.prevQty)}</td><td class=r>${f2(c.prevAmt)}</td><td>${f2(l.curQty)}</td><td class=r>${f2(c.curAmt)}</td><td>${f2(c.cumQty)}</td><td class=r>${f2(c.cumAmt)}</td><td>${f2(c.bal)}</td></tr>`; }).join("");
+const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const buildAbstractHtml = (f, co, withCo, autoPrint = true) => {
+  const logo = getLogo() || `${window.location.origin}/arun-logo.jpg`;
+  const head = withCo
+    ? `<div class=hdr><img src="${esc(logo)}" onerror="this.style.display='none'"/><div class=hc><div class=hn>${esc(co.name)}</div>${co.tagline ? `<div class=ht>${esc(co.tagline)}</div>` : ""}<div class=hd>${esc(co.address)}</div><div class=hd>${[co.tollFree && "Mob: " + co.tollFree, co.email && "Email: " + co.email, co.website].filter(Boolean).map(esc).join(" · ")}</div><div class=hd><b>GSTIN: ${esc(co.gst)} · PAN: ${esc(co.pan)}</b></div></div><div style="width:70px"></div></div>`
+    : `<div style="height:40mm"></div>`;
+  const rows = f.lines.map((l, i) => { const c = calc(l); return `<tr><td>${i + 1}</td><td>${esc(l.poPos)}</td><td class=l>${esc(l.desc)}</td><td>${esc(l.code)}</td><td>${esc(l.uom)}</td><td>${esc(l.hsn)}</td><td>${f2(l.poQty)}</td><td>${f2(l.rate)}</td><td>${f2(l.prevQty)}</td><td class=r>${f2(c.prevAmt)}</td><td>${f2(l.curQty)}</td><td class=r>${f2(c.curAmt)}</td><td>${f2(c.cumQty)}</td><td class=r>${f2(c.cumAmt)}</td><td>${f2(c.bal)}</td></tr>`; }).join("");
   const t = f.lines.reduce((s, l) => { const c = calc(l); return { p: s.p + c.prevAmt, c: s.c + c.curAmt, u: s.u + c.cumAmt }; }, { p: 0, c: 0, u: 0 });
-  const H = (a, b) => `<tr><td class=hl>${a}</td><td class=hv colspan=3>${b}</td></tr>`;
-  w.document.write(`<html><head><title>Abstract ${f.permNo || f.tempNo || ""}</title><style>@page{size:A4 landscape;margin:10mm}body{font-family:Calibri,Arial;font-size:11px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #000;padding:4px;text-align:center}.l{text-align:left}.r{text-align:right}.hl{text-align:left;font-weight:700;width:18%}.hv{text-align:left;font-weight:700}</style></head><body>
+  const H = (a, b) => `<tr><td class=hl>${a}</td><td class=hv colspan=3>${esc(b)}</td></tr>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Abstract ${esc(f.permNo || f.tempNo || "")}</title><style>@page{size:A4 landscape;margin:10mm}html{background:#e2e8f0}body{font-family:Calibri,Arial;font-size:11px;margin:0 auto;width:277mm;background:#fff}@media screen{body{padding:10mm;box-sizing:content-box;min-height:190mm;margin:10px auto;box-shadow:0 2px 12px rgba(0,0,0,.2)}}table{width:100%;border-collapse:collapse}td,th{border:1px solid #000;padding:4px;text-align:center}.l{text-align:left}.r{text-align:right}.hl{text-align:left;font-weight:700;width:18%}.hv{text-align:left;font-weight:700}.hdr{display:flex;align-items:center;gap:10px;border-bottom:2.5px solid #c81e2b;padding-bottom:5px;margin-bottom:6px}.hdr img{width:70px;height:60px;object-fit:contain}.hc{flex:1;text-align:center}.hn{font-size:20px;font-weight:900;color:#c81e2b}.ht{font-size:9px;font-weight:700;letter-spacing:1px}.hd{font-size:9.5px}</style></head><body>${head}
   <div style="text-align:right;font-weight:700">ANNEXURE - "A"</div>
   <table><tr><th colspan=5 style="font-size:13px">ABSTRACT (Summery of Item Schedules)</th></tr>
-  <tr><td rowspan=7 class=l style="vertical-align:top;width:22%;font-weight:700;white-space:pre-line">To,\n${f.toText}</td><td class=hl>PURCHASE ORDER NO:-</td><td class=hv>${f.poNo}</td><td class=hl style="width:8%">DATED:-</td><td class=hv style="width:14%">${dmy(f.poDate)}</td></tr>
-  <tr><td class=hl>INVOICE NO.:-</td><td class=hv>${f.invoiceNo}</td><td class=hl>DATED:-</td><td class=hv>${dmy(f.invoiceDate)}</td></tr>
+  <tr><td rowspan=7 class=l style="vertical-align:top;width:22%;font-weight:700;white-space:pre-line">To,\n${esc(f.toText)}</td><td class=hl>PURCHASE ORDER NO:-</td><td class=hv>${esc(f.poNo)}</td><td class=hl style="width:8%">DATED:-</td><td class=hv style="width:14%">${dmy(f.poDate)}</td></tr>
+  <tr><td class=hl>INVOICE NO.:-</td><td class=hv>${esc(f.invoiceNo)}</td><td class=hl>DATED:-</td><td class=hv>${dmy(f.invoiceDate)}</td></tr>
   ${H("WORK PERIOD:", `${dmy(f.periodFrom)} To ${dmy(f.periodTo)}`)}${H("CONTRACTOR NAME:-", co.name || "")}${H("LOCATION", f.location)}${H("PAN NO.:-", co.pan || "")}${H("GSTIN :-", co.gst || "")}</table>
   <table><tr><th>Sr. No.</th><th>PO Position No.</th><th>Item Description</th><th>Item Code No.</th><th>UOM</th><th>HSN Code</th><th>PO Qty.</th><th>PO Rate</th><th>Previous Qty.</th><th>Previous Amount</th><th>Current Qty.</th><th>Current Amount</th><th>Cumulative Qty.</th><th>Cumulative Amount</th><th>Balance Quantity</th></tr>${rows}
-  <tr><td></td><td></td><td class=l><b>TOTAL</b></td><td colspan=6></td><td class=r><b>${f2(t.p)}</b></td><td></td><td class=r><b>${f2(t.c)}</b></td><td></td><td class=r><b>${f2(t.u)}</b></td><td></td></tr></table></body></html>`);
-  w.document.close(); w.print();
+  <tr><td></td><td></td><td class=l><b>TOTAL</b></td><td colspan=6></td><td class=r><b>${f2(t.p)}</b></td><td></td><td class=r><b>${f2(t.c)}</b></td><td></td><td class=r><b>${f2(t.u)}</b></td><td></td></tr></table>${autoPrint ? "<script>window.onload=()=>window.print()</script>" : ""}</body></html>`;
+};
+
+const printAbstract = (f, co, withCo = true) => {
+  const w = window.open("", "_blank"); if (!w) { alert("Pop-up allow karein"); return; }
+  w.document.write(buildAbstractHtml(f, co, withCo)); w.document.close();
+};
+
+const AbstractPreview = ({ f, co, onClose }) => {
+  const [withCo, setWithCo] = useState(true);
+  const [edit, setEdit] = useState(false);
+  const [zoom, setZoom] = useState(100);
+  const [margin, setMargin] = useState(10);
+  const ref = useRef(null);
+  const allowed = can("client", "a");
+  const apply = () => {
+    const d = ref.current?.contentDocument;
+    if (!d?.body) return;
+    d.body.contentEditable = edit ? "true" : "false";
+    let s = d.getElementById("ae-adjust");
+    if (!s) { s = d.createElement("style"); s.id = "ae-adjust"; d.head.appendChild(s); }
+    s.textContent = `body{zoom:${zoom}%}@page{size:A4 landscape;margin:${margin}mm}${edit ? "th,td{resize:horizontal;overflow:auto}body{outline:2px dashed #f59e0b;outline-offset:-6px}" : ""}`;
+  };
+  useEffect(apply);
+  const ctl = { padding: "4px 6px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 5, width: 64 };
+  return (
+    <div data-testid="abs-preview-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
+      <div style={{ background: "#fff", borderRadius: 10, width: "min(1300px,100%)", height: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap" }}>
+          <b style={{ fontSize: 14, flex: 1 }}>Abstract Preview · A4 Landscape · {f.permNo || f.tempNo || "Draft"}</b>
+          <button data-testid="abs-preview-with" onClick={() => setWithCo(true)} style={btn(withCo ? "#0f172a" : "#94a3b8")}>With Company Details</button>
+          <button data-testid="abs-preview-without" onClick={() => setWithCo(false)} style={btn(!withCo ? "#0f172a" : "#94a3b8")}>Without (Letterhead)</button>
+          {allowed && <button data-testid="abs-preview-edit" onClick={() => setEdit(!edit)} style={btn(edit ? "#ea580c" : "#64748b")}><Pencil size={13} /> {edit ? "Editing ON" : "Edit Layout / Data"}</button>}
+          {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Size % <input data-testid="abs-preview-zoom" type="number" min="60" max="140" value={zoom} onChange={(e) => setZoom(Number(e.target.value) || 100)} style={ctl} /></label>}
+          {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Margin mm <input data-testid="abs-preview-margin" type="number" min="0" max="30" value={margin} onChange={(e) => setMargin(Number(e.target.value) || 0)} style={ctl} /></label>}
+          <button data-testid="abs-preview-print" onClick={() => ref.current?.contentWindow?.print()} style={btn("#1e3a8a")}><Printer size={13} /> Print</button>
+          <button data-testid="abs-preview-close" onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} /></button>
+        </div>
+        {edit && <div style={{ padding: "5px 14px", background: "#fef3c7", fontSize: 11.5, fontWeight: 700, color: "#92400e" }}>Preview par click karke text / amount badlein · table column ke kone (right-bottom) ko kheench kar chauda karein · badlav sirf is print ke liye hain, saved Abstract nahi badlega</div>}
+        <iframe ref={ref} onLoad={apply} title="abstract-preview" data-testid="abs-preview-frame" srcDoc={buildAbstractHtml(f, co, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
+      </div>
+    </div>
+  );
 };
 
 export const Abstract = ({ data }) => {
   const [rows, setRows] = useState([]);
   const [f, setF] = useState(blank);
   const [locked, setLocked] = useState(false);
+  const [preview, setPreview] = useState(false);
   const co = getCompany();
   const load = () => apiOpsList("abstract").then(setRows).catch((e) => toast.error(e.message));
   useEffect(() => { load(); }, []);
@@ -120,8 +166,11 @@ export const Abstract = ({ data }) => {
         <button data-testid="abs-submit" disabled={approved} onClick={() => save({ status: "Submitted" }, "Submitted for approval")} style={btn("#7c3aed", approved)}><Send size={13} /> Submit</button>
         <button data-testid="abs-approve" disabled={approved || !can("client", "a")} onClick={() => save({ status: "Approved" }, "Approved")} style={btn("#15803d", approved || !can("client", "a"))}><CheckCircle2 size={13} /> Approve</button>
         <button data-testid="abs-delete" disabled={!can("client", "a")} onClick={del} style={btn("#991b1b", !can("client", "a"))}><Trash2 size={13} /> Delete</button>
-        <button data-testid="abs-print" onClick={() => printAbstract(f, co)} style={btn("#0f172a")}><Printer size={13} /> Print (A4 Landscape)</button>
+        <button data-testid="abs-preview-btn" onClick={() => setPreview(true)} style={btn("#1e3a8a")}><Eye size={13} /> Print Preview</button>
+        <button data-testid="abs-print" onClick={() => printAbstract(f, co, true)} style={btn("#0f172a")}><Printer size={13} /> Print (A4 Landscape)</button>
+        <button data-testid="abs-print-without" onClick={() => printAbstract(f, co, false)} style={btn("#475569")}><Printer size={13} /> Print on Letterhead</button>
       </div>
+      {preview && <AbstractPreview f={f} co={co} onClose={() => setPreview(false)} />}
       <div data-testid="abs-sheet" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ padding: "8px 14px", background: "#f1f5f9", fontWeight: 800, fontSize: 12 }}>Abstract Register ({rows.length}) · Row click = Load</div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
