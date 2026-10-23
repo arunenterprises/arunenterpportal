@@ -65,7 +65,6 @@ export const QcNormsGuide = () => {
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#faf5ff", borderBottom: "1px solid #e9d5ff" }}>
               <b style={{ flex: 1, fontSize: 14, color: "#4c1d95" }}>Lab Technician Guide · View only</b>
               <button data-testid="qc-guide-tab-norms" onClick={() => setOpen("norms")} style={tb("norms")}>Norms</button>
-              <button data-testid="qc-guide-tab-tour" onClick={() => setOpen("tour")} style={tb("tour")}>Guided Tour</button>
               <button data-testid="qc-guide-close" onClick={() => setOpen(null)} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} /></button>
             </div>
             {open === "tour" ? <Tour /> : (
