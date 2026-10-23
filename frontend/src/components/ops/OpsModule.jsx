@@ -14,10 +14,11 @@ const inp = { width: "100%", padding: "7px 9px", fontSize: 12, border: "1px soli
 const btn = (bg, off) => ({ padding: "7px 12px", height: 32, background: off ? "#94a3b8" : bg, color: "#fff", border: "none", borderRadius: 5, cursor: off ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 5 });
 const label = (cfg, k) => ({ docNo: "Permanent / Ref No", tempNo: "Temp No", status: "Status" }[k] || cfg.fields.find((f) => f.k === k)?.l || k);
 
-const Field = ({ f, v, set, ro, lists }) => {
+const Field = ({ f, v, set, ro, lists, row }) => {
   const p = { value: v ?? "", disabled: ro || f.ro, "data-testid": `ops-f-${f.k}`, style: { ...inp, background: ro || f.ro ? "#f8fafc" : "#fff" }, onChange: (e) => set(f.k, e.target.value) };
   if (f.type === "select") return <select {...p}>{!f.options.includes(v) && <option value="">— Select —</option>}{f.options.map((o) => <option key={o}>{o}</option>)}</select>;
   if (f.type === "textarea") return <textarea rows={2} {...p} />;
+  if (f.listOf) return <><input {...p} list={`ops-dl-${f.k}`} placeholder="Type / select" /><datalist id={`ops-dl-${f.k}`}>{f.listOf(row || {}).map((o) => <option key={o} value={o} />)}</datalist></>;
   const list = f.type === "project" ? "ops-projects" : f.type === "machine" ? "ops-machines" : undefined;
   return <input {...p} list={list} type={f.type === "number" || f.type === "date" ? f.type : "text"} placeholder={list && lists ? "Type / select" : ""} />;
 };
@@ -89,7 +90,7 @@ export default function OpsModule({ cfg }) {
           {cfg.fields.map((f) => (
             <div key={f.k} style={{ gridColumn: `span ${f.span || 1}`, display: "flex", flexDirection: "column", gap: 4 }}>
               <label style={{ fontSize: 10.5, fontWeight: 700, color: "#334155", textTransform: "uppercase" }}>{f.l}{f.req && <span style={{ color: "#dc2626" }}> *</span>}</label>
-              <Field f={f} v={cur[f.k]} set={set} ro={ro} lists />
+              <Field f={f} v={cur[f.k]} set={set} ro={ro} lists row={cur} />
             </div>
           ))}
         </div>

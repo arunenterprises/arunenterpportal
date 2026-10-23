@@ -1,4 +1,5 @@
 import { HardHat, FlaskConical, Tractor } from "lucide-react";
+import { QC_TESTS, qcCalc } from "./qcNorms";
 
 const n = (v) => Number(v) || 0;
 const P = { k: "project", l: "Project / Site", type: "project", req: true };
@@ -27,8 +28,9 @@ export const OPS = {
   qc_test: {
     kind: "qc_test", title: "Material Lab Test Report", color: "#7c3aed",
     fields: [P, D("date", "Test Date"), { k: "material", l: "Material", type: "select", req: true, options: ["Cement", "Steel / TMT", "Aggregate", "Sand", "Concrete Cube", "Brick", "Soil", "Bitumen", "Other"] },
-      { k: "sampleId", l: "Sample ID" }, { k: "lab", l: "Lab Name" }, { k: "testName", l: "Test Name", req: true }, { k: "specified", l: "Specified Value" }, { k: "observed", l: "Observed Value" },
+      { k: "sampleId", l: "Sample ID" }, { k: "lab", l: "Lab Name" }, { k: "testName", l: "Test Name (list se chunein)", req: true, listOf: (r) => (QC_TESTS[r.material] || []).map((t) => t.test) }, { k: "specified", l: "Specified Value (auto as per IS)" }, { k: "observed", l: "Observed Value" },
       { k: "result", l: "Result", type: "select", req: true, options: ["Pass", "Fail", "Retest"] }, { k: "remarks", l: "Remarks", type: "textarea", span: 3 }],
+    calc: qcCalc,
     alert: (r) => (r.result === "Fail" ? "TEST FAILED" : ""),
     columns: ["docNo", "date", "project", "material", "testName", "result"],
   },
