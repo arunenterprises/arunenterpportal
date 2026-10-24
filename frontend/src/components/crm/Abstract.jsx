@@ -107,7 +107,7 @@ export const Abstract = ({ data }) => {
     const cid = c?.id || "";
     const last = rows.filter((r) => sameWork(r, cid, po)).sort((a, b) => String(b.createdAt || b.tempNo || "").localeCompare(String(a.createdAt || a.tempNo || "")))[0];
     const base = last?.lines?.length ? last.lines.map((x) => ({ ...line(), itemId: x.itemId || "", poPos: x.poPos, desc: x.desc, code: x.code, uom: x.uom, hsn: x.hsn, poQty: x.poQty, rate: x.rate }))
-      : (c?.items || []).filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(k + 1), desc: i.description, code: i.itemCode || (/^\d{4,8}$/.test(String(i.code || "").trim()) ? "" : i.code || ""), uom: i.unit || "", hsn: /^\d{4,8}$/.test(String(i.code || "").trim()) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }));
+      : (c?.items || []).filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(i.poPos || k + 1), desc: i.description, code: i.itemCode || (/^\d{4,8}$/.test(String(i.code || "").trim()) ? "" : i.code || ""), uom: i.unit || "", hsn: /^\d{4,8}$/.test(String(i.code || "").trim()) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }));
     const lines = base.map((l) => ({ ...l, prevQty: +prevOf(l, cid, po).toFixed(3) || "" }));
     const cl = clientOf(c?.clientId || p.clientId);
     return { ...p, contractId: cid, poNo: po || p.poNo, poDate: c?.workOrderDate || last?.poDate || p.poDate, clientId: cl.id || p.clientId, toText: last?.toText || toTextOf(cl) || p.toText, lines: lines.length ? lines : p.lines };
@@ -124,7 +124,7 @@ export const Abstract = ({ data }) => {
     const qtyIn = (vs, l) => vs.reduce((s, v) => s + (v.lines || []).filter((x) => hit(x, l)).reduce((a, x) => a + n(x.qty), 0), 0);
     const isH = (v) => /^\d{4,8}$/.test(String(v || "").trim());
     const base = c?.items?.length
-      ? c.items.filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(k + 1), desc: i.description, code: i.itemCode || (isH(i.code) ? "" : i.code || ""), uom: i.unit || "", hsn: isH(i.code) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }))
+      ? c.items.filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(i.poPos || k + 1), desc: i.description, code: i.itemCode || (isH(i.code) ? "" : i.code || ""), uom: i.unit || "", hsn: isH(i.code) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }))
       : (inv.lines || []).filter((x) => x.description).map((x) => ({ ...line(), itemId: x.itemId || "", poPos: x.poPos, desc: x.description, code: x.itemCode, uom: x.uom, hsn: x.hsn, poQty: "", rate: n(x.rate) }));
     const lines = base.map((l) => {
       const pq = earlier.length ? qtyIn(earlier, l) : prevOf(l, cid, inv.poNo);

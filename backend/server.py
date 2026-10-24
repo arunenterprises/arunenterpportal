@@ -1261,9 +1261,9 @@ Extract data and reply with ONLY a JSON object (no markdown) in this exact shape
  "contactPerson": "", "clientMobile": "", "clientEmail": "", "projectName": "", "siteLocation": "", "startDate": "YYYY-MM-DD or empty",
  "completionDate": "YYYY-MM-DD or empty", "contractValue": 0, "retentionPct": 0, "advanceAmount": 0, "advanceRecoveryPct": 0,
  "defaultGstPct": 0, "scopeOfWork": "",
- "items": [{"itemCode": "", "hsn": "", "description": "", "unit": "", "qty": 0, "rate": 0, "gstPct": 0}]}
+ "items": [{"srNo": "", "poPos": "", "itemCode": "", "hsn": "", "description": "", "unit": "", "qty": 0, "rate": 0, "gstPct": 0}]}
 Rules: numbers must be plain numbers (no commas/currency). Include EVERY line item of the BOQ/schedule with its quantity, unit and rate.
-itemCode = the client's item / material / SOR / PO position code of the line (alphanumeric). hsn = ONLY the HSN or SAC tax code (4-8 digits) if printed; never put the item code in hsn.
+srNo = the serial number column of the line as printed. poPos = the PO position / line item number (e.g. 10, 20) if printed. itemCode = the client's item / material / SOR code of the line (alphanumeric). hsn = ONLY the HSN or SAC tax code (4-8 digits) if printed; never put the item code in hsn.
 If GST % is given per item use it, else use the overall GST % (defaultGstPct). Retention / security deposit % goes in retentionPct.
 Use empty string or 0 when a value is not present. Do not invent values.
 workOrderType: "Supply" if only material supply, "Service" if works contract / labour / construction / services, "Composite" if supply + installation/erection."""

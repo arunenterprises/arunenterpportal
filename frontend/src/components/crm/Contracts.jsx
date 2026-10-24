@@ -6,7 +6,7 @@ import { WorkOrderImport } from "./WorkOrderImport";
 import HsnInput from "../HsnInput";
 import { CrmActionBar, FormLock } from "./CrmActionBar";
 
-const blankItem = () => ({ id: uid("it"), itemCode: "", code: "", description: "", unit: "Cum", qty: 0, rate: 0, gstPct: 18 });
+const blankItem = () => ({ id: uid("it"), srNo: "", poPos: "", itemCode: "", code: "", description: "", unit: "Cum", qty: 0, rate: 0, gstPct: 18 });
 const isHsn = (v) => /^\d{4,8}$/.test(String(v || "").trim());
 const blank = () => ({ id: "", contractNo: "", clientId: "", projectName: "", siteLocation: "", startDate: today(), completionDate: "", workOrderNo: "", workOrderDate: "", scopeOfWork: "", contractValue: 0, retentionPct: 5, tdsPct: 2, woType: "Service", advanceAmount: 0, advanceRecoveryPct: 10, items: [blankItem()], newClient: null, woFileName: "", woFileData: "" });
 export const itemsValue = (items) => (items || []).reduce((s, i) => s + num(i.qty) * num(i.rate), 0);
@@ -30,7 +30,7 @@ export const Contracts = ({ data, save, remove }) => {
   const applyWO = (p, file, dataUrl) => {
     const nm = String(p.clientName || "").trim().toLowerCase();
     const match = nm && data.clients.find((c) => c.name.toLowerCase().includes(nm) || nm.includes(c.name.toLowerCase()) || (p.clientGst && c.gst === p.clientGst));
-    const items = (p.items || []).filter((i) => i.description).map((i) => ({ ...blankItem(), itemCode: i.itemCode || (i.code && !isHsn(i.code) ? i.code : ""), code: i.hsn || (isHsn(i.code) ? i.code : ""), description: i.description, unit: i.unit || "Nos", qty: num(i.qty), rate: num(i.rate), gstPct: num(i.gstPct) || num(p.defaultGstPct) || 18 }));
+    const items = (p.items || []).filter((i) => i.description).map((i, k) => ({ ...blankItem(), srNo: String(i.srNo || k + 1), poPos: String(i.poPos || ""), itemCode: i.itemCode || (i.code && !isHsn(i.code) ? i.code : ""), code: i.hsn || (isHsn(i.code) ? i.code : ""), description: i.description, unit: i.unit || "Nos", qty: num(i.qty), rate: num(i.rate), gstPct: num(i.gstPct) || num(p.defaultGstPct) || 18 }));
     setF((x) => ({
       ...x,
       ...(WO_TYPES[p.workOrderType] ? { woType: p.workOrderType, tdsPct: WO_TYPES[p.workOrderType].tdsPct, retentionPct: WO_TYPES[p.workOrderType].retentionPct } : {}),
@@ -96,8 +96,10 @@ export const Contracts = ({ data, save, remove }) => {
           <Field label="Scope of Work" span={4}><Inp data-testid="contract-scope" value={f.scopeOfWork} onChange={set("scopeOfWork")} /></Field>
         </Grid>
         <div style={{ marginTop: 14, fontSize: 11, fontWeight: 800 }}>CONTRACT ITEMS (BOQ RATES)</div>
-        <Table testid="contract-items-table" cols={["Item Code", "HSN / SAC", "Description", "Unit", "BOQ Qty", "Rate", "GST %", "Amount", ""]}
-          rows={f.items.map((i) => [
+        <Table testid="contract-items-table" cols={["Sr No", "PO Pos", "Item Code", "HSN / SAC", "Description", "Unit", "BOQ Qty", "Rate", "GST %", "Amount", ""]}
+          rows={f.items.map((i, k) => [
+            <Inp data-testid={`contract-item-sr-${k}`} value={i.srNo ?? ""} placeholder={String(k + 1)} onChange={(e) => setItem(i.id, "srNo", e.target.value)} style={{ width: 55 }} />,
+            <Inp data-testid={`contract-item-pos-${k}`} value={i.poPos ?? ""} placeholder={String(k + 1)} onChange={(e) => setItem(i.id, "poPos", e.target.value)} style={{ width: 65 }} />,
             <Inp data-testid="contract-item-code" value={i.itemCode || ""} onChange={(e) => setItem(i.id, "itemCode", e.target.value)} style={{ width: 100 }} />,
             <HsnInput value={i.code} testid="contract-item-hsn" style={{ width: 120 }} onChange={(v) => setItem(i.id, "code", v)}
               onPick={(code, rec) => setF((x) => ({ ...x, items: x.items.map((it) => (it.id === i.id ? { ...it, code, gstPct: rec.gst, description: it.description || rec.desc } : it)) }))} />,
