@@ -86,7 +86,7 @@ const Donut = ({ title, icon, c, parts, testid, money }) => {
           <text x="90" y="88" textAnchor="middle" fontSize={money ? 13 : 20} fontWeight="900" fill="#0f172a">{money ? inr(total) : total}</text>
           <text x="90" y="106" textAnchor="middle" fontSize="10" fill="#64748b">Total</text>
         </svg>
-        <div style={{ flex: 1, minWidth: 120, display: "grid", gap: 3 }}>
+        <div style={{ flex: 1, minWidth: 120, display: "grid", gap: 2, alignSelf: "stretch", alignContent: "center", overflowY: "auto", minHeight: 0 }}>
           {parts.map((p) => <div key={p.l} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5 }}><i style={{ width: 11, height: 11, borderRadius: 3, background: p.c, display: "inline-block" }} /><span style={{ flex: 1, color: "#334155" }}>{p.l} :</span><b>{money ? inr(p.v) : p.v}</b></div>)}
         </div>
       </div>

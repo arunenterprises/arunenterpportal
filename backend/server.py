@@ -65,6 +65,8 @@ async def get_current_user(request: Request) -> Dict[str, Any]:
     cs = user.get("current_session")
     if isinstance(cs, dict) and cs.get("active") is False:
         raise HTTPException(status_code=401, detail="Session ended. Please login again.")
+    if isinstance(cs, dict) and payload.get("sid") and cs.get("sid") and payload["sid"] != cs["sid"]:
+        raise HTTPException(status_code=401, detail="Is ID se kisi doosre computer par login hua hai. Please login again.")
     user.pop("_id", None)
     user.pop("password_hash", None)
     return user
@@ -349,24 +351,11 @@ async def login(body: LoginBody, request: Request):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     _LOGIN_FAILS.pop(ident, None)
 
-    # ---- SINGLE-SESSION ENFORCEMENT (Feb 2026 · user request) ----
-    # Block login if the same account already has an active session newer than
-    # 10 hours (full working day). SuperAdmin (primary ADMIN_EMAIL) is exempt.
+    # ---- SINGLE-SESSION (takeover): a new login replaces the old device's session; old token gets 401 on next call.
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
     is_super = bool(primary) and user["email"].lower().strip() == primary
     now_iso = datetime.now(timezone.utc).isoformat()
-    cs = user.get("current_session") or {}
-    if not is_super and cs.get("active") and cs.get("login_at"):
-        try:
-            prev = datetime.fromisoformat(cs["login_at"].replace("Z", "+00:00"))
-            age_hours = (datetime.now(timezone.utc) - prev).total_seconds() / 3600.0
-        except Exception:
-            age_hours = 999
-        if age_hours < 10:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Already logged in from {cs.get('ip', 'another device')} at {cs.get('login_at')[:16].replace('T', ' ')}. Logout first or contact admin.",
-            )
+    sid = "" if is_super else uuid.uuid4().hex
 
     # Resolve client IP + user-agent for the session record
     xff = request.headers.get("x-forwarded-for") or ""
@@ -374,6 +363,7 @@ async def login(body: LoginBody, request: Request):
     ua = (request.headers.get("user-agent") or "")[:200]
     session_doc = {
         "active": True,
+        "sid": sid,
         "login_at": now_iso,
         "ip": client_ip,
         "user_agent": ua,
@@ -384,7 +374,7 @@ async def login(body: LoginBody, request: Request):
         {"$set": {"current_session": session_doc, "last_login_at": now_iso, "last_login_ip": client_ip}},
     )
 
-    token = create_access_token(user["email"], user["email"])
+    token = create_access_token(user["email"], user["email"], sid)
     perms = user.get("permissions") or _role_default_perms(user.get("role"))
     if is_super or user.get("is_full_access"):
         perms = {"create": True, "edit": True, "submit": True, "approve": True}
