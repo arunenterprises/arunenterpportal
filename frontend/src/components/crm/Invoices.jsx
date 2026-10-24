@@ -72,7 +72,7 @@ export const Invoices = ({ data, save, remove }) => {
   const pickWO = (id) => {
     const c = data.contracts.find((x) => x.id === id);
     if (!c) return setF({ ...f, contractId: "" });
-    const lines = (c.items || []).filter((i) => i.description).map((i, k) => ({ ...blankLine(), poPos: String(k + 1), itemCode: i.itemCode || "", description: i.description, hsn: i.code || "", uom: i.unit || "", rate: num(i.rate), gstPct: num(i.gstPct) || 18, qty: "" }));
+    const lines = (c.items || []).filter((i) => i.description).map((i, k) => ({ ...blankLine(), poPos: String(k + 1), itemCode: i.itemCode || (/^\d{4,8}$/.test(String(i.code || "").trim()) ? "" : i.code || ""), description: i.description, hsn: /^\d{4,8}$/.test(String(i.code || "").trim()) ? i.code : "", uom: i.unit || "", rate: num(i.rate), gstPct: num(i.gstPct) || 18, qty: "" }));
     setF({ ...f, contractId: id, clientId: c.clientId || f.clientId, poNo: c.workOrderNo || f.poNo, poDate: c.workOrderDate || f.poDate, projectName: c.projectName || f.projectName, projectCode: f.projectCode || c.contractNo || "", billLocation: c.siteLocation || f.billLocation, lines: lines.length ? lines : f.lines });
     toast.success(`${lines.length} items Work Order se aa gaye · sirf Qty bharein`);
   };

@@ -103,7 +103,7 @@ export const Abstract = ({ data }) => {
     const cid = c?.id || "";
     const last = rows.filter((r) => sameWork(r, cid, po)).sort((a, b) => String(b.createdAt || b.tempNo || "").localeCompare(String(a.createdAt || a.tempNo || "")))[0];
     const base = last?.lines?.length ? last.lines.map((x) => ({ ...line(), itemId: x.itemId || "", poPos: x.poPos, desc: x.desc, code: x.code, uom: x.uom, hsn: x.hsn, poQty: x.poQty, rate: x.rate }))
-      : (c?.items || []).filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(k + 1), desc: i.description, code: i.itemCode || "", uom: i.unit || "", hsn: i.code || "", poQty: n(i.qty), rate: n(i.rate) }));
+      : (c?.items || []).filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(k + 1), desc: i.description, code: i.itemCode || (/^\d{4,8}$/.test(String(i.code || "").trim()) ? "" : i.code || ""), uom: i.unit || "", hsn: /^\d{4,8}$/.test(String(i.code || "").trim()) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }));
     const lines = base.map((l) => ({ ...l, prevQty: +prevOf(l, cid, po).toFixed(3) || "" }));
     const cl = clientOf(c?.clientId || p.clientId);
     return { ...p, contractId: cid, poNo: po || p.poNo, poDate: c?.workOrderDate || last?.poDate || p.poDate, clientId: cl.id || p.clientId, toText: last?.toText || toTextOf(cl) || p.toText, lines: lines.length ? lines : p.lines };
