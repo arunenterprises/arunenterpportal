@@ -47,6 +47,12 @@ export const RABills = ({ data, save, reload }) => {
     setF({ ...f, lines, mbIds: mbs.map((m) => m.id), retentionPct: num(contract.retentionPct), tdsPct: contract.tdsPct ?? 2, advanceRecovery: +advRec.toFixed(2) });
     toast.success(`${mbs.length} MB entries se ${lines.length} items load hue`);
   };
+  const loadWO = () => {
+    if (!contract) return alert("Contract select karein");
+    const lines = (contract.items || []).filter((i) => i.description).map((it) => ({ itemId: it.id, code: it.code || "", description: it.description, unit: it.unit || "", rate: num(it.rate), gstPct: num(it.gstPct), prevQty: prevQtyFor(data.ra_bills, contract.id, it.id, f.id), curQty: 0 }));
+    setF({ ...f, lines, mbIds: [], retentionPct: num(contract.retentionPct), tdsPct: contract.tdsPct ?? 2 });
+    toast.success(`${lines.length} Work Order items aa gaye · This Bill Qty bharein`);
+  };
 
   const persist = async (rec, msg) => {
     const r = { ...rec, id: rec.id || uid("ra") };
@@ -61,7 +67,7 @@ export const RABills = ({ data, save, reload }) => {
     setEditing(false);
   };
   const onSave = () => {
-    if (!f.contractId || !f.lines.length) return alert("Contract select karke MB se items generate karein");
+    if (!f.contractId || !f.lines.length) return alert("Contract select karke MB / Work Order se items load karein");
     persist(f, "RA Bill saved");
   };
   const move = (b, step, extra = {}) => persist({ ...b, ...extra, step }, `${b.raNo} → ${RA_STEPS[step]}`);
@@ -93,10 +99,10 @@ export const RABills = ({ data, save, reload }) => {
           <Field label="Period From"><Inp data-testid="ra-from" type="date" disabled={locked} value={f.periodFrom} onChange={set("periodFrom")} /></Field>
           <Field label="Period To"><Inp data-testid="ra-to" type="date" disabled={locked} value={f.periodTo} onChange={set("periodTo")} /></Field>
         </Grid>
-        {!f.id && f.type === "RA" && <Btn tone="dark" data-testid="ra-generate-btn" style={{ marginTop: 12 }} onClick={generate}><Wand2 size={14} /> Generate from approved MB</Btn>}
+        {!f.id && f.type === "RA" && <div style={{ display: "flex", gap: 8, marginTop: 12 }}><Btn tone="dark" data-testid="ra-generate-btn" onClick={generate}><Wand2 size={14} /> Generate from approved MB</Btn><Btn tone="ghost" data-testid="ra-load-wo-btn" onClick={loadWO}>Load Work Order Items</Btn></div>}
         <div style={{ marginTop: 12 }}>
           <Table testid="ra-lines-table" empty="MB se items generate karein" cols={["Item", "Unit", "Rate", "Prev Qty", "This Bill Qty", "Upto Date Qty", "GST %", "Amount", "GST"]}
-            rows={t.lines.map((l, i) => [`${l.code ? l.code + " · " : ""}${l.description}`, l.unit, inr(l.rate), l.prevQty, l.curQty, +(num(l.prevQty) + num(l.curQty)).toFixed(3),
+            rows={t.lines.map((l, i) => [`${l.code ? l.code + " · " : ""}${l.description}`, l.unit, inr(l.rate), l.prevQty, !locked && !(f.mbIds || []).length ? <Inp data-testid={`ra-line-qty-${i}`} type="number" value={f.lines[i].curQty} onChange={(e) => setLine(i, "curQty", e.target.value)} style={{ width: 80 }} /> : l.curQty, +(num(l.prevQty) + num(l.curQty)).toFixed(3),
               <Inp data-testid={`ra-line-gst-${i}`} type="number" disabled={locked} value={f.lines[i].gstPct} onChange={(e) => setLine(i, "gstPct", e.target.value)} style={{ width: 70 }} />,
               inr(l.amount), inr(l.gst)])} />
         </div>

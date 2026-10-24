@@ -56,6 +56,10 @@ export const MBook = ({ data, save, remove }) => {
         </Grid>
         <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span data-testid="mb-qty-display" style={{ fontWeight: 800, fontSize: 13 }}>Quantity: {mbQty(f)} {item?.unit || ""}</span>
+          {item && (() => { const done = data.mb.filter((m) => m.contractId === f.contractId && m.itemId === f.itemId && m.id !== f.id).reduce((s, m) => s + num(m.qty), 0); return (
+            <span data-testid="mb-item-info" style={{ fontSize: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6, padding: "4px 10px" }}>
+              WO: <b>{contract.workOrderNo || contract.contractNo}</b> · HSN/SAC: <b>{item.code || "—"}</b> · Rate: <b>₹{num(item.rate)}</b> · BOQ Qty: <b>{num(item.qty)} {item.unit}</b> · Pehle napa: <b>{+done.toFixed(3)}</b> · Balance: <b style={{ color: num(item.qty) - done - mbQty(f) < 0 ? "#dc2626" : "#166534" }}>{+(num(item.qty) - done - mbQty(f)).toFixed(3)}</b>
+            </span>); })()}
         </div>
       </Card>
       <Card title={`Measurement Book (${data.mb.length})`}>

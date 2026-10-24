@@ -18,7 +18,6 @@ export const ActionStripToggle = () => {
   if (!has) return null;
   return (
     <div className="bd-ui" data-testid="strip-toggle" style={{ position: "fixed", right: 10, top: 56, zIndex: 9990, display: "flex", gap: 2, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 999, padding: 2, boxShadow: "0 2px 8px rgba(0,0,0,.15)" }}>
-      <span className="bd-ui" style={{ fontSize: 9.5, fontWeight: 800, color: "#475569", alignSelf: "center", padding: "0 6px" }}>Button patti</span>
       {MODES.map(([m, l, Icon]) => (
         <button key={m} className="bd-ui" data-testid={`strip-mode-${m}`} title={l} onClick={() => setMode(m)}
           style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", fontSize: 10, fontWeight: 700, border: "none", borderRadius: 999, cursor: "pointer", background: mode === m ? "#0f766e" : "transparent", color: mode === m ? "#fff" : "#334155" }}>

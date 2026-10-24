@@ -15,7 +15,7 @@ import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
   STEP_LABEL, currentUser, exportJSON, generateTempRefId, getVendors,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME, fmtDMY,
-  canCreate, canApprove,
+  canCreate, canApprove, deleteVendor, isSuperAdmin,
 } from "../lib/store";
 
 const ACCOUNT_TYPES = ["Current Account", "Savings Account", "Overdraft (OD)", "Cash Credit (CC)"];
@@ -482,6 +482,23 @@ export default function VendorRegistration({ embedded = false }) {
                             >
                               Load
                             </button>
+                            {isSuperAdmin(currentUserEmail()) && (
+                              <button
+                                onClick={() => {
+                                  const label = v.vendorCode || v.tempRefId || v.firmName;
+                                  if (!window.confirm(`Vendor "${v.firmName || ""}" (${label}) ko pakka delete karein? Yeh wapas nahi aayega.`)) return;
+                                  deleteVendor(v.id);
+                                  if (vendor.id === v.id) { setVendor(createVendorDraft()); setLocked(false); }
+                                  setRefresh((x) => x + 1);
+                                  toast.success(`Vendor ${label} deleted`);
+                                }}
+                                data-testid={`vendor-sa-del-${v.id}`}
+                                title="SuperAdmin: Delete vendor (Temp ya Permanent)"
+                                style={{ marginLeft: 4, padding: "3px 8px", fontSize: 10.5, background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5", borderRadius: 4, cursor: "pointer", fontWeight: 700 }}
+                              >
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
