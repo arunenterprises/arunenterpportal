@@ -48,19 +48,49 @@ export const clearLogo = () => localStorage.removeItem(KEYS.LOGO);
 
 // ---- Wipe local cache (used after admin "Reset All Data") ----
 export const resetLocalCache = () => {
+  clearBigStore();
   [KEYS.VENDORS, KEYS.BILLS, KEYS.PAYMENTS, KEYS.EXPENSES, KEYS.BOQS, KEYS.WOS, KEYS.EMPLOYEES, KEYS.ATTENDANCE, KEYS.PAYBILLS, KEYS.COUNTERS, KEYS.LOGO, KEYS.USERS].forEach((k) => {
     try { localStorage.removeItem(k); } catch {}
   });
 };
 
-// In-memory fallback: when browser storage is full, data still shows for this session (server stays source of truth).
+// Big data lists live in IndexedDB (GBs of space) and are mirrored in memory; small keys stay in localStorage.
 const _mem = new Map();
+const BIG_KEYS = new Set(["ae_vm_vendors", "ae_vm_bills", "ae_vm_payments", "ae_vm_expenses", "ae_vm_boqs", "ae_vm_work_orders", "ae_vm_employees", "ae_vm_attendance", "ae_vm_paybills", "ae_vm_loans", "ae_vm_advance_requests", "ae_vm_recruitments", "ae_vm_exits"]);
+const _idb = () => new Promise((res, rej) => {
+  const r = indexedDB.open("ae_erp", 1);
+  r.onupgradeneeded = () => r.result.createObjectStore("kv");
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+let _idbP = null;
+const _db = () => (_idbP = _idbP || _idb());
+const _idbPut = (k, v) => _db().then((d) => { const t = d.transaction("kv", "readwrite"); if (v === undefined) t.objectStore("kv").delete(k); else t.objectStore("kv").put(v, k); }).catch((e) => console.warn("[idb] put failed", k, e));
+export const hydrateStore = async () => {
+  try {
+    const d = await _db();
+    const all = await new Promise((res) => {
+      const out = {}; const t = d.transaction("kv", "readonly").objectStore("kv").openCursor();
+      t.onsuccess = () => { const c = t.result; if (c) { out[c.key] = c.value; c.continue(); } else res(out); };
+      t.onerror = () => res(out);
+    });
+    Object.entries(all).forEach(([k, v]) => _mem.set(k, v));
+    BIG_KEYS.forEach((k) => {
+      const raw = localStorage.getItem(k);
+      if (raw == null) return;
+      if (!_mem.has(k)) { try { const v = JSON.parse(raw); _mem.set(k, v); _idbPut(k, v); } catch { return; } }
+      localStorage.removeItem(k);
+    });
+  } catch (e) { console.warn("[idb] hydrate failed, using localStorage", e); }
+};
+export const clearBigStore = () => { BIG_KEYS.forEach((k) => { _mem.delete(k); _idbPut(k, undefined); }); };
 const read = (k, fallback) => {
   if (_mem.has(k)) return _mem.get(k);
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }
   catch { return fallback; }
 };
 const write = (k, v) => {
+  if (BIG_KEYS.has(k)) { _mem.set(k, v); _idbPut(k, v); try { localStorage.removeItem(k); } catch {} return; }
   try { localStorage.setItem(k, JSON.stringify(v)); _mem.delete(k); }
   catch (e) {
     _mem.set(k, v);
@@ -251,20 +281,20 @@ const _schedulePush = () => {
       _snapPushTimer = null;
       try {
         const payload = {
-          vendors: JSON.parse(localStorage.getItem(KEYS.VENDORS) || "[]"),
-          bills: JSON.parse(localStorage.getItem(KEYS.BILLS) || "[]"),
-          payments: JSON.parse(localStorage.getItem(KEYS.PAYMENTS) || "[]"),
-          expenses: JSON.parse(localStorage.getItem(KEYS.EXPENSES) || "[]"),
-          boqs: JSON.parse(localStorage.getItem(KEYS.BOQS) || "[]"),
-          work_orders: JSON.parse(localStorage.getItem(KEYS.WOS) || "[]"),
-          employees: JSON.parse(localStorage.getItem(KEYS.EMPLOYEES) || "[]"),
-          paybills: JSON.parse(localStorage.getItem(KEYS.PAYBILLS) || "[]"),
-          loans: JSON.parse(localStorage.getItem(KEYS.LOANS) || "[]"),
-          advance_requests: JSON.parse(localStorage.getItem(KEYS.ADVANCE_REQS) || "[]"),
-          recruitments: JSON.parse(localStorage.getItem("ae_vm_recruitments") || "[]"),
-          exits: JSON.parse(localStorage.getItem("ae_vm_exits") || "[]"),
-          attendance: JSON.parse(localStorage.getItem(KEYS.ATTENDANCE) || "[]"),
-          fooding: JSON.parse(localStorage.getItem(KEYS.FOODING) || "[]"),
+          vendors: read(KEYS.VENDORS, []),
+          bills: read(KEYS.BILLS, []),
+          payments: read(KEYS.PAYMENTS, []),
+          expenses: read(KEYS.EXPENSES, []),
+          boqs: read(KEYS.BOQS, []),
+          work_orders: read(KEYS.WOS, []),
+          employees: read(KEYS.EMPLOYEES, []),
+          paybills: read(KEYS.PAYBILLS, []),
+          loans: read(KEYS.LOANS, []),
+          advance_requests: read(KEYS.ADVANCE_REQS, []),
+          recruitments: read("ae_vm_recruitments", []),
+          exits: read("ae_vm_exits", []),
+          attendance: read(KEYS.ATTENDANCE, []),
+          fooding: read(KEYS.FOODING, []),
         };
         apiPushSnapshot(payload).then(() => {
           try { window.dispatchEvent(new CustomEvent("ae-sync-done")); } catch {}
@@ -1232,6 +1262,7 @@ export const logout = async () => {
   if (getPendingSyncCount() === 0 && !_snapPushTimer) {
     const keep = new Set([KEYS.LOGO]);
     Object.keys(localStorage).filter((k) => k.startsWith("ae_") && !keep.has(k)).forEach((k) => localStorage.removeItem(k));
+    clearBigStore();
   }
 };
 export const isAuthed = () => !!read(KEYS.AUTH, null) && !!getToken();

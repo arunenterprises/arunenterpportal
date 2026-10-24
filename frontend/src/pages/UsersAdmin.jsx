@@ -183,7 +183,7 @@ const ActiveSessionsSection = ({ meEmail }) => {
       const r = await apiListSessions();
       setRows(r.items || []);
     } catch (ex) {
-      toast.error(ex.message || "Could not load sessions");
+      console.warn("sessions load failed", ex?.message);
     } finally { setLoading(false); }
   };
 
@@ -831,7 +831,7 @@ export default function UsersAdmin() {
         </div>
 
         {/* Active Sessions (Admin / SuperAdmin only) · IP + Location + Login Time */}
-        <ActiveSessionsSection meEmail={me?.user} />
+        {["admin", "superadmin"].includes(String(me?.role || "").toLowerCase().replace(/\s/g, "")) && <ActiveSessionsSection meEmail={me?.user} />}
 
         {/* Backup & Restore (SUPER ADMIN ONLY) */}
         {isSuperAdmin(me?.user) && (

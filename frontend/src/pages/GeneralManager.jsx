@@ -12,7 +12,7 @@ import CrmGmPanel, { crmGmCounts } from "../components/crm/CrmGmPanel";
 import { loadCrmCache, crmCache, crmCacheReady } from "../components/crm/crmShared";
 import {
   getVendors, getBills, getPayments, getExpenses, getBOQs, getWOs,
-  getEmployees, getLeaves, getExits, getRecruitments, getPayBills,
+  getEmployees, getLeaves, getExits, getRecruitments, getPayBills, savePayBills,
   canApprove, canDelete,
   advanceVendorStep, advanceBillStep, advanceExpenseStep, advanceBOQStep, advanceWOStep,
   advanceEmployeeStep, approveLeave, finalizeExit, advanceExitStep, upsertRecruit, advancePayBillStep,
@@ -421,7 +421,7 @@ export default function GeneralManager() {
   };
   const rejectExit = (x) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(x.empName || x.empCode); if (r == null) return; const list = getExits().map((y) => y.id === x.id ? { ...y, status: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() } : y); if (typeof window !== "undefined") { localStorage.setItem("ae_vm_exits", JSON.stringify(list)); } upsertRecruit; bump(); toast.success(`Exit rejected · reason: ${r}`); };
   const rejectRecruit = (rc) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(rc.candidateName); if (r == null) return; upsertRecruit({ ...rc, status: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() }); toast.success(`Offer rejected · reason: ${r}`); bump(); };
-  const rejectPayBill = (pb) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(pb.refNo); if (r == null) return; const list = getPayBills().map((x) => x.id === pb.id ? { ...x, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() } : x); try { localStorage.setItem("ae_vm_paybills", JSON.stringify(list)); } catch {} bump(); toast.success(`Pay Bill rejected · reason: ${r}`); };
+  const rejectPayBill = (pb) => { if (!canDo) return toast.error("Not permitted"); const r = askReason(pb.refNo); if (r == null) return; const list = getPayBills().map((x) => x.id === pb.id ? { ...x, step: 1, rejectReason: r, rejectedByName: gmName, rejectedAt: new Date().toISOString() } : x); try { savePayBills(list); } catch {} bump(); toast.success(`Pay Bill rejected · reason: ${r}`); };
 
   // ----- DELETE handlers (Admin / SuperAdmin only · cloud reconciled) -----
   const confirmDel = (label) => window.confirm(`Delete ${label}?\n\nAction is permanent and will be reconciled across all devices.`);

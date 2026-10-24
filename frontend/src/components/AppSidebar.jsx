@@ -38,7 +38,7 @@ export const DeptNavList = ({ mini = false, showSubs = true }) => {
     const ok = can(it.d, "v");
     const act = deptOfPath(loc.pathname) === it.d;
     return (
-      <div key={it.n}>
+      <div key={it.n} className="sb-row">
         <button data-testid={`sidebar-${it.n}`} disabled={!ok} onClick={() => nav(it.to)} title={ok ? it.l : `${it.l} · permission nahi`} className={`sb-item${act ? " active" : ""}`} style={{ "--c": it.c, opacity: ok ? 1 : 0.4 }}>
           <span className="sb-ico" style={{ "--c": it.c }}><Icon size={17} strokeWidth={2.3} /></span>
           {!mini && <span>{it.n}. {it.l}</span>}

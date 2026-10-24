@@ -348,7 +348,7 @@ export default function Home() {
       <div data-testid="home-page" style={{ display: "flex", minHeight: "calc(100vh - 56px)", background: "#f1f5f9" }}>
 
         {/* ============== LEFT SIDEBAR ============== */}
-        <aside data-testid="home-sidebar" style={{ width: 260, flexShrink: 0, background: sidebarBg, color: "#fff", padding: "14px 0", display: "flex", flexDirection: "column", boxShadow: "2px 0 8px rgba(15,23,42,.1)" }}>
+        <aside data-testid="home-sidebar" style={{ width: 260, flexShrink: 0, background: sidebarBg, color: "#fff", padding: "14px 0", display: "flex", flexDirection: "column", boxShadow: "2px 0 8px rgba(15,23,42,.1)", position: "sticky", top: 46, height: "calc(100vh - 46px)", alignSelf: "flex-start" }}>
           {/* Brand */}
           <div style={{ padding: "0 18px 14px", borderBottom: "1px solid rgba(255,255,255,.08)", textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: 0.5, color: "#fff", textAlign: "center" }}>ERP · Workspace</div>
