@@ -1232,11 +1232,13 @@ export const createUser = async ({ name, email, username, password, role = "User
   return user;
 };
 
-export const login = async (u, p) => {
+export const login = async (u, p, otpToken, otp) => {
   const identifier = (u || "").trim();
   const password = (p || "").trim();
-  try {
-    const { token, user } = await apiLogin(identifier, password);
+  const res = await apiLogin(identifier, password, otpToken || undefined, otp || undefined);
+  if (res.otp_required) return { otp: res };
+  const { token, user } = res;
+  {
     setToken(token);
     write(KEYS.AUTH, {
       user: user.email, name: user.name, role: user.role,
@@ -1245,9 +1247,7 @@ export const login = async (u, p) => {
     });
     // Pull cloud snapshot after successful login so this device has latest data
     try { await syncFromCloud(); } catch (e) { /* silent — offline OK */ }
-    return true;
-  } catch (e) {
-    return false;
+    return { ok: true };
   }
 };
 

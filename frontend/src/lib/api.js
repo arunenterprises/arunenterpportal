@@ -29,8 +29,8 @@ const req = async (path, opts = {}) => {
 };
 
 // ---- Auth ----
-export const apiLogin = (identifier, password) =>
-  req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
+export const apiLogin = (identifier, password, otp_token, otp) =>
+  req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, otp_token, otp }) });
 export const apiGetUiButtons = () => req("/settings/ui-buttons");
 export const apiSetUiButtons = (value) => req("/settings/ui-buttons", { method: "POST", body: JSON.stringify({ value }) });
 export const apiAiWoTerms = (wo) => req("/ai/wo-terms", { method: "POST", body: JSON.stringify(wo) });

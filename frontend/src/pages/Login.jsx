@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Shield, LogIn } from "lucide-react";
@@ -14,30 +14,38 @@ export default function Login() {
   const [kicked] = useState(() => { const v = sessionStorage.getItem("ae_kicked"); sessionStorage.removeItem("ae_kicked"); return v; });
   const nav = useNavigate();
 
+  const [otpInfo, setOtpInfo] = useState(null);
+  const [otp, setOtp] = useState("");
+  const [left, setLeft] = useState(0);
+  useEffect(() => {
+    if (!otpInfo) return undefined;
+    const t = setInterval(() => setLeft(Math.max(0, Math.round((otpInfo.until - Date.now()) / 1000))), 500);
+    return () => clearInterval(t);
+  }, [otpInfo]);
+
   const submitLogin = async (e) => {
     e.preventDefault();
     setErr("");
     setBusy(true);
     try {
-      const ok = await login(u, p);
-      if (ok) {
+      const r = await login(u, p, otpInfo?.otp_token, otpInfo ? otp : undefined);
+      if (r.otp) {
+        setOtpInfo({ ...r.otp, until: Date.now() + (r.otp.valid_seconds || 180) * 1000 });
+        setOtp("");
+        setLeft(r.otp.valid_seconds || 180);
+      } else if (r.ok) {
         const nm = currentUserProfile()?.name || u.split("@")[0] || "User";
         setSplash({ name: nm });
-      } else {
-        setErr("Invalid email or password. Please contact administrator if you don't have an account.");
       }
     } catch (ex) {
-      // 409 = account already active on another device (single-session policy)
       const msg = ex.message || "Login failed";
-      if (/already logged in/i.test(msg)) {
-        setErr(`⚠ ${msg}`);
-      } else {
-        setErr(msg);
-      }
+      if (/expire|Dobara login/i.test(msg)) { setOtpInfo(null); setOtp(""); }
+      setErr(msg);
     } finally {
       setBusy(false);
     }
   };
+  const resend = () => { setOtpInfo(null); setOtp(""); setTimeout(() => document.querySelector('[data-testid="login-submit"]')?.click(), 50); };
 
   return (
     <div className="login-wrap" data-testid="login-page">
@@ -79,13 +87,23 @@ export default function Login() {
         <form onSubmit={submitLogin} data-testid="login-form" style={{ marginTop: 14 }}>
           <p className="hint" style={{ textAlign: "center" }}>Enter the email &amp; password provided by your administrator.</p>
           <label>Email</label>
-          <input data-testid="login-username" value={u} onChange={(e) => setU(e.target.value)} placeholder="you@example.com" autoFocus />
+          <input data-testid="login-username" disabled={!!otpInfo} value={u} onChange={(e) => setU(e.target.value)} placeholder="you@example.com" autoFocus />
           <label>Password</label>
-          <input data-testid="login-password" type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" />
+          <input data-testid="login-password" disabled={!!otpInfo} type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" />
+          {otpInfo && (
+            <div data-testid="login-otp-box" style={{ marginTop: 10, padding: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e3a8a" }}>OTP aapke mobile {otpInfo.mobile} par bheja gaya hai</div>
+              <input data-testid="login-otp" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6 digit OTP" inputMode="numeric" autoFocus style={{ marginTop: 8, letterSpacing: 6, fontSize: 18, textAlign: "center", fontWeight: 800 }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 6 }}>
+                <span data-testid="login-otp-timer" style={{ color: left > 0 ? "#166534" : "#dc2626", fontWeight: 700 }}>{left > 0 ? `Valid: ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "OTP expire ho gaya"}</span>
+                <button type="button" data-testid="login-otp-resend" onClick={resend} style={{ background: "none", border: "none", color: "#1d4ed8", fontWeight: 700, cursor: "pointer" }}>Naya OTP bhejein</button>
+              </div>
+            </div>
+          )}
           {err && <div className="err" data-testid="login-error">{err}</div>}
-          <button className="submit" data-testid="login-submit" disabled={busy}>
+          <button className="submit" data-testid="login-submit" disabled={busy || (otpInfo && (otp.length !== 6 || left === 0))}>
             <LogIn size={18} />
-            {busy ? "Signing in…" : "Sign In"}
+            {busy ? "Please wait…" : otpInfo ? "Verify OTP & Sign In" : "Sign In"}
           </button>
           <p className="hint" style={{ marginTop: 14, fontSize: 10.5, textAlign: "center" }}>
             Employee accounts are created only by the Admin.

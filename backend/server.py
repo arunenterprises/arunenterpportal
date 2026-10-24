@@ -228,6 +228,25 @@ class RegisterBody(BaseModel):
 class LoginBody(BaseModel):
     identifier: str  # email or username
     password: str
+    otp_token: Optional[str] = None
+    otp: Optional[str] = None
+
+
+def _send_otp_sms(mobile: str, code: str) -> None:
+    from twilio.rest import Client as _Twilio
+    sid, tok, frm = os.environ.get("TWILIO_ACCOUNT_SID"), os.environ.get("TWILIO_AUTH_TOKEN"), os.environ.get("TWILIO_FROM_NUMBER")
+    if not (sid and tok and frm):
+        raise HTTPException(status_code=503, detail="OTP SMS service abhi set nahi hai. Admin se sampark karein.")
+    _Twilio(sid, tok).messages.create(to=mobile, from_=frm, body=f"Welcome to ERP ARUN ENTERPRISES. Your login OTP is {code}. Valid for 3 minutes. Do not share it with anyone.")
+
+
+def _e164(m: str) -> str:
+    d = re.sub(r"\D", "", m or "")
+    if len(d) == 10:
+        return f"+91{d}"
+    if len(d) == 12 and d.startswith("91"):
+        return f"+{d}"
+    return f"+{d}" if d else ""
 
 
 # ==================== AUTH ROUTES ====================
@@ -350,6 +369,37 @@ async def login(body: LoginBody, request: Request):
         _LOGIN_FAILS[ident] = fails + [now_ts]
         raise HTTPException(status_code=401, detail="Invalid email or password")
     _LOGIN_FAILS.pop(ident, None)
+
+    # ---- 2-STEP LOGIN: password + 6-digit SMS OTP (3 min) for everyone except primary SuperAdmin
+    _primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    _otp_ready = all(os.environ.get(k) for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"))
+    if _otp_ready and not (_primary and user["email"].lower().strip() == _primary):
+        if not body.otp_token:
+            mobile = _e164(user.get("mobile", ""))
+            if len(mobile) < 12:
+                raise HTTPException(status_code=400, detail="Aapka mobile number ERP mein registered nahi hai. Admin se mobile number update karwayein.")
+            code = f"{_secrets.randbelow(1000000):06d}"
+            tid = uuid.uuid4().hex
+            await db.login_otps.delete_many({"email": user["email"]})
+            await db.login_otps.insert_one({"id": tid, "email": user["email"], "code_hash": hashlib.sha256(code.encode()).hexdigest(), "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=3)).isoformat(), "tries": 0})
+            try:
+                await asyncio.to_thread(_send_otp_sms, mobile, code)
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.warning(f"OTP SMS failed for {user['email']}: {e}")
+                raise HTTPException(status_code=502, detail="OTP SMS nahi bheja ja saka. Thodi der baad try karein.")
+            return {"otp_required": True, "otp_token": tid, "mobile": f"******{mobile[-4:]}", "valid_seconds": 180}
+        rec = await db.login_otps.find_one({"id": body.otp_token, "email": user["email"]})
+        if not rec or rec.get("expires_at", "") < datetime.now(timezone.utc).isoformat():
+            raise HTTPException(status_code=401, detail="OTP expire ho gaya. Dobara login karke naya OTP lein.")
+        if rec.get("tries", 0) >= 5:
+            await db.login_otps.delete_one({"id": body.otp_token})
+            raise HTTPException(status_code=429, detail="Bahut galat OTP. Dobara login karein.")
+        if not hmac.compare_digest(rec["code_hash"], hashlib.sha256((body.otp or "").strip().encode()).hexdigest()):
+            await db.login_otps.update_one({"id": body.otp_token}, {"$inc": {"tries": 1}})
+            raise HTTPException(status_code=401, detail="Galat OTP. Dobara daalein.")
+        await db.login_otps.delete_one({"id": body.otp_token})
 
     # ---- SINGLE-SESSION (takeover): a new login replaces the old device's session; old token gets 401 on next call.
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
