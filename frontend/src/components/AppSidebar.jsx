@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock } from "lucide-react";
 import { getToken, apiMe } from "../lib/api";
-import { canApprove, canDelete } from "../lib/store";
+import { canApprove, canDelete, isSuperAdmin, currentUserEmail, logout } from "../lib/store";
 import { can, deptOfPath, loadAcl } from "../lib/acl";
 
 const ITEMS = [
@@ -84,6 +84,21 @@ export const AclGate = () => {
     if (!authed) return undefined;
     const t = setInterval(() => { apiMe().catch(() => {}); }, 15000);
     return () => clearInterval(t);
+  }, [authed]);
+  useEffect(() => {
+    if (!authed || isSuperAdmin(currentUserEmail())) return undefined;
+    let last = Date.now();
+    const bump = () => { last = Date.now(); };
+    const ev = ["mousemove", "mousedown", "keydown", "scroll", "wheel", "touchstart"];
+    ev.forEach((e) => window.addEventListener(e, bump, { passive: true, capture: true }));
+    const t = setInterval(async () => {
+      if (Date.now() - last < 10 * 60 * 1000) return;
+      clearInterval(t);
+      sessionStorage.setItem("ae_idle", new Date().toLocaleString("en-IN"));
+      await logout();
+      window.location.href = "/login";
+    }, 15000);
+    return () => { clearInterval(t); ev.forEach((e) => window.removeEventListener(e, bump, { capture: true })); };
   }, [authed]);
   useEffect(() => { document.body.classList.toggle("ae-no-approve", authed && !canApprove()); document.body.classList.toggle("ae-no-delete", authed && !canDelete()); });
   if (!authed || can(deptOfPath(loc.pathname), "v")) return null;

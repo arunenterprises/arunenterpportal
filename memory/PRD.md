@@ -386,3 +386,14 @@ See `/app/memory/test_credentials.md`.
 
 
 
+
+## 2026-10-24 Updates
+- Approve/Reject/Cross-Verify hidden unless canApprove(); Delete hidden unless Admin/SuperAdmin (body classes ae-no-approve / ae-no-delete via AclGate + App.css).
+- dedupeAllStores now only removes exact same-id duplicates; storage-full toast removed; big lists moved to IndexedDB (hydrateStore in index.js).
+- Nightly backup Missing Check + restore-missing; /api/admin/fix-duplicate-numbers (SuperAdmin, dry-run first).
+- Abstract: print preview, WO/Invoice/Client auto-fill, previous cumulative auto; CRM WO auto-fill in MB/RA/Tax Invoice; print-preview mouse layout editing (lib/printLayoutEdit.js).
+- QC norms guide + auto Pass/Fail (ops/qcNorms.js). SuperAdmin vendor delete in Vendor Registration sheet.
+- Home fit-to-screen + company banner; sidebar navy theme, bigger icons.
+- Login: session takeover (sid in JWT), old device alert; idle auto-logout 10 min (non-SuperAdmin); SMS OTP 2-step built (Twilio keys pending — OTP skipped until TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER set).
+- Backlog: Twilio keys for OTP; kl.srivastava mobile missing; saved print layouts; login history.
+

@@ -12,6 +12,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [splash, setSplash] = useState(null); // { name }
   const [kicked] = useState(() => { const v = sessionStorage.getItem("ae_kicked"); sessionStorage.removeItem("ae_kicked"); return v; });
+  const [idle] = useState(() => { const v = sessionStorage.getItem("ae_idle"); sessionStorage.removeItem("ae_idle"); return v; });
   const nav = useNavigate();
 
   const [otpInfo, setOtpInfo] = useState(null);
@@ -81,6 +82,11 @@ export default function Login() {
           <div data-testid="login-kicked-alert" style={{ marginTop: 12, padding: "10px 12px", background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, color: "#92400e", fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
             ⚠ Aapki ID kisi doosre computer / browser par login ki gayi hai, isliye yahan se logout ho gaya ({kicked}).<br />
             Agar yeh aapne nahi kiya, to turant password badlein ya Admin ko batayein.
+          </div>
+        )}
+        {idle && (
+          <div data-testid="login-idle-alert" style={{ marginTop: 12, padding: "10px 12px", background: "#e0f2fe", border: "1px solid #38bdf8", borderRadius: 8, color: "#075985", fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
+            ⏱ 10 minute tak koi kaam nahi hua, isliye suraksha ke liye aap logout ho gaye ({idle}). Dobara login karein.
           </div>
         )}
 
