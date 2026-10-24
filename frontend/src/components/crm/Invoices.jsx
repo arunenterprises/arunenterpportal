@@ -80,6 +80,16 @@ export const Invoices = ({ data, save, remove }) => {
     const auto = lines.filter((l) => l.qty).length;
     toast.success(`${lines.length} items Work Order se aa gaye${auto ? ` · ${auto} items ki Qty approved MB se bhari` : " · Qty bharein"}`);
   };
+  const raOpts = [{ v: "", l: "— Select RA Bill —" }, ...data.ra_bills.filter((b) => Number(b.step) >= 3).map((b) => ({ v: b.id, l: `${b.raNo} · ${(data.contracts.find((c) => c.id === b.contractId) || {}).workOrderNo || ""} · ${b.billDate || ""}` }))];
+  const pickRA = (id) => {
+    const b = data.ra_bills.find((x) => x.id === id);
+    if (!b) return setF({ ...f, raBillId: "" });
+    const c = data.contracts.find((x) => x.id === b.contractId) || {};
+    const items = c.items || [];
+    const lines = (b.lines || []).filter((l) => num(l.curQty)).map((l) => { const k = items.findIndex((i) => i.id === l.itemId); const it = items[k] || {}; const code = String(it.code || l.code || "").trim(); const isHsn = /^\d{4,8}$/.test(code); return { ...blankLine(), itemId: l.itemId, poPos: k >= 0 ? String(k + 1) : "", itemCode: it.itemCode || (isHsn ? "" : code), description: l.description, hsn: isHsn ? code : "", uom: l.unit || "", rate: num(l.rate), gstPct: num(l.gstPct) || 18, qty: num(l.curQty) }; });
+    setF({ ...f, raBillId: id, contractId: b.contractId, clientId: c.clientId || b.clientId || f.clientId, poNo: c.workOrderNo || f.poNo, poDate: c.workOrderDate || f.poDate, projectName: c.projectName || f.projectName, projectCode: f.projectCode || c.projectCode || c.contractNo || "", projectManager: f.projectManager || c.projectManager || "", billLocation: c.siteLocation || f.billLocation, workPeriod: b.periodFrom || b.periodTo ? `${b.periodFrom || ""} to ${b.periodTo || ""}` : f.workPeriod, lines: lines.length ? lines : f.lines });
+    toast.success(`${b.raNo}: ${lines.length} items auto-fill hue`);
+  };
   const inp = (i, k, w, type = "text") => <Inp data-testid={`inv-line-${k}-${i}`} type={type} disabled={locked} value={f.lines[i][k]} onChange={(e) => setLine(i, k, e.target.value)} style={{ width: w }} />;
   return (
     <>
@@ -94,6 +104,7 @@ export const Invoices = ({ data, save, remove }) => {
         <Grid cols={4}>
           <Field label="Reference No"><Inp data-testid="inv-ref-no" disabled value={f.refNo || "Auto — Save par"} style={{ fontWeight: 800, color: "#1e3a8a" }} /></Field>
           <Field label="Permanent Invoice No"><Inp data-testid="inv-perm-no" disabled value={f.invoiceNo || "Approval ke baad"} style={{ fontWeight: 800, color: "#166534" }} /></Field>
+          <Field label="RA Bill (auto-fill)"><Sel data-testid="inv-ra-bill" disabled={locked} value={f.raBillId || ""} onChange={(e) => pickRA(e.target.value)} options={raOpts} /></Field>
         </Grid>
         <div style={{ height: 12 }} />
         <Grid cols={4}>
