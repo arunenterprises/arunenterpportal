@@ -20,19 +20,19 @@ const OPS_ROWS = [
   ["agreement", "Agreements", "/client-revenue", 2], ["labour_bill", "Wage Bills", "/hr", 3],
 ];
 const months6 = () => Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - i)); return d.toISOString().slice(0, 7); });
-const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, boxShadow: "0 1px 3px rgba(15,23,42,.05)" };
+const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "10px 14px", boxShadow: "0 1px 3px rgba(15,23,42,.05)", display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0, overflow: "hidden" };
 const Title = ({ icon: I, c, children, right }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", paddingBottom: 10, marginBottom: 12, borderBottom: "1px solid #f1f5f9" }}>
-    <div style={{ fontWeight: 800, fontSize: 15, color: "#1e3a8a", display: "flex", alignItems: "center", gap: 7 }}><I size={16} color={c} />{children}</div>{right}
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", paddingBottom: 6, marginBottom: 6, borderBottom: "1px solid #f1f5f9", flexShrink: 0 }}>
+    <div style={{ fontWeight: 800, fontSize: 13.5, color: "#1e3a8a", display: "flex", alignItems: "center", gap: 7 }}><I size={15} color={c} />{children}</div>{right}
   </div>
 );
 
 const Kpi = ({ icon: I, bg, label, value, l1, l2, testid, onClick }) => (
-  <button data-testid={testid} onClick={onClick} style={{ all: "unset", cursor: "pointer", background: bg, color: "#fff", borderRadius: 12, padding: "16px 18px", boxShadow: "0 6px 16px rgba(15,23,42,.12)", transition: "transform .15s" }}
+  <button data-testid={testid} onClick={onClick} style={{ all: "unset", cursor: "pointer", background: bg, color: "#fff", borderRadius: 12, padding: "10px 14px", boxShadow: "0 6px 16px rgba(15,23,42,.12)", transition: "transform .15s" }}
     onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600 }}><I size={18} />{label}</div>
-    <div style={{ fontSize: 30, fontWeight: 900, margin: "6px 0 4px" }}>{value}</div>
-    <div style={{ fontSize: 11.5, opacity: 0.92 }}>{l1}</div><div style={{ fontSize: 11.5, opacity: 0.92 }}>{l2}</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}><I size={16} />{label}</div>
+    <div style={{ fontSize: 24, fontWeight: 900, margin: "2px 0" }}>{value}</div>
+    <div style={{ fontSize: 11, opacity: 0.92 }}>{l1} · {l2}</div>
   </button>
 );
 
@@ -54,12 +54,12 @@ const Trend = ({ rows }) => {
   const fmt = (v) => (mode === "amount" ? inr(v) : Math.round(v));
   const sw = (k, l) => <button data-testid={`trend-mode-${k}`} onClick={() => setMode(k)} style={{ padding: "4px 12px", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 800, cursor: "pointer", background: mode === k ? "#1e3a8a" : "transparent", color: mode === k ? "#fff" : "#475569" }}>{l}</button>;
   return (
-    <div style={card} data-testid="home-monthly-trend">
+    <div style={{ ...card, gridRow: "span 3" }} data-testid="home-monthly-trend">
       <Title icon={TrendingUp} c="#0ea5e9" right={<div style={{ background: "#f1f5f9", borderRadius: 999, padding: 3 }}>{sw("count", "Entries")}{sw("amount", "₹ Amount")}</div>}>Monthly Approved Trend</Title>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", justifyContent: "center", fontSize: 11.5, color: "#475569", marginBottom: 4 }}>
         {series.map((s) => <span key={s.d} data-testid={`trend-legend-${s.d}`} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><i style={{ width: 12, height: 12, borderRadius: 3, background: s.c, display: "inline-block" }} />{s.l}</span>)}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 250 }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", flex: 1, minHeight: 0 }}>
         {[0, 0.25, 0.5, 0.75, 1].map((t) => <g key={t}><line x1={P} x2={W - 16} y1={y(max * t)} y2={y(max * t)} stroke="#e2e8f0" strokeDasharray="3 4" /><text x={P - 6} y={y(max * t) + 4} fontSize="10" fill="#94a3b8" textAnchor="end">{fmt(max * t)}</text></g>)}
         {months.map((m, i) => <text key={m} x={x(i)} y={H - 8} fontSize="11" fill="#64748b" textAnchor="middle">{new Date(`${m}-01`).toLocaleDateString("en-IN", { month: "short" })}</text>)}
         {series.map((s) => <path key={s.d} d={smooth(s.v.map((v, i) => [x(i), y(v)]))} fill="none" stroke={s.c} strokeWidth="2.5"><title>{`${s.l}: ${s.v.map(fmt).join(" → ")}`}</title></path>)}
@@ -75,8 +75,8 @@ const Donut = ({ title, icon, c, parts, testid, money }) => {
   return (
     <div style={card} data-testid={testid}>
       <Title icon={icon} c={c}>{title}</Title>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <svg viewBox="0 0 180 180" style={{ width: 170, height: 170, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minHeight: 0 }}>
+        <svg viewBox="0 0 180 180" style={{ height: "100%", maxHeight: 120, aspectRatio: "1", flexShrink: 0 }}>
           <circle cx="90" cy="90" r={R} fill="none" stroke="#f1f5f9" strokeWidth="30" />
           {total > 0 && parts.filter((p) => p.v > 0).map((p) => {
             const len = (p.v / total) * CIR;
@@ -86,8 +86,8 @@ const Donut = ({ title, icon, c, parts, testid, money }) => {
           <text x="90" y="88" textAnchor="middle" fontSize={money ? 13 : 20} fontWeight="900" fill="#0f172a">{money ? inr(total) : total}</text>
           <text x="90" y="106" textAnchor="middle" fontSize="10" fill="#64748b">Total</text>
         </svg>
-        <div style={{ flex: 1, minWidth: 150, display: "grid", gap: 7 }}>
-          {parts.map((p) => <div key={p.l} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}><i style={{ width: 14, height: 14, borderRadius: 4, background: p.c, display: "inline-block" }} /><span style={{ flex: 1, color: "#334155" }}>{p.l} :</span><b>{money ? inr(p.v) : p.v}</b></div>)}
+        <div style={{ flex: 1, minWidth: 120, display: "grid", gap: 3 }}>
+          {parts.map((p) => <div key={p.l} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5 }}><i style={{ width: 11, height: 11, borderRadius: 3, background: p.c, display: "inline-block" }} /><span style={{ flex: 1, color: "#334155" }}>{p.l} :</span><b>{money ? inr(p.v) : p.v}</b></div>)}
         </div>
       </div>
     </div>
@@ -133,26 +133,26 @@ export default function HomeProgressChart({ tick }) {
   const maxT = Math.max(1, ...rows.map((r) => r.total));
 
   return (
-    <div data-testid="home-dashboard" style={{ display: "grid", gap: 16 }}>
-      <div style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: "10px 16px" }}>
-        <b style={{ fontSize: 15, color: "#1e3a8a" }}>Dashboard · {proj === "all" ? "Sabhi Projects" : proj}</b>
-        <select data-testid="progress-project-selector" value={proj} onChange={(e) => setProj(e.target.value)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 12.5, fontWeight: 700 }}>
+    <div data-testid="home-dashboard" style={{ display: "flex", flexDirection: "column", gap: 10, height: "100%", minHeight: 0 }}>
+      <div style={{ ...card, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "6px 14px", flexShrink: 0 }}>
+        <b style={{ fontSize: 14, color: "#1e3a8a" }}>Dashboard · {proj === "all" ? "Sabhi Projects" : proj}</b>
+        <select data-testid="progress-project-selector" value={proj} onChange={(e) => setProj(e.target.value)} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 12.5, fontWeight: 700 }}>
           <option value="all">All Projects / Sites</option>{projects.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
-      <div data-testid="project-snapshot" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 14 }}>
+      <div data-testid="project-snapshot" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 10, flexShrink: 0 }}>
         <Kpi testid="snap-dpr" icon={ClipboardList} bg="#1d4ed8" label="DPR Reports" value={dpr.length} l1={`${dpr.filter((r) => r.date === today).length} aaj submit hui`} l2={`${dpr.filter((r) => r.status === "Submitted").length} approval baki`} onClick={() => nav("/site")} />
         <Kpi testid="snap-labour" icon={HardHat} bg="#16a34a" label="Labour On-Site" value={labour} l1="Aaj ki DPR + attendance" l2={`${(ops.labour_att || []).filter(pf).length} attendance sheets`} onClick={() => nav("/hr")} />
         <Kpi testid="snap-expenses" icon={Wallet} bg="#f59e0b" label="Expenses" value={inr(exps.reduce((s, x) => s + amt(x), 0))} l1={`${exps.length} entries`} l2={`${exps.filter((x) => (x.date || "").startsWith(thisMonth)).length} is mahine`} onClick={() => nav("/bill?view=expense")} />
         <Kpi testid="snap-pending" icon={Hourglass} bg="#9333ea" label="Pending Approvals" value={sum("pending")} l1={`${inr(sum("pending", "a"))} ka kaam`} l2={`${sum("draft")} draft / process mein`} onClick={() => nav("/gm")} />
         <Kpi testid="snap-approved" icon={BadgeCheck} bg="#db2777" label="Approved (Is Mahine)" value={approvedMonth} l1={`Kul approved: ${sum("done")}`} l2={`${sum("rejected")} rejected`} onClick={() => nav("/reports-hub")} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.1fr) minmax(0,1fr)", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.25fr) minmax(0,1fr) minmax(0,.9fr)", gridTemplateRows: "repeat(3, minmax(0,1fr))", gap: 10, flex: 1, minHeight: 360 }}>
         <Trend rows={rows} />
-        <div style={card} data-testid="home-progress-chart">
+        <div style={{ ...card, gridRow: "span 3" }} data-testid="home-progress-chart">
           <Title icon={ListChecks} c="#4f46e5">Module-wise Work Progress</Title>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 80px", fontSize: 11, fontWeight: 800, color: "#475569", background: "#f1f5f9", padding: "7px 10px", borderRadius: 6, marginBottom: 4 }}><span>Module</span><span>Progress</span><span style={{ textAlign: "right" }}>Done</span></div>
-          <div style={{ maxHeight: 268, overflowY: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 80px", fontSize: 11, fontWeight: 800, color: "#475569", background: "#f1f5f9", padding: "5px 10px", borderRadius: 6, marginBottom: 4, flexShrink: 0 }}><span>Module</span><span>Progress</span><span style={{ textAlign: "right" }}>Done</span></div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             {rows.map((r) => (
               <button key={r.l} data-testid={`progress-row-${r.l.toLowerCase().replace(/\W+/g, "-")}`} onClick={() => nav(r.to)} title={`${r.c.done} approved · ${r.c.pending} pending · ${r.c.draft} draft · ${r.c.rejected} rejected`}
                 style={{ all: "unset", cursor: "pointer", display: "grid", gridTemplateColumns: "1fr 1.2fr 80px", alignItems: "center", gap: 8, padding: "7px 10px", borderBottom: "1px solid #f1f5f9", fontSize: 12, width: "100%", boxSizing: "border-box" }}>
@@ -165,8 +165,6 @@ export default function HomeProgressChart({ tick }) {
             ))}
           </div>
         </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 16 }}>
         <Donut testid="donut-status" title="Approval Status" icon={PieChart} c="#16a34a" parts={Object.keys(C).map((k) => ({ l: L[k], c: C[k], v: sum(k) }))} />
         <Donut testid="donut-dept" title="Department-wise Entries" icon={PieChart} c="#8b5cf6" parts={Object.entries(DEPT).map(([d, [l, c]]) => ({ l, c, v: rows.filter((r) => String(r.d) === d).reduce((s, r) => s + r.total, 0) }))} />
         <Donut testid="donut-amount" title="Amount Status" icon={PieChart} c="#f59e0b" money parts={Object.keys(C).map((k) => ({ l: L[k], c: C[k], v: sum(k, "a") }))} />

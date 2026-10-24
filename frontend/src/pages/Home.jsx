@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Users, ShoppingCart, Landmark, Briefcase, FileBarChart, UserCog, UserCheck, FolderKanban, BarChart3, Handshake, HardHat, FlaskConical, Tractor } from "lucide-react";
-import Header from "../components/Header";
 import HomeNavBar from "../components/HomeNavBar";
 import { DeptNavList } from "../components/AppSidebar";
 import HomeProgressChart from "../components/HomeProgressChart";
@@ -16,6 +15,8 @@ import {
   getExpenses,
   getEmployees,
   dedupeAllStores,
+  getCompany,
+  getLogo,
 } from "../lib/store";
 
 const ALL_ROLES = ["SuperAdmin", "Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
@@ -345,7 +346,7 @@ export default function Home() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
 
-      <div data-testid="home-page" style={{ display: "flex", minHeight: "calc(100vh - 56px)", background: "#f1f5f9" }}>
+      <div data-testid="home-page" style={{ display: "flex", height: "calc(100vh - 46px)", background: "#f1f5f9", overflow: "hidden" }}>
 
         {/* ============== LEFT SIDEBAR ============== */}
         <aside data-testid="home-sidebar" style={{ width: 260, flexShrink: 0, background: sidebarBg, color: "#fff", padding: "14px 0", display: "flex", flexDirection: "column", boxShadow: "2px 0 8px rgba(15,23,42,.1)", position: "sticky", top: 46, height: "calc(100vh - 46px)", alignSelf: "flex-start" }}>
@@ -375,31 +376,14 @@ export default function Home() {
         </aside>
 
         {/* ============== RIGHT MAIN CONTENT ============== */}
-        <main style={{ flex: 1, padding: "18px 24px 28px", overflow: "auto" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 1400, margin: "0 auto" }}>
+        <main style={{ flex: 1, padding: "10px 16px", overflow: "auto", display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 1600, width: "100%", margin: "0 auto", flex: 1, minHeight: 0 }}>
 
-            {/* Letterhead */}
-            <div style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
-              <Header formTitle="" compact />
-            </div>
-
-            {/* Welcome banner */}
-            <div style={{ background: "linear-gradient(135deg,#1e3a8a 0%,#5b21b6 50%,#be185d 100%)", color: "#fff", borderRadius: 10, padding: "16px 22px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, boxShadow: "0 4px 12px rgba(91,33,182,.22)" }}>
-              <div>
-                <div style={{ fontSize: 10, letterSpacing: 2.5, color: "#e9d5ff", fontWeight: 800, textTransform: "uppercase" }}>Welcome back</div>
-                <div data-testid="welcome-user-name" style={{ fontSize: 22, fontWeight: 900, letterSpacing: 0.3 }}>Namaste, {displayName || me?.user || "User"} 👋</div>
-                <div style={{ fontSize: 11, color: "#fde68a", marginTop: 2 }}>Aaj ke pending approvals · live KPI · recent activity niche hai</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 10, letterSpacing: 2, color: "#e9d5ff", fontWeight: 800, textTransform: "uppercase" }}>Pending Approvals</div>
-                <div style={{ fontSize: 32, fontWeight: 900, lineHeight: 1 }}>{pendingApprovals}</div>
-                <div style={{ fontSize: 10.5, color: "#fde68a" }}>across all departments</div>
-              </div>
-            </div>
+            <CompanyBanner name={displayName || me?.user || "User"} pending={pendingApprovals} />
 
 
             {/* KPI tiles */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }} data-testid="home-kpis">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10, flexShrink: 0 }} data-testid="home-kpis">
               <Kpi title="Approved Vendors" value={approvedVendors} total={vendors.length} color="#0369a1" />
               <Kpi title="Approved Bills" value={approvedBills} total={bills.length} color="#16a34a" />
               <Kpi title="Approved Vouchers" value={paidVouchers} total={payments.length} color="#7c3aed" />
@@ -408,7 +392,7 @@ export default function Home() {
             </div>
 
 
-            <HomeProgressChart tick={syncTick} />
+            <div style={{ flex: 1, minHeight: 0 }}><HomeProgressChart tick={syncTick} /></div>
           </div>
         </main>
       </div>
@@ -418,9 +402,32 @@ export default function Home() {
 
 // KPI tile for home dashboard
 const Kpi = ({ title, value, total, subtitle, color }) => (
-  <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `4px solid ${color}`, borderRadius: 8, padding: "10px 14px", boxShadow: "0 1px 3px rgba(15,23,42,.04)" }}>
-    <div style={{ fontSize: 9.5, letterSpacing: 1.5, color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>{title}</div>
-    <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1.1, marginTop: 2 }}>{value}{total !== undefined && <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700 }}> / {total}</span>}</div>
-    {subtitle && <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{subtitle}</div>}
+  <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `4px solid ${color}`, borderRadius: 8, padding: "6px 12px", boxShadow: "0 1px 3px rgba(15,23,42,.04)", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+    <div style={{ fontSize: 9.5, letterSpacing: 1.2, color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>{title}{subtitle && <div style={{ fontSize: 9.5, letterSpacing: 0, textTransform: "none", fontWeight: 600 }}>{subtitle}</div>}</div>
+    <div style={{ fontSize: 20, fontWeight: 900, color, lineHeight: 1.1 }}>{value}{total !== undefined && <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700 }}> / {total}</span>}</div>
   </div>
 );
+
+const CompanyBanner = ({ name, pending }) => {
+  const co = getCompany();
+  const logo = getLogo() || "/arun-logo.jpg";
+  return (
+    <div data-testid="home-company-banner" style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "auto minmax(0,1.3fr) minmax(0,1fr) auto", alignItems: "center", gap: 16, background: "#fff", border: "1px solid #e2e8f0", borderTop: "3px solid #c81e2b", borderRadius: 10, padding: "8px 16px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
+      <img src={logo} alt="logo" style={{ height: 52, width: 64, objectFit: "contain" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: "#c81e2b", letterSpacing: 0.5, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{co.name}</div>
+        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1, color: "#0f172a" }}>{co.tagline}</div>
+        {co.pillLine && <span style={{ display: "inline-block", marginTop: 3, padding: "1px 10px", background: "#0ea5e9", color: "#fff", borderRadius: 999, fontSize: 10.5, fontWeight: 700 }}>{co.pillLine}</span>}
+      </div>
+      <div style={{ fontSize: 11, color: "#334155", lineHeight: 1.5, borderLeft: "1px solid #e2e8f0", paddingLeft: 14, minWidth: 0 }}>
+        <div style={{ fontWeight: 700 }}>{co.address}</div>
+        <div>{[co.tollFree && `Toll Free: ${co.tollFree}`, co.email].filter(Boolean).join(" · ")}</div>
+        <div>{co.website}</div>
+      </div>
+      <div style={{ background: "linear-gradient(135deg,#1e3a8a,#5b21b6 60%,#be185d)", color: "#fff", borderRadius: 10, padding: "8px 16px", textAlign: "right", minWidth: 200 }}>
+        <div data-testid="welcome-user-name" style={{ fontSize: 14, fontWeight: 900 }}>Namaste, {name}</div>
+        <div style={{ fontSize: 10, letterSpacing: 1.5, color: "#fde68a", fontWeight: 800, textTransform: "uppercase" }}>Pending Approvals: <span style={{ fontSize: 18, color: "#fff" }}>{pending}</span></div>
+      </div>
+    </div>
+  );
+};
