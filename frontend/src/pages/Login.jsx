@@ -11,6 +11,7 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [splash, setSplash] = useState(null); // { name }
+  const [kicked] = useState(() => { const v = sessionStorage.getItem("ae_kicked"); sessionStorage.removeItem("ae_kicked"); return v; });
   const nav = useNavigate();
 
   const submitLogin = async (e) => {
@@ -67,6 +68,13 @@ export default function Login() {
             <h2 style={{ margin: 0 }}>Sign In</h2>
           </div>
         </div>
+
+        {kicked && (
+          <div data-testid="login-kicked-alert" style={{ marginTop: 12, padding: "10px 12px", background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, color: "#92400e", fontSize: 12.5, fontWeight: 700, lineHeight: 1.5 }}>
+            ⚠ Aapki ID kisi doosre computer / browser par login ki gayi hai, isliye yahan se logout ho gaya ({kicked}).<br />
+            Agar yeh aapne nahi kiya, to turant password badlein ya Admin ko batayein.
+          </div>
+        )}
 
         <form onSubmit={submitLogin} data-testid="login-form" style={{ marginTop: 14 }}>
           <p className="hint" style={{ textAlign: "center" }}>Enter the email &amp; password provided by your administrator.</p>

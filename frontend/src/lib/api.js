@@ -15,6 +15,7 @@ const req = async (path, opts = {}) => {
   if (t) headers["Authorization"] = `Bearer ${t}`;
   const res = await fetch(`${BASE}/api${path}`, { ...opts, headers });
   if (res.status === 401 && t && path !== "/auth/login" && path !== "/auth/logout") {
+    try { const j = await res.clone().json(); if (/doosre computer/i.test(j.detail || "")) sessionStorage.setItem("ae_kicked", new Date().toLocaleString("en-IN")); } catch {}
     clearToken();
     try { localStorage.removeItem("ae_vm_auth"); } catch {}
     if (!window.location.pathname.startsWith("/login")) window.location.href = "/login";

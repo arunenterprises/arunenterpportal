@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock } from "lucide-react";
-import { getToken } from "../lib/api";
+import { getToken, apiMe } from "../lib/api";
 import { canApprove, canDelete } from "../lib/store";
 import { can, deptOfPath, loadAcl } from "../lib/acl";
 
@@ -80,6 +80,11 @@ export const AclGate = () => {
   useAclRev();
   const authed = !!getToken() && !["/login", "/careers", "/jobs", "/vendor-portal"].some((p) => loc.pathname.startsWith(p));
   useEffect(() => { if (authed) loadAcl(); }, [authed, loc.pathname]);
+  useEffect(() => {
+    if (!authed) return undefined;
+    const t = setInterval(() => { apiMe().catch(() => {}); }, 15000);
+    return () => clearInterval(t);
+  }, [authed]);
   useEffect(() => { document.body.classList.toggle("ae-no-approve", authed && !canApprove()); document.body.classList.toggle("ae-no-delete", authed && !canDelete()); });
   if (!authed || can(deptOfPath(loc.pathname), "v")) return null;
   return (
