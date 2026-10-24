@@ -1062,6 +1062,21 @@ async def set_ui_buttons(body: Dict = Body(...), admin: Dict = Depends(get_curre
     return {"ok": True, "value": clean}
 
 
+@api_router.get("/settings/print-layout/{doc}")
+async def get_print_layout(doc: str, user: Dict = Depends(get_current_user)):
+    d = await db.settings.find_one({"key": f"print_layout_{doc}"}, {"_id": 0})
+    return {"value": (d or {}).get("value") or {}}
+
+
+@api_router.post("/settings/print-layout/{doc}")
+async def set_print_layout(doc: str, body: Dict = Body(...), admin: Dict = Depends(require_admin)):
+    value = body.get("value") or {}
+    if not isinstance(value, dict):
+        raise HTTPException(status_code=400, detail="`value` must be an object")
+    await db.settings.update_one({"key": f"print_layout_{doc}"}, {"$set": {"value": value, "updated_by": admin.get("email"), "updated_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    return {"ok": True}
+
+
 @api_router.get("/settings/company")
 async def get_company_details(user: Dict = Depends(get_current_user)):
     doc = await db.settings.find_one({"key": "company"}, {"_id": 0})

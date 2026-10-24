@@ -4,7 +4,7 @@ import { Plus, Trash2, FilePlus2, Save, Send, CheckCircle2, Printer, Eye, X, Pen
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
 import { getCompany, getLogo } from "../../lib/store";
 import { can } from "../../lib/acl";
-import { enableLayoutEdit, LAYOUT_EDIT_HINT } from "../../lib/printLayoutEdit";
+import { enableLayoutEdit, LAYOUT_EDIT_HINT, usePrintLayout } from "../../lib/printLayoutEdit";
 
 const n = (v) => Number(v) || 0;
 const f2 = (v) => n(v).toFixed(2);
@@ -52,32 +52,35 @@ const AbstractPreview = ({ f, co, onClose }) => {
   const [margin, setMargin] = useState(10);
   const ref = useRef(null);
   const allowed = can("client", "a");
+  const lay = usePrintLayout("abstract", ref, setZoom, setMargin);
   const apply = () => {
     const d = ref.current?.contentDocument;
     if (!d?.body) return;
     d.body.contentEditable = edit ? "true" : "false";
     let s = d.getElementById("ae-adjust");
     if (!s) { s = d.createElement("style"); s.id = "ae-adjust"; d.head.appendChild(s); }
-    s.textContent = `body{zoom:${zoom}%}@page{size:A4 landscape;margin:${margin}mm}${edit ? "body{outline:2px dashed #f59e0b;outline-offset:-6px}" : ""}`;
+    s.textContent = `body{zoom:${zoom}%}@page{size:A4 landscape;margin:${margin}mm}`;
     enableLayoutEdit(d, edit);
   };
   useEffect(apply);
   const ctl = { padding: "4px 6px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 5, width: 64 };
   return (
-    <div data-testid="abs-preview-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
+    <div data-testid="abs-preview-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
       <div style={{ background: "#fff", borderRadius: 10, width: "min(1300px,100%)", height: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap" }}>
           <b style={{ fontSize: 14, flex: 1 }}>Abstract Preview · A4 Landscape · {f.permNo || f.tempNo || "Draft"}</b>
           <button data-testid="abs-preview-with" onClick={() => setWithCo(true)} style={btn(withCo ? "#0f172a" : "#94a3b8")}>With Company Details</button>
           <button data-testid="abs-preview-without" onClick={() => setWithCo(false)} style={btn(!withCo ? "#0f172a" : "#94a3b8")}>Without (Letterhead)</button>
-          {allowed && <button data-testid="abs-preview-edit" onClick={() => setEdit(!edit)} style={btn(edit ? "#ea580c" : "#64748b")}><Pencil size={13} /> {edit ? "Editing ON" : "Edit Layout / Data"}</button>}
+          {allowed && <button data-testid="abs-preview-edit" onClick={() => setEdit(!edit)} style={btn(edit ? "#ea580c" : "#64748b")}><Pencil size={13} /> {edit ? "Editing ON" : "Edit"}</button>}
+          {allowed && <button data-testid="abs-preview-save-layout" onClick={async () => { await lay.save(zoom, margin); setEdit(false); }} style={btn("#15803d")}><Save size={13} /> Save / Apply Layout</button>}
+          {allowed && <button data-testid="abs-preview-reset-layout" onClick={lay.reset} style={btn("#94a3b8")}>Reset Layout</button>}
           {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Size % <input data-testid="abs-preview-zoom" type="number" min="60" max="140" value={zoom} onChange={(e) => setZoom(Number(e.target.value) || 100)} style={ctl} /></label>}
           {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Margin mm <input data-testid="abs-preview-margin" type="number" min="0" max="30" value={margin} onChange={(e) => setMargin(Number(e.target.value) || 0)} style={ctl} /></label>}
           <button data-testid="abs-preview-print" onClick={() => ref.current?.contentWindow?.print()} style={btn("#1e3a8a")}><Printer size={13} /> Print</button>
           <button data-testid="abs-preview-close" onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} /></button>
         </div>
-        {edit && <div style={{ padding: "5px 14px", background: "#fef3c7", fontSize: 11.5, fontWeight: 700, color: "#92400e" }}>{LAYOUT_EDIT_HINT}</div>}
-        <iframe ref={ref} onLoad={apply} title="abstract-preview" data-testid="abs-preview-frame" srcDoc={buildAbstractHtml(f, co, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
+        {edit && <div style={{ padding: "5px 14px", background: "#f1f5f9", fontSize: 11.5, fontWeight: 700, color: "#334155" }}>{LAYOUT_EDIT_HINT}</div>}
+        <iframe ref={ref} onLoad={() => { lay.applySaved(); apply(); }} title="abstract-preview" data-testid="abs-preview-frame" srcDoc={buildAbstractHtml(f, co, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
       </div>
     </div>
   );
@@ -113,8 +116,22 @@ export const Abstract = ({ data }) => {
     const inv = (data.invoices || []).find((i) => (i.invoiceNo || i.refNo) === no);
     if (!inv) { set("invoiceNo", no); return; }
     const c = (data.contracts || []).find((x) => x.id === inv.contractId) || (data.contracts || []).find((x) => inv.poNo && x.workOrderNo === inv.poNo);
-    setF((p) => applyWork({ ...p, invoiceNo: no, invoiceDate: inv.invoiceDate || p.invoiceDate, clientId: inv.clientId || p.clientId, toText: toTextOf(clientOf(inv.clientId)) || p.toText, location: p.location || inv.billLocation || "" }, c, c ? (c.workOrderNo || c.contractNo) : inv.poNo));
-    toast.success("Invoice / Work Order se data aa gaya · Location, Work Period aur Current Qty bharein");
+    const cid = c?.id || inv.contractId || "";
+    const earlier = (data.invoices || []).filter((v) => v.id !== inv.id && Number(v.step) !== 6 && ((cid && v.contractId === cid) || (inv.poNo && v.poNo === inv.poNo))
+      && (String(v.invoiceDate || "") < String(inv.invoiceDate || "") || (v.invoiceDate === inv.invoiceDate && String(v.refNo || "") < String(inv.refNo || ""))));
+    const hit = (x, l) => (l.itemId && x.itemId ? x.itemId === l.itemId : String(x.description || "").trim() === String(l.desc || "").trim());
+    const qtyIn = (vs, l) => vs.reduce((s, v) => s + (v.lines || []).filter((x) => hit(x, l)).reduce((a, x) => a + n(x.qty), 0), 0);
+    const isH = (v) => /^\d{4,8}$/.test(String(v || "").trim());
+    const base = c?.items?.length
+      ? c.items.filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(k + 1), desc: i.description, code: i.itemCode || (isH(i.code) ? "" : i.code || ""), uom: i.unit || "", hsn: isH(i.code) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }))
+      : (inv.lines || []).filter((x) => x.description).map((x) => ({ ...line(), itemId: x.itemId || "", poPos: x.poPos, desc: x.description, code: x.itemCode, uom: x.uom, hsn: x.hsn, poQty: "", rate: n(x.rate) }));
+    const lines = base.map((l) => {
+      const pq = earlier.length ? qtyIn(earlier, l) : prevOf(l, cid, inv.poNo);
+      return { ...l, prevQty: +pq.toFixed(3) || "", curQty: +qtyIn([inv], l).toFixed(3) || "" };
+    });
+    const cl = clientOf(inv.clientId || c?.clientId);
+    setF((p) => ({ ...p, invoiceNo: no, invoiceDate: inv.invoiceDate || p.invoiceDate, clientId: cl.id || p.clientId, contractId: cid, poNo: inv.poNo || c?.workOrderNo || p.poNo, poDate: inv.poDate || c?.workOrderDate || p.poDate, toText: toTextOf(cl) || p.toText, location: inv.billLocation || p.location, periodFrom: p.periodFrom, periodTo: p.periodTo, lines: lines.length ? lines : p.lines }));
+    toast.success(`Invoice se ${lines.length} items aa gaye · Previous = pichhle ${earlier.length} invoice · Current = is invoice ki qty`);
   };
   const pickClient = (id) => {
     const cs = (data.contracts || []).filter((x) => x.clientId === id);
@@ -157,7 +174,7 @@ export const Abstract = ({ data }) => {
           <div style={{ gridColumn: "span 1", gridRow: "span 2" }}><H l="To (Address)"><textarea data-testid="abs-to" disabled={ro} rows={4} value={f.toText} onChange={(e) => set("toText", e.target.value)} style={inp} /></H></div>
           <H l="Purchase Order No *"><input data-testid="abs-po" disabled={ro} value={f.poNo} onChange={(e) => set("poNo", e.target.value)} style={inp} /></H>
           <H l="PO Dated"><input type="date" disabled={ro} value={f.poDate} onChange={(e) => set("poDate", e.target.value)} style={inp} /></H>
-          <H l="Invoice No"><input data-testid="abs-inv" disabled={ro} list="abs-inv-list" value={f.invoiceNo} onChange={(e) => pickInvoice(e.target.value)} style={inp} /><datalist id="abs-inv-list">{(data.invoices || []).filter((i) => !f.clientId || i.clientId === f.clientId).map((i) => <option key={i.id} value={i.invoiceNo || i.refNo} />)}</datalist></H>
+          <H l="Invoice No"><input data-testid="abs-inv" disabled={ro} list="abs-inv-list" value={f.invoiceNo} onChange={(e) => pickInvoice(e.target.value)} style={inp} /><datalist id="abs-inv-list">{(data.invoices || []).filter((i) => (!f.clientId || i.clientId === f.clientId) && (!f.contractId || i.contractId === f.contractId || i.poNo === f.poNo)).map((i) => <option key={i.id} value={i.invoiceNo || i.refNo} />)}</datalist></H>
           <H l="Invoice Dated"><input type="date" disabled={ro} value={f.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} style={inp} /></H>
           <H l="Work Period From"><input type="date" disabled={ro} value={f.periodFrom} onChange={(e) => set("periodFrom", e.target.value)} style={inp} /></H>
           <H l="Work Period To"><input type="date" disabled={ro} value={f.periodTo} onChange={(e) => set("periodTo", e.target.value)} style={inp} /></H>

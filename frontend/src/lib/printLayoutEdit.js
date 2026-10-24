@@ -1,6 +1,10 @@
 // Mouse layout editing inside a print-preview iframe: drag column edges, row edges and Ctrl+drag to move blocks.
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { apiGetPrintLayout, apiSetPrintLayout } from "./api";
 const EDGE = 6;
-const CSS = `body.ae-le td,body.ae-le th{outline:1px dashed rgba(245,158,11,.45)}body.ae-le .ae-mv{outline:2px solid #2563eb!important}`;
+const CSS = `body.ae-le, body.ae-le td, body.ae-le th{color:#000}body.ae-le *:focus{outline:none}`;
+const MV = "table,img,h1,h2,h3,p,div";
 
 const freeze = (table) => {
   if (table.dataset.aeFrozen) return;
@@ -74,15 +78,68 @@ export const enableLayoutEdit = (doc, on) => {
       if (!el || el === doc.body) return;
       e.preventDefault();
       const m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(el.style.transform || "");
-      el.classList.add("ae-mv");
       drag = { kind: "move", el, x: e.clientX, y: e.clientY, tx: m ? +m[1] : 0, ty: m ? +m[2] : 0 };
     }
   };
-  const up = () => { if (drag?.el) drag.el.classList.remove("ae-mv"); drag = null; };
+  const up = () => { drag = null; };
   doc.addEventListener("mousemove", move);
   doc.addEventListener("mousedown", down, true);
   doc.addEventListener("mouseup", up);
   doc.__aeOff = () => { doc.removeEventListener("mousemove", move); doc.removeEventListener("mousedown", down, true); doc.removeEventListener("mouseup", up); doc.body.style.cursor = ""; };
+};
+
+export const captureLayout = (doc) => {
+  const tables = [...doc.querySelectorAll("table")];
+  const all = [...doc.body.querySelectorAll(MV)];
+  return {
+    tables: tables.map((t, i) => (t.dataset.aeFrozen ? { i, w: t.style.width, cols: [...t.querySelectorAll("colgroup[data-ae] col")].map((c) => [c.span || 1, c.style.width]) } : null)).filter(Boolean),
+    rows: tables.flatMap((t, i) => [...t.rows].map((r, j) => (r.style.height ? { t: i, r: j, h: r.style.height } : null)).filter(Boolean)),
+    moves: all.map((el, i) => (el.style.transform ? { i, tr: el.style.transform } : null)).filter(Boolean),
+  };
+};
+
+export const applyLayout = (doc, L) => {
+  if (!doc?.body || !L) return;
+  const tables = [...doc.querySelectorAll("table")];
+  (L.tables || []).forEach(({ i, w, cols }) => {
+    const t = tables[i];
+    if (!t || !cols?.length) return;
+    let cg = t.querySelector("colgroup[data-ae]");
+    if (!cg) { cg = doc.createElement("colgroup"); cg.dataset.ae = "1"; t.insertBefore(cg, t.firstChild); }
+    cg.innerHTML = "";
+    cols.forEach(([span, width]) => { const c = doc.createElement("col"); c.span = span; c.style.width = width; cg.appendChild(c); });
+    t.style.tableLayout = "fixed"; if (w) t.style.width = w; t.dataset.aeFrozen = "1";
+  });
+  (L.rows || []).forEach(({ t, r, h }) => { const row = tables[t]?.rows[r]; if (row) row.style.height = h; });
+  const all = [...doc.body.querySelectorAll(MV)];
+  (L.moves || []).forEach(({ i, tr }) => { if (all[i]) all[i].style.transform = tr; });
+};
+
+export const usePrintLayout = (docKey, ref, setZoom, setMargin) => {
+  const [L, setL] = useState(null);
+  useEffect(() => {
+    apiGetPrintLayout(docKey).then((r) => {
+      const v = r.value || {};
+      setL(v);
+      if (v.zoom) setZoom(v.zoom);
+      if (v.margin != null) setMargin(v.margin);
+    }).catch(() => setL({}));
+  }, [docKey, setZoom, setMargin]);
+  const applySaved = () => applyLayout(ref.current?.contentDocument, L);
+  useEffect(() => { applyLayout(ref.current?.contentDocument, L); }, [L, ref]);
+  const save = async (zoom, margin) => {
+    const d = ref.current?.contentDocument;
+    if (!d) return;
+    const v = { ...captureLayout(d), zoom, margin };
+    try { await apiSetPrintLayout(docKey, v); setL(v); toast.success("Layout save ho gaya · har agle print par yahi lagega"); }
+    catch (e) { toast.error(e.message); }
+  };
+  const reset = async () => {
+    if (!window.confirm("Saved layout hata kar original layout par wapas jaayein?")) return;
+    try { await apiSetPrintLayout(docKey, {}); setL({}); setZoom(100); setMargin(10); if (ref.current) ref.current.srcdoc = ref.current.srcdoc; toast.success("Original layout wapas"); }
+    catch (e) { toast.error(e.message); }
+  };
+  return { applySaved, save, reset };
 };
 
 export const LAYOUT_EDIT_HINT = "Text par click karke badlein · cell ke RIGHT kinare ko pakad kar kheenchein = column chauda/patla · NEECHE kinare ko kheenchein = row oonchi · Ctrl dabakar kheenchein = table / block khiskayein · badlav sirf is print ke liye";

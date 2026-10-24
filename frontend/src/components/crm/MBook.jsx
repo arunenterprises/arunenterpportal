@@ -10,6 +10,8 @@ export const mbQty = (m) => (m.manualQty !== "" && m.manualQty != null ? num(m.m
 export const MBook = ({ data, save, remove }) => {
   const [f, setF] = useState(blank());
   const [editing, setEditing] = useState(true);
+  const [bulk, setBulk] = useState({});
+  const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const contract = data.contracts.find((c) => c.id === f.contractId);
   const items = contract?.items || [];
@@ -26,6 +28,24 @@ export const MBook = ({ data, save, remove }) => {
     persist(f, "MB entry saved");
   };
   const advance = async (m, step) => { const o = await save("mb", { ...m, step }, step === 3 ? `${m.mbNo} approved` : `${m.mbNo} submitted`); if (o && o.id === f.id) setF(o); };
+  const pickContract = (id) => {
+    setF({ ...f, contractId: id, itemId: "" });
+    const c = data.contracts.find((x) => x.id === id);
+    setBulk(Object.fromEntries((c?.items || []).map((i) => [i.id, { on: true, qty: "" }])));
+  };
+  const doneQty = (itemId) => data.mb.filter((m) => m.contractId === f.contractId && m.itemId === itemId).reduce((s, m) => s + num(m.qty), 0);
+  const saveBulk = async () => {
+    const pick = items.filter((i) => bulk[i.id]?.on && num(bulk[i.id]?.qty) > 0);
+    if (!pick.length) return alert("Tick kiye items mein Qty bharein (0 se zyada)");
+    setBusy(true);
+    for (const i of pick) {
+      const rec = { ...blank(f.contractId), date: f.date, location: f.location, itemId: i.id, manualQty: bulk[i.id].qty };
+      await save("mb", { ...rec, id: uid("mb"), mbNo: await crmNextNo("mb", "MB/"), qty: num(bulk[i.id].qty), unit: i.unit, itemDesc: i.description }, null);
+    }
+    setBusy(false);
+    setBulk(Object.fromEntries(items.map((i) => [i.id, { on: true, qty: "" }])));
+    alert(`${pick.length} MB entries save ho gayi`);
+  };
 
   const contractOpts = [{ v: "", l: "— Select contract —" }, ...data.contracts.map((c) => ({ v: c.id, l: `${c.contractNo} · ${c.projectName}` }))];
   const itemOpts = [{ v: "", l: "— Select item —" }, ...items.map((i) => ({ v: i.id, l: `${i.code ? i.code + " · " : ""}${i.description} (${i.unit})` }))];
@@ -43,7 +63,7 @@ export const MBook = ({ data, save, remove }) => {
         list={{ title: "Measurement Book", cols: ["MB No", "Date", "Contract", "Item", "Location", "Nos", "L", "B", "H", "Qty", "Unit", "Status"], rows: data.mb.map((m) => [m.mbNo, m.date, (data.contracts.find((c) => c.id === m.contractId) || {}).contractNo, m.itemDesc, m.location, m.nos, m.l, m.b, m.h, m.qty, m.unit, STEP_WF[m.step]]) }} />
       <Card testid="mb-form" title={f.id ? `MB Entry · ${f.mbNo} · ${STEP_WF[f.step]}` : "Measurement Book Entry"}>
         <Grid cols={4}>
-          <Field label="Contract *"><Sel data-testid="mb-contract" disabled={locked} value={f.contractId} onChange={(e) => setF({ ...f, contractId: e.target.value, itemId: "" })} options={contractOpts} /></Field>
+          <Field label="Contract *"><Sel data-testid="mb-contract" disabled={locked} value={f.contractId} onChange={(e) => pickContract(e.target.value)} options={contractOpts} /></Field>
           <Field label="Item *" span={2}><Sel data-testid="mb-item" disabled={locked} value={f.itemId} onChange={set("itemId")} options={itemOpts} /></Field>
           <Field label="Date"><Inp data-testid="mb-date" type="date" disabled={locked} value={f.date} onChange={set("date")} /></Field>
           <Field label="Location / Chainage"><Inp data-testid="mb-location" disabled={locked} value={f.location} onChange={set("location")} /></Field>
@@ -62,6 +82,20 @@ export const MBook = ({ data, save, remove }) => {
             </span>); })()}
         </div>
       </Card>
+      {!f.id && contract && items.length > 0 && (
+        <Card testid="mb-bulk" title={`Sabhi Items · ${contract.workOrderNo || contract.contractNo} · jo is baar claim nahi karna uska tick hata dein`}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <Btn tone="ghost" data-testid="mb-bulk-all" onClick={() => setBulk(Object.fromEntries(items.map((i) => [i.id, { ...bulk[i.id], on: true }])))}>Select All</Btn>
+            <Btn tone="ghost" data-testid="mb-bulk-none" onClick={() => setBulk(Object.fromEntries(items.map((i) => [i.id, { ...bulk[i.id], on: false }])))}>Deselect All</Btn>
+            <Btn tone="dark" data-testid="mb-bulk-save" disabled={busy} onClick={saveBulk}>{busy ? "Saving…" : `Save Selected (${items.filter((i) => bulk[i.id]?.on).length}) as MB`}</Btn>
+          </div>
+          <Table testid="mb-bulk-table" cols={["", "Item Code", "Description", "Unit", "Rate", "BOQ Qty", "Pehle napa", "Balance", "Is baar Qty"]}
+            rows={items.map((i) => { const b = bulk[i.id] || { on: true, qty: "" }; const d = doneQty(i.id); return [
+              <input type="checkbox" data-testid={`mb-bulk-chk-${i.id}`} checked={!!b.on} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, on: e.target.checked } })} />,
+              i.itemCode || "—", i.description, i.unit, `₹${num(i.rate)}`, num(i.qty), +d.toFixed(3), +(num(i.qty) - d).toFixed(3),
+              <Inp data-testid={`mb-bulk-qty-${i.id}`} type="number" disabled={!b.on} value={b.qty} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, qty: e.target.value } })} style={{ width: 90 }} />]; })} />
+        </Card>
+      )}
       <Card title={`Measurement Book (${data.mb.length})`}>
         <Table testid="mb-table" cols={["MB No", "Date", "Contract", "Item", "Location", "Qty", "Status", "Billed", "Actions"]}
           rows={data.mb.slice().reverse().map((m) => [m.mbNo, m.date, (data.contracts.find((c) => c.id === m.contractId) || {}).contractNo || "—", m.itemDesc, m.location || "—", `${m.qty} ${m.unit || ""}`,

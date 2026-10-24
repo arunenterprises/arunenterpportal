@@ -32,6 +32,8 @@ const req = async (path, opts = {}) => {
 export const apiLogin = (identifier, password, otp_token, otp) =>
   req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, otp_token, otp }) });
 export const apiGetUiButtons = () => req("/settings/ui-buttons");
+export const apiGetPrintLayout = (doc) => req(`/settings/print-layout/${doc}`);
+export const apiSetPrintLayout = (doc, value) => req(`/settings/print-layout/${doc}`, { method: "POST", body: JSON.stringify({ value }) });
 export const apiSetUiButtons = (value) => req("/settings/ui-buttons", { method: "POST", body: JSON.stringify({ value }) });
 export const apiAiWoTerms = (wo) => req("/ai/wo-terms", { method: "POST", body: JSON.stringify(wo) });
 export const apiLogout = () => req("/auth/logout", { method: "POST" });

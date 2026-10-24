@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee, Pencil } from "lucide-react";
+import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee, Pencil, Save } from "lucide-react";
 import { toast } from "sonner";
 import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUser } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
-import { enableLayoutEdit, LAYOUT_EDIT_HINT } from "../../lib/printLayoutEdit";
+import { enableLayoutEdit, LAYOUT_EDIT_HINT, usePrintLayout } from "../../lib/printLayoutEdit";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, stepTone, uid, today, inr, num, nameOf, crmNextNo } from "./crmShared";
 
 export const INV_STEPS = { 1: "Draft", 2: "Submitted", 3: "Approved", 4: "Sent to Client", 5: "Paid", 6: "Cancelled" };
@@ -69,12 +69,15 @@ export const Invoices = ({ data, save, remove }) => {
 
   const clientOpts = [{ v: "", l: "— Select client —" }, ...data.clients.map((c) => ({ v: c.id, l: `${c.clientCode || c.tempRefId || ""} · ${c.name}` }))];
   const woOpts = [{ v: "", l: "— Select Work Order —" }, ...data.contracts.map((c) => ({ v: c.id, l: `${c.workOrderNo || c.contractNo} · ${c.projectName}` }))];
+  const billedBefore = (cid, itemId) => data.invoices.filter((v) => v.contractId === cid && v.id !== f.id && Number(v.step) !== 6).reduce((s, v) => s + (v.lines || []).filter((l) => l.itemId === itemId).reduce((a, l) => a + num(l.qty), 0), 0);
+  const mbApproved = (cid, itemId) => data.mb.filter((m) => m.contractId === cid && m.itemId === itemId && Number(m.step) >= 3).reduce((s, m) => s + num(m.qty), 0);
   const pickWO = (id) => {
     const c = data.contracts.find((x) => x.id === id);
     if (!c) return setF({ ...f, contractId: "" });
-    const lines = (c.items || []).filter((i) => i.description).map((i, k) => ({ ...blankLine(), poPos: String(k + 1), itemCode: i.itemCode || (/^\d{4,8}$/.test(String(i.code || "").trim()) ? "" : i.code || ""), description: i.description, hsn: /^\d{4,8}$/.test(String(i.code || "").trim()) ? i.code : "", uom: i.unit || "", rate: num(i.rate), gstPct: num(i.gstPct) || 18, qty: "" }));
-    setF({ ...f, contractId: id, clientId: c.clientId || f.clientId, poNo: c.workOrderNo || f.poNo, poDate: c.workOrderDate || f.poDate, projectName: c.projectName || f.projectName, projectCode: f.projectCode || c.contractNo || "", billLocation: c.siteLocation || f.billLocation, lines: lines.length ? lines : f.lines });
-    toast.success(`${lines.length} items Work Order se aa gaye · sirf Qty bharein`);
+    const lines = (c.items || []).filter((i) => i.description).map((i, k) => { const q = Math.max(0, +(mbApproved(id, i.id) - billedBefore(id, i.id)).toFixed(3)); return { ...blankLine(), itemId: i.id, poPos: String(k + 1), itemCode: i.itemCode || (/^\d{4,8}$/.test(String(i.code || "").trim()) ? "" : i.code || ""), description: i.description, hsn: /^\d{4,8}$/.test(String(i.code || "").trim()) ? i.code : "", uom: i.unit || "", rate: num(i.rate), gstPct: num(i.gstPct) || 18, qty: q || "" }; });
+    setF({ ...f, contractId: id, clientId: c.clientId || f.clientId, poNo: c.workOrderNo || f.poNo, poDate: c.workOrderDate || f.poDate, projectName: c.projectName || f.projectName, projectCode: f.projectCode || c.projectCode || c.contractNo || "", projectManager: f.projectManager || c.projectManager || "", billLocation: c.siteLocation || f.billLocation, lines: lines.length ? lines : f.lines });
+    const auto = lines.filter((l) => l.qty).length;
+    toast.success(`${lines.length} items Work Order se aa gaye${auto ? ` · ${auto} items ki Qty approved MB se bhari` : " · Qty bharein"}`);
   };
   const inp = (i, k, w, type = "text") => <Inp data-testid={`inv-line-${k}-${i}`} type={type} disabled={locked} value={f.lines[i][k]} onChange={(e) => setLine(i, k, e.target.value)} style={{ width: w }} />;
   return (
@@ -123,6 +126,7 @@ export const Invoices = ({ data, save, remove }) => {
         <div data-testid="inv-totals" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 8, background: "#eff6ff", padding: 12, borderRadius: 8, fontSize: 12 }}>
           <div>Taxable: <b>{inr(t.taxable)}</b></div><div>IGST: <b>{inr(t.igst)}</b></div><div>CGST: <b>{inr(t.cgst)}</b></div><div>SGST: <b>{inr(t.sgst)}</b></div>
           <div data-testid="inv-total" style={{ color: "#1e3a8a" }}>Total Invoice: <b>{inr(t.total)}</b></div>
+          <div data-testid="inv-words" style={{ gridColumn: "1 / -1", fontWeight: 700, color: "#0f172a" }}>In words: {amountToWords(t.total)}</div>
         </div>
         {f.id && (
           <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -223,32 +227,35 @@ const InvoicePreview = ({ inv, t, client, onClose }) => {
   const [margin, setMargin] = useState(10);
   const ref = useRef(null);
   const allowed = canApprove();
+  const lay = usePrintLayout("invoice", ref, setZoom, setMargin);
   const apply = () => {
     const d = ref.current?.contentDocument;
     if (!d?.body) return;
     d.body.contentEditable = edit ? "true" : "false";
     let s = d.getElementById("ae-adjust");
     if (!s) { s = d.createElement("style"); s.id = "ae-adjust"; d.head.appendChild(s); }
-    s.textContent = `body{zoom:${zoom}%}@page{margin:${margin}mm}${edit ? "body{outline:2px dashed #f59e0b;outline-offset:-6px}" : ""}`;
+    s.textContent = `body{zoom:${zoom}%}@page{margin:${margin}mm}`;
     enableLayoutEdit(d, edit);
   };
   useEffect(apply);
   const ctl = { padding: "4px 6px", fontSize: 12, border: "1px solid #cbd5e1", borderRadius: 5, width: 64 };
   return (
-    <div data-testid="inv-preview-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
+    <div data-testid="inv-preview-modal" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
       <div style={{ background: "#fff", borderRadius: 10, width: "min(1200px,100%)", height: "92vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid #e2e8f0", flexWrap: "wrap" }}>
           <b style={{ fontSize: 14, flex: 1 }}>Invoice Preview · {invLabel(inv)}</b>
           <Btn tone={withCo ? "dark" : "ghost"} data-testid="inv-preview-with" onClick={() => setWithCo(true)}>With Company Details</Btn>
           <Btn tone={!withCo ? "dark" : "ghost"} data-testid="inv-preview-without" onClick={() => setWithCo(false)}>Without (Letterhead)</Btn>
-          {allowed && <Btn tone={edit ? "brand" : "ghost"} data-testid="inv-preview-edit" onClick={() => setEdit(!edit)}><Pencil size={13} /> {edit ? "Editing ON" : "Edit Layout / Data"}</Btn>}
+          {allowed && <Btn tone={edit ? "brand" : "ghost"} data-testid="inv-preview-edit" onClick={() => setEdit(!edit)}><Pencil size={13} /> {edit ? "Editing ON" : "Edit"}</Btn>}
+          {allowed && <Btn tone="dark" data-testid="inv-preview-save-layout" onClick={async () => { await lay.save(zoom, margin); setEdit(false); }}><Save size={13} /> Save / Apply Layout</Btn>}
+          {allowed && <Btn tone="ghost" data-testid="inv-preview-reset-layout" onClick={lay.reset}>Reset Layout</Btn>}
           {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Size % <input data-testid="inv-preview-zoom" type="number" min="60" max="140" value={zoom} onChange={(e) => setZoom(Number(e.target.value) || 100)} style={ctl} /></label>}
           {allowed && <label style={{ fontSize: 11.5, fontWeight: 700 }}>Margin mm <input data-testid="inv-preview-margin" type="number" min="0" max="30" value={margin} onChange={(e) => setMargin(Number(e.target.value) || 0)} style={ctl} /></label>}
           <Btn tone="brand" data-testid="inv-preview-print" onClick={() => (allowed ? ref.current?.contentWindow?.print() : printInvoice(inv, t, client, withCo))}><Printer size={13} /> Print</Btn>
           <button data-testid="inv-preview-close" onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} /></button>
         </div>
-        {edit && <div style={{ padding: "5px 14px", background: "#fef3c7", fontSize: 11.5, fontWeight: 700, color: "#92400e" }}>{LAYOUT_EDIT_HINT}</div>}
-        <iframe ref={ref} onLoad={apply} title="invoice-preview" data-testid="inv-preview-frame" srcDoc={buildInvoiceHtml(inv, t, client, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
+        {edit && <div style={{ padding: "5px 14px", background: "#f1f5f9", fontSize: 11.5, fontWeight: 700, color: "#334155" }}>{LAYOUT_EDIT_HINT}</div>}
+        <iframe ref={ref} onLoad={() => { lay.applySaved(); apply(); }} title="invoice-preview" data-testid="inv-preview-frame" srcDoc={buildInvoiceHtml(inv, t, client, withCo, false)} style={{ flex: 1, border: 0, background: "#f1f5f9" }} />
       </div>
     </div>
   );
