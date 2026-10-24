@@ -1405,6 +1405,26 @@ async def crm_delete(name: str, rid: str, user: Dict = Depends(get_current_user)
     return {"ok": True, "deleted": r.deleted_count}
 
 
+@api_router.post("/admin/reset-numbering/{target}")
+async def reset_numbering(target: str, user: Dict = Depends(require_super_admin)):
+    if target not in ("invoices", "abstract"):
+        raise HTTPException(status_code=404, detail="Unknown target")
+    coll, ckey = ("crm_invoices", "crm") if target == "invoices" else ("ops_abstract", "ops")
+    docs = await db[coll].find({}, {"_id": 0}).to_list(50000)
+    now = datetime.now(timezone.utc).isoformat()
+    if docs:
+        await db.purged_backup.insert_one({"collection": coll, "purgedAt": now, "by": user.get("email"), "docs": docs})
+    r = await db[coll].delete_many({})
+    c = await db.counters.find_one({"key": ckey}) or {}
+    if target == "invoices":
+        upd = {k: (39 if k.startswith("inv_") else 0) for k in c if re.fullmatch(r"(inv_|invref_)\d{4}", k)}
+    else:
+        upd = {k: 0 for k in c if re.fullmatch(r"abstract_(tmp_)?\d{4}", k)}
+    if upd:
+        await db.counters.update_one({"key": ckey}, {"$set": upd})
+    return {"ok": True, "deleted": r.deleted_count, "counters": upd}
+
+
 # ==================== EXPENSES (single-record upsert) ====================
 @api_router.post("/expenses")
 async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(require_write)):

@@ -4,6 +4,7 @@ import { Plus, Trash2, FilePlus2, Save, Send, CheckCircle2, Printer, Eye, X, Pen
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
 import { getCompany, getLogo } from "../../lib/store";
 import { can } from "../../lib/acl";
+import { ResetNumberingBtn } from "./ResetNumberingBtn";
 import { enableLayoutEdit, LAYOUT_EDIT_HINT, usePrintLayout } from "../../lib/printLayoutEdit";
 
 const n = (v) => Number(v) || 0;
@@ -214,7 +215,7 @@ export const Abstract = ({ data }) => {
       </div>
       {preview && <AbstractPreview f={f} co={co} onClose={() => setPreview(false)} />}
       <div data-testid="abs-sheet" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "8px 14px", background: "#f1f5f9", fontWeight: 800, fontSize: 12 }}>Abstract Register ({rows.length}) · Row click = Load</div>
+        <div style={{ padding: "8px 14px", background: "#f1f5f9", fontWeight: 800, fontSize: 12 }}>Abstract Register ({rows.length}) · Row click = Load<ResetNumberingBtn target="abstract" label="Abstract" /></div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
           <thead><tr>{["Permanent / Ref No", "Temp No", "PO No", "Invoice No", "Location", "Current Amt", "Cumulative Amt", "Status"].map((h) => <th key={h} style={{ padding: 6, textAlign: "left", background: "#f8fafc" }}>{h}</th>)}</tr></thead>
           <tbody>{rows.map((r) => (

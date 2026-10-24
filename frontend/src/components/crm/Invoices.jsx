@@ -3,6 +3,7 @@ import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee, Pencil, Sav
 import { toast } from "sonner";
 import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUser } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
+import { ResetNumberingBtn } from "./ResetNumberingBtn";
 import { enableLayoutEdit, LAYOUT_EDIT_HINT, usePrintLayout } from "../../lib/printLayoutEdit";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, stepTone, uid, today, inr, num, nameOf, crmNextNo } from "./crmShared";
 
@@ -157,6 +158,7 @@ export const Invoices = ({ data, save, remove }) => {
       </Card>
       {preview && <InvoicePreview inv={f} t={t} client={client} onClose={() => setPreview(null)} />}
       <Card title={`Client Tax Invoices (${data.invoices.length})`}>
+        <div style={{ marginBottom: 8 }}><ResetNumberingBtn target="invoices" label="Tax Invoice" /></div>
         <Table testid="inv-table" cols={["Ref No", "Invoice No", "Date", "Client", "PO No", "Taxable", "GST", "Total", "Status", ""]}
           rows={data.invoices.slice().reverse().map((b) => [b.refNo || "—", b.invoiceNo || "—", b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo || "—", inr(b.taxable), inr(num(b.igst) + num(b.cgst) + num(b.sgst)), inr(b.total),
             <Badge text={INV_STEPS[b.step]} tone={stepTone(b.step)} />,
