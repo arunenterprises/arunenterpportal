@@ -89,10 +89,10 @@ export const MBook = ({ data, save, remove }) => {
             <Btn tone="ghost" data-testid="mb-bulk-none" onClick={() => setBulk(Object.fromEntries(items.map((i) => [i.id, { ...bulk[i.id], on: false }])))}>Deselect All</Btn>
             <Btn tone="dark" data-testid="mb-bulk-save" disabled={busy} onClick={saveBulk}>{busy ? "Saving…" : `Save Selected (${items.filter((i) => bulk[i.id]?.on).length}) as MB`}</Btn>
           </div>
-          <Table testid="mb-bulk-table" cols={["", "PO Pos", "Item Code", "Description", "Unit", "Rate", "BOQ Qty", "Pehle napa", "Balance", "Is baar Qty"]}
+          <Table testid="mb-bulk-table" cols={["", "Sr No", "PO Pos", "Item Code", "Description", "Unit", "Rate", "BOQ Qty", "Pehle napa", "Balance", "Is baar Qty"]}
             rows={items.map((i, k) => { const b = bulk[i.id] || { on: true, qty: "" }; const d = doneQty(i.id); return [
               <input type="checkbox" data-testid={`mb-bulk-chk-${i.id}`} checked={!!b.on} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, on: e.target.checked } })} />,
-              <span data-testid={`mb-bulk-pos-${i.id}`}>{i.poPos || k + 1}</span>, i.itemCode || "—", i.description, i.unit, `₹${num(i.rate)}`, num(i.qty), +d.toFixed(3), +(num(i.qty) - d).toFixed(3),
+              <span data-testid={`mb-bulk-sr-${i.id}`}>{i.srNo || k + 1}</span>, <span data-testid={`mb-bulk-pos-${i.id}`}>{i.poPos || k + 1}</span>, i.itemCode || "—", i.description, i.unit, `₹${num(i.rate)}`, num(i.qty), +d.toFixed(3), +(num(i.qty) - d).toFixed(3),
               <Inp data-testid={`mb-bulk-qty-${i.id}`} type="number" disabled={!b.on} value={b.qty} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, qty: e.target.value } })} style={{ width: 90 }} />]; })} />
         </Card>
       )}
