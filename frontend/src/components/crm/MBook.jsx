@@ -33,18 +33,25 @@ export const MBook = ({ data, save, remove }) => {
     const c = data.contracts.find((x) => x.id === id);
     setBulk(Object.fromEntries((c?.items || []).map((i) => [i.id, { on: true, qty: "" }])));
   };
-  const doneQty = (itemId) => data.mb.filter((m) => m.contractId === f.contractId && m.itemId === itemId).reduce((s, m) => s + num(m.qty), 0);
+  const mbSum = (itemId) => data.mb.filter((m) => m.contractId === f.contractId && m.itemId === itemId).reduce((s, m) => s + num(m.qty), 0);
+  const doneQty = (itemId) => num((items.find((i) => i.id === itemId) || {}).prevClaimQty) + mbSum(itemId);
+  const prevOf = (i) => (bulk[i.id]?.prev ?? "") !== "" ? num(bulk[i.id].prev) : doneQty(i.id);
   const saveBulk = async () => {
     const pick = items.filter((i) => bulk[i.id]?.on && num(bulk[i.id]?.qty) > 0);
-    if (!pick.length) return alert("Tick kiye items mein Qty bharein (0 se zyada)");
+    const prevChanged = items.filter((i) => (bulk[i.id]?.prev ?? "") !== "" && num(bulk[i.id].prev) !== doneQty(i.id));
+    if (!pick.length && !prevChanged.length) return alert("Tick kiye items mein Qty bharein (0 se zyada)");
     setBusy(true);
+    if (prevChanged.length) {
+      const nextItems = items.map((i) => (prevChanged.includes(i) ? { ...i, prevClaimQty: +(num(bulk[i.id].prev) - mbSum(i.id)).toFixed(3) } : i));
+      await save("contracts", { ...contract, items: nextItems }, null);
+    }
     for (const i of pick) {
       const rec = { ...blank(f.contractId), date: f.date, location: f.location, itemId: i.id, manualQty: bulk[i.id].qty };
       await save("mb", { ...rec, id: uid("mb"), mbNo: await crmNextNo("mb", "MB/"), qty: num(bulk[i.id].qty), unit: i.unit, itemDesc: i.description }, null);
     }
     setBusy(false);
     setBulk(Object.fromEntries(items.map((i) => [i.id, { on: true, qty: "" }])));
-    alert(`${pick.length} MB entries save ho gayi`);
+    alert(`${pick.length} MB entries save ho gayi${prevChanged.length ? ` · ${prevChanged.length} items ki Previous Claim Qty update hui` : ""}`);
   };
 
   const contractOpts = [{ v: "", l: "— Select contract —" }, ...data.contracts.map((c) => ({ v: c.id, l: `${c.contractNo} · ${c.projectName}` }))];
@@ -89,11 +96,13 @@ export const MBook = ({ data, save, remove }) => {
             <Btn tone="ghost" data-testid="mb-bulk-none" onClick={() => setBulk(Object.fromEntries(items.map((i) => [i.id, { ...bulk[i.id], on: false }])))}>Deselect All</Btn>
             <Btn tone="dark" data-testid="mb-bulk-save" disabled={busy} onClick={saveBulk}>{busy ? "Saving…" : `Save Selected (${items.filter((i) => bulk[i.id]?.on).length}) as MB`}</Btn>
           </div>
-          <Table testid="mb-bulk-table" cols={["", "Sr No", "PO Pos", "Item Code", "Description", "Unit", "Rate", "BOQ Qty", "Pehle napa", "Balance", "Is baar Qty"]}
-            rows={items.map((i, k) => { const b = bulk[i.id] || { on: true, qty: "" }; const d = doneQty(i.id); return [
+          <Table testid="mb-bulk-table" cols={["", "Sr No", "PO Pos", "Item Code", "Description", "Unit", "Rate", "BOQ Qty", "Previous Claim Qty", "Is baar Qty", "Balance"]}
+            rows={items.map((i, k) => { const b = bulk[i.id] || { on: true, qty: "" }; const d = prevOf(i); return [
               <input type="checkbox" data-testid={`mb-bulk-chk-${i.id}`} checked={!!b.on} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, on: e.target.checked } })} />,
-              <span data-testid={`mb-bulk-sr-${i.id}`}>{i.srNo || k + 1}</span>, <span data-testid={`mb-bulk-pos-${i.id}`}>{i.poPos || k + 1}</span>, i.itemCode || "—", i.description, i.unit, `₹${num(i.rate)}`, num(i.qty), +d.toFixed(3), +(num(i.qty) - d).toFixed(3),
-              <Inp data-testid={`mb-bulk-qty-${i.id}`} type="number" disabled={!b.on} value={b.qty} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, qty: e.target.value } })} style={{ width: 90 }} />]; })} />
+              <span data-testid={`mb-bulk-sr-${i.id}`}>{i.srNo || k + 1}</span>, <span data-testid={`mb-bulk-pos-${i.id}`}>{i.poPos || k + 1}</span>, i.itemCode || "—", i.description, i.unit, `₹${num(i.rate)}`, num(i.qty),
+              <Inp data-testid={`mb-bulk-prev-${i.id}`} type="number" value={b.prev ?? +doneQty(i.id).toFixed(3)} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, prev: e.target.value } })} style={{ width: 90 }} />,
+              <Inp data-testid={`mb-bulk-qty-${i.id}`} type="number" disabled={!b.on} value={b.qty} onChange={(e) => setBulk({ ...bulk, [i.id]: { ...b, qty: e.target.value } })} style={{ width: 90 }} />,
+              <b data-testid={`mb-bulk-bal-${i.id}`} style={{ color: num(i.qty) - d - num(b.on ? b.qty : 0) < 0 ? "#b91c1c" : "#166534" }}>{+(num(i.qty) - d - num(b.on ? b.qty : 0)).toFixed(3)}</b>]; })} />
         </Card>
       )}
       <Card title={`Measurement Book (${data.mb.length})`}>

@@ -39,7 +39,7 @@ export const RABills = ({ data, save, reload }) => {
     mbs.forEach((m) => { byItem[m.itemId] = (byItem[m.itemId] || 0) + num(m.qty); });
     const lines = Object.entries(byItem).map(([itemId, qty]) => {
       const it = (contract.items || []).find((i) => i.id === itemId) || {};
-      return { itemId, code: it.code || "", description: it.description || "", unit: it.unit || "", rate: num(it.rate), gstPct: num(it.gstPct), prevQty: prevQtyFor(data.ra_bills, contract.id, itemId, f.id), curQty: +qty.toFixed(3) };
+      return { itemId, code: it.code || "", description: it.description || "", unit: it.unit || "", rate: num(it.rate), gstPct: num(it.gstPct), prevQty: +(num(it.prevClaimQty) + prevQtyFor(data.ra_bills, contract.id, itemId, f.id)).toFixed(3), curQty: +qty.toFixed(3) };
     });
     const basic = lines.reduce((s, l) => s + l.curQty * l.rate, 0);
     const recovered = data.ra_bills.filter((b) => b.contractId === contract.id && b.id !== f.id).reduce((s, b) => s + num(b.advanceRecovery), 0);
@@ -49,7 +49,7 @@ export const RABills = ({ data, save, reload }) => {
   };
   const loadWO = () => {
     if (!contract) return alert("Contract select karein");
-    const lines = (contract.items || []).filter((i) => i.description).map((it) => ({ itemId: it.id, code: it.code || "", description: it.description, unit: it.unit || "", rate: num(it.rate), gstPct: num(it.gstPct), prevQty: prevQtyFor(data.ra_bills, contract.id, it.id, f.id), curQty: 0 }));
+    const lines = (contract.items || []).filter((i) => i.description).map((it) => ({ itemId: it.id, code: it.code || "", description: it.description, unit: it.unit || "", rate: num(it.rate), gstPct: num(it.gstPct), prevQty: +(num(it.prevClaimQty) + prevQtyFor(data.ra_bills, contract.id, it.id, f.id)).toFixed(3), curQty: 0 }));
     setF({ ...f, lines, mbIds: [], retentionPct: num(contract.retentionPct), tdsPct: contract.tdsPct ?? 2 });
     toast.success(`${lines.length} Work Order items aa gaye · This Bill Qty bharein`);
   };
