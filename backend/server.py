@@ -2109,7 +2109,23 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
 async def ops_delete(kind: str, rid: str, user: Dict = Depends(get_current_user)):
     if not _crm_power(user):
         raise HTTPException(status_code=403, detail="Delete sirf SuperAdmin / Admin kar sakte hain")
-    await db[_ops_coll(kind)].delete_one({"id": rid})
+    coll = _ops_coll(kind)
+    await db[coll].delete_one({"id": rid})
+    # Roll counters back to highest number still in use (frees the last deleted number)
+    mx: Dict[str, int] = {}
+    for d in await db[coll].find({}, {"_id": 0, "tempNo": 1, "permNo": 1}).to_list(20000):
+        for no, tmp in ((d.get("tempNo"), True), (d.get("permNo"), False)):
+            parts = (no or "").split("/")
+            if len(parts) != 4:
+                continue
+            s = parts[2][1:] if tmp else parts[2]
+            if s.isdigit():
+                k = f"{kind}_tmp_{parts[3]}" if tmp else f"{kind}_{parts[3]}"
+                mx[k] = max(mx.get(k, 0), int(s))
+    c = await db.counters.find_one({"key": "ops"}) or {}
+    upd = {k: mx.get(k, 0) for k in c if k.startswith(f"{kind}_") and (k[len(kind) + 1:].isdigit() or k.startswith(f"{kind}_tmp_"))}
+    if upd:
+        await db.counters.update_one({"key": "ops"}, {"$set": upd})
     return {"ok": True}
 
 
