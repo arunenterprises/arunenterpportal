@@ -370,26 +370,29 @@ async def login(body: LoginBody, request: Request):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     _LOGIN_FAILS.pop(ident, None)
 
-    # ---- 2-STEP LOGIN: password + 6-digit SMS OTP (3 min) for everyone except primary SuperAdmin
+    # ---- 2-STEP LOGIN: password + 6-digit EMAIL OTP (3 min) for everyone except primary SuperAdmin
     _primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
-    _otp_ready = all(os.environ.get(k) for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER"))
-    if _otp_ready and not (_primary and user["email"].lower().strip() == _primary):
+    if EMAIL_KEY and not (_primary and user["email"].lower().strip() == _primary):
         if not body.otp_token:
-            mobile = _e164(user.get("mobile", ""))
-            if len(mobile) < 12:
-                raise HTTPException(status_code=400, detail="Aapka mobile number ERP mein registered nahi hai. Admin se mobile number update karwayein.")
             code = f"{_secrets.randbelow(1000000):06d}"
             tid = uuid.uuid4().hex
             await db.login_otps.delete_many({"email": user["email"]})
             await db.login_otps.insert_one({"id": tid, "email": user["email"], "code_hash": hashlib.sha256(code.encode()).hexdigest(), "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=3)).isoformat(), "tries": 0})
-            try:
-                await asyncio.to_thread(_send_otp_sms, mobile, code)
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.warning(f"OTP SMS failed for {user['email']}: {e}")
-                raise HTTPException(status_code=502, detail="OTP SMS nahi bheja ja saka. Thodi der baad try karein.")
-            return {"otp_required": True, "otp_token": tid, "mobile": f"******{mobile[-4:]}", "valid_seconds": 180}
+            nm = escape(user.get("name") or user["email"])
+            html = (
+                "<div style='font-family:Arial,sans-serif;max-width:480px;margin:auto;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden'>"
+                "<div style='background:#1e3a8a;color:#fff;padding:16px 20px;font-size:18px;font-weight:bold'>Welcome to ERP ARUN ENTERPRISES</div>"
+                f"<div style='padding:20px;color:#0f172a;font-size:14px'>Namaste {nm},<br><br>Aapka login OTP hai:"
+                f"<div style='font-size:32px;font-weight:900;letter-spacing:8px;color:#c81e2b;margin:14px 0'>{code}</div>"
+                "Yeh OTP sirf <b>3 minute</b> ke liye valid hai. Ise kisi ke saath share na karein.<br><br>"
+                "Agar yeh login aapne nahi kiya, to turant Admin ko batayein.</div></div>"
+            )
+            sent = await _send_email(to=user["email"], subject=f"Welcome to ERP ARUN ENTERPRISES - Login OTP {code}", html=html)
+            if not sent:
+                raise HTTPException(status_code=502, detail="OTP email nahi bheja ja saka. Thodi der baad try karein.")
+            e = user["email"]
+            masked = (e[:2] + "****" + e[e.find("@"):]) if "@" in e else e
+            return {"otp_required": True, "otp_token": tid, "mobile": masked, "valid_seconds": 180}
         rec = await db.login_otps.find_one({"id": body.otp_token, "email": user["email"]})
         if not rec or rec.get("expires_at", "") < datetime.now(timezone.utc).isoformat():
             raise HTTPException(status_code=401, detail="OTP expire ho gaya. Dobara login karke naya OTP lein.")

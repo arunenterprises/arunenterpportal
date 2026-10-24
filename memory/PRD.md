@@ -394,6 +394,6 @@ See `/app/memory/test_credentials.md`.
 - Abstract: print preview, WO/Invoice/Client auto-fill, previous cumulative auto; CRM WO auto-fill in MB/RA/Tax Invoice; print-preview mouse layout editing (lib/printLayoutEdit.js).
 - QC norms guide + auto Pass/Fail (ops/qcNorms.js). SuperAdmin vendor delete in Vendor Registration sheet.
 - Home fit-to-screen + company banner; sidebar navy theme, bigger icons.
-- Login: session takeover (sid in JWT), old device alert; idle auto-logout 10 min (non-SuperAdmin); SMS OTP 2-step built (Twilio keys pending — OTP skipped until TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER set).
-- Backlog: Twilio keys for OTP; kl.srivastava mobile missing; saved print layouts; login history.
+- Login: session takeover (sid in JWT), old device alert; idle auto-logout 10 min (non-SuperAdmin); 2-step EMAIL OTP (6 digit, 3 min, subject "Welcome to ERP ARUN ENTERPRISES") via managed email for all except SuperAdmin.
+- Backlog: saved print layouts; login history; logout warning popup.
 
