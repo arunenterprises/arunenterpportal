@@ -372,7 +372,10 @@ async def login(body: LoginBody, request: Request):
 
     # ---- 2-STEP LOGIN: password + 6-digit EMAIL OTP (3 min) for everyone except primary SuperAdmin
     _primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
-    if EMAIL_KEY and not (_primary and user["email"].lower().strip() == _primary):
+    _otp_skip = str(user.get("otp_bypass_until") or "") > datetime.now(timezone.utc).isoformat()
+    if _otp_skip:
+        await db.users.update_one({"email": user["email"]}, {"$unset": {"otp_bypass_until": ""}})
+    if EMAIL_KEY and not _otp_skip and not (_primary and user["email"].lower().strip() == _primary):
         if not body.otp_token:
             code = f"{_secrets.randbelow(1000000):06d}"
             tid = uuid.uuid4().hex
@@ -388,11 +391,23 @@ async def login(body: LoginBody, request: Request):
                 "Agar yeh login aapne nahi kiya, to turant Admin ko batayein.</div></div>"
             )
             sent = await _send_email(to=user["email"], subject=f"Welcome to ERP ARUN ENTERPRISES - Login OTP {code}", html=html)
-            if not sent:
-                raise HTTPException(status_code=502, detail="OTP email nahi bheja ja saka. Thodi der baad try karein.")
+            sms_ok = False
+            mobile = _e164(user.get("mobile", ""))
+            if len(mobile) >= 12 and all(os.environ.get(k) for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER")):
+                try:
+                    await asyncio.to_thread(_send_otp_sms, mobile, code)
+                    sms_ok = True
+                except Exception as ex:
+                    logger.warning(f"OTP SMS failed for {user['email']}: {ex}")
+            if not sent and not sms_ok:
+                raise HTTPException(status_code=502, detail="OTP nahi bheja ja saka. Thodi der baad try karein.")
             e = user["email"]
-            masked = (e[:2] + "****" + e[e.find("@"):]) if "@" in e else e
-            return {"otp_required": True, "otp_token": tid, "mobile": masked, "valid_seconds": 180}
+            where = []
+            if sent:
+                where.append("email " + ((e[:2] + "****" + e[e.find("@"):]) if "@" in e else e))
+            if sms_ok:
+                where.append(f"mobile ******{mobile[-4:]}")
+            return {"otp_required": True, "otp_token": tid, "mobile": " aur ".join(where), "valid_seconds": 180}
         rec = await db.login_otps.find_one({"id": body.otp_token, "email": user["email"]})
         if not rec or rec.get("expires_at", "") < datetime.now(timezone.utc).isoformat():
             raise HTTPException(status_code=401, detail="OTP expire ho gaya. Dobara login karke naya OTP lein.")
@@ -442,6 +457,20 @@ async def login(body: LoginBody, request: Request):
             "mobile": user.get("mobile", ""),
         },
     }
+
+
+@api_router.post("/admin/users/{email}/otp-reset")
+async def admin_otp_reset(email: str, admin: Dict = Depends(require_super_admin)):
+    em = email.lower().strip()
+    u = await db.users.find_one({"email": em}, {"_id": 0, "email": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    until = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+    await db.users.update_one({"email": em}, {"$set": {"otp_bypass_until": until, "current_session.active": False}})
+    await db.login_otps.delete_many({"email": em})
+    _LOGIN_FAILS.pop(em, None)
+    logger.info(f"OTP reset for {em} by {admin.get('email')}")
+    return {"ok": True, "email": em, "valid_until": until}
 
 
 @api_router.post("/auth/logout")

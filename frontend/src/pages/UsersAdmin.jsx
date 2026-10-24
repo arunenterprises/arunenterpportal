@@ -5,6 +5,7 @@ import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download
 import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
 import { NightlyMissingBtn, DupFixBtn } from "../components/NightlyMissingBtn";
+import { OtpResetPanel } from "../components/OtpResetPanel";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import AuthSplash from "../components/AuthSplash";
@@ -832,6 +833,8 @@ export default function UsersAdmin() {
 
         {/* Active Sessions (Admin / SuperAdmin only) · IP + Location + Login Time */}
         {["admin", "superadmin"].includes(String(me?.role || "").toLowerCase().replace(/\s/g, "")) && <ActiveSessionsSection meEmail={me?.user} />}
+
+        {isSuperAdmin(me?.user) && <OtpResetPanel users={users.filter((u) => !isSuperAdmin(u.email))} />}
 
         {/* Backup & Restore (SUPER ADMIN ONLY) */}
         {isSuperAdmin(me?.user) && (

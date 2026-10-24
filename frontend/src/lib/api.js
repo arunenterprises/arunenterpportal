@@ -152,6 +152,8 @@ export const apiDeleteExit = (id) =>
 
 // ---- Users management (admin only) ----
 export const apiListUsers = () => req("/users");
+export const apiOtpReset = (email) => req(`/admin/users/${encodeURIComponent(email)}/otp-reset`, { method: "POST", body: "{}" });
+
 export const apiRegisterUser = (body) =>
   req("/auth/register", { method: "POST", body: JSON.stringify(body) });
 export const apiDeleteUser = (email) =>

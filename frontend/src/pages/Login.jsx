@@ -98,7 +98,7 @@ export default function Login() {
           <input data-testid="login-password" disabled={!!otpInfo} type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" />
           {otpInfo && (
             <div data-testid="login-otp-box" style={{ marginTop: 10, padding: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e3a8a" }}>OTP aapki email {otpInfo.mobile} par bheja gaya hai (Inbox / Spam dekhein)</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e3a8a" }}>OTP aapki registered {otpInfo.mobile} par bheja gaya hai (email ho to Inbox / Spam dekhein)</div>
               <input data-testid="login-otp" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6 digit OTP" inputMode="numeric" autoFocus style={{ marginTop: 8, letterSpacing: 6, fontSize: 18, textAlign: "center", fontWeight: 800 }} />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 6 }}>
                 <span data-testid="login-otp-timer" style={{ color: left > 0 ? "#166534" : "#dc2626", fontWeight: 700 }}>{left > 0 ? `Valid: ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "OTP expire ho gaya"}</span>
