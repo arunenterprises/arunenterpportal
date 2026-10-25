@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee, Pencil, Save } from "lucide-react";
 import { toast } from "sonner";
-import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUser } from "../../lib/store";
+import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUser, isSuperAdmin, currentUserEmail } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
 import { ResetNumberingBtn } from "./ResetNumberingBtn";
 import { enableLayoutEdit, LAYOUT_EDIT_HINT, usePrintLayout } from "../../lib/printLayoutEdit";
@@ -42,7 +42,8 @@ export const Invoices = ({ data, save, remove }) => {
   const client = data.clients.find((c) => c.id === f.clientId) || {};
   const t = useMemo(() => computeInvoice(f, client), [f, client]);
   const st = Number(f.step);
-  const locked = st >= 2 || !editing;
+  const reEdit = isSuperAdmin(currentUserEmail()) && st === 3;
+  const locked = (st >= 2 && !reEdit) || !editing;
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const setLine = (i, k, v) => setF({ ...f, lines: f.lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)) });
 
@@ -61,6 +62,10 @@ export const Invoices = ({ data, save, remove }) => {
     if (!f.clientId) return toast.error("Bill To: client select karein");
     if (!f.lines.some((l) => l.description && num(l.qty) && num(l.rate))) return toast.error("Kam se kam ek item (description, qty, rate) bharein");
     persist(f, "Invoice saved");
+  };
+  const reapprove = () => {
+    if (!window.confirm(`${invLabel(f)} approved hai. Badlav save karke dobara approve karein?`)) return;
+    persist({ ...f, step: 3 }, `${invLabel(f)} edit karke dobara approve hua`, "Edited & Re-approved");
   };
   const move = async (step, extra = {}) => {
     const out = await persist({ ...f, ...extra, step }, null, INV_STEPS[step]);
@@ -94,9 +99,9 @@ export const Invoices = ({ data, save, remove }) => {
   return (
     <>
       <CrmActionBar name="inv" status={f.id ? `${invLabel(f)} · ${INV_STEPS[st]} · ${editing && st < 2 ? "Editing" : "View"}` : "New Tax Invoice"}
-        labels={{ submit: "Submit for Approval", approve: "Final Approval" }}
-        onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 2 ? onSave : null}
-        onEdit={f.id && !editing && st < 2 ? () => setEditing(true) : null}
+        labels={{ submit: "Submit for Approval", approve: "Final Approval", save: reEdit ? "Save & Re-approve" : "Save", edit: reEdit ? "Edit & Re-approve" : "Edit" }}
+        onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 2 ? onSave : editing && reEdit ? reapprove : null}
+        onEdit={f.id && !editing && (st < 2 || reEdit) ? () => setEditing(true) : null}
         onSubmit={f.id && st === 1 && !editing ? () => move(2) : null} onApprove={f.id && st === 2 ? () => move(3) : null}
         onDelete={f.id && !f.invoiceNo ? del : null}
         list={{ title: "Client Tax Invoice Register", cols: ["Ref No", "Invoice No", "Date", "Client", "PO No", "Project", "Taxable", "IGST", "CGST", "SGST", "Total", "Status"], rows: data.invoices.map((b) => [b.refNo, b.invoiceNo || "", b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo, b.projectName, num(b.taxable), num(b.igst), num(b.cgst), num(b.sgst), num(b.total), INV_STEPS[b.step]]) }} />

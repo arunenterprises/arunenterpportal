@@ -21,6 +21,7 @@ export const can = (dept, op) => {
   const r = currentRole();
   if (r === "SuperAdmin" || !dept) return true;
   if (dept === "gm") return ["Admin", "GM"].includes(r);
+  if (dept === "admin" && op === "v") return true;
   return !!aclCell(getAcl(), r, dept)[op];
 };
 export const deptOfPath = (p) => (PATH_DEPT.find(([x]) => p === x || p.startsWith(`${x}/`)) || [])[1];

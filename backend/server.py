@@ -632,6 +632,37 @@ async def me(user: Dict = Depends(get_current_user)):
     return user
 
 
+class MyAccountBody(BaseModel):
+    current_password: str
+    email: Optional[str] = None
+    mobile: Optional[str] = None
+
+
+@api_router.post("/users/me/update")
+async def update_my_account(body: MyAccountBody, user: Dict = Depends(get_current_user)):
+    me_doc = await db.users.find_one({"email": user["email"]})
+    if not me_doc or not verify_password((body.current_password or "").strip(), me_doc.get("password_hash", "")):
+        raise HTTPException(status_code=400, detail="Current password galat hai")
+    upd: Dict[str, Any] = {}
+    if body.mobile is not None and body.mobile.strip():
+        m = body.mobile.strip()
+        if not re.fullmatch(r"\d{10}", m):
+            raise HTTPException(status_code=400, detail="Mobile No 10 digit ka hona chahiye")
+        upd["mobile"] = m
+    new_email = (body.email or "").lower().strip()
+    if new_email and new_email != user["email"]:
+        if _is_super_admin(user):
+            raise HTTPException(status_code=400, detail="SuperAdmin ki email yaha se nahi badli ja sakti")
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", new_email):
+            raise HTTPException(status_code=400, detail="Valid email bharein")
+        if await db.users.find_one({"email": new_email}):
+            raise HTTPException(status_code=400, detail="Yeh email pehle se kisi user ki hai")
+        upd["email"] = new_email
+    if upd:
+        await db.users.update_one({"email": user["email"]}, {"$set": upd})
+    return {"ok": True, "relogin": "email" in upd}
+
+
 # ==================== GENERIC CRUD HELPERS ====================
 def _clean(doc: dict) -> dict:
     doc.pop("_id", None)
@@ -1359,6 +1390,11 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
                 body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}
             else:
                 raise HTTPException(status_code=403, detail="Approval sirf SuperAdmin / Admin kar sakte hain")
+        if name == "invoices" and old_step >= 3 and existing and (body.get("lines") != existing.get("lines") or body.get("total") != existing.get("total") or body.get("clientId") != existing.get("clientId")):
+            if not _is_super_admin(user) or old_step != 3:
+                raise HTTPException(status_code=403, detail="Approved Invoice sirf SuperAdmin (Approved status mein) edit kar sakte hain")
+            body["reapprovedBy"] = user.get("name") or user.get("email")
+            body["reapprovedAt"] = datetime.now(timezone.utc).isoformat()
         if name == "ra_bills" and old_step == 3 and new_step == 3 and existing:
             if not _is_super_admin(user):
                 raise HTTPException(status_code=403, detail="Approved RA Bill sirf SuperAdmin edit kar sakte hain")

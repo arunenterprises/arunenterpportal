@@ -1068,8 +1068,11 @@ const ReportsHub = () => {
         </div>
 
         {/* Department tabs */}
-        <div data-testid="rh-dept-tabs" style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: 8, background: "#f1f5f9", borderRadius: 6, marginBottom: 14, border: "1px solid #e2e8f0" }}>
-          {DEPT_CONFIG.map((d) => (
+        <div data-testid="rh-dept-tabs" style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8, background: "#f1f5f9", borderRadius: 6, marginBottom: 14, border: "1px solid #e2e8f0" }}>
+          {[["3. HR Management", "#db2777", ["employees", "paybills", "exits", "recruitments"]], ["4. Procurement Management", "#16a34a", ["vendors", "boqs", "work_orders", "bills"]], ["5. Finance Management", "#0d9488", ["payments", "expenses", "advances", "loans", "fooding"]]].map(([g, gc, ids]) => (
+          <div key={g} data-testid={`rh-group-${ids[0]}`} style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+          <span style={{ minWidth: 190, fontSize: 11, fontWeight: 900, color: gc, letterSpacing: 0.3, textTransform: "uppercase", borderLeft: `4px solid ${gc}`, paddingLeft: 8 }}>{g}</span>
+          {DEPT_CONFIG.filter((d) => ids.includes(d.id)).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)).map((d) => (
             <button
               key={d.id}
               data-testid={`rh-tab-${d.id}`}
@@ -1079,6 +1082,8 @@ const ReportsHub = () => {
               <span>{d.icon}</span>
               {d.title}
             </button>
+          ))}
+          </div>
           ))}
         </div>
 

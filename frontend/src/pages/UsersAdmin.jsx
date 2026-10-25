@@ -8,6 +8,7 @@ import { NightlyMissingBtn, DupFixBtn } from "../components/NightlyMissingBtn";
 import { OtpResetPanel } from "../components/OtpResetPanel";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
+import { MyAccount } from "../components/MyAccount";
 import AuthSplash from "../components/AuthSplash";
 import AclMatrix from "../components/AclMatrix";
 import LocalFolderPanel from "../components/LocalFolderBackup";
@@ -338,16 +339,12 @@ export default function UsersAdmin() {
       setUsers(list);
     } catch (e) {
       toast.error(e.message);
-      if (e.message?.includes("Admin access")) nav("/vendor");
+      if (e.message?.includes("Admin access")) return;
     }
   };
 
   useEffect(() => {
-    if (!isSuperAdmin(me?.user) && (me?.role || "").toLowerCase() !== "admin") {
-      toast.error("Admin access required");
-      nav("/vendor");
-      return;
-    }
+    if (!isSuperAdmin(me?.user) && (me?.role || "").toLowerCase() !== "admin") return;
     load();
     if (isSuperAdmin(me?.user)) loadNightly();
     // REAL-TIME CROSS-USER SYNC: refresh user list on every ae-sync-done pulse.
@@ -501,6 +498,7 @@ export default function UsersAdmin() {
     }
   };
 
+  if (!isSuperAdmin(me?.user) && (me?.role || "").toLowerCase() !== "admin") return <MyAccount />;
   return (
     <div style={{ minHeight: "100vh", background: "#eef2f7", padding: 20 }}>
       <Toaster position="top-center" richColors />
