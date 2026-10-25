@@ -2780,7 +2780,7 @@ export default function HRManagement() {
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{ width: 52, height: 52, borderRadius: 13, background: "rgba(255,255,255,.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><UserCheck size={28} /></div>
                 <div>
-                  <div style={{ fontSize: 10.5, letterSpacing: 3, color: "#fbcfe8", fontWeight: 700, textTransform: "uppercase" }}>HR Management · v1</div>
+                  <div style={{ fontSize: 10.5, letterSpacing: 3, color: "#fbcfe8", fontWeight: 700, textTransform: "uppercase" }}>HR Management</div>
                   <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: .3 }}>Employees · Attendance · Payroll</div>
                   <div style={{ fontSize: 11.5, color: "#fce7f3", marginTop: 4 }}>5-step approval · Temp Code → Permanent EMP Code · Payroll auto-pushed to Accounts</div>
                 </div>
