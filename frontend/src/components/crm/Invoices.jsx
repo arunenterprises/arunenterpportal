@@ -42,7 +42,7 @@ export const Invoices = ({ data, save, remove }) => {
   const client = data.clients.find((c) => c.id === f.clientId) || {};
   const t = useMemo(() => computeInvoice(f, client), [f, client]);
   const st = Number(f.step);
-  const reEdit = isSuperAdmin(currentUserEmail()) && st === 3;
+  const reEdit = isSuperAdmin(currentUserEmail()) && [3, 4, 5].includes(st);
   const locked = (st >= 2 && !reEdit) || !editing;
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const setLine = (i, k, v) => setF({ ...f, lines: f.lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)) });
@@ -65,7 +65,7 @@ export const Invoices = ({ data, save, remove }) => {
   };
   const reapprove = () => {
     if (!window.confirm(`${invLabel(f)} approved hai. Badlav save karke dobara approve karein?`)) return;
-    persist({ ...f, step: 3 }, `${invLabel(f)} edit karke dobara approve hua`, "Edited & Re-approved");
+    persist({ ...f, step: st }, `${invLabel(f)} edit karke dobara approve hua`, "Edited & Re-approved");
   };
   const move = async (step, extra = {}) => {
     const out = await persist({ ...f, ...extra, step }, null, INV_STEPS[step]);

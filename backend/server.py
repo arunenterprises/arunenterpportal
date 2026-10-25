@@ -1391,8 +1391,8 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
             else:
                 raise HTTPException(status_code=403, detail="Approval sirf SuperAdmin / Admin kar sakte hain")
         if name == "invoices" and old_step >= 3 and existing and (body.get("lines") != existing.get("lines") or body.get("total") != existing.get("total") or body.get("clientId") != existing.get("clientId")):
-            if not _is_super_admin(user) or old_step != 3:
-                raise HTTPException(status_code=403, detail="Approved Invoice sirf SuperAdmin (Approved status mein) edit kar sakte hain")
+            if not _is_super_admin(user) or old_step not in (3, 4, 5) or new_step != old_step:
+                raise HTTPException(status_code=403, detail="Approved / Paid Invoice sirf SuperAdmin edit kar sakte hain")
             body["reapprovedBy"] = user.get("name") or user.get("email")
             body["reapprovedAt"] = datetime.now(timezone.utc).isoformat()
         if name == "ra_bills" and old_step == 3 and new_step == 3 and existing:
