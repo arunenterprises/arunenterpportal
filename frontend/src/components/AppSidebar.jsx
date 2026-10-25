@@ -8,12 +8,12 @@ import { can, deptOfPath, loadAcl } from "../lib/acl";
 const ITEMS = [
   { n: 1, l: "GM Dashboard", to: "/gm", d: "gm", icon: Gauge, c: "#f59e0b" },
   { n: 2, l: "Client & Revenue", to: "/client-revenue", d: "client", icon: BadgeIndianRupee, c: "#0ea5e9" },
-  { n: 3, l: "HR & Labour", to: "/hr", d: "hr", icon: UsersRound, c: "#ec4899" },
+  { n: 3, l: "HR Management", to: "/hr", d: "hr", icon: UsersRound, c: "#ec4899" },
   { n: 4, l: "Procurement", to: "/purchase", d: "procurement", icon: PackageSearch, c: "#22c55e" },
-  { n: 5, l: "Accounts & Vouchers", to: "/bill", d: "accounts", icon: Landmark, c: "#14b8a6" },
-  { n: 6, l: "Project & Site", to: "/site", d: "site", icon: HardHat, c: "#f97316" },
-  { n: 7, l: "QC & Safety", to: "/qc-safety", d: "qc", icon: ShieldCheck, c: "#8b5cf6" },
-  { n: 8, l: "Plant & Machinery", to: "/plant", d: "plant", icon: Forklift, c: "#eab308" },
+  { n: 5, l: "Finance Management", to: "/bill", d: "accounts", icon: Landmark, c: "#14b8a6" },
+  { n: 6, l: "Project Management", to: "/site", d: "site", icon: HardHat, c: "#f97316" },
+  { n: 7, l: "QC & Safety Management", to: "/qc-safety", d: "qc", icon: ShieldCheck, c: "#8b5cf6" },
+  { n: 8, l: "P & M Management", to: "/plant", d: "plant", icon: Forklift, c: "#eab308" },
   { n: 9, l: "Reports Hub", to: "/reports-hub", d: "reports", icon: PieChart, c: "#6366f1" },
   { n: 10, l: "System Admin", to: "/users", d: "admin", icon: ShieldEllipsis, c: "#64748b" },
 ];
