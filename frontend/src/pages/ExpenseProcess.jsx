@@ -228,7 +228,7 @@ export default function ExpenseProcess({ embedded = false }) {
         {!embedded && <>
         <div className="module-doc-header"><Header formTitle="ACCOUNTS DEPARTMENT" /></div>
         <ModuleHero
-          tag="Accounts"
+          tag="Finance Management"
           title="Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F"
           subtitle="Expenses · Petty Cash · Reimbursements · 4-step approval · GM final sign-off"
           icon={ReceiptIcon}

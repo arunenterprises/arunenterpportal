@@ -256,7 +256,7 @@ export default function VendorRegistration({ embedded = false }) {
           {!embedded && <>
           <div className="module-doc-header"><Header formTitle="VENDOR / SUPPLIER REGISTRATION FORM" /></div>
           <ModuleHero
-            tag="Vendor Management"
+            tag="Procurement Management"
             title="Registration · KYC · Approval"
             subtitle="3-step workflow · Auto Vendor Code AE####JV{FY}"
             icon={UsersIcon}

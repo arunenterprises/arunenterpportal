@@ -536,7 +536,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
           {!embedded && <>
           <div className="module-doc-header"><Header formTitle={isCreate ? "PURCHASE · NEW VENDOR BILL CREATION" : "ACCOUNTS DEPARTMENT"} /></div>
           <ModuleHero
-            tag={isCreate ? "Purchase · New Vendor Bill Creation" : "Accounts"}
+            tag={isCreate ? "Procurement Management" : "Finance Management"}
             title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F"}
             subtitle={isCreate ? "Vendor + WO select · items feed · Submit karte hi Reference No milega" : "Ref No se bill fetch · cross-verify · GST / TDS · approval · PV"}
             icon={isCreate ? ShoppingCart : LandmarkIcon}

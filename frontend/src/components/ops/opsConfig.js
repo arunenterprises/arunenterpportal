@@ -113,7 +113,7 @@ export const OPS = {
 };
 
 export const DEPTS = {
-  site: { title: "Project & Site Management", sub: "Daily Progress Report (DPR) · Material Indent / Issue", icon: HardHat, gradient: "linear-gradient(135deg,#78350f 0%,#b45309 55%,#f59e0b 100%)", shadow: "180,83,9,.28", tabs: ["dpr", "indent"], projectsLink: true },
+  site: { title: "Project Management", sub: "Daily Progress Report (DPR) · Material Indent / Issue", icon: HardHat, gradient: "linear-gradient(135deg,#78350f 0%,#b45309 55%,#f59e0b 100%)", shadow: "180,83,9,.28", tabs: ["dpr", "indent"], projectsLink: true },
   qc: { title: "QC & Safety Management", sub: "Material Lab Test Reports · Daily Site Safety Audits", icon: FlaskConical, gradient: "linear-gradient(135deg,#4c1d95 0%,#7c3aed 55%,#dc2626 100%)", shadow: "124,58,237,.28", tabs: ["qc_test", "safety_audit"] },
-  plant: { title: "Plant & Machinery (P&M)", sub: "Machinery Allocation · Running Hours · Diesel Chori Tracking", icon: Tractor, gradient: "linear-gradient(135deg,#422006 0%,#a16207 55%,#9a3412 100%)", shadow: "161,98,7,.28", tabs: ["machine", "machine_log", "diesel_log"] },
+  plant: { title: "P & M Management", sub: "Machinery Allocation · Running Hours · Diesel Chori Tracking", icon: Tractor, gradient: "linear-gradient(135deg,#422006 0%,#a16207 55%,#9a3412 100%)", shadow: "161,98,7,.28", tabs: ["machine", "machine_log", "diesel_log"] },
 };

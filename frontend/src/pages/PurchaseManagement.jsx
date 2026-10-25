@@ -1196,7 +1196,7 @@ export default function PurchaseManagement() {
       <div className="app-shell">
         <div className="a4" data-testid="purchase-page">
           <ModuleHero
-            tag="Purchase Management"
+            tag="Procurement Management"
             title="BOQ · Work Orders · New Vendor Bill Creation · Procurement"
             subtitle="Line-item BOQs · Vendor WO · Auto-fill from BOQ · GST + Retention · GM approval"
             icon={ShoppingCart}
