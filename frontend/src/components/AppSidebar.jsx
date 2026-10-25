@@ -7,9 +7,9 @@ import { can, deptOfPath, loadAcl } from "../lib/acl";
 
 const ITEMS = [
   { n: 1, l: "GM Dashboard", to: "/gm", d: "gm", icon: Gauge, c: "#f59e0b" },
-  { n: 2, l: "Client & Revenue", to: "/client-revenue", d: "client", icon: BadgeIndianRupee, c: "#0ea5e9" },
+  { n: 2, l: "Client & Revenue Management", to: "/client-revenue", d: "client", icon: BadgeIndianRupee, c: "#0ea5e9" },
   { n: 3, l: "HR Management", to: "/hr", d: "hr", icon: UsersRound, c: "#ec4899" },
-  { n: 4, l: "Procurement", to: "/purchase", d: "procurement", icon: PackageSearch, c: "#22c55e" },
+  { n: 4, l: "Procurement Management", to: "/purchase", d: "procurement", icon: PackageSearch, c: "#22c55e" },
   { n: 5, l: "Finance Management", to: "/bill", d: "accounts", icon: Landmark, c: "#14b8a6" },
   { n: 6, l: "Project Management", to: "/site", d: "site", icon: HardHat, c: "#f97316" },
   { n: 7, l: "QC & Safety Management", to: "/qc-safety", d: "qc", icon: ShieldCheck, c: "#8b5cf6" },
