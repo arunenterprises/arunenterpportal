@@ -41,7 +41,7 @@ import { apiOpsList } from "../lib/api";
 const CRM_AMOUNT = { ra_bills: "net", contracts: "contractValue", change_orders: "value", retention: "balance", leads: "value" };
 const CRM_STATUS = { ra_bills: ["step", RA_STEPS], mb: ["step", STEP_WF], change_orders: ["step", STEP_WF], clients: ["step", STEP_WF], leads: ["status", null] };
 const CRM_DEPTS = CRM_REPORTS.map((r) => ({
-  id: r.hub, title: `CRM · ${r.l}`, icon: "◆",
+  id: r.hub, title: `CRM · ${r.l}`, icon: "",
   fetch: () => crmReportRows(r.k),
   dateKey: r.date,
   amountKey: CRM_AMOUNT[r.k] || null,
@@ -55,7 +55,7 @@ const OPS_DATE = { machine: null, labour: null, labour_bill: null, booking: "boo
 const OPS_AMT = { booking: "totalValue", demand_letter: "total", tender: "estValue", agreement: "value", diesel_log: "issued", labour_bill: "totalAmount" };
 const loadOpsCache = () => Promise.all(Object.keys(OPS).map((k) => apiOpsList(k).then((r) => { OPS_CACHE[k] = r; }).catch(() => null)));
 const OPS_DEPTS = Object.values(OPS).map((c) => ({
-  id: `ops_${c.kind}`, title: c.title, icon: "◆",
+  id: `ops_${c.kind}`, title: c.title, icon: "",
   fetch: () => OPS_CACHE[c.kind] || [],
   dateKey: c.kind in OPS_DATE ? OPS_DATE[c.kind] : "date",
   amountKey: OPS_AMT[c.kind] || null,
@@ -1071,19 +1071,20 @@ const ReportsHub = () => {
         {/* Department tabs */}
         <div data-testid="rh-dept-tabs" style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8, background: "#f1f5f9", borderRadius: 6, marginBottom: 14, border: "1px solid #e2e8f0" }}>
           {[["2. Client & Revenue Management", "#0284c7", ["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement"]], ["3. HR Management", "#db2777", ["employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill"]], ["4. Procurement Management", "#16a34a", ["vendors", "boqs", "work_orders", "bills"]], ["5. Finance Management", "#0d9488", ["payments", "expenses", "advances", "loans", "fooding"]], ["6. Project Management", "#ea580c", ["ops_dpr", "ops_indent"]], ["7. QC & Safety Management", "#7c3aed", ["ops_qc_test", "ops_safety_audit"]], ["8. P & M Management", "#ca8a04", ["ops_machine", "ops_machine_log", "ops_diesel_log"]]].map(([g, gc, ids]) => [g, gc, ids.filter((x) => DEPT_CONFIG.some((d) => d.id === x))]).concat([["Other", "#64748b", DEPT_CONFIG.map((d) => d.id).filter((x) => !RH_GROUPED.has(x))]]).filter(([, , ids]) => ids.length).map(([g, gc, ids]) => (
-          <div key={g} data-testid={`rh-group-${ids[0]}`} style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-          <span style={{ minWidth: 190, fontSize: 11, fontWeight: 900, color: gc, letterSpacing: 0.3, textTransform: "uppercase", borderLeft: `4px solid ${gc}`, paddingLeft: 8 }}>{g}</span>
+          <div key={g} data-testid={`rh-group-${ids[0]}`} style={{ display: "grid", gridTemplateColumns: "210px 1fr", alignItems: "center", gap: 12, padding: "8px 12px", background: "#fff", borderRadius: 6, border: "1px solid #e2e8f0", borderLeft: `4px solid ${gc}` }}>
+          <span style={{ fontSize: 11, fontWeight: 900, color: gc, letterSpacing: 0.3, textTransform: "uppercase", lineHeight: 1.35 }}>{g}</span>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>
           {DEPT_CONFIG.filter((d) => ids.includes(d.id)).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)).map((d) => (
             <button
               key={d.id}
               data-testid={`rh-tab-${d.id}`}
               onClick={() => { setActiveDept(d.id); clearFilters(); setSelectedIds(new Set()); }}
-              style={{ padding: "7px 12px", background: activeDept === d.id ? "linear-gradient(135deg,#4f46e5,#3730a3)" : "#fff", color: activeDept === d.id ? "#fff" : "#334155", border: `1.5px solid ${activeDept === d.id ? "#4f46e5" : "#cbd5e1"}`, borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: activeDept === d.id ? "0 2px 5px rgba(79,70,229,.4)" : "none" }}
+              style={{ width: "100%", justifyContent: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "7px 10px", background: activeDept === d.id ? "linear-gradient(135deg,#4f46e5,#3730a3)" : "#f8fafc", color: activeDept === d.id ? "#fff" : "#334155", border: `1.5px solid ${activeDept === d.id ? "#4f46e5" : "#cbd5e1"}`, borderRadius: 4, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 5, boxShadow: activeDept === d.id ? "0 2px 5px rgba(79,70,229,.4)" : "none" }}
             >
-              <span>{d.icon}</span>
-              {d.title}
+              {d.title.replace(/^CRM · /, "")}
             </button>
           ))}
+          </div>
           </div>
           ))}
         </div>
