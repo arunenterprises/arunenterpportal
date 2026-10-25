@@ -39,10 +39,10 @@ export const DeptNavList = ({ mini = false, showSubs = true }) => {
     const act = deptOfPath(loc.pathname) === it.d;
     return (
       <div key={it.n} className="sb-row">
-        <button data-testid={`sidebar-${it.n}`} disabled={!ok} onClick={() => nav(it.to)} title={ok ? it.l : `${it.l} · permission nahi`} className={`sb-item${act ? " active" : ""}`} style={{ "--c": it.c, opacity: ok ? 1 : 0.4 }}>
+        <button data-testid={`sidebar-${it.n}`} disabled={!ok} onClick={() => nav(it.to)} title={ok ? it.l : it.d === "gm" ? "Not Permitted — sirf GM / Admin / SuperAdmin" : `${it.l} · permission nahi`} className={`sb-item${act ? " active" : ""}`} style={{ "--c": it.c, opacity: ok ? 1 : 0.4 }}>
           <span className="sb-ico" style={{ "--c": it.c }}><Icon size={17} strokeWidth={2.3} /></span>
           {!mini && <span>{it.n}. {it.l}</span>}
-          {!mini && !ok && <Lock size={11} style={{ marginLeft: "auto" }} />}
+          {!mini && !ok && (it.d === "gm" ? <span data-testid="sidebar-gm-not-permitted" style={{ marginLeft: "auto", fontSize: 9, fontWeight: 800, color: "#fca5a5", whiteSpace: "nowrap" }}>Not Permitted</span> : <Lock size={11} style={{ marginLeft: "auto" }} />)}
         </button>
         {showSubs && !mini && act && it.subs && it.subs.filter((s) => s.to !== it.to).map((s) => (
           <button key={s.to} data-testid={`sidebar-sub-${s.to.slice(1)}`} onClick={() => nav(s.to)} className={`sb-sub${at(s.to) ? " active" : ""}`}>{s.l}</button>
@@ -106,8 +106,8 @@ export const AclGate = () => {
     <div data-testid="acl-blocked" style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(241,245,249,.97)", display: "grid", placeItems: "center" }}>
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 28, textAlign: "center", boxShadow: "0 10px 30px rgba(15,23,42,.12)" }}>
         <Lock size={34} color="#dc2626" />
-        <div style={{ fontSize: 18, fontWeight: 900, margin: "8px 0 4px" }}>Is department ki permission nahi hai</div>
-        <div style={{ fontSize: 12.5, color: "#64748b", marginBottom: 14 }}>SuperAdmin se System Admin → Permissions mein "View" tick karwayein.</div>
+        <div style={{ fontSize: 18, fontWeight: 900, margin: "8px 0 4px" }}>{deptOfPath(loc.pathname) === "gm" ? "Not Permitted" : "Is department ki permission nahi hai"}</div>
+        <div style={{ fontSize: 12.5, color: "#64748b", marginBottom: 14 }}>{deptOfPath(loc.pathname) === "gm" ? "GM Dashboard sirf GM / Admin / SuperAdmin khol sakte hain." : "SuperAdmin se System Admin → Permissions mein \"View\" tick karwayein."}</div>
         <button data-testid="acl-blocked-home" onClick={() => nav("/home")} style={{ padding: "8px 18px", background: "#0f172a", color: "#fff", border: "none", borderRadius: 6, fontWeight: 800, cursor: "pointer" }}>Home par jayein</button>
       </div>
     </div>
