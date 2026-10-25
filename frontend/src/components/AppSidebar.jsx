@@ -14,7 +14,7 @@ const ITEMS = [
   { n: 6, l: "Project Management", to: "/site", d: "site", icon: HardHat, c: "#f97316" },
   { n: 7, l: "QC & Safety Management", to: "/qc-safety", d: "qc", icon: ShieldCheck, c: "#8b5cf6" },
   { n: 8, l: "P & M Management", to: "/plant", d: "plant", icon: Forklift, c: "#eab308" },
-  { n: 9, l: "Reports Hub", to: "/reports-hub", d: "reports", icon: PieChart, c: "#6366f1" },
+  { n: 9, l: "Reports Management", to: "/reports-hub", d: "reports", icon: PieChart, c: "#6366f1" },
   { n: 10, l: "System Admin", to: "/users", d: "admin", icon: ShieldEllipsis, c: "#64748b" },
 ];
 const NO_BAR = ["/login", "/careers", "/jobs", "/vendor-portal", "/home"];

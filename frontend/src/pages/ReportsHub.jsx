@@ -1048,7 +1048,7 @@ const ReportsHub = () => {
       <Toaster position="top-right" richColors />
       <main style={{ padding: 18, maxWidth: 1500, margin: "0 auto" }}>
         <ModuleHero
-          tag="Reports Hub"
+          tag="Reports Management"
           title="All Departments · Dept-wise Reports"
           subtitle="FY / Month / Date-range filters · Print A4 · PDF · Excel · 12 modules"
           icon={BarChart3}
@@ -1059,7 +1059,7 @@ const ReportsHub = () => {
           <div>
             <div style={{ fontSize: 10, letterSpacing: 2.5, color: "#64748b", fontWeight: 800, textTransform: "uppercase" }}>Dashboard · Department Reports</div>
             <h1 style={{ margin: "4px 0 0", fontSize: 24, fontWeight: 900, color: "#0f172a", display: "inline-flex", alignItems: "center", gap: 10 }}>
-              <BarChart3 size={26} color="#4f46e5" /> Reports Hub
+              <BarChart3 size={26} color="#4f46e5" /> Reports Management
             </h1>
           </div>
           <button onClick={() => nav("/home")} style={{ padding: "7px 14px", background: "#e2e8f0", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 5, cursor: "pointer", fontWeight: 700, fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 5 }}>

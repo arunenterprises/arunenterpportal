@@ -61,7 +61,7 @@ export const CrmReports = ({ data }) => {
     <Card testid="crm-reports" title="Client & Revenue Reports" right={<>
       <Btn tone="ghost" data-testid="crm-report-excel" onClick={excel}><FileSpreadsheet size={14} /> Excel</Btn>
       <Btn tone="ghost" data-testid="crm-report-print" onClick={print}><Printer size={14} /> Print</Btn>
-      <Btn data-testid="crm-report-hub" onClick={() => nav(`/reports-hub?dept=${rep.hub}`)}><ExternalLink size={14} /> Reports Hub</Btn>
+      <Btn data-testid="crm-report-hub" onClick={() => nav(`/reports-hub?dept=${rep.hub}`)}><ExternalLink size={14} /> Reports Management</Btn>
     </>}>
       <Grid cols={4}>
         <Field label="Report"><Sel data-testid="crm-report-type" value={k} onChange={(e) => setK(e.target.value)} options={CRM_REPORTS.map((r) => ({ v: r.k, l: r.l }))} /></Field>

@@ -191,7 +191,7 @@ const DEPARTMENTS = [
   },
   {
     id: "reports_hub",
-    title: "Reports Hub",
+    title: "Reports Management",
     subtitle: "Dept-wise · FY · Month · Print · Excel · PDF",
     to: "/reports-hub",
     icon: BarChart3,

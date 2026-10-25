@@ -4,7 +4,7 @@ import { currentRole } from "./store";
 export const ACL_DEPTS = [
   { k: "gm", l: "1. GM Dashboard" }, { k: "client", l: "2. Client & Revenue" }, { k: "hr", l: "3. HR & Labour" },
   { k: "procurement", l: "4. Procurement" }, { k: "accounts", l: "5. Accounts & Vouchers" }, { k: "site", l: "6. Project & Site" },
-  { k: "qc", l: "7. QC & Safety" }, { k: "plant", l: "8. Plant & Machinery" }, { k: "reports", l: "9. Reports Hub" }, { k: "admin", l: "10. System Admin" },
+  { k: "qc", l: "7. QC & Safety" }, { k: "plant", l: "8. Plant & Machinery" }, { k: "reports", l: "9. Reports Management" }, { k: "admin", l: "10. System Admin" },
 ];
 export const ACL_ROLES = ["Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
 export const OPS_DEPT = {
