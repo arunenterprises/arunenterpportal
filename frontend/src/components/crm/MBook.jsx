@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Send, CheckCircle2, Trash2 } from "lucide-react";
 import { canDelete as canApprove, canDelete } from "../../lib/store";
-import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, STEP_WF, stepTone, uid, today, num, crmNextNo } from "./crmShared";
+import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, STEP_WF, stepTone, uid, today, num } from "./crmShared";
+import { RenumberBtn } from "./ResetNumberingBtn";
 import { CrmActionBar } from "./CrmActionBar";
 
 const blank = (contractId = "") => ({ id: "", mbNo: "", contractId, itemId: "", date: today(), location: "", nos: 1, l: 0, b: 0, h: 0, manualQty: "", remarks: "", step: 1, raBillId: "" });
@@ -18,7 +19,7 @@ export const MBook = ({ data, save, remove }) => {
   const item = items.find((i) => i.id === f.itemId);
 
   const persist = async (rec, msg) => {
-    const r = { ...rec, id: rec.id || uid("mb"), mbNo: rec.mbNo || await crmNextNo("mb", "MB/"), qty: mbQty(rec), unit: item?.unit || rec.unit, itemDesc: item?.description || rec.itemDesc };
+    const r = { ...rec, id: rec.id || uid("mb"), qty: mbQty(rec), unit: item?.unit || rec.unit, itemDesc: item?.description || rec.itemDesc };
     const out = await save("mb", r, msg);
     if (out) { setF(out); setEditing(false); }
   };
@@ -47,7 +48,7 @@ export const MBook = ({ data, save, remove }) => {
     }
     for (const i of pick) {
       const rec = { ...blank(f.contractId), date: f.date, location: f.location, itemId: i.id, manualQty: bulk[i.id].qty };
-      await save("mb", { ...rec, id: uid("mb"), mbNo: await crmNextNo("mb", "MB/"), qty: num(bulk[i.id].qty), unit: i.unit, itemDesc: i.description }, null);
+      await save("mb", { ...rec, id: uid("mb"), qty: num(bulk[i.id].qty), unit: i.unit, itemDesc: i.description }, null);
     }
     setBusy(false);
     setBulk(Object.fromEntries(items.map((i) => [i.id, { on: true, qty: "" }])));
@@ -105,7 +106,7 @@ export const MBook = ({ data, save, remove }) => {
               <b data-testid={`mb-bulk-bal-${i.id}`} style={{ color: num(i.qty) - d - num(b.on ? b.qty : 0) < 0 ? "#b91c1c" : "#166534" }}>{+(num(i.qty) - d - num(b.on ? b.qty : 0)).toFixed(3)}</b>]; })} />
         </Card>
       )}
-      <Card title={`Measurement Book (${data.mb.length})`}>
+      <Card title={`Measurement Book (${data.mb.length})`} right={<RenumberBtn target="mb" label="Measurement Book" />}>
         <Table testid="mb-table" cols={["MB No", "Date", "Contract", "Item", "Location", "Qty", "Status", "Billed", "Actions"]}
           rows={data.mb.slice().reverse().map((m) => [m.mbNo, m.date, (data.contracts.find((c) => c.id === m.contractId) || {}).contractNo || "—", m.itemDesc, m.location || "—", `${m.qty} ${m.unit || ""}`,
             <Badge text={STEP_WF[m.step]} tone={stepTone(m.step)} />, m.raBillId ? <Badge text="Billed" tone="green" /> : "—",

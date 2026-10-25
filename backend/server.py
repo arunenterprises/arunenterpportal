@@ -1386,11 +1386,72 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
         released = sum([float(r.get("amount") or 0) async for r in db.crm_retention_releases.find({"contractId": cid, "id": {"$ne": rid}})])
         if float(body.get("amount") or 0) > round(held - released, 2) + 0.01:
             raise HTTPException(status_code=400, detail="Release amount exceeds retention balance")
+    if name in _MBRA:
+        fld, code, dk = _MBRA[name]
+        ex = existing or {}
+        for k in ("tempNo", "permNo"):
+            if ex.get(k):
+                body[k] = ex[k]
+        fy = _fy_of(body.get(dk) or ex.get(dk))
+        if not body.get("tempNo"):
+            body["tempNo"] = f"AE/{code}/T{await _crm_serial(f'{name}_tmp_{fy}'):04d}/{fy}"
+        if int(body.get("step") or 1) >= 3 and not body.get("permNo"):
+            body["permNo"] = f"AE/{code}/{await _crm_serial(f'{name}_{fy}'):04d}/{fy}"
+        body[fld] = body.get("permNo") or body["tempNo"]
     body["updatedAt"] = datetime.now(timezone.utc).isoformat()
     if not existing:
         body["createdByName"] = user.get("name") or user.get("email")
     await db[coll].update_one({"id": rid}, {"$set": body}, upsert=True)
     return await db[coll].find_one({"id": rid}, {"_id": 0})
+
+
+_MBRA = {"mb": ("mbNo", "MB", "date"), "ra_bills": ("raNo", "RA", "billDate")}
+
+
+def _fy_of(d) -> str:
+    s = str(d or "")
+    try:
+        y, m = int(s[:4]), int(s[5:7])
+    except ValueError:
+        n = datetime.now(timezone.utc)
+        y, m = n.year, n.month
+    st = y if m >= 4 else y - 1
+    return f"{str(st)[2:]}{str(st + 1)[2:]}"
+
+
+async def _crm_serial(k: str) -> int:
+    c = await db.counters.find_one_and_update({"key": "crm"}, {"$inc": {k: 1}}, upsert=True, return_document=True)
+    return int(c[k])
+
+
+@api_router.post("/admin/renumber/{name}")
+async def renumber_mbra(name: str, user: Dict = Depends(require_super_admin)):
+    if name not in _MBRA:
+        raise HTTPException(status_code=404, detail="Unknown target")
+    fld, code, dk = _MBRA[name]
+    coll = f"crm_{name}"
+    docs = await db[coll].find({}, {"_id": 0}).to_list(50000)
+    if docs:
+        await db.purged_backup.insert_one({"collection": coll, "kind": "renumber", "purgedAt": datetime.now(timezone.utc).isoformat(), "by": user.get("email"), "docs": docs})
+    docs.sort(key=lambda d: (str(d.get(dk) or ""), str(d.get("createdAt") or d.get("updatedAt") or ""), d.get("id", "")))
+    tmp: Dict[str, int] = {}
+    perm: Dict[str, int] = {}
+    for d in docs:
+        fy = _fy_of(d.get(dk))
+        tmp[fy] = tmp.get(fy, 0) + 1
+        upd = {"tempNo": f"AE/{code}/T{tmp[fy]:04d}/{fy}", "permNo": ""}
+        if int(d.get("step") or 1) >= 3:
+            perm[fy] = perm.get(fy, 0) + 1
+            upd["permNo"] = f"AE/{code}/{perm[fy]:04d}/{fy}"
+        upd[fld] = upd["permNo"] or upd["tempNo"]
+        await db[coll].update_one({"id": d["id"]}, {"$set": upd})
+    c = await db.counters.find_one({"key": "crm"}) or {}
+    cnt = {k: 0 for k in c if re.fullmatch(rf"{name}_(tmp_)?\d{{4}}", k)}
+    cnt.update({f"{name}_tmp_{fy}": v for fy, v in tmp.items()})
+    cnt.update({f"{name}_{fy}": v for fy, v in perm.items()})
+    if cnt:
+        await db.counters.update_one({"key": "crm"}, {"$set": cnt}, upsert=True)
+    return {"ok": True, "renumbered": len(docs), "counters": cnt}
 
 
 def _crm_power(user: Dict) -> bool:

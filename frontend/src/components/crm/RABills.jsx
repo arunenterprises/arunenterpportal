@@ -3,7 +3,8 @@ import { Wand2, Mail, IndianRupee, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { canDelete as canApprove, getCompany, getLogo, amountToWords, isSuperAdmin, currentUserEmail } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
-import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmNextNo, crmSave, crmDelete } from "./crmShared";
+import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmSave, crmDelete } from "./crmShared";
+import { RenumberBtn } from "./ResetNumberingBtn";
 
 export const computeRA = (b) => {
   const lines = (b.lines || []).map((l) => {
@@ -58,7 +59,6 @@ export const RABills = ({ data, save, reload }) => {
 
   const persist = async (rec, msg) => {
     const r = { ...rec, id: rec.id || uid("ra") };
-    if (!r.raNo) r.raNo = await crmNextNo(`ra_${r.contractId}`, `RA/${(contract || {}).contractNo || "CT"}/`, 2);
     const c = computeRA(r);
     Object.assign(r, { basic: c.basic, gstTotal: c.gst, gross: c.gross, retentionAmt: c.retention, tdsAmt: c.tds, gstPayable: c.gstPayable, net: c.net, clientId: (contract || {}).clientId || r.clientId });
     const out = await save("ra_bills", r, msg);
@@ -141,7 +141,7 @@ export const RABills = ({ data, save, reload }) => {
           </div>
         )}
       </Card>
-      <Card title={`RA / Milestone Bills (${data.ra_bills.length})`}>
+      <Card title={`RA / Milestone Bills (${data.ra_bills.length})`} right={<RenumberBtn target="ra_bills" label="RA Bill" />}>
         <Table testid="ra-table" cols={["Bill No", "Type", "Date", "Client", "Contract", "Gross", "GST Payable", "TDS", "Net", "Status", ""]}
           rows={data.ra_bills.slice().reverse().map((b) => [b.raNo, b.type, b.billDate, nameOf(data.clients, b.clientId), (data.contracts.find((c) => c.id === b.contractId) || {}).contractNo || "—",
             inr(b.gross), inr(b.gstTotal), inr(b.tdsAmt), inr(b.net), <Badge text={RA_STEPS[b.step]} tone={stepTone(b.step)} />,

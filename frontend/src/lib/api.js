@@ -188,6 +188,7 @@ export const apiSetAcl = (value) => req("/settings/acl", { method: "POST", body:
 export const apiOpsList = (kind) => req(`/ops/${kind}`);
 export const apiOpsSave = (kind, doc) => req(`/ops/${kind}`, { method: "POST", body: JSON.stringify(doc) });
 export const apiResetNumbering = (target) => req(`/admin/reset-numbering/${target}`, { method: "POST" });
+export const apiRenumber = (target) => req(`/admin/renumber/${target}`, { method: "POST" });
 export const apiOpsDelete = (kind, id) => req(`/ops/${kind}/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const apiNewSyncKey = () => req("/admin/sync-key", { method: "POST" });
 export const apiSyncReport = () => req("/admin/sync-report");
