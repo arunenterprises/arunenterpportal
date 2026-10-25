@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Wand2, Mail, IndianRupee, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { canDelete as canApprove, getCompany, getLogo, amountToWords } from "../../lib/store";
+import { canDelete as canApprove, getCompany, getLogo, amountToWords, isSuperAdmin, currentUserEmail } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmNextNo, crmSave, crmDelete } from "./crmShared";
 
@@ -29,7 +29,9 @@ export const RABills = ({ data, save, reload }) => {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const contract = data.contracts.find((c) => c.id === f.contractId);
   const t = useMemo(() => computeRA(f), [f]);
-  const locked = Number(f.step) >= 3 || !editing;
+  const isSA = isSuperAdmin(currentUserEmail());
+  const reEdit = isSA && Number(f.step) === 3;
+  const locked = (Number(f.step) >= 3 && !reEdit) || !editing;
 
   const generate = () => {
     if (!contract) return alert("Contract select karein");
@@ -70,6 +72,10 @@ export const RABills = ({ data, save, reload }) => {
     if (!f.contractId || !f.lines.length) return alert("Contract select karke MB / Work Order se items load karein");
     persist(f, "RA Bill saved");
   };
+  const reapprove = () => {
+    if (!window.confirm(`${f.raNo} approved hai. Badlav save karke dobara approve karein?`)) return;
+    persist({ ...f, step: 3, reapprovedBy: currentUserEmail(), reapprovedAt: new Date().toISOString(), history: [...(f.history || []), { action: "Edited & Re-approved", at: new Date().toISOString(), by: currentUserEmail() }] }, `${f.raNo} edit karke dobara approve hua`);
+  };
   const move = (b, step, extra = {}) => persist({ ...b, ...extra, step }, `${b.raNo} → ${RA_STEPS[step]}`);
   const del = async (b) => {
     if (!window.confirm(`Delete ${b.raNo}?${Number(b.step) >= 3 ? " Yeh approved/payment bill hai — pakka delete karein?" : ""}`)) return;
@@ -86,9 +92,9 @@ export const RABills = ({ data, save, reload }) => {
   return (
     <>
       <CrmActionBar name="ra" status={f.id ? `${f.raNo} · ${RA_STEPS[f.step]} · ${editing && st < 3 ? "Editing" : "View"}` : "New RA bill"}
-        labels={{ submit: "Submit to GM", approve: "GM Final Approval" }}
-        onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 3 ? onSave : null}
-        onEdit={f.id && !editing && st < 3 ? () => setEditing(true) : null}
+        labels={{ submit: "Submit to GM", approve: "GM Final Approval", save: reEdit ? "Save & Re-approve" : "Save", edit: reEdit ? "Edit & Re-approve" : "Edit" }}
+        onNew={() => { setF(blank()); setEditing(true); }} onSave={editing && st < 3 ? onSave : editing && reEdit ? reapprove : null}
+        onEdit={f.id && !editing && (st < 3 || reEdit) ? () => setEditing(true) : null}
         onSubmit={f.id && st === 1 ? () => move(f, 2) : null} onApprove={f.id && st === 2 ? () => move(f, 3) : null}
         onDelete={f.id ? () => del(f) : null}
         list={{ title: "RA / Milestone Bill Register", cols: ["Bill No", "Type", "Date", "Client", "Contract", "Basic", "GST", "TDS", "GST Payable", "Retention", "Net", "Status"], rows: data.ra_bills.map((b) => [b.raNo, b.type, b.billDate, nameOf(data.clients, b.clientId), (data.contracts.find((c) => c.id === b.contractId) || {}).contractNo, num(b.basic), num(b.gstTotal), num(b.tdsAmt), num(b.gstTotal), num(b.retentionAmt), num(b.net), RA_STEPS[b.step]]) }} />
