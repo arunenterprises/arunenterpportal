@@ -1301,6 +1301,8 @@ def _crm_coll(name: str) -> str:
 
 @api_router.get("/crm-all")
 async def crm_all(user: Dict = Depends(get_current_user)):
+    if not (await _acl_ok(user, "client", "v") or await _acl_ok(user, "gm", "v")):
+        await _rbac(user, "client", "v")
     names = sorted(_CRM_COLLS)
     lists = await asyncio.gather(*[_list_collection(_crm_coll(n)) for n in names])
     return dict(zip(names, lists))
@@ -1308,6 +1310,8 @@ async def crm_all(user: Dict = Depends(get_current_user)):
 
 @api_router.get("/crm/{name}")
 async def crm_list(name: str, user: Dict = Depends(get_current_user)):
+    if not (await _acl_ok(user, "client", "v") or await _acl_ok(user, "gm", "v")):
+        await _rbac(user, "client", "v")
     return await _list_collection(_crm_coll(name))
 
 
@@ -2207,6 +2211,8 @@ def _ops_coll(kind: str) -> str:
 
 @api_router.get("/ops/{kind}")
 async def ops_list(kind: str, user: Dict = Depends(get_current_user)):
+    if kind in OPS_DEPT and not (await _acl_ok(user, OPS_DEPT[kind], "v") or await _acl_ok(user, "gm", "v")):
+        await _rbac(user, OPS_DEPT[kind], "v")
     return await db[_ops_coll(kind)].find({}, {"_id": 0}).sort("updatedAt", -1).to_list(20000)
 
 

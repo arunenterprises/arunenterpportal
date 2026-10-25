@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DateInput } from "../DateInput";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { FilePlus2, Save, Pencil, Send, CheckCircle2, XCircle, Trash2, Download, Printer, Search } from "lucide-react";
@@ -19,7 +20,8 @@ const Field = ({ f, v, set, ro, lists, row }) => {
   if (f.type === "textarea") return <textarea rows={2} {...p} />;
   if (f.listOf) return <><input {...p} list={`ops-dl-${f.k}`} placeholder="Type / select" /><datalist id={`ops-dl-${f.k}`}>{f.listOf(row || {}).map((o) => <option key={o} value={o} />)}</datalist></>;
   const list = f.type === "project" ? "ops-projects" : f.type === "machine" ? "ops-machines" : undefined;
-  return <input {...p} list={list} type={f.type === "number" || f.type === "date" ? f.type : "text"} placeholder={list && lists ? "Type / select" : ""} />;
+  if (f.type === "date") return <DateInput {...p} type="date" />;
+  return <input {...p} list={list} type={f.type === "number" ? f.type : "text"} placeholder={list && lists ? "Type / select" : ""} />;
 };
 
 export default function OpsModule({ cfg }) {

@@ -1,0 +1,42 @@
+{
+  "summary": "Iter45: RBAC (System Management ACL) + DD/MM/YYYY date display. Backend: 6/7 pytest pass (ACL round-trip incl _users/_mask/_userMask, SA-only write, default User create OK/delete 403 on ops+crm, role delete grant, per-user create deny, role client.c=false). Only failure: View (v) permission is NOT enforced on backend GET endpoints. Frontend: ACL matrix (A role 300 checkboxes, B user override selects, C masking) loads & saves with toast; Tax Invoice inv-date shows DD/MM/YYYY, accepts typed 05/11/2026, rejects 31/02, calendar icon present; rh-from/rh-to, Procurement creationDate, Bill form dates use DD/MM/YYYY. Masking as TEST_ User works (kpi-receivable hidden, 'TDS %' & 'TDS Kata' columns hidden). site.v=false hides '6. Project Management' from sidebar and /site shows 'Is department ki permission nahi hai'. BUG: OpsModule (Project Mgmt DPR/Indent, QC&Safety, P&M, CRM Booking/Tender/Agreement/Demand, HR labour/geo) date fields still native <input type=date> showing 10/25/2026 (MM/DD/YYYY); HR DynamicRows (Family DOB, Employment From/To) also native.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/ops/{kind}, GET /api/crm/*, /api/bills etc.", "issue": "RBAC 'View' op never enforced server-side. With User.site.v=false, GET /api/ops/dpr still returns 200 with data. Frontend only blurs page (content still rendered/fetched behind overlay). Requirement said 'secured by frontend route guards + backend API validation'. Add _rbac(user, dept, 'v') to list/get endpoints (ops_list with OPS_DEPT[kind], crm list -> 'client', ACL_COLL_DEPT collections)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "components/ops/OpsModule.jsx Field (line 22)", "issue": "type='date' fields render native <input type=date> -> shows 10/25/2026 (browser locale MM/DD/YYYY), not DD/MM/YYYY. Affects /site DPR/Projects/Indent, /qc-safety, /plant, CRM Booking/Demand/Tender/Agreement/Abstract tabs, HR labour/geo modules. Use DateInput for f.type==='date'.", "selector": "[data-testid='ops-f-date']", "priority": "HIGH"},
+      {"component": "pages/HRManagement.jsx DynamicRows (line 98)", "issue": "Generic row inputs use <input type={c.type}> so Family Members DOB and Employment History From/To are native date pickers (not DD/MM/YYYY). Use DateInput when c.type==='date'.", "selector": "emp-fam rows", "priority": "MEDIUM"},
+      {"component": "pages/ReportsHub.jsx rh-month, LabourWages lbill-month, HR Start Month", "issue": "type=month native inputs remain (show browser locale month format) - minor, consider MM/YYYY display.", "selector": "[data-testid='rh-month']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "View-denied module (/site)", "issue": "Permission-blocked screen is an overlay over the fully rendered page; underlying module still mounts and fetches data (backend allows). Prefer not rendering children when !can(dept,'v').", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "/users ACL matrix", "issues": ["Role list ACL_ROLES omits 'HR' role although backend register allows role 'HR' -> HR-role users cannot be configured in matrix (only defaults / per-user override).", "User pick dropdown lists SuperAdmin account itself (overrides are no-op for SA)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter45_rbac.py", "/app/backend/tests/iter45_ui_setup.py", "/app/test_reports/pytest/iter45_rbac.xml"],
+  "action_items": [
+    "Replace native date input in OpsModule.jsx Field with DateInput (DD/MM/YYYY) - visible MM/DD/YYYY on Project Mgmt DPR date",
+    "Use DateInput in HRManagement DynamicRows for type 'date' columns",
+    "Enforce 'v' permission on backend GET/list endpoints (ops, crm, legacy collections) to satisfy backend API validation requirement",
+    "Do not render module content behind the permission-blocked overlay",
+    "Add 'HR' role to ACL_ROLES in lib/acl.js (and to masking matrix)"
+  ],
+  "critical_code_review_comments": [
+    "_acl_ok reads settings doc from Mongo on every RBAC check (multiple per request for ops_upsert) - consider short TTL cache.",
+    "Masking is purely client-side (CSS/DOM hide); sensitive values still present in API responses and DOM - acceptable as 'UI masking' but document it.",
+    "col:Amount regex 'amount|total|value' is very broad and will hide many unrelated columns (e.g. 'Total Labour')."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter45_rbac.py", "/app/backend/tests/iter45_ui_setup.py"],
+  "success_rate": {"backend": "86% (6/7)", "frontend": "80%"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None persisted. TEST_ users (test_rbac_*@example.com, test_rbac_ui@example.com), TEST_ DPR and leads created and deleted. ACL value restored to original {} (only updated_at/updated_by metadata changed). Invoice counter inv_2627 still 39, ops counters still 0.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Original ACL value was {}. Non-SA login: register as SA then POST /api/admin/users/{email}/otp-reset (bypass consumed on FIRST login, 30 min). Run: REACT_APP_BACKEND_URL=... pytest tests/test_iter45_rbac.py. test_view_false_backend_get fails until backend enforces view. Retest ops-module date fields on /site (data-testid ops-f-date) for DD/MM/YYYY."
+}

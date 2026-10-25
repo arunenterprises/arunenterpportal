@@ -10,6 +10,13 @@ const tdl = { padding: "6px 8px", border: "1px solid #e2e8f0", fontWeight: 700, 
 const card = { background: "#fff", border: "1.5px solid #4f46e5", borderRadius: 10, padding: 14, margin: "14px 0" };
 const h = { fontWeight: 900, fontSize: 13.5, color: "#3730a3", marginBottom: 6 };
 
+const Help = ({ id, steps }) => (
+  <div data-testid={`acl-help-${id}`} style={{ background: "#f0f9ff", border: "1px dashed #38bdf8", borderRadius: 8, padding: "8px 12px", margin: "6px 0 10px", fontSize: 12, color: "#0c4a6e" }}>
+    <b>Kaise use karein:</b>
+    <ol style={{ margin: "4px 0 0 18px", padding: 0, lineHeight: 1.6 }}>{steps.map((s) => <li key={s}>{s}</li>)}</ol>
+  </div>
+);
+
 const RoleMatrix = ({ m, setM }) => {
   const flip = (r, d, o) => setM((x) => ({ ...x, [r]: { ...(x[r] || {}), [d]: { ...aclRoleCell(x, r, d), [o]: !aclRoleCell(x, r, d)[o] } } }));
   return (
@@ -111,10 +118,25 @@ export default function AclMatrix() {
         </div>
         <div style={{ fontSize: 11.5, color: "#475569", marginBottom: 8 }}><b>View</b> hataoge to module sidebar se chhup jayega · <b>Create</b> = New / Save / Submit · <b>Edit</b> = Edit · <b>Delete</b> = Delete · <b>Approve</b> = Approve / Reject (GM Approved). SuperAdmin ke paas hamesha sab power.</div>
         <div style={h}>A. Role-wise Module Permissions</div>
+        <Help id="role" steps={[
+          "Upar har Role (Admin, GM, Purchase, Accounts, HR, Viewer, User) ke neeche 5 khane hain: View, Create, Edit, Delete, Approve.",
+          "Jis Module (baayen) mein us Role ko kaam karne dena hai, uska tick lagao. Rokna hai to tick hatao.",
+          "View ka tick hatate hi wo Module us Role ke sidebar se chhup jayega aur khulega bhi nahi.",
+          "Example: Viewer ko sirf dekhne dena hai → sirf View tick rakho, baaki sab hata do.",
+          "Badlav ke baad upar \"Save Permissions\" dabao. Users ko agli baar page kholte hi naya niyam lag jayega.",
+        ]} />
         <RoleMatrix m={m} setM={setM} />
       </div>
       <div style={card}>
         <div style={h}>B. User-wise Alag Chhoot (Override)</div>
+        <Help id="user" steps={[
+          "Kisi ek user ko Role se alag power deni / rokni ho tab hi yeh use karein.",
+          "Neeche list se User chunein.",
+          "Jis Module ke khane mein badlav chahiye wahan \"Allow\" (hara = power do) ya \"Deny\" (laal = power roko) chunein.",
+          "\"Role jaisa\" chhod do to us user par uske Role ka niyam hi chalega.",
+          "Example: User role ko Delete nahi milta, par Ramesh ko Procurement mein Delete dena hai → Ramesh chunein → 4. Procurement → Delete = Allow.",
+          "Aakhir mein \"Save Permissions\" dabao.",
+        ]} />
         <select data-testid="acl-user-pick" value={email} onChange={(e) => setEmail(e.target.value)} style={{ padding: "6px 8px", fontSize: 12.5, marginBottom: 8, minWidth: 320 }}>
           <option value="">— User chunein —</option>
           {users.filter((u) => u.email).map((u) => <option key={u.email} value={u.email}>{u.name || u.email} · {u.role} · {u.email}</option>)}
@@ -123,6 +145,13 @@ export default function AclMatrix() {
       </div>
       <div style={card}>
         <div style={h}>C. Dashboard Card & Table Column Masking</div>
+        <Help id="mask" steps={[
+          "Yahan tick lagane ka matlab hai: CHHUPAO.",
+          "Jis Role se paise wala Card ya Column chhupana hai, us Role ke khane mein tick lagao. Jaise Viewer ke liye \"Baki Receivable\" aur \"Net Payable\".",
+          "Column chhupane par wo column screen ki har table aur Print mein us Role ko nahi dikhega.",
+          "Kisi ek user ke liye alag chahiye to upar section B mein User chunein, phir yahan \"alag masking\" tick karke peeli column mein tick lagao.",
+          "\"Save Permissions\" dabao. SuperAdmin ko hamesha sab dikhta hai.",
+        ]} />
         <MaskMatrix m={m} setM={setM} email={email} />
       </div>
     </div>

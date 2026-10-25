@@ -397,3 +397,14 @@ See `/app/memory/test_credentials.md`.
 - Login: session takeover (sid in JWT), old device alert; idle auto-logout 10 min (non-SuperAdmin); 2-step EMAIL OTP (6 digit, 3 min, subject "Welcome to ERP ARUN ENTERPRISES") via managed email for all except SuperAdmin.
 - Backlog: saved print layouts; login history; logout warning popup.
 
+
+## 2026-10-25 updates
+- CRM: RA Bill auto-fill dropdown in Tax Invoice; Sr No + PO Pos fields on Work Order items (flow to MB/RA/Invoice/Abstract); MB Previous Claim Qty editable (stored as contract item prevClaimQty); Abstract Previous = last Abstract cumulative; RA Bill Prev Qty editable.
+- SuperAdmin: Edit & Re-approve for approved RA Bills and Approved/Sent/Paid Invoices; Clear All & Reset Counter (Invoices/Abstract, backup in purged_backup); MB/RA Temp+Permanent numbering (AE/MB/T0001/2627 → AE/MB/0001/2627) + "Re-Align & Repair Numbers" (POST /api/admin/renumber/{mb|ra_bills}); ops delete rolls counters back.
+- Invoice Register inline Sent On / Paid On / Client UTR (UTR → Paid) + GST Amount / GST Received Date / GST Status.
+- Renamed departments "… Management" in sidebar, heroes, Reports; GM Dashboard default only GM/Admin/SuperAdmin; non-admin System Management = My Account (POST /api/users/me/update for email/mobile, password change).
+- Reports Management grouped by department.
+- DD/MM/YYYY everywhere: components/DateInput.jsx (all date boxes), lib/displayEngine.js (table text + print windows).
+- RBAC (docs at /app/docs/RBAC.md): View/Create/Edit/Delete/Approve per role + per-user override (_users), card/column masking (_mask/_userMask); backend _acl_ok/_rbac/_need enforced on crm/ops/legacy create-edit-delete-approve and crm/ops GET (view); frontend sidebar hide + RequireAuth guard + store helpers. Defaults: Delete/Approve = Admin only.
+- Backlog: month inputs (type=month) still browser format; legacy collection GETs not view-checked server-side; Invoice/Abstract reports in Reports Management.
+

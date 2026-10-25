@@ -94,6 +94,7 @@ const DynamicRows = ({ title, rows, onChange, columns, disabled, testPrefix }) =
                       {c.options.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   );
+                  if (c.type === "date") return <DateInput key={c.key} type="date" value={row[c.key] ?? ""} onChange={(e) => updateRow(idx, c.key, e.target.value)} disabled={disabled} style={base} />;
                   return (
                     <input key={c.key} type={c.type || "text"} value={row[c.key] ?? ""} onChange={(e) => updateRow(idx, c.key, c.type === "number" ? (+e.target.value || 0) : e.target.value)} disabled={disabled} style={base} />
                   );

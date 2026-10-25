@@ -1,5 +1,6 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { can, deptOfPath } from "./lib/acl";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import Login from "./pages/Login";
@@ -27,7 +28,9 @@ import { AppSidebar, AclGate } from "./components/AppSidebar";
 import OpsDepartment from "./pages/OpsDepartment";
 
 const RequireAuth = ({ children }) => {
-  return isAuthed() ? children : <Navigate to="/login" replace />;
+  const loc = useLocation();
+  if (!isAuthed()) return <Navigate to="/login" replace />;
+  return can(deptOfPath(loc.pathname), "v") ? children : null;
 };
 
 function App() {
