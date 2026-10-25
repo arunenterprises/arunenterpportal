@@ -1,14 +1,32 @@
 import React, { useState } from "react";
-import { Card, Grid, Field, Inp, Sel, Table, Badge, Btn, stepTone, inr, num, nameOf } from "./crmShared";
+import { Card, Grid, Field, Inp, Sel, Table, Badge, Btn, stepTone, inr, num, nameOf, today } from "./crmShared";
 import { INV_STEPS } from "./Invoices";
+import { canDelete as canApprove, currentUserEmail } from "../../lib/store";
 
 const daysSince = (s) => (s ? Math.floor((Date.now() - new Date(s).getTime()) / 86400000) : 0);
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 // Invoice Register: who got which invoice, its status, payment and full tracking trail.
-export const InvoiceRegister = ({ data }) => {
+export const InvoiceRegister = ({ data, save }) => {
   const [q, setQ] = useState({ client: "", status: "", text: "" });
   const [open, setOpen] = useState("");
+  const power = canApprove();
+  const gstOf = (b) => num(b.igst) + num(b.cgst) + num(b.sgst);
+  const upd = (b, k, v) => {
+    if (String(b[k] || "") === String(v || "")) return;
+    const n = { ...b, [k]: v };
+    const st = Number(b.step);
+    let action = `${k} updated`;
+    if (n.utr && [3, 4].includes(st)) { n.step = 5; n.receivedDate = n.receivedDate || today(); n.receivedAmount = num(n.receivedAmount) || num(n.total); action = "Paid (UTR)"; }
+    else if (!n.utr && st === 5) { n.step = n.sentAt ? 4 : 3; action = "UTR removed"; }
+    else if (n.sentAt && st === 3) { n.step = 4; action = "Sent to Client"; }
+    n.gstStatus = n.gstReceivedDate ? "Received" : "Pending";
+    n.history = [...(b.history || []), { action, at: new Date().toISOString(), by: currentUserEmail() }];
+    save("invoices", n, `${b.invoiceNo || b.refNo} update hua`);
+  };
+  const cell = (b, k, type = "text", w = 120) => (power && [3, 4, 5].includes(Number(b.step))
+    ? <Inp key={`${b.id}-${k}-${b[k] || ""}`} data-testid={`invreg-${k}-${b.id}`} type={type} defaultValue={b[k] || ""} onBlur={(e) => upd(b, k, e.target.value.trim())} style={{ width: w, padding: "3px 6px", fontSize: 11.5 }} />
+    : b[k] || "—");
   const rows = data.invoices.filter((b) => (!q.client || b.clientId === q.client) && (!q.status || String(b.step) === q.status)
     && (!q.text || `${b.refNo} ${b.invoiceNo} ${b.poNo} ${b.projectName}`.toLowerCase().includes(q.text.toLowerCase())));
   const live = data.invoices.filter((b) => Number(b.step) !== 6);
@@ -31,9 +49,12 @@ export const InvoiceRegister = ({ data }) => {
           <Field label="Search (Ref / Invoice / PO / Project)"><Inp data-testid="invreg-search" value={q.text} onChange={(e) => setQ({ ...q, text: e.target.value })} /></Field>
         </Grid>
         <div style={{ marginTop: 12 }}>
-          <Table testid="invreg-table" empty="Koi invoice nahi" cols={["Ref No", "Invoice No", "Date", "Given To (Client)", "PO No", "Total", "Status", "Sent On", "Paid On", "UTR", "Outstanding Days", ""]}
+          <Table testid="invreg-table" empty="Koi invoice nahi" cols={["Ref No", "Invoice No", "Date", "Given To (Client)", "PO No", "Total", "Sent On", "Paid On", "Client UTR", "Bill Status", "GST Amount", "GST Received Date", "GST Status", "Outstanding Days", ""]}
             rows={rows.slice().reverse().map((b) => [b.refNo || "—", b.invoiceNo || "—", b.invoiceDate, nameOf(data.clients, b.clientId), b.poNo || "—", inr(b.total),
-              <Badge text={INV_STEPS[b.step]} tone={stepTone(b.step)} />, b.sentAt || "—", b.receivedDate || "—", b.utr || "—",
+              cell(b, "sentAt", "date"), cell(b, "receivedDate", "date"), cell(b, "utr", "text", 130),
+              <Badge text={INV_STEPS[b.step]} tone={stepTone(b.step)} />,
+              <b data-testid={`invreg-gst-${b.id}`}>{inr(gstOf(b))}</b>, cell(b, "gstReceivedDate", "date"),
+              Number(b.step) === 6 ? "—" : <Badge text={b.gstReceivedDate ? "GST Received" : "GST Pending"} tone={b.gstReceivedDate ? "green" : "amber"} />,
               [3, 4].includes(Number(b.step)) ? <span style={{ color: daysSince(b.sentAt || b.invoiceDate) > 30 ? "#dc2626" : "#334155", fontWeight: 700 }}>{daysSince(b.sentAt || b.invoiceDate)}</span> : "—",
               <Btn tone="ghost" data-testid={`invreg-track-${b.id}`} onClick={() => setOpen(open === b.id ? "" : b.id)}>{open === b.id ? "Hide" : "Tracking"}</Btn>])} />
         </div>
