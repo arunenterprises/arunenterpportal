@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DateInput } from "./DateInput";
 import { toast } from "sonner";
 import { Save, Send, Calculator, Printer, FileCheck2 } from "lucide-react";
 import { apiOpsList, apiOpsSave } from "../lib/api";
@@ -42,7 +43,7 @@ const DailyAttendance = ({ data, onSaved }) => {
   return (
     <div data-testid="labour-daily" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 14 }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-        <input data-testid="latt-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inp} />
+        <DateInput data-testid="latt-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inp} />
         <select data-testid="latt-project" value={project} onChange={(e) => setProject(e.target.value)} style={inp}><option value="">— Project —</option>{projects.map((p) => <option key={p}>{p}</option>)}</select>
         <span style={{ fontSize: 12, color: "#64748b" }}>P = Full day · H = Half day · A = Absent · OT ghante</span>
       </div>

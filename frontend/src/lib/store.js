@@ -14,7 +14,7 @@ import { getAcl, aclCell, deptOfPath } from "./acl";
 // Per-department ACL tick (System Admin → Permissions) for the page currently open.
 const _aclAllows = (op) => {
   const dept = typeof window !== "undefined" ? deptOfPath(window.location.pathname) : null;
-  return !dept || !!aclCell(getAcl(), currentRole(), dept)[op];
+  return !dept || !!aclCell(getAcl(), currentRole(), dept, currentUserEmail())[op];
 };
 
 const KEYS = {
@@ -1341,6 +1341,7 @@ export const canCreate = () => {
 };
 export const canEdit = () => {
   if (isSuperAdmin(currentUserEmail())) return true;
+  if (!_aclAllows("e")) return false;
   const p = _myPerms();
   if (p && typeof p.edit === "boolean") return p.edit;
   return canCreate();
@@ -1357,8 +1358,8 @@ export const canApprove = () => {
   if (!_aclAllows("a")) return false;
   const p = _myPerms();
   if (p && typeof p.approve === "boolean") return p.approve;
-  const r = currentRole();
-  return ["SuperAdmin", "Admin"].includes(r);
+  const dept = typeof window !== "undefined" ? deptOfPath(window.location.pathname) : null;
+  return dept ? true : currentRole() === "Admin";
 };
 // Deleting an already-approved (step >= 4) document is a destructive action
 // reserved for SuperAdmin and Admin role only. Per-user permission overrides
@@ -1374,7 +1375,9 @@ export const canDeleteApproved = () => {
 // entry are NOT gated by this.
 export const canDelete = () => {
   const r = currentRole();
-  return r === "SuperAdmin" || r === "Admin";
+  if (r === "SuperAdmin") return true;
+  const dept = typeof window !== "undefined" ? deptOfPath(window.location.pathname) : null;
+  return dept ? _aclAllows("d") : r === "Admin";
 };
 // Backward-compat aliases used by older code paths
 export const canApproveAccounts = () => canApprove();

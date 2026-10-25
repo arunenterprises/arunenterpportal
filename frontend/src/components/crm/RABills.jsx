@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Wand2, Mail, IndianRupee, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { canDelete as canApprove, getCompany, getLogo, amountToWords, isSuperAdmin, currentUserEmail } from "../../lib/store";
+import { canApprove, getCompany, getLogo, amountToWords, isSuperAdmin, currentUserEmail } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, RA_STEPS, stepTone, uid, today, inr, num, nameOf, crmSave, crmDelete } from "./crmShared";
 import { RenumberBtn } from "./ResetNumberingBtn";

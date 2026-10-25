@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import App from "@/App";
 import { hydrateStore } from "@/lib/store";
+import { installDisplayEngine } from "@/lib/displayEngine";
+
+installDisplayEngine();
 
 const queryClient = new QueryClient({
   defaultOptions: {

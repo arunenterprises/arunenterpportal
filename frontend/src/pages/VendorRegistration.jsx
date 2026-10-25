@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DateInput } from "../components/DateInput";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
@@ -411,7 +412,7 @@ export default function VendorRegistration({ embedded = false }) {
                 <div className="substep-title">[STEP 1] CREATED BY</div>
                 <div className="row cols-2">
                   <F label="Created By (Fill Name)"><input placeholder="Name of Creator" {...bind("createdByName")} /></F>
-                  <F label="Creation Date"><input type="date" {...bind("creationDate")} /></F>
+                  <F label="Creation Date"><DateInput type="date" {...bind("creationDate")} /></F>
                 </div>
               </div>
               <div className="substep">

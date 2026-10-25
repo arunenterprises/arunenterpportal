@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { DateInput } from "../components/DateInput";
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
@@ -258,7 +259,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         <div style={{ padding: "8px 14px", fontWeight: 800, fontSize: 12, background: "#dbeafe", borderBottom: "1px solid #93c5fd", color: "#1e3a8a", textTransform: "uppercase", letterSpacing: .4 }}>Application Reference &amp; Position</div>
         <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
           <F label="Advertisement No."><input value={emp.advertisementNo || ""} onChange={(e) => set("advertisementNo", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-advt" placeholder="AE/HR/ADVT/2026/001" /></F>
-          <F label="Date of Filing"><input type="date" value={emp.dateOfFiling || ""} onChange={(e) => set("dateOfFiling", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-filingdate" /></F>
+          <F label="Date of Filing"><DateInput type="date" value={emp.dateOfFiling || ""} onChange={(e) => set("dateOfFiling", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-filingdate" /></F>
           <F label="Project / Site"><input value={emp.projectSite || ""} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-project" /></F>
           <F label="Location"><input value={emp.location || ""} onChange={(e) => set("location", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-location" /></F>
           <F label="Applied Post" req>
@@ -271,7 +272,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
           <F label="Department"><select value={emp.department} onChange={(e) => set("department", e.target.value)} disabled={locked} style={inputStyle}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
           <F label="Reporting Manager"><input value={emp.reportingManager || ""} onChange={(e) => set("reportingManager", e.target.value)} disabled={locked} style={inputStyle} /></F>
           <F label="Date of Joining">
-            <input type="date" value={emp.doj || ""} onChange={(e) => set("doj", e.target.value)} disabled={locked} style={{ ...inputStyle, background: emp.doj ? "#dcfce7" : "#fff", fontWeight: 700, color: emp.doj ? "#166534" : "#0f172a" }} data-testid="emp-doj" />
+            <DateInput type="date" value={emp.doj || ""} onChange={(e) => set("doj", e.target.value)} disabled={locked} style={{ ...inputStyle, background: emp.doj ? "#dcfce7" : "#fff", fontWeight: 700, color: emp.doj ? "#166534" : "#0f172a" }} data-testid="emp-doj" />
           </F>
           <F label="Employment Status"><select value={emp.status || "Active"} onChange={(e) => set("status", e.target.value)} disabled={locked} style={inputStyle}><option>Active</option><option>Probation</option><option>On Leave</option><option>Exit Pending</option><option>Exited</option></select></F>
         </div>
@@ -288,7 +289,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
             <F label="Father's Name"><input value={emp.fatherName} onChange={(e) => set("fatherName", e.target.value)} disabled={locked} style={inputStyle} /></F>
             <F label="Mother's Name"><input value={emp.motherName || ""} onChange={(e) => set("motherName", e.target.value)} disabled={locked} style={inputStyle} /></F>
             <F label="Spouse Name"><input value={emp.spouseName || ""} onChange={(e) => set("spouseName", e.target.value)} disabled={locked} style={inputStyle} /></F>
-            <F label="Date of Birth"><input type="date" value={emp.dob} onChange={(e) => set("dob", e.target.value)} disabled={locked} style={inputStyle} /></F>
+            <F label="Date of Birth"><DateInput type="date" value={emp.dob} onChange={(e) => set("dob", e.target.value)} disabled={locked} style={inputStyle} /></F>
             <F label="Gender"><select value={emp.gender} onChange={(e) => set("gender", e.target.value)} disabled={locked} style={inputStyle}><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select></F>
             <F label="Marital Status"><select value={emp.maritalStatus || "Single"} onChange={(e) => set("maritalStatus", e.target.value)} disabled={locked} style={inputStyle}><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option></select></F>
             <F label="Blood Group"><select value={emp.bloodGroup || ""} onChange={(e) => set("bloodGroup", e.target.value)} disabled={locked} style={inputStyle}><option value="">—</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select></F>
@@ -519,7 +520,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
               <F label="Place"><input value={emp.declarationPlace || ""} onChange={(e) => set("declarationPlace", e.target.value)} disabled={locked} style={inputStyle} /></F>
-              <F label="Date"><input type="date" value={emp.declarationDate || ""} onChange={(e) => set("declarationDate", e.target.value)} disabled={locked} style={inputStyle} /></F>
+              <F label="Date"><DateInput type="date" value={emp.declarationDate || ""} onChange={(e) => set("declarationDate", e.target.value)} disabled={locked} style={inputStyle} /></F>
             </div>
           </div>
           {/* Signature (right-bottom) */}
@@ -1030,8 +1031,8 @@ const LeavesTab = ({ writeAllowed, approveAllowed }) => {
       <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
         <F label="Employee"><select value={cur.empId} onChange={(e) => set("empId", e.target.value)} style={inputStyle} data-testid="lv-emp">{emps.map((e) => <option key={e.id} value={e.id}>{`${e.empCode} — ${e.fullName}`}</option>)}</select></F>
         <F label="Type"><select value={cur.type} onChange={(e) => set("type", e.target.value)} style={inputStyle}>{LEAVE_TYPES.map((t) => <option key={t}>{t}</option>)}</select></F>
-        <F label="From"><input type="date" value={cur.from} onChange={(e) => set("from", e.target.value)} style={inputStyle} /></F>
-        <F label="To"><input type="date" value={cur.to} onChange={(e) => set("to", e.target.value)} style={inputStyle} /></F>
+        <F label="From"><DateInput type="date" value={cur.from} onChange={(e) => set("from", e.target.value)} style={inputStyle} /></F>
+        <F label="To"><DateInput type="date" value={cur.to} onChange={(e) => set("to", e.target.value)} style={inputStyle} /></F>
         <F label="Days (auto)"><input value={daysBetween(cur.from, cur.to)} readOnly style={{ ...inputStyle, background: "#eef2ff", fontWeight: 700, textAlign: "center" }} /></F>
         <F label="Reason"><input value={cur.reason} onChange={(e) => set("reason", e.target.value)} style={inputStyle} placeholder="Short reason" data-testid="lv-reason" /></F>
         <div style={{ gridColumn: "span 6", display: "flex", gap: 6 }}>
@@ -1161,14 +1162,14 @@ const RecruitTab = ({ writeAllowed, approveAllowed }) => {
 
       {/* Form */}
       <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderTop: "none", borderRadius: "0 0 8px 8px", marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-        <F label="Requisition Date" req><input type="date" value={cur.requisitionDate} onChange={(e) => set("requisitionDate", e.target.value)} disabled={!canEdit} style={inputStyle} data-testid="rec-req-date" /></F>
+        <F label="Requisition Date" req><DateInput type="date" value={cur.requisitionDate} onChange={(e) => set("requisitionDate", e.target.value)} disabled={!canEdit} style={inputStyle} data-testid="rec-req-date" /></F>
         <F label="Position / Designation" req><input value={cur.position} onChange={(e) => set("position", e.target.value)} disabled={!canEdit} style={inputStyle} data-testid="rec-pos" /></F>
         <F label="Department" req><select value={cur.department} onChange={(e) => set("department", e.target.value)} disabled={!canEdit} style={inputStyle} data-testid="rec-dept">{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></F>
         <F label="Vacancies (Nos)" req><input type="number" min="1" value={cur.vacancies} onChange={(e) => set("vacancies", +e.target.value || 1)} disabled={!canEdit} style={inputStyle} data-testid="rec-vac" /></F>
         <F label="Experience Required"><input value={cur.experienceRequired} onChange={(e) => set("experienceRequired", e.target.value)} disabled={!canEdit} style={inputStyle} placeholder="e.g. 3-5 years" /></F>
         <F label="Qualification Required"><input value={cur.qualificationRequired} onChange={(e) => set("qualificationRequired", e.target.value)} disabled={!canEdit} style={inputStyle} placeholder="e.g. B.Tech / Diploma" /></F>
         <F label="Budget CTC (annual ₹)"><input type="number" value={cur.budgetCTC} onChange={(e) => set("budgetCTC", +e.target.value || 0)} disabled={!canEdit} style={inputStyle} data-testid="rec-budget" /></F>
-        <F label="Target Join Date"><input type="date" value={cur.targetJoinDate} onChange={(e) => set("targetJoinDate", e.target.value)} disabled={!canEdit} style={inputStyle} /></F>
+        <F label="Target Join Date"><DateInput type="date" value={cur.targetJoinDate} onChange={(e) => set("targetJoinDate", e.target.value)} disabled={!canEdit} style={inputStyle} /></F>
         <div style={{ gridColumn: "span 4" }}>
           <F label="Reason for Hire / Justification"><textarea value={cur.reasonForHire} onChange={(e) => set("reasonForHire", e.target.value)} disabled={!canEdit} style={{ ...inputStyle, minHeight: 50, resize: "vertical" }} placeholder="Replacement / New project / Expansion..." data-testid="rec-reason" /></F>
         </div>
@@ -1183,7 +1184,7 @@ const RecruitTab = ({ writeAllowed, approveAllowed }) => {
             <F label="Experience (yrs)"><input type="number" value={cur.experienceYears} onChange={(e) => set("experienceYears", +e.target.value || 0)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
             <F label="Qualification"><input value={cur.qualification} onChange={(e) => set("qualification", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
             <F label="Offered CTC (₹)"><input type="number" value={cur.offerCTC} onChange={(e) => set("offerCTC", +e.target.value || 0)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
-            <F label="Offer Date"><input type="date" value={cur.offerDate} onChange={(e) => set("offerDate", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
+            <F label="Offer Date"><DateInput type="date" value={cur.offerDate} onChange={(e) => set("offerDate", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
             <F label="Remarks"><input value={cur.remarks} onChange={(e) => set("remarks", e.target.value)} disabled={Number(cur.status) >= 5} style={inputStyle} /></F>
           </>
         )}
@@ -1295,8 +1296,8 @@ const ExitTab = ({ writeAllowed, approveAllowed }) => {
     <div style={{ padding: 14 }}>
       <div style={{ background: "#f8fafc", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, marginBottom: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
         <F label="Employee"><select value={cur.empId} onChange={(e) => set("empId", e.target.value)} style={inputStyle} data-testid="exit-emp">{emps.map((e) => <option key={e.id} value={e.id}>{`${e.empCode} — ${e.fullName}`}</option>)}</select></F>
-        <F label="Resignation Date"><input type="date" value={cur.resignDate} onChange={(e) => set("resignDate", e.target.value)} style={inputStyle} /></F>
-        <F label="Last Working Day"><input type="date" value={cur.lastWorkingDay} onChange={(e) => set("lastWorkingDay", e.target.value)} style={inputStyle} /></F>
+        <F label="Resignation Date"><DateInput type="date" value={cur.resignDate} onChange={(e) => set("resignDate", e.target.value)} style={inputStyle} /></F>
+        <F label="Last Working Day"><DateInput type="date" value={cur.lastWorkingDay} onChange={(e) => set("lastWorkingDay", e.target.value)} style={inputStyle} /></F>
         <F label="Reason"><input value={cur.reason} onChange={(e) => set("reason", e.target.value)} style={inputStyle} placeholder="e.g. Better opportunity" /></F>
         <div style={{ gridColumn: "span 4", padding: 10, background: "#fff", border: "1px dashed #cbd5e1", borderRadius: 6 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#4c1d95", marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>Multi-Dept Clearance</div>
@@ -1951,7 +1952,7 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed: approveAllowedProp }
                 </select>
               </F>
               <F label="Request Date" req>
-                <input type="date" value={cur.requestDate} onChange={(e) => set("requestDate", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-date" />
+                <DateInput type="date" value={cur.requestDate} onChange={(e) => set("requestDate", e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-date" />
               </F>
               <F label="Advance Amount (₹)" req>
                 <input type="number" value={cur.amount || ""} onChange={(e) => set("amount", +e.target.value)} disabled={locked} style={inputStyle} data-testid="adv-amount" />

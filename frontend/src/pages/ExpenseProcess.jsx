@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { DateInput } from "../components/DateInput";
 import { toast, Toaster } from "sonner";
 import * as XLSX from "xlsx";
 import { Wallet, Search, FilePlus2, Save, Pencil, Send, Printer, Download, CheckCircle2 } from "lucide-react";
@@ -245,7 +246,7 @@ export default function ExpenseProcess({ embedded = false }) {
           <div className="sec-body">
             <div className="row cols-4">
               <F label="Ref / Expense No"><input value={expense.permanentExpenseNo || expense.refNo} readOnly className="mono" /></F>
-              <F label="Date" req><input type="date" {...bind("date")} /></F>
+              <F label="Date" req><DateInput type="date" {...bind("date")} /></F>
               <F label="Category" req>
                 <select {...bind("category")}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -344,7 +345,7 @@ export default function ExpenseProcess({ embedded = false }) {
               <F label="Approved By (Step 3)"><input placeholder="Approver Name" {...bind("approvedByName")} /></F>
             </div>
             <div className="row cols-2" style={{ marginTop: 10 }}>
-              <F label="Approval Date"><input type="date" value={expense.approvalDate} readOnly /></F>
+              <F label="Approval Date"><DateInput type="date" value={expense.approvalDate} readOnly /></F>
               <F label="Current Status">
                 <input value={EXPENSE_STEP_LABEL[Number(expense.step) || 1]} readOnly
                   style={{ background: (Number(expense.step) === 4) ? "#dcfce7" : "#fef3c7", fontWeight: 700, color: (Number(expense.step) === 4) ? "#166534" : "#92400e", textAlign: "center", letterSpacing: 0.5 }} />

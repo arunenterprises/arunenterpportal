@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { DateInput } from "../components/DateInput";
 import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import {
@@ -384,8 +385,8 @@ export default function ProjectManagement() {
                   {STATUS.map((s) => <option key={s.k}>{s.k}</option>)}
                 </select>
               </F>
-              <F label="Start Date"><input type="date" value={editing.startDate} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} style={inputS} data-testid="pm-f-start" /></F>
-              <F label="End Date"><input type="date" value={editing.endDate} onChange={(e) => setEditing({ ...editing, endDate: e.target.value })} style={inputS} data-testid="pm-f-end" /></F>
+              <F label="Start Date"><DateInput type="date" value={editing.startDate} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} style={inputS} data-testid="pm-f-start" /></F>
+              <F label="End Date"><DateInput type="date" value={editing.endDate} onChange={(e) => setEditing({ ...editing, endDate: e.target.value })} style={inputS} data-testid="pm-f-end" /></F>
               <F label="Priority">
                 <select value={editing.priority} onChange={(e) => setEditing({ ...editing, priority: e.target.value })} style={inputS} data-testid="pm-f-priority">
                   {PRIORITY.map((p) => <option key={p.k}>{p.k}</option>)}
@@ -417,7 +418,7 @@ export default function ProjectManagement() {
                       <tr key={m.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                         <td style={tdS}>{i + 1}</td>
                         <td style={tdS}><input value={m.title} onChange={(e) => updMilestone(m.id, { title: e.target.value })} style={{ ...inputS, width: "100%", padding: "5px 8px" }} data-testid={`pm-ms-title-${i}`} placeholder="E.g. Site handover" /></td>
-                        <td style={tdS}><input type="date" value={m.dueDate} onChange={(e) => updMilestone(m.id, { dueDate: e.target.value })} style={{ ...inputS, padding: "5px 8px" }} data-testid={`pm-ms-due-${i}`} /></td>
+                        <td style={tdS}><DateInput type="date" value={m.dueDate} onChange={(e) => updMilestone(m.id, { dueDate: e.target.value })} style={{ ...inputS, padding: "5px 8px" }} data-testid={`pm-ms-due-${i}`} /></td>
                         <td style={tdS}><input type="checkbox" checked={m.done} onChange={(e) => updMilestone(m.id, { done: e.target.checked })} data-testid={`pm-ms-done-${i}`} style={{ width: 18, height: 18 }} /></td>
                         <td style={tdS}><button onClick={() => delMilestone(m.id)} style={{ padding: "3px 8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 10, fontWeight: 700 }}>Remove</button></td>
                       </tr>

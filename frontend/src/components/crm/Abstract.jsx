@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DateInput } from "../DateInput";
 import { toast } from "sonner";
 import { Plus, Trash2, FilePlus2, Save, Send, CheckCircle2, Printer, Eye, X, Pencil } from "lucide-react";
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
@@ -176,11 +177,11 @@ export const Abstract = ({ data }) => {
           <H l="Work Order (auto-fill)"><select data-testid="abs-wo" disabled={ro} value={f.contractId || ""} onChange={(e) => pickContract(e.target.value)} style={inp}><option value="">— Select Work Order —</option>{(data.contracts || []).filter((c) => !f.clientId || c.clientId === f.clientId).map((c) => <option key={c.id} value={c.id}>{c.workOrderNo || c.contractNo} · {c.projectName}</option>)}</select></H>
           <div style={{ gridColumn: "span 1", gridRow: "span 2" }}><H l="To (Address)"><textarea data-testid="abs-to" disabled={ro} rows={4} value={f.toText} onChange={(e) => set("toText", e.target.value)} style={inp} /></H></div>
           <H l="Purchase Order No *"><input data-testid="abs-po" disabled={ro} value={f.poNo} onChange={(e) => set("poNo", e.target.value)} style={inp} /></H>
-          <H l="PO Dated"><input type="date" disabled={ro} value={f.poDate} onChange={(e) => set("poDate", e.target.value)} style={inp} /></H>
+          <H l="PO Dated"><DateInput type="date" disabled={ro} value={f.poDate} onChange={(e) => set("poDate", e.target.value)} style={inp} /></H>
           <H l="Invoice No"><input data-testid="abs-inv" disabled={ro} list="abs-inv-list" value={f.invoiceNo} onChange={(e) => pickInvoice(e.target.value)} style={inp} /><datalist id="abs-inv-list">{(data.invoices || []).filter((i) => (!f.clientId || i.clientId === f.clientId) && (!f.contractId || i.contractId === f.contractId || i.poNo === f.poNo)).map((i) => <option key={i.id} value={i.invoiceNo || i.refNo} />)}</datalist></H>
-          <H l="Invoice Dated"><input type="date" disabled={ro} value={f.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} style={inp} /></H>
-          <H l="Work Period From"><input type="date" disabled={ro} value={f.periodFrom} onChange={(e) => set("periodFrom", e.target.value)} style={inp} /></H>
-          <H l="Work Period To"><input type="date" disabled={ro} value={f.periodTo} onChange={(e) => set("periodTo", e.target.value)} style={inp} /></H>
+          <H l="Invoice Dated"><DateInput type="date" disabled={ro} value={f.invoiceDate} onChange={(e) => set("invoiceDate", e.target.value)} style={inp} /></H>
+          <H l="Work Period From"><DateInput type="date" disabled={ro} value={f.periodFrom} onChange={(e) => set("periodFrom", e.target.value)} style={inp} /></H>
+          <H l="Work Period To"><DateInput type="date" disabled={ro} value={f.periodTo} onChange={(e) => set("periodTo", e.target.value)} style={inp} /></H>
           <div style={{ gridColumn: "span 2" }}><H l="Location / Work"><input data-testid="abs-location" disabled={ro} value={f.location} onChange={(e) => set("location", e.target.value)} style={inp} /></H></div>
           <H l="Contractor · PAN · GSTIN (auto)"><input disabled value={`${co.name || ""} · ${co.pan || ""} · ${co.gst || ""}`} style={{ ...inp, background: "#f8fafc" }} /></H>
         </div>
@@ -206,11 +207,11 @@ export const Abstract = ({ data }) => {
       </div>
       <div data-testid="abs-action-row" style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
         <button data-testid="abs-new" onClick={() => { setF(blank()); setLocked(false); }} style={btn("#0369a1")}><FilePlus2 size={13} /> New</button>
-        <button data-testid="abs-edit" onClick={() => setLocked(false)} disabled={approved && !can("client", "a")} style={btn("#eab308", approved && !can("client", "a"))}>Edit</button>
+        <button data-testid="abs-edit" onClick={() => setLocked(false)} disabled={(approved && !can("client", "a")) || !can("client", "e")} style={btn("#eab308", (approved && !can("client", "a")) || !can("client", "e"))}>Edit</button>
         <button data-testid="abs-save" disabled={ro} onClick={() => save()} style={btn("#16a34a", ro)}><Save size={13} /> Save</button>
         <button data-testid="abs-submit" disabled={approved} onClick={() => save({ status: "Submitted" }, "Submitted for approval")} style={btn("#7c3aed", approved)}><Send size={13} /> Submit</button>
         <button data-testid="abs-approve" disabled={approved || !can("client", "a")} onClick={() => save({ status: "Approved" }, "Approved")} style={btn("#15803d", approved || !can("client", "a"))}><CheckCircle2 size={13} /> Approve</button>
-        <button data-testid="abs-delete" disabled={!can("client", "a")} onClick={del} style={btn("#991b1b", !can("client", "a"))}><Trash2 size={13} /> Delete</button>
+        <button data-testid="abs-delete" disabled={!can("client", "d")} onClick={del} style={btn("#991b1b", !can("client", "d"))}><Trash2 size={13} /> Delete</button>
         <button data-testid="abs-preview-btn" onClick={() => setPreview(true)} style={btn("#1e3a8a")}><Eye size={13} /> Print Preview</button>
         <button data-testid="abs-print" onClick={() => printAbstract(f, co, true)} style={btn("#0f172a")}><Printer size={13} /> Print (A4 Landscape)</button>
         <button data-testid="abs-print-without" onClick={() => printAbstract(f, co, false)} style={btn("#475569")}><Printer size={13} /> Print on Letterhead</button>

@@ -3,7 +3,6 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { FilePlus2, Save, Pencil, Send, CheckCircle2, XCircle, Trash2, Download, Printer, Search } from "lucide-react";
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
-import { canDelete } from "../../lib/store";
 import { can, OPS_DEPT } from "../../lib/acl";
 
 export const STATUS_COLOR = { Draft: "#64748b", Submitted: "#d97706", Approved: "#15803d", Rejected: "#dc2626" };
@@ -58,7 +57,7 @@ export default function OpsModule({ cfg }) {
     save({ status: "Rejected", rejectReason: r || "Rejected" }, "Rejected");
   };
   const del = async () => {
-    if (!canDelete()) { toast.error("Delete sirf Admin / SuperAdmin"); return; }
+    if (!can(dept, "d")) { toast.error("Delete ki permission nahi hai"); return; }
     if (!rows.some((r) => r.id === cur.id) || !window.confirm(`Delete ${cur.docNo}?`)) return;
     try { await apiOpsDelete(cfg.kind, cur.id); toast.success("Deleted"); setCur(blank(cfg)); setLocked(false); load(); } catch (e) { toast.error(e.message); }
   };
@@ -97,7 +96,7 @@ export default function OpsModule({ cfg }) {
       </div>
       <div data-testid="ops-action-row" style={{ margin: "12px 0", display: "flex", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
         <button data-testid="ops-new" onClick={() => { setCur(blank(cfg)); setLocked(false); }} style={btn("#0369a1")}><FilePlus2 size={13} /> New</button>
-        <button data-testid="ops-edit" onClick={() => (approved && !canApprove() ? toast.error("Approved record sirf Admin badal sakte hain") : setLocked(false))} style={btn("#eab308")}><Pencil size={13} /> Edit</button>
+        <button data-testid="ops-edit" onClick={() => (!can(dept, "e") ? toast.error("Edit ki permission nahi hai") : approved && !canApprove() ? toast.error("Approved record sirf Admin badal sakte hain") : setLocked(false))} style={btn("#eab308")}><Pencil size={13} /> Edit</button>
         <button data-testid="ops-save" disabled={ro} onClick={() => save()} style={btn("#16a34a", ro)}><Save size={13} /> Save</button>
         <button data-testid="ops-submit" disabled={approved || noCreate} onClick={() => save({ status: "Submitted" }, "Submitted for GM Approval")} style={btn("#7c3aed", approved || noCreate)}><Send size={13} /> Submit</button>
         <button data-testid="ops-approve" disabled={approved} onClick={approve} style={btn("#15803d", approved)}><CheckCircle2 size={13} /> Approve</button>

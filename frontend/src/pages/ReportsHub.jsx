@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { DateInput } from "../components/DateInput";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
@@ -1105,11 +1106,11 @@ const ReportsHub = () => {
             </div>
             <div>
               <label style={{ fontSize: 10, color: "#4338ca", fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase" }}>From Date</label>
-              <input data-testid="rh-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ marginTop: 3, width: "100%", padding: "6px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11.5 }} />
+              <DateInput data-testid="rh-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ marginTop: 3, width: "100%", padding: "6px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11.5 }} />
             </div>
             <div>
               <label style={{ fontSize: 10, color: "#4338ca", fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase" }}>To Date</label>
-              <input data-testid="rh-to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ marginTop: 3, width: "100%", padding: "6px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11.5 }} />
+              <DateInput data-testid="rh-to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ marginTop: 3, width: "100%", padding: "6px 8px", border: "1px solid #c7d2fe", borderRadius: 4, fontSize: 11.5 }} />
             </div>
             <div>
               <label style={{ fontSize: 10, color: "#4338ca", fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase" }}>Status</label>

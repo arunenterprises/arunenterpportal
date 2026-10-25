@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Printer, FileText, Eye, X, Mail, IndianRupee, Pencil, Save } from "lucide-react";
 import { toast } from "sonner";
-import { canDelete as canApprove, getCompany, getLogo, amountToWords, currentUser, isSuperAdmin, currentUserEmail } from "../../lib/store";
+import { canApprove, getCompany, getLogo, amountToWords, currentUser, isSuperAdmin, currentUserEmail } from "../../lib/store";
 import { CrmActionBar } from "./CrmActionBar";
 import { ResetNumberingBtn } from "./ResetNumberingBtn";
 import { enableLayoutEdit, LAYOUT_EDIT_HINT, usePrintLayout } from "../../lib/printLayoutEdit";

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card, Grid, Field, Inp, Sel, Table, Badge, Btn, stepTone, inr, num, nameOf, today } from "./crmShared";
 import { INV_STEPS } from "./Invoices";
-import { canDelete as canApprove, currentUserEmail } from "../../lib/store";
+import { canApprove, currentUserEmail } from "../../lib/store";
 
 const daysSince = (s) => (s ? Math.floor((Date.now() - new Date(s).getTime()) / 86400000) : 0);
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");

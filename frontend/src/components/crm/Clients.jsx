@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { DateInput } from "../DateInput";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import Header from "../Header";
@@ -146,7 +147,7 @@ export const Clients = ({ data, save, remove }) => {
         <div className="section"><div className="sec-head">3. Workflow &amp; Approvals</div><div className="sec-body">
           <div className="substep"><div className="substep-title">[STEP 1] CREATED BY</div><div className="row cols-2">
             <F label="Created By (Fill Name)"><input {...bind("creatorName")} /></F>
-            <F label="Creation Date"><input type="date" {...bind("creationDate")} /></F>
+            <F label="Creation Date"><DateInput type="date" {...bind("creationDate")} /></F>
           </div></div>
           <div className="substep"><div className="substep-title">[STEP 2] CHECKED &amp; SUBMITTED BY</div><div className="row cols-2">
             <F label="Checked By (Name)"><input {...bind("checkedByName")} /></F>

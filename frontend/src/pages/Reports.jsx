@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { DateInput } from "../components/DateInput";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
@@ -1541,7 +1542,7 @@ export default function Reports() {
                         <td>{p.vendorName || p.vendorCode}</td>
                         <td>{p.billNo}</td>
                         <td>
-                          <input
+                          <DateInput
                             type="date"
                             value={p.date || ""}
                             onChange={(e) => reschedulePayment(p.pvNo, e.target.value)}
@@ -1704,7 +1705,7 @@ export default function Reports() {
                 <div className="sec-body">
                   <div className="row cols-3">
                     <F label={pv.status === "Approved" ? "PN Number (Approved)" : "GPV Number (Draft)"}><input className="pill-generated" value={pv.pvNo} readOnly data-testid="pv-no" title={pv.draftNo ? `Draft was ${pv.draftNo} · Approved as ${pv.pvNo}` : ""} /></F>
-                    <F label="Date"><input type="date" value={pv.date} onChange={(e) => setPv({ ...pv, date: e.target.value })} /></F>
+                    <F label="Date"><DateInput type="date" value={pv.date} onChange={(e) => setPv({ ...pv, date: e.target.value })} /></F>
                     <F label="Payment Mode">
                       <select value={pv.mode} onChange={(e) => setPv({ ...pv, mode: e.target.value })} data-testid="pv-mode">
                         {["NEFT", "RTGS", "IMPS", "UPI", "Cheque", "Cash"].map((m) => <option key={m} value={m}>{m}</option>)}

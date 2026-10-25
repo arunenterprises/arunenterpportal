@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DateInput } from "../components/DateInput";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
@@ -667,7 +668,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                   </datalist>
                 </F>
                 <F label="Process Date">
-                  <input type="date" {...bind("processDate")} />
+                  <DateInput type="date" {...bind("processDate")} />
                 </F>
                 <F label="Current Status">
                   <input className="pill-status" value={BILL_STEP_LABEL[bill.step]} readOnly data-testid="field-currentStatus" />
@@ -755,10 +756,10 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                   </datalist>
                 </F>
                 <F label="Work Order Date">
-                  <input type="date" {...bind("workOrderDate")} />
+                  <DateInput type="date" {...bind("workOrderDate")} />
                 </F>
                 <F label="Work Order Expiry Date">
-                  <input type="date"
+                  <DateInput type="date"
                     {...bind("workOrderExpiryDate")}
                     min={bill.workOrderDate || undefined}
                     data-testid="field-workOrderExpiryDate"
@@ -1010,7 +1011,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                   <input placeholder="Bill Number" {...bind("billNo")} />
                 </F>
                 <F label="Invoice Date">
-                  <input type="date" {...bind("billDate")} />
+                  <DateInput type="date" {...bind("billDate")} />
                 </F>
                 <F label="Basic Amount (₹)" req>
                   <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("basicAmount")} />
@@ -1266,7 +1267,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
             <div className="sec-body">
               <div className="row cols-3">
                 <F label="Scheduled Payment Due Date" req>
-                  <input type="date" {...bind("scheduledDueDate")} />
+                  <DateInput type="date" {...bind("scheduledDueDate")} />
                 </F>
                 <F label="Payment Priority Level">
                   <select {...bind("priorityLevel")}>

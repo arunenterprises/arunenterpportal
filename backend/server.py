@@ -129,6 +129,13 @@ async def require_write(user: Dict = Depends(get_current_user)) -> Dict[str, Any
     return user
 
 
+def _need(dept: str, op: str):
+    async def dep(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
+        await _rbac(user, dept, op)
+        return user
+    return dep
+
+
 async def require_approver(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
     if not _can_approve(user):
         raise HTTPException(status_code=403, detail="Approver role required (Admin / Accounts / SuperAdmin)")
@@ -732,7 +739,7 @@ async def upsert_vendor(body: Dict = Body(...), user: Dict = Depends(require_wri
 
 
 @api_router.delete("/vendors/{vid}")
-async def delete_vendor(vid: str, admin: Dict = Depends(require_admin)):
+async def delete_vendor(vid: str, admin: Dict = Depends(_need("procurement", "d"))):
     r = await db.vendors.delete_one({"id": vid})
     return {"deleted": r.deleted_count}
 
@@ -756,7 +763,7 @@ async def upsert_bill(body: Dict = Body(...), user: Dict = Depends(require_write
 
 
 @api_router.delete("/bills/{bid}")
-async def delete_bill(bid: str, admin: Dict = Depends(require_admin)):
+async def delete_bill(bid: str, admin: Dict = Depends(_need("accounts", "d"))):
     r = await db.bills.delete_one({"id": bid})
     return {"deleted": r.deleted_count}
 
@@ -786,7 +793,7 @@ async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_
 
 
 @api_router.delete("/payments/{pvNo:path}")
-async def delete_payment(pvNo: str, admin: Dict = Depends(require_admin)):
+async def delete_payment(pvNo: str, admin: Dict = Depends(_need("accounts", "d"))):
     """DELETE a payment voucher by pvNo. Admin / SuperAdmin only.
     Prevents the 'zombie resurrection' bug where deleted vouchers were only
     removed client-side and resurfaced on next cross-device cloud sync."""
@@ -915,7 +922,7 @@ async def upsert_employee(body: Dict = Body(...), user: Dict = Depends(require_w
 
 
 @api_router.delete("/employees/{eid}")
-async def delete_employee(eid: str, admin: Dict = Depends(require_admin)):
+async def delete_employee(eid: str, admin: Dict = Depends(_need("hr", "d"))):
     r = await db.employees.delete_one({"id": eid})
     return {"deleted": r.deleted_count}
 
@@ -1016,13 +1023,30 @@ async def set_acl(body: Dict = Body(...), admin: Dict = Depends(require_super_ad
     return {"ok": True, "value": value}
 
 
+def _acl_default(role: str, dept: str, op: str) -> bool:
+    if op == "v":
+        return role in ("Admin", "GM") if dept == "gm" else True
+    if op in ("c", "e"):
+        return role != "Viewer"
+    return role == "Admin"
+
+
 async def _acl_ok(user: Dict, dept: str, op: str) -> bool:
+    """RBAC check: role cell, then per-user override (value._users[email][dept])."""
     if _is_super_admin(user):
         return True
     role = (user.get("role") or "User").strip()
-    cell = (((await db.settings.find_one({"key": "acl"}, {"_id": 0})) or {}).get("value") or {}).get(role, {}).get(dept) or {}
-    default = role in ("Admin", "GM") if op == "a" else (role != "Viewer")
-    return bool(cell.get(op, default))
+    email = (user.get("email") or "").lower().strip()
+    val = ((await db.settings.find_one({"key": "acl"}, {"_id": 0})) or {}).get("value") or {}
+    cell = {**((val.get(role) or {}).get(dept) or {}), **(((val.get("_users") or {}).get(email) or {}).get(dept) or {})}
+    return bool(cell.get(op, _acl_default(role, dept, op)))
+
+
+async def _rbac(user: Dict, dept: str, op: str) -> None:
+    if not await _acl_ok(user, dept, op):
+        label = {"v": "View", "c": "Create", "e": "Edit", "d": "Delete", "a": "Approve"}[op]
+        raise HTTPException(status_code=403, detail=f"{label} ki permission nahi hai (System Management → Permissions)")
+
 
 
 ACL_COLL_DEPT = {
@@ -1036,7 +1060,7 @@ _APPROVE_WORDS = {"approved", "rejected", "paid", "settled"}
 
 async def _acl_restricted(user: Dict, coll: str) -> bool:
     dept = ACL_COLL_DEPT.get(coll)
-    return bool(dept) and not (await _acl_ok(user, dept, "c") and await _acl_ok(user, dept, "a"))
+    return bool(dept) and not (await _acl_ok(user, dept, "c") and await _acl_ok(user, dept, "e") and await _acl_ok(user, dept, "a"))
 
 
 async def _acl_guard(coll: str, body: Dict, user: Dict) -> None:
@@ -1058,8 +1082,8 @@ async def _acl_guard(coll: str, body: Dict, user: Dict) -> None:
     (os_, ost), (ns, nst) = lvl(ex), lvl(body)
     if ((ns > os_ and ns > 2) or (nst != ost and nst in _APPROVE_WORDS)) and not await _acl_ok(user, dept, "a"):
         raise HTTPException(status_code=403, detail="Approval ki permission nahi hai (System Admin → Permissions)")
-    if not await _acl_ok(user, dept, "c"):
-        raise HTTPException(status_code=403, detail="Entry / edit ki permission nahi hai (System Admin → Permissions)")
+    if not await _acl_ok(user, dept, "e" if ex else "c"):
+        raise HTTPException(status_code=403, detail="Entry / edit ki permission nahi hai (System Management → Permissions)")
 
 
 async def _acl_filter(coll: str, items: List[dict], user: Dict) -> List[dict]:
@@ -1188,7 +1212,8 @@ def _make_hr_crud(coll_name: str, path: str, step_field: str = "step"):
         await db[coll_name].update_one({"id": rid}, {"$set": body}, upsert=True)
         return {"ok": True, "id": rid}
     @api_router.delete(f"/{path}/{{rid}}")
-    async def _delete(rid: str, admin: Dict = Depends(require_admin)):
+    async def _delete(rid: str, admin: Dict = Depends(get_current_user)):
+        await _rbac(admin, ACL_COLL_DEPT.get(coll_name, "hr"), "d")
         r = await db[coll_name].delete_one({"id": rid})
         return {"ok": True, "deleted": r.deleted_count}
     return _list, _upsert, _delete
@@ -1213,7 +1238,7 @@ async def upsert_fooding(body: Dict = Body(...), user: Dict = Depends(require_wr
 
 
 @api_router.delete("/fooding/{fid}")
-async def delete_fooding(fid: str, user: Dict = Depends(require_admin)):
+async def delete_fooding(fid: str, user: Dict = Depends(_need("accounts", "d"))):
     r = await db.fooding.delete_one({"id": fid})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -1367,6 +1392,7 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
         raise HTTPException(status_code=400, detail="id required")
     body.pop("_id", None)
     existing = await db[coll].find_one({"id": rid}, {"_id": 0})
+    await _rbac(user, "client", "e" if existing else "c")
     if name in _CRM_WF:
         old_step = int((existing or {}).get("step") or 1)
         new_step = int(body.get("step") or old_step)
@@ -1385,7 +1411,7 @@ async def crm_upsert(name: str, body: Dict = Body(...), user: Dict = Depends(req
             if new_step == 6 and existing:
                 body = {**existing, "step": 6, "cancelReason": str(body.get("cancelReason")).strip(), "history": body.get("history", existing.get("history", [])),
                         "cancelledBy": user.get("name") or user.get("email"), "cancelledAt": datetime.now(timezone.utc).date().isoformat()}
-        if not _crm_power(user) and (new_step > 2 or old_step >= 3 or (name == "invoices" and old_step >= 2)):
+        if not await _acl_ok(user, "client", "a") and (new_step > 2 or old_step >= 3 or (name == "invoices" and old_step >= 2)):
             if name == "mb" and existing and new_step == old_step:
                 body = {**existing, "raBillId": body.get("raBillId", existing.get("raBillId", ""))}
             else:
@@ -1497,8 +1523,7 @@ def _crm_power(user: Dict) -> bool:
 
 @api_router.delete("/crm/{name}/{rid}")
 async def crm_delete(name: str, rid: str, user: Dict = Depends(get_current_user)):
-    if not _crm_power(user):
-        raise HTTPException(status_code=403, detail="Delete sirf SuperAdmin / Admin kar sakte hain")
+    await _rbac(user, "client", "d")
     if name == "invoices":
         inv = await db[_crm_coll(name)].find_one({"id": rid}, {"_id": 0, "invoiceNo": 1})
         if inv and inv.get("invoiceNo"):
@@ -1539,7 +1564,7 @@ async def upsert_expense(body: Dict = Body(...), user: Dict = Depends(require_wr
 
 
 @api_router.delete("/expenses/{xid}")
-async def delete_expense(xid: str, admin: Dict = Depends(require_admin)):
+async def delete_expense(xid: str, admin: Dict = Depends(_need("accounts", "d"))):
     r = await db.expenses.delete_one({"id": xid})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -1562,7 +1587,7 @@ async def upsert_boq(body: Dict = Body(...), user: Dict = Depends(get_current_us
 
 
 @api_router.delete("/boqs/{bid}")
-async def delete_boq(bid: str, admin: Dict = Depends(require_admin)):
+async def delete_boq(bid: str, admin: Dict = Depends(_need("procurement", "d"))):
     r = await db.boqs.delete_one({"id": bid})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -1585,7 +1610,7 @@ async def upsert_wo(body: Dict = Body(...), user: Dict = Depends(get_current_use
 
 
 @api_router.delete("/work_orders/{wid}")
-async def delete_wo(wid: str, admin: Dict = Depends(require_admin)):
+async def delete_wo(wid: str, admin: Dict = Depends(_need("procurement", "d"))):
     r = await db.work_orders.delete_one({"id": wid})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -2195,8 +2220,7 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     ex = await db[coll].find_one({"id": rid}, {"_id": 0}) or {}
     old, new = ex.get("status") or "Draft", body.get("status") or ex.get("status") or "Draft"
     dept = OPS_DEPT[kind]
-    if not await _acl_ok(user, dept, "c"):
-        raise HTTPException(status_code=403, detail="Aapko is department mein entry ki permission nahi hai")
+    await _rbac(user, dept, "e" if ex else "c")
     if ((new in ("Approved", "Rejected") and new != old) or old == "Approved") and not await _acl_ok(user, dept, "a"):
         raise HTTPException(status_code=403, detail="Approval / approved record change ki permission nahi hai")
     now = datetime.now(timezone.utc)
@@ -2229,8 +2253,7 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
 
 @api_router.delete("/ops/{kind}/{rid}")
 async def ops_delete(kind: str, rid: str, user: Dict = Depends(get_current_user)):
-    if not _crm_power(user):
-        raise HTTPException(status_code=403, detail="Delete sirf SuperAdmin / Admin kar sakte hain")
+    await _rbac(user, OPS_DEPT[kind], "d")
     coll = _ops_coll(kind)
     await db[coll].delete_one({"id": rid})
     # Roll counters back to highest number still in use (frees the last deleted number)

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { DateInput } from "./DateInput";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Plus, Trash2, Save, Send, Printer, Download, CheckCircle2, Utensils } from "lucide-react";
@@ -277,10 +278,10 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
             <input value={cur.fy} readOnly data-testid="wf-fy" style={{ ...inp, background: "#dcfce7", fontWeight: 800 }} />
           </F>
           <F label="From Date">
-            <input type="date" value={cur.fromDate} onChange={(e) => setCur({ ...cur, fromDate: e.target.value })} disabled={locked} data-testid="wf-from" style={inp} />
+            <DateInput type="date" value={cur.fromDate} onChange={(e) => setCur({ ...cur, fromDate: e.target.value })} disabled={locked} data-testid="wf-from" style={inp} />
           </F>
           <F label="To Date">
-            <input type="date" value={cur.toDate} onChange={(e) => setCur({ ...cur, toDate: e.target.value })} disabled={locked} data-testid="wf-to" style={inp} />
+            <DateInput type="date" value={cur.toDate} onChange={(e) => setCur({ ...cur, toDate: e.target.value })} disabled={locked} data-testid="wf-to" style={inp} />
           </F>
           <F label="Ref No">
             <input value={cur.refNo} readOnly data-testid="wf-ref" style={{ ...inp, background: "#e0e7ff", fontWeight: 800, fontFamily: "monospace" }} />
@@ -309,7 +310,7 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
               <tr key={l.id} style={{ background: i % 2 ? "#f8fafc" : "#fff" }}>
                 <td style={{ padding: 3, border: "1px solid #e2e8f0", textAlign: "center", fontWeight: 700 }}>{i + 1}</td>
                 <td style={{ padding: 3, border: "1px solid #e2e8f0" }}>
-                  <input type="date" value={l.date} onChange={(e) => setLine(i, { date: e.target.value })} disabled={locked} data-testid={`wf-date-${i}`} style={cellInp} />
+                  <DateInput type="date" value={l.date} onChange={(e) => setLine(i, { date: e.target.value })} disabled={locked} data-testid={`wf-date-${i}`} style={cellInp} />
                 </td>
                 <td style={{ padding: 3, border: "1px solid #e2e8f0" }}>
                   <input list="wf-emp-list" value={l.empId} onChange={(e) => setLine(i, { empId: e.target.value })} disabled={locked} data-testid={`wf-emp-${i}`} placeholder="EMP ID" style={{ ...cellInp, background: "#fef3c7", fontWeight: 700, color: "#92400e" }} />
@@ -337,7 +338,7 @@ const WeeklyFoodingTab = ({ writeAllowed }) => {
                   <input value={l.approver} onChange={(e) => setLine(i, { approver: e.target.value })} disabled={locked} style={cellInp} placeholder="Approver / NIL" />
                 </td>
                 <td style={{ padding: 3, border: "1px solid #e2e8f0" }}>
-                  <input type="date" value={l.payDate} onChange={(e) => setLine(i, { payDate: e.target.value })} disabled={locked} style={cellInp} />
+                  <DateInput type="date" value={l.payDate} onChange={(e) => setLine(i, { payDate: e.target.value })} disabled={locked} style={cellInp} />
                 </td>
                 <td style={{ padding: 3, border: "1px solid #e2e8f0" }}>
                   <input value={l.signature} onChange={(e) => setLine(i, { signature: e.target.value })} disabled={locked} style={cellInp} placeholder="NIL / Signed" />

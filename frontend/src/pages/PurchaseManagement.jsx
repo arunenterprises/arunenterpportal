@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { DateInput } from "../components/DateInput";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BillProcessing from "./BillProcessing";
@@ -261,7 +262,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
           </div>
           <div className="field-b">
             <label>Date</label>
-            <input data-testid="boq-date" type="date" value={boq.date} onChange={(e) => set("date", e.target.value)} disabled={locked} />
+            <DateInput data-testid="boq-date" type="date" value={boq.date} onChange={(e) => set("date", e.target.value)} disabled={locked} />
           </div>
           <div className="field-b">
             <label>Reference No.</label>
@@ -885,8 +886,8 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
               {list.map((w) => <option key={w.id} value={w.woNo || w.id}>{`${w.vendorName || "—"} · ${w.projectSite || ""} · ₹${Number(w.total || 0).toLocaleString("en-IN")}`}</option>)}
             </datalist>
           </div>
-          <div><label>WO Date</label><input data-testid="wo-date" type="date" value={wo.woDate} onChange={(e) => set("woDate", e.target.value)} disabled={locked} /></div>
-          <div><label>Expiry Date {wo.woNo ? "(locked)" : "*"}</label><input data-testid="wo-expiry" type="date" value={wo.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} disabled={locked || wo.step >= 4} min={wo.woDate || undefined} /></div>
+          <div><label>WO Date</label><DateInput data-testid="wo-date" type="date" value={wo.woDate} onChange={(e) => set("woDate", e.target.value)} disabled={locked} /></div>
+          <div><label>Expiry Date {wo.woNo ? "(locked)" : "*"}</label><DateInput data-testid="wo-expiry" type="date" value={wo.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} disabled={locked || wo.step >= 4} min={wo.woDate || undefined} /></div>
           <div><label>Status</label><input data-testid="wo-status" value={WO_STEP_LABEL[wo.step] || "-"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
 
           <div style={{ gridColumn: "span 2" }}>

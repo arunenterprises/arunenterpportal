@@ -36,6 +36,7 @@ export const DeptNavList = ({ mini = false, showSubs = true }) => {
   return ITEMS.map((it) => {
     const Icon = it.icon;
     const ok = can(it.d, "v");
+    if (!ok && it.d !== "gm") return null;
     const act = deptOfPath(loc.pathname) === it.d;
     return (
       <div key={it.n} className="sb-row">

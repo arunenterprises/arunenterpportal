@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { DateInput } from "../DateInput";
 import { toast } from "sonner";
 import { getToken } from "../../lib/api";
 import { getFY } from "../../lib/store";
@@ -124,7 +125,7 @@ export const Field = ({ label, children, span = 1 }) => (
 
 export const inputS = { padding: "7px 10px", fontSize: 12.5, border: "1px solid #cbd5e1", borderRadius: 6, outline: "none", background: "#fff", width: "100%", boxSizing: "border-box" };
 
-export const Inp = (p) => <input {...p} style={{ ...inputS, ...(p.style || {}) }} />;
+export const Inp = (p) => (p.type === "date" ? <DateInput {...p} style={{ ...inputS, ...(p.style || {}) }} /> : <input {...p} style={{ ...inputS, ...(p.style || {}) }} />);
 export const Sel = ({ options, ...p }) => (
   <select {...p} style={{ ...inputS, ...(p.style || {}) }}>
     {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
