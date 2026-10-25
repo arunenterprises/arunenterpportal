@@ -102,10 +102,11 @@ export const Abstract = ({ data }) => {
   const clientOf = (id) => (data.clients || []).find((x) => x.id === id) || {};
   const sameWork = (r, cid, po) => r.id !== f.id && r.status !== "Rejected" && ((cid && r.contractId === cid) || (po && r.poNo === po));
   const lineKey = (x) => x.itemId || `${x.poPos}|${x.code}|${x.desc}`;
-  const prevOf = (l, cid, po) => rows.filter((r) => sameWork(r, cid, po)).reduce((s, r) => s + (r.lines || []).filter((x) => lineKey(x) === lineKey(l)).reduce((a, x) => a + n(x.curQty), 0), 0);
+  const lastOf = (cid, po) => rows.filter((r) => sameWork(r, cid, po) && (!f.createdAt || String(r.createdAt || "") < String(f.createdAt))).sort((a, b) => String(b.createdAt || b.tempNo || "").localeCompare(String(a.createdAt || a.tempNo || "")))[0];
+  const prevOf = (l, cid, po) => { const x = (lastOf(cid, po)?.lines || []).find((y) => lineKey(y) === lineKey(l)); return x ? n(x.prevQty) + n(x.curQty) : 0; };
   const applyWork = (p, c, po) => {
     const cid = c?.id || "";
-    const last = rows.filter((r) => sameWork(r, cid, po)).sort((a, b) => String(b.createdAt || b.tempNo || "").localeCompare(String(a.createdAt || a.tempNo || "")))[0];
+    const last = lastOf(cid, po);
     const base = last?.lines?.length ? last.lines.map((x) => ({ ...line(), itemId: x.itemId || "", poPos: x.poPos, desc: x.desc, code: x.code, uom: x.uom, hsn: x.hsn, poQty: x.poQty, rate: x.rate }))
       : (c?.items || []).filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(i.poPos || k + 1), desc: i.description, code: i.itemCode || (/^\d{4,8}$/.test(String(i.code || "").trim()) ? "" : i.code || ""), uom: i.unit || "", hsn: /^\d{4,8}$/.test(String(i.code || "").trim()) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }));
     const lines = base.map((l) => ({ ...l, prevQty: +prevOf(l, cid, po).toFixed(3) || "" }));
@@ -127,12 +128,13 @@ export const Abstract = ({ data }) => {
       ? c.items.filter((i) => i.description).map((i, k) => ({ ...line(), itemId: i.id, poPos: String(i.poPos || k + 1), desc: i.description, code: i.itemCode || (isH(i.code) ? "" : i.code || ""), uom: i.unit || "", hsn: isH(i.code) ? i.code : "", poQty: n(i.qty), rate: n(i.rate) }))
       : (inv.lines || []).filter((x) => x.description).map((x) => ({ ...line(), itemId: x.itemId || "", poPos: x.poPos, desc: x.description, code: x.itemCode, uom: x.uom, hsn: x.hsn, poQty: "", rate: n(x.rate) }));
     const lines = base.map((l) => {
-      const pq = earlier.length ? qtyIn(earlier, l) : prevOf(l, cid, inv.poNo);
+      const pq = lastOf(cid, inv.poNo) ? prevOf(l, cid, inv.poNo) : qtyIn(earlier, l);
       return { ...l, prevQty: +pq.toFixed(3) || "", curQty: +qtyIn([inv], l).toFixed(3) || "" };
     });
     const cl = clientOf(inv.clientId || c?.clientId);
     setF((p) => ({ ...p, invoiceNo: no, invoiceDate: inv.invoiceDate || p.invoiceDate, clientId: cl.id || p.clientId, contractId: cid, poNo: inv.poNo || c?.workOrderNo || p.poNo, poDate: inv.poDate || c?.workOrderDate || p.poDate, toText: toTextOf(cl) || p.toText, location: inv.billLocation || p.location, periodFrom: p.periodFrom, periodTo: p.periodTo, lines: lines.length ? lines : p.lines }));
-    toast.success(`Invoice se ${lines.length} items aa gaye · Previous = pichhle ${earlier.length} invoice · Current = is invoice ki qty`);
+    const la = lastOf(cid, inv.poNo);
+    toast.success(`Invoice se ${lines.length} items aa gaye · Previous = ${la ? `pichhle Abstract ${la.docNo} ki Cumulative` : `pichhle ${earlier.length} invoice`} · Current = is invoice ki qty`);
   };
   const pickClient = (id) => {
     const cs = (data.contracts || []).filter((x) => x.clientId === id);
