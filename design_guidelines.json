@@ -1,0 +1,162 @@
+{
+  "project_name": "Arun Enterprises ERP - 3D Architectural Canvas Draft",
+  "theme_strategy": {
+    "default_mode": "dual_toggle",
+    "light_mode": {
+      "bg_primary": "#F8FAFC",
+      "bg_secondary": "#FFFFFF",
+      "bg_surface": "rgba(255, 255, 255, 0.85)",
+      "border_color": "#E2E8F0",
+      "text_primary": "#0B1F4D",
+      "text_secondary": "#475569",
+      "text_muted": "#94A3B8",
+      "shadow_3d": "0 20px 35px -10px rgba(11, 31, 77, 0.08), 0 0 1px 1px rgba(11, 31, 77, 0.05)",
+      "gradient_stage": "radial-gradient(ellipse at 50% 0%, rgba(14, 165, 233, 0.12) 0%, rgba(248, 250, 252, 0) 70%)"
+    },
+    "dark_mode": {
+      "bg_primary": "#070E1E",
+      "bg_secondary": "#0B172E",
+      "bg_surface": "rgba(15, 27, 52, 0.75)",
+      "border_color": "#1E293B",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8",
+      "text_muted": "#64748B",
+      "shadow_3d": "0 25px 40px -15px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.08)",
+      "gradient_stage": "radial-gradient(ellipse at 50% 0%, rgba(14, 165, 233, 0.18) 0%, rgba(7, 14, 30, 0) 75%)"
+    }
+  },
+  "brand_colors": {
+    "red_primary": "#C81E2B",
+    "navy_primary": "#0B1F4D",
+    "sky_accent": "#0EA5E9",
+    "amber_warning": "#F59E0B",
+    "emerald_success": "#10B981",
+    "violet_accent": "#8B5CF6",
+    "indigo_accent": "#6366F1",
+    "teal_accent": "#14B8A6"
+  },
+  "typography": {
+    "font_family_heading": "Outfit, sans-serif",
+    "font_family_body": "Manrope, sans-serif",
+    "font_family_mono": "JetBrains Mono, monospace",
+    "h1_hero": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+    "h2_section": "text-xl sm:text-2xl font-bold tracking-tight",
+    "h3_tile": "text-base font-semibold tracking-normal",
+    "body": "text-sm text-slate-600 dark:text-slate-300 leading-relaxed",
+    "badge": "text-xs font-mono font-medium tracking-wide uppercase"
+  },
+  "visual_concept_3d": {
+    "name": "Architectural Isometric Stage & Layered Slab System",
+    "key_differentiators": [
+      "Replaces generic tilt-cards with multi-layered Architectural Blueprint Slabs (layered elevation, backdrop blur, isometric angle controls).",
+      "Dual Theme Support (Crisp Architectural Light Mode with blueprint grid overlay + High-Contrast Tactical Slate Dark Mode).",
+      "Animated Micro-Interactions on Icons (Hover pulse, spring floating, gear rotation on System Mgmt, pulse beam on QC, counting effect on KPIs).",
+      "Interactive Stage Floor: 3D grid plane with glowing perspective lines and focal depth fog."
+    ],
+    "card_3d_style": "layered_elevation",
+    "border_radius": "rounded-2xl"
+  },
+  "department_tiles": [
+    {
+      "key": "gm",
+      "title": "GM Dashboard",
+      "icon": "Building2",
+      "color": "#C81E2B",
+      "path": "/gm",
+      "desc": "Executive overview, high-level approvals & site control"
+    },
+    {
+      "key": "client_revenue",
+      "title": "Client & Revenue",
+      "icon": "TrendingUp",
+      "color": "#10B981",
+      "path": "/client-revenue",
+      "desc": "RA Bills, client ledger, milestones & inflows"
+    },
+    {
+      "key": "hr",
+      "title": "HR & Payroll",
+      "icon": "Users",
+      "color": "#8B5CF6",
+      "path": "/hr",
+      "desc": "Staff attendance, salary finalization & hiring"
+    },
+    {
+      "key": "procurement",
+      "title": "Procurement & Vendors",
+      "icon": "ShoppingCart",
+      "color": "#0EA5E9",
+      "path": "/purchase",
+      "desc": "Material requisitions, POs, vendor ratings & registration"
+    },
+    {
+      "key": "finance",
+      "title": "Finance & Accounts",
+      "icon": "Receipt",
+      "color": "#F59E0B",
+      "path": "/bill",
+      "desc": "Bill verification, vouchers, payments & cash flows"
+    },
+    {
+      "key": "project",
+      "title": "Project Management",
+      "icon": "HardHat",
+      "color": "#3B82F6",
+      "path": "/project",
+      "desc": "Site timelines, DPR, structural progress & Gantt"
+    },
+    {
+      "key": "qc_safety",
+      "title": "QC & Safety",
+      "icon": "ShieldCheck",
+      "color": "#EC4899",
+      "path": "/qc-safety",
+      "desc": "Quality compliance, safety audits & incident logs"
+    },
+    {
+      "key": "plant",
+      "title": "P&M (Machinery)",
+      "icon": "Truck",
+      "color": "#14B8A6",
+      "path": "/plant",
+      "desc": "Heavy equipment, fuel tracking & maintenance schedule"
+    },
+    {
+      "key": "reports",
+      "title": "Reports Hub",
+      "icon": "BarChart3",
+      "color": "#6366F1",
+      "path": "/reports-hub",
+      "desc": "Cross-department analytics, exports & audit trails"
+    },
+    {
+      "key": "users",
+      "title": "System Management",
+      "icon": "Settings",
+      "color": "#64748B",
+      "path": "/users",
+      "desc": "User roles, access control permissions & cloud backup"
+    }
+  ],
+  "image_urls": {
+    "blueprint_bg": "https://images.unsplash.com/photo-1721244654394-36a7bc2da288?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwyfHxjb25zdHJ1Y3Rpb24lMjBhcmNoaXRlY3R1cmFsJTIwYmx1ZXByaW50JTIwbW9kZWwlMjBidWlsZGluZyUyMHN0cnVjdHVyZXxlbnwwfHx8fDE3OTM3MDQ3NzR8MA&ixlib=rb-4.1.0&q=85",
+    "blueprint_tower": "https://images.unsplash.com/photo-1712696779652-dfca8766c5f8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHw0fHxjb25zdHJ1Y3Rpb24lMjBhcmNoaXRlY3R1cmFsJTIwYmx1ZXByaW50JTIwbW9kZWwlMjBidWlsZGluZyUyMHN0cnVjdHVyZXxlbnwwfHx8fDE3OTM3MDQ3NzR8MA&ixlib=rb-4.1.0&q=85",
+    "company_logo_mark": "https://images.unsplash.com/photo-1762146828422-50a8bd416d3c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwzfHxjb25zdHJ1Y3Rpb24lMjBhcmNoaXRlY3R1cmFsJTIwYmx1ZXByaW50JTIwbW9kZWwlMjBidWlsZGluZyUyMHN0cnVjdHVyZXxlbnwwfHx8fDE3OTM3MDQ3NzR8MA&ixlib=rb-4.1.0&q=85"
+  },
+  "component_path": "/app/frontend/src/pages/Home3D.js",
+  "instructions_to_main_agent": [
+    "Implement the home draft in /app/frontend/src/pages/Home3D.js with complete functionality.",
+    "Support dark and light mode toggle via standard React state / next-themes / class switching, retaining preference.",
+    "Header must display Arun Enterprises logo mark, official company name, tagline, active user greeting with role, pending approval badge, and theme switcher button.",
+    "Display 4 KPI stats cards with smooth 3D hover lift, live indicators, and data-testid attributes.",
+    "Display 10 department launcher tiles in an asymmetric responsive grid (3-4 columns on desktop). Each tile must feature an animated Lucide icon (framer-motion rotation, float, pulse, or tilt), department badge, descriptive subtitle, and explicit permission state (lock overlay when unauthorized).",
+    "Include an interactive 3D Architectural Blueprint Canvas section with isometric visual depth effects, subtle grid lines, depth parallax, and toggle controls for perspective mode.",
+    "Ensure all interactive elements have data-testid attributes (e.g., data-testid='theme-toggle-button', data-testid='dept-tile-gm', data-testid='kpi-vendor-stat')."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Always add data-testid attributes to all buttons, links, toggles, cards, and input controls.",
+    "Maintain high APCA contrast ratios in both Light Mode (Dark Navy text on Off-White/Glass background) and Dark Mode (Crisp White/Sky Blue text on Dark Slate backdrop).",
+    "Never use full transparent backgrounds without backdrop blurs or solid fallbacks.",
+    "Use framer-motion spring animations for smooth non-linear 3D tile entrance and hover dynamics."
+  ]
+}
