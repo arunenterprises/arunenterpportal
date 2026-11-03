@@ -1,0 +1,40 @@
+.h3d-root { position: relative; min-height: calc(100vh - 52px); background: #060b1c; color: #fff; overflow: hidden; perspective: 1400px; }
+.h3d-grid-floor { position: absolute; left: -50%; right: -50%; bottom: -30%; height: 70%; background-image: linear-gradient(rgba(200,30,43,.22) 1px, transparent 1px), linear-gradient(90deg, rgba(14,165,233,.18) 1px, transparent 1px); background-size: 60px 60px; transform: rotateX(70deg); transform-origin: top; animation: h3dFloor 6s linear infinite; mask-image: linear-gradient(to top, #000 10%, transparent 90%); pointer-events: none; }
+@keyframes h3dFloor { to { background-position: 0 60px, 0 0; } }
+.h3d-orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: .45; pointer-events: none; animation: h3dOrb 14s ease-in-out infinite alternate; }
+.h3d-orb.o1 { width: 420px; height: 420px; background: #c81e2b; top: -120px; left: -80px; }
+.h3d-orb.o2 { width: 380px; height: 380px; background: #1e3a8a; top: 30%; right: -100px; animation-delay: -5s; }
+.h3d-orb.o3 { width: 300px; height: 300px; background: #0ea5e9; bottom: -80px; left: 35%; opacity: .25; animation-delay: -9s; }
+@keyframes h3dOrb { to { transform: translate(60px, 40px) scale(1.15); } }
+.h3d-wrap { position: relative; z-index: 1; max-width: 1500px; margin: 0 auto; padding: 18px 28px 40px; }
+.h3d-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.h3d-draft { font-size: 10px; letter-spacing: 3px; font-weight: 800; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(245,158,11,.6); color: #fbbf24; background: rgba(245,158,11,.08); }
+.h3d-back { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); color: #e2e8f0; font-size: 12px; font-weight: 700; cursor: pointer; transition: background-color .2s, transform .2s; }
+.h3d-back:hover { background: rgba(255,255,255,.14); transform: translateX(-2px); }
+.h3d-hero { display: grid; grid-template-columns: auto 1fr auto; gap: 26px; align-items: center; padding: 22px 26px; border-radius: 22px; background: rgba(15,23,42,.55); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(18px); box-shadow: 0 30px 60px -20px rgba(200,30,43,.35), inset 0 1px 0 rgba(255,255,255,.08); }
+.h3d-logo { width: 104px; height: 104px; border-radius: 20px; background: #fff; padding: 8px; box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 18px 40px -10px rgba(200,30,43,.7); transform-style: preserve-3d; }
+.h3d-logo img { width: 100%; height: 100%; object-fit: contain; }
+.h3d-kicker { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: #fbbf24; font-weight: 800; }
+.h3d-h1 { font-size: 40px; line-height: 1.05; font-weight: 900; margin: 6px 0 4px; letter-spacing: .5px; background: linear-gradient(90deg, #fff 0%, #fecaca 45%, #ef4444 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.h3d-tag { font-size: 13px; color: #94a3b8; font-weight: 600; letter-spacing: 1px; }
+.h3d-pending { text-align: right; padding: 14px 22px; border-radius: 16px; background: linear-gradient(135deg, #c81e2b, #7f1d1d); box-shadow: 0 0 40px -5px rgba(200,30,43,.8); }
+.h3d-pending-l { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: 800; color: #fecaca; }
+.h3d-pending-v { font-size: 38px; font-weight: 900; line-height: 1; }
+.h3d-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin: 18px 0 8px; }
+.h3d-stat { padding: 14px 18px; border-radius: 16px; background: rgba(15,23,42,.6); border: 1px solid rgba(255,255,255,.08); border-top: 2px solid var(--c); box-shadow: 0 10px 30px -15px var(--c); }
+.h3d-stat-l { font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: #94a3b8; font-weight: 800; }
+.h3d-stat-v { font-size: 28px; font-weight: 900; color: var(--c); text-shadow: 0 0 18px var(--c); }
+.h3d-stat-v span { font-size: 14px; color: #64748b; text-shadow: none; }
+.h3d-section { margin: 22px 0 12px; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: #64748b; font-weight: 800; }
+.h3d-cards { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 18px; transform-style: preserve-3d; }
+.h3d-card { position: relative; text-align: left; min-height: 170px; padding: 18px; border-radius: 20px; color: #fff; cursor: pointer; background: linear-gradient(160deg, rgba(30,41,59,.85), rgba(15,23,42,.9)); border: 1px solid rgba(255,255,255,.09); transform-style: preserve-3d; overflow: hidden; transition: border-color .3s, box-shadow .3s; }
+.h3d-card:hover { border-color: var(--c); box-shadow: 0 25px 50px -12px var(--c), 0 0 0 1px var(--c); }
+.h3d-card.locked { cursor: not-allowed; opacity: .45; filter: grayscale(.6); }
+.h3d-card-glow { position: absolute; inset: auto -30% -60% auto; width: 180px; height: 180px; border-radius: 50%; background: var(--c); filter: blur(60px); opacity: .35; transition: opacity .3s; }
+.h3d-card:hover .h3d-card-glow { opacity: .7; }
+.h3d-num { position: absolute; top: 12px; right: 16px; font-size: 28px; font-weight: 900; color: rgba(255,255,255,.07); }
+.h3d-ico { width: 58px; height: 58px; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, var(--c), rgba(0,0,0,.35)); box-shadow: 0 12px 25px -8px var(--c), inset 0 1px 0 rgba(255,255,255,.35); transform: translateZ(40px); }
+.h3d-title { margin-top: 18px; font-size: 15px; font-weight: 800; line-height: 1.25; transform: translateZ(25px); }
+.h3d-cta { margin-top: 10px; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--c); transform: translateZ(20px); }
+@media (max-width: 1200px) { .h3d-cards { grid-template-columns: repeat(3, minmax(0,1fr)); } .h3d-h1 { font-size: 30px; } }
+@media (max-width: 900px) { .h3d-hero { grid-template-columns: 1fr; text-align: center; } .h3d-logo { margin: 0 auto; } .h3d-pending { text-align: center; } .h3d-stats { grid-template-columns: repeat(2, minmax(0,1fr)); } .h3d-cards { grid-template-columns: repeat(2, minmax(0,1fr)); } }

@@ -380,6 +380,7 @@ export default function Home() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 1600, width: "100%", margin: "0 auto", flex: 1, minHeight: 0 }}>
 
             <CompanyBanner name={displayName || me?.user || "User"} pending={pendingApprovals} />
+            <button data-testid="open-home-3d-preview" onClick={() => nav("/home-3d")} style={{ alignSelf: "flex-end", padding: "5px 14px", borderRadius: 999, border: "1px solid #c81e2b", background: "#0b1f4d", color: "#fff", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>Naya 3D Home Draft dekhein →</button>
 
 
             {/* KPI tiles */}

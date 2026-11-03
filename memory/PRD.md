@@ -416,3 +416,8 @@ See `/app/memory/test_credentials.md`.
 - SuperAdmin counter Re-Align: GET /api/admin/counters, POST /api/admin/realign-counter/{key}?dry=1 (preview, then apply) for legacy series; panel in System Management + button in Payments Register. Refuses if number format not recognised.
 - Known: other browsers' local counters may push a counter back up (monotonic merge).
 
+
+## 2026-11-03
+- Removed unused emergentintegrations + litellm from backend/requirements.txt (code no longer imports them; AI uses GEMINI_API_KEY via google-genai) so VPS `pip install -r requirements.txt` works.
+- New DRAFT 3D Home page at /home-3d (pages/Home3D.jsx + home3d.css): dark navy + company red glow, mouse-tilt 3D department cards (ACL-aware via can()), floating animated icons, animated grid floor/orbs. Old /home unchanged; button "Naya 3D Home Draft dekhein" on old Home opens it. Pending: user approval to make it the default Home.
+
