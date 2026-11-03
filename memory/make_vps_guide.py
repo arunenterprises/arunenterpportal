@@ -38,7 +38,7 @@ T([["Cheez", "Detail"],
    [W("Domain"), W("Jaise erp.yourdomain.com - DNS mein VPS ka IP lagana hoga")],
    [W("GitHub account"), W("Emergent ka 'Save to GitHub' (Standard ya upar ka plan) se code wahan jayega")],
    [W("Email service"), W("Login OTP aur backup mail ke liye - Gmail SMTP / Hostinger email / Zoho (Step 11)")],
-   [W("OpenAI API key (optional)"), W("Sirf AI Work Order (PDF padhna / AI scope) ke liye (Step 12)")],
+   [W("Gemini API key"), W("AI Work Order (PDF padhna / AI scope) ke liye (Step 12)")],
    [W("Backup file"), W("System Management -> Nightly Backups se latest JSON backup download karein (Step 10)")]], [45 * mm, 125 * mm])
 
 P("STEP 1 - Code ko GitHub par save karein", H2)
@@ -109,9 +109,9 @@ T([["Key", "Kya likhein"],
    [W("ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_NAME"), W("SuperAdmin login (arunenterprises2023@gmail.com aur naya strong password)")],
    [W("LEGACY_ADMIN_EMAILS"), W("purane admin emails, comma se alag (ya khaali)")],
    [W("EMAIL_FROM_NAME"), W("Arun Enterprises")],
-   [W("SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS"), W("Naya email service (Step 11)")],
+   [W("SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM_EMAIL"), W("Apne domain ka email (Step 11)")],
    [W("WEBHOOK_CRON_SECRET"), W("random text - nightly backup ke liye (Step 13)")],
-   [W("OPENAI_API_KEY (optional)"), W("AI Work Order ke liye (Step 12)")]], [62 * mm, 108 * mm])
+   [W("GEMINI_API_KEY"), W("AI Work Order ke liye (Step 12)")]], [62 * mm, 108 * mm])
 P("Test chalayein:", H3)
 C("""
 uvicorn server:app --host 127.0.0.1 --port 8001
@@ -208,32 +208,19 @@ sudo systemctl restart arun-erp
 P("Restore ke baad Vendors, Bills, Invoices, HR, MB/RA Bills ki ginti purane ERP se milaayein. Users ke password backup mein hote hain, isliye sab purane password se login kar sakenge. Agar koi collection backup mein na ho to uska data naye server par khaali rahega - restore se pehle backup file ki ginti dekh lein.", NOTE)
 
 P("STEP 11 - Email (Login OTP + Backup mail) badlein", H2)
-P("Emergent par email <b>EMERGENT_EMAIL_KEY</b> se jaata hai - yeh VPS par kaam nahi karega. <b>backend/server.py</b> mein <b>_send_email</b> function ko SMTP se badlein:")
+P("Emergent par email <b>EMERGENT_EMAIL_KEY</b> se jaata hai. ERP mein ab apne domain ka email (SMTP) pehle se lagaya hua hai: VPS ki <b>backend/.env</b> mein yeh 5 keys bharte hi saare OTP / backup mail aapke domain se jayenge (koi code badalna nahi):")
 C("""
-import smtplib, ssl
-from email.mime.text import MIMEText
-
-async def _send_email(*, to: str, subject: str, html: str):
-    host, user = os.environ.get("SMTP_HOST"), os.environ.get("SMTP_USER")
-    if not host or not user:
-        logger.warning("SMTP not set - email skipped"); return None
-    msg = MIMEText(html, "html")
-    msg["Subject"], msg["From"], msg["To"] = subject, f"{EMAIL_FROM_NAME} <{user}>", to
-    def _go():
-        with smtplib.SMTP(host, int(os.environ.get("SMTP_PORT", "587"))) as s:
-            s.starttls(context=ssl.create_default_context())
-            s.login(user, os.environ["SMTP_PASS"])
-            s.send_message(msg)
-    try:
-        await asyncio.to_thread(_go); return "smtp"
-    except Exception as e:
-        logger.error(f"SMTP error: {e}"); return None
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=noreply@yourdomain.com
+SMTP_PASS=email_ka_password
+SMTP_FROM_EMAIL=noreply@yourdomain.com
 """)
-P("Gmail ke liye: Google Account -> Security -> 2-Step ON -> <b>App Password</b> banayein. SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=aapka gmail, SMTP_PASS=app password. Hostinger email ke liye: smtp.hostinger.com, port 587.")
+P("Hostinger hPanel -> Emails -> apne domain par mailbox banayein (jaise noreply@yourdomain.com). DNS mein Hostinger ke SPF, DKIM, DMARC records lagayein taaki mail Spam mein na jaye. Gmail ke liye: smtp.gmail.com, port 587, App Password.")
+P("Gmail App Password: Google Account -> Security -> 2-Step ON -> App Password. Email bhejne ka code ERP mein pehle se hai, sirf .env bharna hai. SMTP_HOST khaali ho to Emergent ka email use hota hai (sirf Emergent par chalta hai).")
 
-P("STEP 12 - AI Work Order (optional)", H2)
-P("AI se Work Order PDF padhna / AI scope-terms <b>EMERGENT_LLM_KEY</b> (Emergent ki key) se chalta hai. Bahar ke server par iska chalna pakka nahi hai. Agar yeh feature chahiye to <b>platform.openai.com</b> se apni API key lein aur developer se server.py ke 2 jagah (AI Work Order aur WO PDF parse) mein OpenAI ka seedha SDK lagwayein. Yeh feature na ho to baaki ERP par koi asar nahi.")
-P("SMS OTP (Twilio) abhi band hai - chahiye to TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER .env mein daalein.", NOTE)
+P("STEP 12 - AI Work Order (Google Gemini - aapki key)", H2)
+P("AI Work Order (scope + terms) aur Work Order PDF padhna ab aapki apni <b>GEMINI_API_KEY</b> se chalta hai (Emergent key ki zarurat nahi). VPS ki backend/.env mein <b>GEMINI_API_KEY=...</b> daalein. Key aistudio.google.com/apikey se milti hai; Google AI Studio mein Billing ON karein, warna 'quota exceeded' aata hai.")
 
 P("STEP 13 - Nightly Backup (roz 2 AM) - Linux cron", H2)
 P("Emergent par backup apne-aap chalta tha. VPS par crontab lagayein (<b>crontab -e</b>):")

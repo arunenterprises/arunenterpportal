@@ -1250,9 +1250,28 @@ _AI_WO_SYSTEM = (
 )
 
 
+GEMINI_MODELS = ["gemini-3.8-flash", "gemini-4-argon"]
+
+
+async def _gemini_text(contents, system: str) -> str:
+    """All ERP AI calls go through the owner's own GEMINI_API_KEY (works on any server)."""
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=types.HttpOptions(timeout=90000))
+    cfg = types.GenerateContentConfig(system_instruction=system, response_mime_type="application/json", temperature=0.2)
+    err = None
+    for model in GEMINI_MODELS:
+        try:
+            resp = await asyncio.to_thread(client.models.generate_content, model=model, contents=contents, config=cfg)
+            return resp.text or ""
+        except Exception as e:
+            err = e
+            logger.warning(f"Gemini {model} failed: {str(e)[:120]}")
+    raise err
+
+
 @api_router.post("/ai/wo-terms")
 async def ai_wo_terms(body: Dict = Body(...), user: Dict = Depends(require_write)):
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
     items = body.get("items") or []
     lines = "\n".join(f"- {i.get('description','')} | qty {i.get('qty','')} {i.get('unit','')} | rate {i.get('rate','')}" for i in items[:60])
     defaults = "\n".join(f"{k}: {body.get(k) or ''}" for k in ("paymentTerms", "deliveryTerms", "penaltyClause", "warrantyClause", "termsAndConditions"))
@@ -1267,14 +1286,8 @@ async def ai_wo_terms(body: Dict = Body(...), user: Dict = Depends(require_write
         "(e.g. safety, insurance, labour law compliance, documentation, inspection, dispute resolution, force majeure, confidentiality, termination). "
         'Respond ONLY with JSON: {"scopeOfWork": "...", "aiTerms": "1. ...\\n2. ..."}'
     )
-    chat = LlmChat(api_key=os.environ["EMERGENT_LLM_KEY"], session_id=f"aiwo-{uuid.uuid4()}", system_message=_AI_WO_SYSTEM).with_model("openai", "gpt-5.6-terra")
-    out = ""
     try:
-        async for ev in chat.stream_message(UserMessage(text=prompt)):
-            if isinstance(ev, TextDelta):
-                out += ev.content
-            elif isinstance(ev, StreamDone):
-                break
+        out = await _gemini_text(prompt, _AI_WO_SYSTEM)
     except Exception as e:
         logger.exception("AI WO generation failed")
         raise HTTPException(status_code=502, detail=f"AI generation failed: {str(e)[:200]}")
@@ -1331,8 +1344,8 @@ workOrderType: "Supply" if only material supply, "Service" if works contract / l
 
 @api_router.post("/crm/parse-work-order")
 async def crm_parse_work_order(body: Dict = Body(...), user: Dict = Depends(require_write)):
-    import base64, json as _json, tempfile, uuid
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType, TextDelta, StreamDone
+    import base64, json as _json
+    from google.genai import types
     mime = body.get("mimeType") or "application/pdf"
     if mime not in ("application/pdf", "image/png", "image/jpeg", "image/webp"):
         raise HTTPException(status_code=400, detail="Sirf PDF / JPG / PNG file upload karein")
@@ -1343,27 +1356,12 @@ async def crm_parse_work_order(body: Dict = Body(...), user: Dict = Depends(requ
         raise HTTPException(status_code=400, detail="Invalid file data")
     if not blob or len(blob) > 15 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File 15 MB se chhoti honi chahiye")
-    ext = {"application/pdf": ".pdf", "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}[mime]
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tf:
-        tf.write(blob)
-        path = tf.name
     try:
-        chat = LlmChat(api_key=os.environ["EMERGENT_LLM_KEY"], session_id=f"wo-{uuid.uuid4()}",
-                       system_message="You extract structured data from construction work order documents.").with_model("gemini", "gemini-3.1-pro-preview")
-        text = ""
-        async for ev in chat.stream_message(UserMessage(text=_WO_PROMPT, file_contents=[FileContentWithMimeType(file_path=path, mime_type=mime)])):
-            if isinstance(ev, TextDelta):
-                text += ev.content
-            elif isinstance(ev, StreamDone):
-                break
+        text = await _gemini_text([types.Part.from_bytes(data=blob, mime_type=mime), _WO_PROMPT],
+                                  "You extract structured data from construction work order documents.")
     except Exception as e:
         logging.exception("WO parse failed")
         raise HTTPException(status_code=502, detail=f"AI se document nahi padha ja saka: {str(e)[:150]}")
-    finally:
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
     m = re.search(r"\{.*\}", text, re.S)
     try:
         data = _json.loads(m.group(0)) if m else None
@@ -1937,9 +1935,45 @@ def _assert_safe_email(subject: str, html: str) -> None:
                 raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
 
 
+async def _send_smtp(to: str, subject: str, html: str) -> Optional[str]:
+    """Own-domain email (e.g. noreply@yourdomain.com) via SMTP — used when SMTP_HOST is configured."""
+    import smtplib, ssl
+    from email.mime.text import MIMEText
+    from email.utils import formataddr, make_msgid
+    host, port = os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT") or 587)
+    user, pwd = os.environ.get("SMTP_USER", ""), os.environ.get("SMTP_PASS", "")
+    sender = os.environ.get("SMTP_FROM_EMAIL") or user
+    msg = MIMEText(html, "html", "utf-8")
+    msg["Subject"], msg["From"], msg["To"] = subject, formataddr((EMAIL_FROM_NAME, sender)), to
+    msg["Message-ID"] = make_msgid(domain=sender.split("@")[-1])
+    if EMAIL_REPLY_TO:
+        msg["Reply-To"] = EMAIL_REPLY_TO
+
+    def _go():
+        ctx = ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=ctx, timeout=30) as s:
+                s.login(user, pwd)
+                s.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=30) as s:
+                s.starttls(context=ctx)
+                if user:
+                    s.login(user, pwd)
+                s.send_message(msg)
+    try:
+        await asyncio.to_thread(_go)
+        return msg["Message-ID"]
+    except Exception as e:
+        logger.error(f"SMTP send error: {e}")
+        return None
+
+
 async def _send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+    if os.environ.get("SMTP_HOST"):
+        return await _send_smtp(to, subject, html)
     if not EMAIL_KEY:
-        logger.warning("EMERGENT_EMAIL_KEY not set — email skipped")
+        logger.warning("No SMTP_HOST / EMERGENT_EMAIL_KEY — email skipped")
         return None
     _assert_safe_email(subject, html)
     payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
