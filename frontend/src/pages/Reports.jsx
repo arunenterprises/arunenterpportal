@@ -12,6 +12,7 @@ import AccountsTabs from "../components/AccountsTabs";
 import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { apiPushPayments } from "../lib/api";
+import { RealignCounterBtn } from "../components/crm/ResetNumberingBtn";
 import { exportBankTransferXLSX, printBankTransferAdvice, printBulkBankAdvice } from "../lib/bankTransfer";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, deletePaymentCloud, nextPvNo, toApprovedPvNo,
@@ -1516,7 +1517,7 @@ export default function Reports() {
             </div>
           </div>
           <div className="section">
-            <div className="sec-head">C. Payments Register · Edit / Delete / Reschedule</div>
+            <div className="sec-head">C. Payments Register · Edit / Delete / Reschedule <RealignCounterBtn series="pvSerial" label="Payment Voucher" /></div>
             <div className="sec-body">
               {payments.length === 0 ? (
                 <div style={{ padding: 14, color: "#64748b", fontSize: 12, textAlign: "center" }}>
@@ -1956,7 +1957,7 @@ export default function Reports() {
                     data-testid="pv-delete"
                     onClick={() => {
                       if (!pv) { toast.error("Pehle voucher generate karein"); return; }
-                      if (utrLocked) { toast.error("Delete locked · Pehle UTR number enter karo, uske baad hi delete allow hoga."); return; }
+                      if (pv.paidFinal) { toast.error("Final PAID voucher kabhi delete nahi hoga"); return; } { toast.error("Delete locked · Pehle UTR number enter karo, uske baad hi delete allow hoga."); return; }
                       if (!roleOk) { toast.error(isApproved ? "Only SuperAdmin can delete an approved voucher" : "Only Admin / SuperAdmin can delete"); return; }
                       if (isApproved) {
                         const detail = `Vendor: ${pv.vendorName || pv.vendorCode}\nAmount: ₹${Number(pv.amount || 0).toLocaleString("en-IN")}\nStatus: ${pv.status}\nApproved By: ${pv.approvedByName || "—"}\nUTR: ${pv.utrNo || "—"}`;

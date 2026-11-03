@@ -1490,6 +1490,42 @@ async def _crm_serial(k: str) -> int:
     return int(c[k])
 
 
+_LEGACY_SERIES = {
+    "pvSerial": ("Payment Vouchers", "payments", r"AE/PYMT/T?(\d{4})/|\b(?:GPV|PN)/\d{4}/(\d{4})\b"),
+    "billSerial": ("Vendor Bills", "bills", r"AE/BILL/T?(\d{4})/"),
+    "expenseSerial": ("Expenses", "expenses", r"AE/EXPN/T?(\d{4})/"),
+    "boqSerial": ("BOQ", "boqs", r"AE/BOQS/T?(\d{4})/"),
+    "woSerial": ("Work Orders", "work_orders", r"AE/WORK/T?(\d{4})/"),
+    "vendorSerial": ("Vendors", "vendors", r"AE(\d{4})JV"),
+    "empSerial": ("Employees", "employees", r"AE/EMPL/T?(\d{4})/|AE/(?:EMP|TMP)/(\d{6})/|\bEMP(\d{4})\d{4}\b|EMP-TMP-(\d{4})"),
+    "adsSerial": ("Recruitment", "recruitments", r"AE/RCRT/T?(\d{4})/"),
+}
+
+
+@api_router.get("/admin/counters")
+async def list_counters(user: Dict = Depends(require_super_admin)):
+    g = await db.counters.find_one({"key": "global"}, {"_id": 0}) or {}
+    return [{"key": k, "label": v[0], "value": int(g.get(k) or 0)} for k, v in _LEGACY_SERIES.items()]
+
+
+@api_router.post("/admin/realign-counter/{key}")
+async def realign_counter(key: str, dry: int = 0, user: Dict = Depends(require_super_admin)):
+    """Set a legacy number counter to the highest serial actually used (no record is changed). dry=1 only previews."""
+    if key not in _LEGACY_SERIES:
+        raise HTTPException(status_code=404, detail="Unknown counter")
+    _, coll, rx = _LEGACY_SERIES[key]
+    docs = await db[coll].find({}, {"_id": 0}).to_list(100000)
+    nums = [int(next(x for x in m if x)) if isinstance(m, tuple) else int(m) for m in re.findall(rx, json.dumps(docs, default=str))]
+    if docs and not nums:
+        raise HTTPException(status_code=400, detail="Records ke number ka format pehchana nahi gaya — counter safe rakhne ke liye nahi badla")
+    mx = max(nums) if nums else 0
+    g = await db.counters.find_one({"key": "global"}, {"_id": 0}) or {}
+    cur = int(g.get(key) or 0)
+    if not dry:
+        await db.counters.update_one({"key": "global"}, {"$set": {key: mx}}, upsert=True)
+    return {"key": key, "value": mx, "current": cur, "records": len(docs), "applied": not dry}
+
+
 @api_router.post("/admin/renumber/{name}")
 async def renumber_mbra(name: str, user: Dict = Depends(require_super_admin)):
     if name not in _MBRA:
@@ -1682,7 +1718,7 @@ async def reset_all_data(body: Dict = Body(default={}), admin: Dict = Depends(re
     wipe_users = bool(body.get("wipe_users", False))
     v = await db.vendors.delete_many({})
     b = await db.bills.delete_many({})
-    p = await db.payments.delete_many({})
+    p = await db.payments.delete_many({"paidFinal": {"$ne": True}})
     x = await db.expenses.delete_many({})
     c = await db.counters.delete_many({})
     logo = await db.settings.delete_many({"key": "logo"})
@@ -1713,7 +1749,7 @@ async def reset_hr_financials(admin: Dict = Depends(require_super_admin)):
     """
     pb = await db.paybills.delete_many({})
     ar = await db.advance_requests.delete_many({})
-    pv = await db.payments.delete_many({"$or": [
+    pv = await db.payments.delete_many({"paidFinal": {"$ne": True}, "$or": [
         {"pvNo": {"$regex": "^PV/HR/"}},
         {"pvNo": {"$regex": "^PV/ADV/"}},
         {"pvNo": {"$regex": "^PV/HR-FNF/"}},

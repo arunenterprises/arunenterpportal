@@ -1,0 +1,38 @@
+{
+  "summary": "Tested Payment Voucher FINAL PAID lock (backend + UI row + bottom strip), SuperAdmin login without OTP, email-only OTP code path, 15-min idle logout code, and HR Advance Reg toolbar position. All requested features work. Backend 7/7 pytest pass. Frontend: row Mark Paid -> PAID (FINAL) + Locked, Reopen/Edit/Delete gone, payment date disabled, persists after reload; bottom strip pv-mark-paid disabled until UTR, then marks final and shows pv-final-badge; toolbar Delete on final voucher is blocked (toast). HR adv-toolbar-bottom renders directly under section header, above Advance Requests list.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "server.py _send_otp_sms (line ~242)", "issue": "Twilio SMS helper is dead code now (no callers). Delete it, and the twilio import with it."},
+      {"endpoint": "POST /api/admin/reset-data, /api/admin/reset-hr-financials", "issue": "SuperAdmin-only reset endpoints still delete_many payments without a paidFinal filter, so FINAL PAID vouchers can still be wiped. Add {paidFinal: {$ne: true}} if the lock must hold everywhere."},
+      {"endpoint": "POST /api/auth/login (non-SuperAdmin)", "issue": "The response still has a 'mobile' key, which now holds the masked email (kept for frontend compatibility). Not tested live because that would send a real OTP email to a real user. Verified by reading the code: email only, no SMS call."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Reports bottom toolbar Delete (SuperAdminDelete) on a loaded FINAL PAID voucher", "issue": "The 'SuperAdmin Override - Delete Payment Voucher?' confirm appears first, and only after you accept does a toast say it is blocked. Check paidFinal before showing the confirm, or disable Delete/Edit/Save on the toolbar when pv.paidFinal.", "selector": "[data-testid='pv-delete']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "HR Advance Reg", "issues": ["Hint text '👇 Action toolbar neeche form ke upar hai' is slightly confusing now that the toolbar sits directly under the header. Consider removing it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter46_pv_paid_final_otp.py", "/app/test_reports/pytest/pytest_iter46.xml"],
+  "action_items": [
+    "(Optional) Disable the toolbar Edit/Save/Delete buttons for a loaded paidFinal voucher, instead of confirming and then refusing.",
+    "(Optional) Exclude paidFinal vouchers from the reset-data and reset-hr-financials delete_many calls.",
+    "(Optional) Remove the dead _send_otp_sms Twilio helper."
+  ],
+  "critical_code_review_comments": [
+    "replace_payments: the paidFinal lock is checked per key (id or pvNo). A new doc with a different id but the same pvNo would be inserted as a duplicate rather than overwrite the locked one, so the lock holds, but duplicate pvNos are possible.",
+    "Reports.jsx pay-bill delete (salary-del) removes the linked PV locally via savePayments without checking paidFinal. The backend refuses the delete (403 guard), so the voucher comes back on the next sync. That is safe but confusing.",
+    "Login.jsx OTP text confirmed: 'OTP aapki registered email {masked} par bheja gaya hai'. AppSidebar idle logout is 15*60*1000 ms and is skipped for SuperAdmin."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter46_pv_paid_final_otp.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (login body field is 'identifier', not 'email')",
+  "seed_data_creation": "TEST_pvX, TEST_pvY and TEST_pvZ payments were created and then deleted from mongo (0 TEST payments remain).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n0 (pytest.ini sets xdist; the tests in the iter46 file are sequential). Server clock is in Nov 2026. paidDate is stored as ISO and displayed as DD/MM/YYYY. The FINAL PAID lock is enforced in backend replace_payments, delete_payment and delete_bulk."
+}

@@ -408,3 +408,11 @@ See `/app/memory/test_credentials.md`.
 - RBAC (docs at /app/docs/RBAC.md): View/Create/Edit/Delete/Approve per role + per-user override (_users), card/column masking (_mask/_userMask); backend _acl_ok/_rbac/_need enforced on crm/ops/legacy create-edit-delete-approve and crm/ops GET (view); frontend sidebar hide + RequireAuth guard + store helpers. Defaults: Delete/Approve = Admin only.
 - Backlog: month inputs (type=month) still browser format; legacy collection GETs not view-checked server-side; Invoice/Abstract reports in Reports Management.
 
+
+## 2026-11-03 updates
+- Login OTP: email only (SMS removed from login flow), SuperAdmin bypass; idle auto-logout 15 min (not SuperAdmin).
+- Payment Vouchers: Approved → UTR + Paid Date → "Mark Paid" = FINAL PAID (paidFinal) – backend ignores later edits, blocks delete, snapshot merge skips; reset endpoints keep paidFinal vouchers.
+- HR Advance Reg toolbar moved above form.
+- SuperAdmin counter Re-Align: GET /api/admin/counters, POST /api/admin/realign-counter/{key}?dry=1 (preview, then apply) for legacy series; panel in System Management + button in Payments Register. Refuses if number format not recognised.
+- Known: other browsers' local counters may push a counter back up (monotonic merge).
+

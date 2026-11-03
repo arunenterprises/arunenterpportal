@@ -9,6 +9,7 @@ import { OtpResetPanel } from "../components/OtpResetPanel";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import { MyAccount } from "../components/MyAccount";
+import { CounterRealignPanel } from "../components/crm/ResetNumberingBtn";
 import AuthSplash from "../components/AuthSplash";
 import AclMatrix from "../components/AclMatrix";
 import LocalFolderPanel from "../components/LocalFolderBackup";
@@ -833,6 +834,7 @@ export default function UsersAdmin() {
         {["admin", "superadmin"].includes(String(me?.role || "").toLowerCase().replace(/\s/g, "")) && <ActiveSessionsSection meEmail={me?.user} />}
 
         {isSuperAdmin(me?.user) && <OtpResetPanel users={users.filter((u) => !isSuperAdmin(u.email))} />}
+        {isSuperAdmin(me?.user) && <CounterRealignPanel />}
 
         {/* Backup & Restore (SUPER ADMIN ONLY) */}
         {isSuperAdmin(me?.user) && (
