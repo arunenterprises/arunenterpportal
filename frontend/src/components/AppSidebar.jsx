@@ -93,7 +93,7 @@ export const AclGate = () => {
     const ev = ["mousemove", "mousedown", "keydown", "scroll", "wheel", "touchstart"];
     ev.forEach((e) => window.addEventListener(e, bump, { passive: true, capture: true }));
     const t = setInterval(async () => {
-      if (Date.now() - last < 10 * 60 * 1000) return;
+      if (Date.now() - last < 15 * 60 * 1000) return;
       clearInterval(t);
       sessionStorage.setItem("ae_idle", new Date().toLocaleString("en-IN"));
       await logout();

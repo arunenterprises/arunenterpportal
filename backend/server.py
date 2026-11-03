@@ -398,23 +398,11 @@ async def login(body: LoginBody, request: Request):
                 "Agar yeh login aapne nahi kiya, to turant Admin ko batayein.</div></div>"
             )
             sent = await _send_email(to=user["email"], subject=f"Welcome to ERP ARUN ENTERPRISES - Login OTP {code}", html=html)
-            sms_ok = False
-            mobile = _e164(user.get("mobile", ""))
-            if len(mobile) >= 12 and all(os.environ.get(k) for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER")):
-                try:
-                    await asyncio.to_thread(_send_otp_sms, mobile, code)
-                    sms_ok = True
-                except Exception as ex:
-                    logger.warning(f"OTP SMS failed for {user['email']}: {ex}")
-            if not sent and not sms_ok:
-                raise HTTPException(status_code=502, detail="OTP nahi bheja ja saka. Thodi der baad try karein.")
+            if not sent:
+                raise HTTPException(status_code=502, detail="OTP email nahi bheja ja saka. Thodi der baad try karein.")
             e = user["email"]
-            where = []
-            if sent:
-                where.append("email " + ((e[:2] + "****" + e[e.find("@"):]) if "@" in e else e))
-            if sms_ok:
-                where.append(f"mobile ******{mobile[-4:]}")
-            return {"otp_required": True, "otp_token": tid, "mobile": " aur ".join(where), "valid_seconds": 180}
+            masked = (e[:2] + "****" + e[e.find("@"):]) if "@" in e else e
+            return {"otp_required": True, "otp_token": tid, "mobile": masked, "sent_to": masked, "valid_seconds": 180}
         rec = await db.login_otps.find_one({"id": body.otp_token, "email": user["email"]})
         if not rec or rec.get("expires_at", "") < datetime.now(timezone.utc).isoformat():
             raise HTTPException(status_code=401, detail="OTP expire ho gaya. Dobara login karke naya OTP lein.")
@@ -691,7 +679,9 @@ async def _merge_upsert(coll: str, items: List[dict]) -> int:
         key = {"id": it["id"]} if it.get("id") else ({"pvNo": it["pvNo"]} if it.get("pvNo") else None)
         if not key:
             continue
-        existing = await db[coll].find_one(key, {"_id": 0, "updatedAt": 1})
+        existing = await db[coll].find_one(key, {"_id": 0, "updatedAt": 1, "paidFinal": 1})
+        if existing and existing.get("paidFinal"):
+            continue
         inc, cur = str(it.get("updatedAt") or ""), str((existing or {}).get("updatedAt") or "")
         if existing and cur and inc < cur:
             continue
@@ -787,6 +777,14 @@ async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_
         if not pid:
             continue
         key = {"id": pid} if p.get("id") else {"pvNo": p.get("pvNo")}
+        ex = await db.payments.find_one(key, {"_id": 0})
+        if ex and ex.get("paidFinal"):
+            continue
+        if p.get("paidFinal"):
+            if (ex or p).get("status") != "Approved" or not (p.get("utrNo") or "").strip() or not p.get("paidDate"):
+                raise HTTPException(status_code=400, detail="Final Paid ke liye voucher Approved ho aur UTR + Paid Date bhara ho")
+            p["paidFinalBy"] = user.get("name") or user.get("email")
+            p["paidFinalAt"] = datetime.now(timezone.utc).isoformat()
         await db.payments.update_one(key, {"$set": p}, upsert=True)
         count += 1
     return {"count": count}
@@ -798,6 +796,8 @@ async def delete_payment(pvNo: str, admin: Dict = Depends(_need("accounts", "d")
     Prevents the 'zombie resurrection' bug where deleted vouchers were only
     removed client-side and resurfaced on next cross-device cloud sync."""
     # pvNo contains slashes (e.g. GPV/2627/0001) so use :path converter.
+    if await db.payments.find_one({"pvNo": pvNo, "paidFinal": True}):
+        raise HTTPException(status_code=403, detail="Final PAID voucher kabhi delete nahi hoga")
     r = await db.payments.delete_many({"pvNo": pvNo})
     return {"ok": True, "deleted": r.deleted_count}
 
@@ -808,7 +808,7 @@ async def delete_payments_bulk(body: Dict = Body(...), admin: Dict = Depends(req
     pv_nos = body.get("pvNos") or []
     if not pv_nos:
         return {"ok": True, "deleted": 0}
-    r = await db.payments.delete_many({"pvNo": {"$in": pv_nos}})
+    r = await db.payments.delete_many({"pvNo": {"$in": pv_nos}, "paidFinal": {"$ne": True}})
     return {"ok": True, "deleted": r.deleted_count}
 
 

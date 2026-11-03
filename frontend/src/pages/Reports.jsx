@@ -11,6 +11,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import AccountsTabs from "../components/AccountsTabs";
 import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
+import { apiPushPayments } from "../lib/api";
 import { exportBankTransferXLSX, printBankTransferAdvice, printBulkBankAdvice } from "../lib/bankTransfer";
 import {
   getBills, getVendors, computeBill, getPayments, savePayments, deletePaymentCloud, nextPvNo, toApprovedPvNo,
@@ -30,6 +31,30 @@ const bbtn = (bg) => ({ padding: "6px 12px", background: bg, color: "#fff", bord
 const F = ({ label, children }) => (
   <div className="field-b"><label>{label}</label>{children}</div>
 );
+
+// Approved voucher -> UTR + Paid Date -> Final PAID (locked forever, no edit/delete)
+const PvPaidCell = ({ p, onPaid }) => {
+  const [utr, setUtr] = useState(p.utrNo || "");
+  const [dt, setDt] = useState(p.paidDate || new Date().toISOString().slice(0, 10));
+  if (p.paidFinal) {
+    return (
+      <div data-testid={`pay-final-${p.pvNo}`} style={{ display: "inline-flex", flexDirection: "column", gap: 2, padding: "4px 8px", background: "#dcfce7", border: "1.5px solid #16a34a", borderRadius: 5 }}>
+        <b style={{ color: "#166534", fontSize: 11 }}>PAID (FINAL)</b>
+        <span style={{ fontSize: 10, color: "#14532d" }}>UTR {p.utrNo} · {p.paidDate}</span>
+        <span style={{ fontSize: 9, color: "#166534" }}>by {p.paidFinalBy || "—"}</span>
+      </div>
+    );
+  }
+  if (p.status !== "Approved") return null;
+  return (
+    <div style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+      <input data-testid={`pay-utr-input-${p.pvNo}`} value={utr} onChange={(e) => setUtr(e.target.value.toUpperCase().slice(0, 32))} placeholder="UTR No" style={{ width: 120, padding: "3px 6px", fontSize: 10.5, border: "1px solid #cbd5e1", borderRadius: 4 }} />
+      <DateInput type="date" data-testid={`pay-paid-date-${p.pvNo}`} value={dt} onChange={(e) => setDt(e.target.value)} style={{ width: 118, padding: "3px 6px", fontSize: 10.5, border: "1px solid #cbd5e1", borderRadius: 4 }} />
+      <button data-testid={`pay-mark-paid-${p.pvNo}`} onClick={() => onPaid(p.pvNo, utr.trim(), dt)}
+        style={{ padding: "3px 9px", fontSize: 10.5, background: "#15803d", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 800 }}>Mark Paid</button>
+    </div>
+  );
+};
 
 export default function Reports() {
   const nav = useNavigate();
@@ -287,10 +312,23 @@ export default function Reports() {
   const handleNew = () => { setSelectedBillId(""); setPv(null); toast.success("New voucher draft"); };
 
   // ---- Payment management (Edit / Delete / Reschedule after approval) ----
+  const markPaidFinal = async (pvNo, utr, dt) => {
+    if (!utr) { toast.error("Pehle UTR No bharein"); return; }
+    if (!dt) { toast.error("Paid Date bharein"); return; }
+    if (!window.confirm(`${pvNo} ko FINAL PAID karein?\nUTR: ${utr}\n\nIske baad yeh voucher kabhi Edit, Reopen ya Delete nahi hoga.`)) return;
+    const list = getPayments().map((x) => (x.pvNo === pvNo ? { ...x, utrNo: utr, paidDate: dt, paidAt: new Date().toISOString(), paidFinal: true, paidFinalBy: currentUser() || "" } : x));
+    try {
+      await apiPushPayments(list.filter((x) => x.pvNo === pvNo));
+      savePayments(list);
+      setRefresh((v) => v + 1);
+      toast.success(`${pvNo} FINAL PAID · locked`);
+    } catch (e) { toast.error(e.message); }
+  };
   const reopenPayment = (pvNo) => {
     const list = getPayments();
     const idx = list.findIndex((x) => x.pvNo === pvNo);
     if (idx < 0) return;
+    if (list[idx].paidFinal) { toast.error("Final PAID voucher reopen nahi hoga"); return; }
     const prev = list[idx];
     const history = Array.isArray(prev.history) ? prev.history : [];
     history.push({
@@ -344,6 +382,7 @@ export default function Reports() {
     toast.success(`${pvNo} Re-Approved (Rev ${prev.revision || 0}) · Bill marked Paid`);
   };
   const deletePayment = (pvNo) => {
+    if (getPayments().find((x) => x.pvNo === pvNo)?.paidFinal) { toast.error("Final PAID voucher kabhi delete nahi hoga"); return; }
     if (!window.confirm(`Delete voucher ${pvNo}? Bill will re-appear in Due List.`)) return;
     // ZOMBIE FIX: use deletePaymentCloud → backend DELETE + local filter + cloud reconcile
     deletePaymentCloud(pvNo);
@@ -391,6 +430,7 @@ export default function Reports() {
 
   const handleSave = () => {
     if (!pv) { toast.error("Generate a voucher first"); return; }
+    if (getPayments().find((x) => x.pvNo === pv.pvNo)?.paidFinal) { toast.error("Final PAID voucher badla nahi ja sakta"); return; }
     const list = getPayments();
     const idx = list.findIndex((x) => x.pvNo === pv.pvNo);
     if (idx >= 0) list[idx] = pv; else list.push(pv);
@@ -1545,6 +1585,7 @@ export default function Reports() {
                           <DateInput
                             type="date"
                             value={p.date || ""}
+                            disabled={!!p.paidFinal}
                             onChange={(e) => reschedulePayment(p.pvNo, e.target.value)}
                             data-testid={`pay-date-${p.pvNo}`}
                             style={{ padding: "4px 6px", fontSize: 11, border: "1px solid #cfd8e3", borderRadius: 4 }}
@@ -1555,10 +1596,12 @@ export default function Reports() {
                         <td>{p.mode}</td>
                         <td style={{ fontFamily: "monospace", fontSize: 10.5 }} data-testid={`pay-utr-${p.pvNo}`}>{p.utrNo || "—"}</td>
                         <td>
-                          <span className={`pill-tag ${p.status === "Approved" ? "paid" : "due"}`}>{p.status}</span>
+                          {p.paidFinal ? <PvPaidCell p={p} /> : <span className={`pill-tag ${p.status === "Approved" ? "paid" : "due"}`}>{p.status}</span>}
                         </td>
                         <td>
+                          {p.paidFinal ? <span data-testid={`pay-locked-${p.pvNo}`} style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>Locked — koi badlav / delete nahi</span> : (
                           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                            <PvPaidCell key={`pp-${p.pvNo}-${refresh}`} p={p} onPaid={markPaidFinal} />
                             {p.status === "Approved" && (
                               <button
                                 onClick={() => reopenPayment(p.pvNo)}
@@ -1608,6 +1651,7 @@ export default function Reports() {
                               />
                             )}
                           </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1748,7 +1792,8 @@ export default function Reports() {
                     <F label="UTR / Reference No (Post-payment)">
                       <input
                         value={pv.utrNo || ""}
-                        onChange={(e) => setPv({ ...pv, utrNo: e.target.value.toUpperCase().slice(0, 32) })}
+                        onChange={(e) => !pv.paidFinal && setPv({ ...pv, utrNo: e.target.value.toUpperCase().slice(0, 32) })}
+                        disabled={!!pv.paidFinal}
                         placeholder={pv.status === "Approved" ? "Enter UTR after transfer — appears in vendor's Due List" : "Available after voucher is approved"}
                         data-testid="pv-utr"
                         style={{
@@ -1984,30 +2029,32 @@ export default function Reports() {
                 <input
                   data-testid="pv-utr-bottom"
                   value={pv?.utrNo || ""}
-                  onChange={(e) => pv && setPv({ ...pv, utrNo: e.target.value.toUpperCase().slice(0, 32) })}
-                  onBlur={() => { if (pv && pv.status === "Approved" && pv.utrNo) { handleSave(); } }}
-                  disabled={!pv || pv.status !== "Approved"}
+                  onChange={(e) => pv && !pv.paidFinal && setPv({ ...pv, utrNo: e.target.value.toUpperCase().slice(0, 32) })}
+                  onBlur={() => { if (pv && !pv.paidFinal && pv.status === "Approved" && pv.utrNo) { handleSave(); } }}
+                  disabled={!pv || pv.status !== "Approved" || !!pv.paidFinal}
                   placeholder={pv && pv.status === "Approved" ? "Enter UTR / Ref No" : "Approve first"}
                   style={{ width: 150, padding: "5px 8px", fontSize: 11.5, fontFamily: "monospace", letterSpacing: ".3px", background: pv && pv.status === "Approved" ? "#fffbeb" : "#1e293b", color: pv && pv.status === "Approved" ? "#0f172a" : "#94a3b8", border: `1px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#475569"}`, borderRadius: 4, fontWeight: pv?.utrNo ? 800 : 500 }}
                 />
+                <DateInput type="date" data-testid="pv-paid-date-bottom" value={pv?.paidDate || ""} disabled={!pv || pv.status !== "Approved" || !!pv.paidFinal}
+                  onChange={(e) => pv && setPv({ ...pv, paidDate: e.target.value })} style={{ width: 120, padding: "5px 8px", fontSize: 11.5, borderRadius: 4, border: "1px solid #f59e0b" }} />
+                {pv?.paidFinal ? (
+                  <span data-testid="pv-final-badge" style={{ padding: "6px 12px", background: "#14532d", color: "#fff", borderRadius: 4, fontWeight: 900, fontSize: 11 }}>PAID (FINAL) · Locked</span>
+                ) : (
                 <button
                   data-testid="pv-mark-paid"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!pv) { toast.error("Generate voucher first"); return; }
                     if (pv.status !== "Approved") { toast.error("Pehle voucher Approve karein, phir UTR fill karke Paid karein"); return; }
-                    const utr = (pv.utrNo || "").trim();
-                    if (!utr) { toast.error("UTR / Ref No enter karein"); return; }
-                    const next = { ...pv, utrNo: utr.toUpperCase().slice(0, 32), paidAt: new Date().toISOString() };
-                    setPv(next);
-                    const list = getPayments().map((x) => x.pvNo === next.pvNo ? next : x);
-                    savePayments(list);
-                    setRefresh((v) => v + 1);
-                    toast.success(`✓ Paid · UTR ${next.utrNo} saved for ${next.pvNo}`);
+                    const utr = (pv.utrNo || "").trim().toUpperCase().slice(0, 32);
+                    await markPaidFinal(pv.pvNo, utr, pv.paidDate || new Date().toISOString().slice(0, 10));
+                    const saved = getPayments().find((x) => x.pvNo === pv.pvNo);
+                    if (saved) setPv(saved);
                   }}
                   disabled={!pv || pv.status !== "Approved" || !(pv?.utrNo || "").trim()}
                   title={!pv ? "Generate voucher first" : pv.status !== "Approved" ? "Approve voucher first" : !(pv?.utrNo || "").trim() ? "Enter UTR first" : "Save UTR and mark voucher as Paid"}
                   style={{ padding: "6px 12px", background: pv && pv.status === "Approved" && (pv?.utrNo || "").trim() ? "linear-gradient(135deg,#16a34a,#14532d)" : "#475569", color: "#fff", border: "none", borderRadius: 4, cursor: pv && pv.status === "Approved" && (pv?.utrNo || "").trim() ? "pointer" : "not-allowed", fontWeight: 900, fontSize: 11, letterSpacing: 0.5, textTransform: "uppercase", boxShadow: pv && pv.status === "Approved" && (pv?.utrNo || "").trim() ? "0 2px 6px rgba(22,163,74,.5)" : "none" }}
                 >✓ Paid</button>
+                )}
               </div>
 
               {/* 8. Status · Dynamic pill */}

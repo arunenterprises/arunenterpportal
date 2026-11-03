@@ -1930,13 +1930,13 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed: approveAllowedProp }
   return (
     <div style={{ padding: 14 }}>
       {/* Advance Request Form Section */}
-      <div style={{ marginBottom: 16 }} data-testid="adv-req-section">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+      <div style={{ marginBottom: 16, display: "flex", flexDirection: "column" }} data-testid="adv-req-section">
+        <div style={{ order: -2, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
           <div>
             <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: "#64748b", textTransform: "uppercase" }}>On-Demand Advance Flow</div>
             <div style={{ fontSize: 16, fontWeight: 900, color: "#0f172a" }}>Advance Request · HR → Accounts → Payment Voucher</div>
           </div>
-          <div style={{ fontSize: 10.5, color: "#64748b", fontStyle: "italic" }}>👇 Action toolbar is now at the bottom of this section</div>
+          <div style={{ fontSize: 10.5, color: "#64748b", fontStyle: "italic" }}>👇 Action toolbar neeche form ke upar hai</div>
         </div>
 
         {cur && (
@@ -2112,7 +2112,7 @@ const AdvanceRegisterTab = ({ writeAllowed, approveAllowed: approveAllowedProp }
           </div>
         )}
         {/* Bottom Action Toolbar · Advance Request section (moved from top per UX request) */}
-        <div style={{ marginTop: 14, padding: "12px 16px", background: "linear-gradient(135deg,#0f172a,#1e293b)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", boxShadow: "0 4px 12px rgba(15,23,42,.25)" }} data-testid="adv-toolbar-bottom">
+        <div style={{ order: -1, marginTop: 0, marginBottom: 14, padding: "12px 16px", background: "linear-gradient(135deg,#0f172a,#1e293b)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", boxShadow: "0 4px 12px rgba(15,23,42,.25)" }} data-testid="adv-toolbar-bottom">
           <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", marginRight: 8 }}>Actions ·</div>
           <div style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }} data-testid="adv-toolbar">
             <button
