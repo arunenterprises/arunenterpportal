@@ -5,7 +5,6 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import Login from "./pages/Login";
 import Home from "./pages/Home";
-import Home3D from "./pages/Home3D";
 import VendorRegistration from "./pages/VendorRegistration";
 import BillProcessing from "./pages/BillProcessing";
 import Reports from "./pages/Reports";
@@ -98,7 +97,6 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
-          <Route path="/home-3d" element={<RequireAuth><Home3D /></RequireAuth>} />
           <Route path="/vendor" element={<RequireAuth><VendorRegistration /></RequireAuth>} />
           <Route path="/purchase" element={<RequireAuth><PurchaseManagement /></RequireAuth>} />
           <Route path="/bill" element={<RequireAuth><BillProcessing mode="process" /></RequireAuth>} />

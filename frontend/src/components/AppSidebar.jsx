@@ -17,7 +17,6 @@ const ITEMS = [
   { n: 9, l: "Reports Management", to: "/reports-hub", d: "reports", icon: PieChart, c: "#6366f1" },
   { n: 10, l: "System Management", to: "/users", d: "admin", icon: ShieldEllipsis, c: "#64748b" },
 ];
-export const DEPT_ITEMS = ITEMS;
 const NO_BAR = ["/login", "/careers", "/jobs", "/vendor-portal", "/home"];
 
 const useAclRev = () => {

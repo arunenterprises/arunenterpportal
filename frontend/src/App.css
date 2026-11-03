@@ -883,6 +883,12 @@ body {
   padding: 24px;
   max-width: 1400px; margin: 0 auto;
 }
+.co-ticker { flex-shrink: 0; overflow: hidden; white-space: nowrap; background: linear-gradient(90deg,#0b1f4d,#1e3a8a 50%,#0b1f4d); border-top: 2px solid #c81e2b; border-bottom: 2px solid #c81e2b; border-radius: 8px; padding: 6px 0; }
+.co-ticker-track { display: inline-flex; animation: coTicker 28s linear infinite; }
+.co-ticker-track span { color: #fff; font-weight: 900; font-size: 15px; letter-spacing: 3px; text-transform: uppercase; white-space: pre; }
+.co-ticker:hover .co-ticker-track { animation-play-state: paused; }
+@keyframes coTicker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
 .dept-card {
   border: none; border-radius: 14px;
   color: #fff; text-align: left; padding: 22px 20px;
