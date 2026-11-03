@@ -98,8 +98,9 @@ C("""
 cd /opt/arun-erp/backend
 python3.11 -m venv venv && source venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+pip install -r requirements.txt
 """)
+P("Note: requirements.txt mein ab koi Emergent private package (emergentintegrations / litellm) nahi hai, isliye seedha pip install chalega - koi extra index URL nahi chahiye.")
 P("Ab <b>/opt/arun-erp/backend/.env</b> file banayein (nano .env). Har line apni value ke saath:", H3)
 T([["Key", "Kya likhein"],
    [W("MONGO_URL"), W("mongodb://erpadmin:STRONG_DB_PASSWORD@127.0.0.1:27017/?authSource=admin")],
@@ -221,6 +222,7 @@ P("Gmail App Password: Google Account -> Security -> 2-Step ON -> App Password. 
 
 P("STEP 12 - AI Work Order (Google Gemini - aapki key)", H2)
 P("AI Work Order (scope + terms) aur Work Order PDF padhna ab aapki apni <b>GEMINI_API_KEY</b> se chalta hai (Emergent key ki zarurat nahi). VPS ki backend/.env mein <b>GEMINI_API_KEY=...</b> daalein. Key aistudio.google.com/apikey se milti hai; Google AI Studio mein Billing ON karein, warna 'quota exceeded' aata hai.")
+P("AI badlav (confirm): ERP ke dono AI kaam - (1) AI Work Order Scope + Terms banana, (2) Work Order PDF padh kar items bharna - ab sirf google-genai library + aapki GEMINI_API_KEY se chalte hain. Emergent LLM key / emergentintegrations code se poori tarah hata diya gaya hai. Ek AI request 90 second se zyada nahi atakti.")
 
 P("STEP 13 - Nightly Backup (roz 2 AM) - Linux cron", H2)
 P("Emergent par backup apne-aap chalta tha. VPS par crontab lagayein (<b>crontab -e</b>):")
@@ -236,7 +238,7 @@ P("STEP 14 - Naye badlav (Update) kaise karein", H2)
 P("Emergent par badlav karne ke baad 'Save to GitHub' -> phir VPS par:")
 C("""
 cd /opt/arun-erp && git pull
-cd backend && source venv/bin/activate && pip install -r requirements.txt --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+cd backend && source venv/bin/activate && pip install -r requirements.txt
 sudo systemctl restart arun-erp
 cd ../frontend && yarn install && yarn build
 sudo systemctl reload nginx
