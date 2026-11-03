@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
-import { currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
+import { isSuperAdmin, currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
 import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
 import { NightlyMissingBtn, DupFixBtn } from "../components/NightlyMissingBtn";
 import { OtpResetPanel } from "../components/OtpResetPanel";
@@ -15,7 +15,7 @@ import AclMatrix from "../components/AclMatrix";
 import LocalFolderPanel from "../components/LocalFolderBackup";
 
 const SUPER_ADMIN_EMAIL = "arunenterprises2023@gmail.com";
-const isSuperAdmin = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
+const isPrimarySA = (email) => (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
 
 // ---- Company Master card (SuperAdmin ONLY) ----
 const COMPANY_FIELDS = [
@@ -256,7 +256,7 @@ const ActiveSessionsSection = ({ meEmail }) => {
 // Static role → permissions matrix used purely for display in the Users list.
 // Actual enforcement is done by canCreate / canApprove in store.js.
 const rolePerms = (email, role) => {
-  const isSA = (email || "").toLowerCase() === SUPER_ADMIN_EMAIL;
+  const isSA = isPrimarySA(email) || role === "SuperAdmin";
   const r = isSA ? "SuperAdmin" : role || "User";
   const base = { create: false, edit: false, submit: false, approve: false };
   if (r === "SuperAdmin" || r === "Admin" || r === "GM") return { create: true, edit: true, submit: true, approve: true };
@@ -625,6 +625,7 @@ export default function UsersAdmin() {
                 style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 12, marginTop: 2 }}
               >
                 <option value="User">User</option>
+                {isSuperAdmin(me?.user) && <option value="SuperAdmin">SuperAdmin (full power)</option>}
                 <option value="Viewer">Viewer (read-only)</option>
                 <option value="Purchase">Purchase (create only)</option>
                 <option value="Accounts">Accounts (check + approve)</option>
@@ -738,7 +739,7 @@ export default function UsersAdmin() {
                   <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{u.employee_id || "—"}</td>
                   <td style={{ padding: "5px 8px" }}>{u.designation || "—"}</td>
                   <td style={{ padding: "5px 8px", textAlign: "center" }}>
-                    {isSuperAdmin(u.email) ? (
+                    {isPrimarySA(u.email) ? (
                       <span
                         data-testid={`user-role-${u.email}`}
                         style={{ padding: "2px 8px", fontSize: 10, fontWeight: 700, borderRadius: 999, background: "#f3e8ff", color: "#6b21a8", border: "1px solid #d8b4fe", letterSpacing: 0.4 }}
@@ -763,7 +764,7 @@ export default function UsersAdmin() {
                         style={{ padding: "3px 8px", fontSize: 10.5, fontWeight: 700, borderRadius: 999, background: u.role === "Admin" ? "#dbeafe" : "#e2e8f0", color: u.role === "Admin" ? "#1e40af" : "#334155", border: "1px solid #cbd5e1", cursor: "pointer", textTransform: "uppercase" }}
                         title="Change user role · SuperAdmin only"
                       >
-                        {["User", "Admin", "Accounts", "GM", "HR", "Viewer"].map((r) => (
+                        {["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin"].map((r) => (
                           <option key={r} value={r}>{r.toUpperCase()}</option>
                         ))}
                       </select>

@@ -1307,8 +1307,13 @@ export const ACCOUNTS_MANAGER_NAME = "Komal Srivastava";
 // the SUPER_ADMIN_EMAIL constant above.
 export const ROLES = ["Admin", "GM", "Purchase", "Accounts", "Viewer", "User"];
 
-export const isSuperAdmin = (email) =>
-  (email || "").toLowerCase().trim() === SUPER_ADMIN_EMAIL;
+// SuperAdmin = primary email OR any signed-in user whose role is SuperAdmin.
+export const isSuperAdmin = (email) => {
+  const e = (email || "").toLowerCase().trim();
+  if (e === SUPER_ADMIN_EMAIL) return true;
+  const p = read(KEYS.AUTH, null) || {};
+  return !!e && (p.user || "").toLowerCase().trim() === e && p.role === "SuperAdmin";
+};
 export const canFinalApprove = (email) => {
   const e = (email || "").toLowerCase().trim();
   return e === SUPER_ADMIN_EMAIL || e === APPROVER_EMAIL;

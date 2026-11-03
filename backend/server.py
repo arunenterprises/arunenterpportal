@@ -73,16 +73,14 @@ async def get_current_user(request: Request) -> Dict[str, Any]:
 
 
 async def require_admin(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
-    if (user.get("role") or "").lower() != "admin":
+    if (user.get("role") or "").lower() != "admin" and not _is_super_admin(user):
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
 
 async def require_super_admin(user: Dict = Depends(get_current_user)) -> Dict[str, Any]:
     """Only the primary admin (env ADMIN_EMAIL) can perform destructive/global actions."""
-    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
-    email = (user.get("email") or "").lower().strip()
-    if not primary or email != primary:
+    if not _is_super_admin(user):
         raise HTTPException(status_code=403, detail="Super Admin access required (primary admin only)")
     return user
 
@@ -93,6 +91,8 @@ async def require_super_admin(user: Dict = Depends(get_current_user)) -> Dict[st
 
 def _is_super_admin(user: Dict) -> bool:
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
+    if (user.get("role") or "").strip().lower() == "superadmin":
+        return True
     return bool(primary) and (user.get("email") or "").lower().strip() == primary
 
 
@@ -268,7 +268,7 @@ async def register(body: RegisterBody, admin: Dict = Depends(require_admin)):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "Purchase"]
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "Purchase"] + (["SuperAdmin"] if _is_super_admin(admin) else [])
     role_in = (body.role or "User").strip()
     role = role_in if role_in in allowed_roles else "User"
     # Resolve effective permissions:
@@ -340,9 +340,7 @@ async def change_password(body: ChangePasswordBody, user: Dict = Depends(get_cur
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
     target_email = (body.email or user["email"]).lower().strip()
     is_self = target_email == user["email"]
-    is_admin = (user.get("role") or "").lower() == "admin"
-    primary_admin = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
-    is_super_admin = bool(primary_admin) and (user.get("email") or "").lower().strip() == primary_admin
+    is_super_admin = _is_super_admin(user)
     # Cross-user password change is restricted to the Super Admin
     if not is_self and not is_super_admin:
         raise HTTPException(status_code=403, detail="Only Super Admin can change another user's password")
@@ -378,11 +376,10 @@ async def login(body: LoginBody, request: Request):
     _LOGIN_FAILS.pop(ident, None)
 
     # ---- 2-STEP LOGIN: password + 6-digit EMAIL OTP (3 min) for everyone except primary SuperAdmin
-    _primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
     _otp_skip = str(user.get("otp_bypass_until") or "") > datetime.now(timezone.utc).isoformat()
     if _otp_skip:
         await db.users.update_one({"email": user["email"]}, {"$unset": {"otp_bypass_until": ""}})
-    if EMAIL_KEY and not _otp_skip and not (_primary and user["email"].lower().strip() == _primary):
+    if EMAIL_KEY and not _otp_skip and not _is_super_admin(user):
         if not body.otp_token:
             code = f"{_secrets.randbelow(1000000):06d}"
             tid = uuid.uuid4().hex
@@ -415,8 +412,7 @@ async def login(body: LoginBody, request: Request):
         await db.login_otps.delete_one({"id": body.otp_token})
 
     # ---- SINGLE-SESSION (takeover): a new login replaces the old device's session; old token gets 401 on next call.
-    primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
-    is_super = bool(primary) and user["email"].lower().strip() == primary
+    is_super = _is_super_admin(user)
     now_iso = datetime.now(timezone.utc).isoformat()
     sid = "" if is_super else uuid.uuid4().hex
 
@@ -609,8 +605,10 @@ async def update_user_role(email: str, body: RoleBody, admin: Dict = Depends(req
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
     if email == primary:
         raise HTTPException(status_code=400, detail="Primary SuperAdmin role is locked")
-    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer"]
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin"]
     new_role = (body.role or "").strip()
+    if new_role == "SuperAdmin" and not _is_super_admin(admin):
+        raise HTTPException(status_code=403, detail="Sirf SuperAdmin hi kisi ko SuperAdmin bana sakta hai")
     if new_role not in allowed_roles:
         raise HTTPException(status_code=400, detail=f"Role must be one of {allowed_roles}")
     target = await db.users.find_one({"email": email})
