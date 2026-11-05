@@ -100,6 +100,8 @@ export default function Reports() {
     }),
     [payments]
   );
+  const [payFilter, setPayFilter] = useState("all");
+  const shownPayments = vendorPayments.filter((p) => payFilter === "all" || (payFilter === "paid" ? !!p.paidFinal : !p.paidFinal));
 
   const approvedBills = bills.filter((b) => b.step === 5);
   const vouchersByBill = useMemo(() => {
@@ -1520,6 +1522,11 @@ export default function Reports() {
           <div className="section">
             <div className="sec-head">C. Payments Register · Edit / Delete / Reschedule <RealignCounterBtn series="pvSerial" label="Payment Voucher" /></div>
             <div className="sec-body">
+              <div data-testid="pay-filter" style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                {[["all", "All", vendorPayments.length, "#0f172a"], ["paid", "Paid (Final)", vendorPayments.filter((p) => p.paidFinal).length, "#15803d"], ["pending", "Pending", vendorPayments.filter((p) => !p.paidFinal).length, "#d97706"]].map(([k, l, n, c]) => (
+                  <button key={k} data-testid={`pay-filter-${k}`} onClick={() => setPayFilter(k)} style={{ padding: "5px 14px", borderRadius: 999, border: `1px solid ${c}`, background: payFilter === k ? c : "#fff", color: payFilter === k ? "#fff" : c, fontWeight: 800, fontSize: 11.5, cursor: "pointer" }}>{l} ({n})</button>
+                ))}
+              </div>
               {payments.length === 0 ? (
                 <div style={{ padding: 14, color: "#64748b", fontSize: 12, textAlign: "center" }}>
                   No payment vouchers generated yet.
@@ -1551,7 +1558,7 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {vendorPayments.map((p) => (
+                    {shownPayments.map((p) => (
                       <tr key={p.pvNo} data-testid={`pay-row-${p.pvNo}`}>
                         <td style={{ textAlign: "center" }}>
                           <input
