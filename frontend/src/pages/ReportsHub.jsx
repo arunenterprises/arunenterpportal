@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { DateInput } from "../components/DateInput";
+import { letterheadImg } from "../lib/printKit";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { toast, Toaster } from "sonner";
@@ -52,7 +53,7 @@ const CRM_DEPTS = CRM_REPORTS.map((r) => ({
 }));
 
 const OPS_CACHE = {};
-const OPS_DATE = { machine: null, labour: null, labour_bill: null, booking: "bookingDate", demand_letter: "dueDate", tender: "submissionDate", agreement: "startDate" };
+const OPS_DATE = { core_project: "startDate", machine: null, labour: null, labour_bill: null, booking: "bookingDate", demand_letter: "dueDate", tender: "submissionDate", agreement: "startDate" };
 const OPS_AMT = { booking: "totalValue", demand_letter: "total", tender: "estValue", agreement: "value", diesel_log: "issued", labour_bill: "totalAmount" };
 const loadOpsCache = () => Promise.all(Object.keys(OPS).map((k) => apiOpsList(k).then((r) => { OPS_CACHE[k] = r; }).catch(() => null)));
 const OPS_DEPTS = Object.values(OPS).map((c) => ({
@@ -376,7 +377,7 @@ const DEPT_CONFIG = [
   ...CRM_DEPTS,
   ...OPS_DEPTS,
 ];
-const RH_GROUPED = new Set(["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement", "employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill", "vendors", "boqs", "work_orders", "bills", "payments", "expenses", "advances", "loans", "fooding", "ops_dpr", "ops_indent", "ops_qc_test", "ops_safety_audit", "ops_machine", "ops_machine_log", "ops_diesel_log"]);
+const RH_GROUPED = new Set(["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement", "employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill", "vendors", "boqs", "work_orders", "bills", "payments", "expenses", "advances", "loans", "fooding", "ops_dpr", "ops_indent", "ops_core_project", "ops_core_progress", "ops_core_escalation", "ops_qc_test", "ops_safety_audit", "ops_machine", "ops_machine_log", "ops_diesel_log"]);
 
 const getCellValue = (row, col, cfg) => {
   // Computed columns
@@ -467,27 +468,8 @@ const formatValue = (k, v) => {
 
 // Letterhead + title band (shared across summary + biodata pages)
 const buildLetterhead = (co, logo, refNo, nowStr, cfg, selFlag = "") => `
-  <div class="lh">
-    <div class="lh-logo"><img src="${logo}" onerror="this.style.display='none'" alt="logo" /></div>
-    <div class="lh-center">
-      <div class="lh-name">${co.name}</div>
-      ${co.tagline ? `<div class="lh-tag">${co.tagline}</div>` : ""}
-      ${co.pillLine ? `<div class="lh-pill">${co.pillLine}</div>` : ""}
-      ${co.address ? `<div class="lh-addr">${co.address}</div>` : ""}
-      <div class="lh-contact">
-        ${co.tollFree ? `<b>Phone:</b> ${co.tollFree} &nbsp;` : ""}
-        ${co.email ? `&nbsp;•&nbsp; <b>Email:</b> ${co.email} &nbsp;` : ""}
-        ${co.website ? `&nbsp;•&nbsp; <b>Web:</b> ${co.website}` : ""}
-        ${(co.gst || co.pan) ? `<br><b>GST:</b> ${co.gst || "—"} &nbsp;•&nbsp; <b>PAN:</b> ${co.pan || "—"}${co.cin ? ` &nbsp;•&nbsp; <b>CIN:</b> ${co.cin}` : ""}` : ""}
-      </div>
-    </div>
-    <div class="lh-right">
-      <div style="font-weight:800;color:#0f172a;font-size:9.5px;letter-spacing:.4px;text-transform:uppercase">Ref No.</div>
-      <div style="font-family:monospace;font-weight:800;color:#0f172a;font-size:10px;margin-top:2px;word-break:break-all">${refNo}</div>
-      <div style="margin-top:6px;color:#64748b;font-size:9px">${new Date().toLocaleDateString("en-IN")}</div>
-    </div>
-  </div>
-  <div class="red-rule"></div>
+  ${letterheadImg()}
+  <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#000;margin:0 0 4px"><span>Ref No.: <span style="font-family:monospace">${refNo}</span></span><span>Date: ${new Date().toLocaleDateString("en-IN")}</span></div>
   <div class="title-bar">
     <h2>${cfg.icon} ${cfg.title}${selFlag}</h2>
     <div class="meta">Generated: ${nowStr}</div>
@@ -1071,7 +1053,7 @@ const ReportsHub = () => {
 
         {/* Department tabs */}
         <div data-testid="rh-dept-tabs" style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8, background: "#f1f5f9", borderRadius: 6, marginBottom: 14, border: "1px solid #e2e8f0" }}>
-          {[["2. Client & Revenue Management", "#0284c7", ["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement"]], ["3. HR Management", "#db2777", ["employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill"]], ["4. Procurement Management", "#16a34a", ["vendors", "boqs", "work_orders", "bills"]], ["5. Finance Management", "#0d9488", ["payments", "expenses", "advances", "loans", "fooding"]], ["6. Project Management", "#ea580c", ["ops_dpr", "ops_indent"]], ["7. QC & Safety Management", "#7c3aed", ["ops_qc_test", "ops_safety_audit"]], ["8. P & M Management", "#ca8a04", ["ops_machine", "ops_machine_log", "ops_diesel_log"]]].map(([g, gc, ids]) => [g, gc, ids.filter((x) => DEPT_CONFIG.some((d) => d.id === x))]).concat([["Other", "#64748b", DEPT_CONFIG.map((d) => d.id).filter((x) => !RH_GROUPED.has(x))]]).filter(([, , ids]) => ids.length).map(([g, gc, ids]) => (
+          {[["2. Client & Revenue Management", "#0284c7", ["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement"]], ["3. HR Management", "#db2777", ["employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill"]], ["4. Procurement Management", "#16a34a", ["vendors", "boqs", "work_orders", "bills"]], ["5. Finance Management", "#0d9488", ["payments", "expenses", "advances", "loans", "fooding"]], ["6. Project Management", "#ea580c", ["ops_dpr", "ops_indent", "ops_core_project", "ops_core_progress", "ops_core_escalation"]], ["7. QC & Safety Management", "#7c3aed", ["ops_qc_test", "ops_safety_audit"]], ["8. P & M Management", "#ca8a04", ["ops_machine", "ops_machine_log", "ops_diesel_log"]]].map(([g, gc, ids]) => [g, gc, ids.filter((x) => DEPT_CONFIG.some((d) => d.id === x))]).concat([["Other", "#64748b", DEPT_CONFIG.map((d) => d.id).filter((x) => !RH_GROUPED.has(x))]]).filter(([, , ids]) => ids.length).map(([g, gc, ids]) => (
           <div key={g} data-testid={`rh-group-${ids[0]}`} style={{ display: "grid", gridTemplateColumns: "210px 1fr", alignItems: "center", gap: 12, padding: "8px 12px", background: "#fff", borderRadius: 6, border: "1px solid #e2e8f0", borderLeft: `4px solid ${gc}` }}>
           <span style={{ fontSize: 11, fontWeight: 900, color: gc, letterSpacing: 0.3, textTransform: "uppercase", lineHeight: 1.35 }}>{g}</span>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>

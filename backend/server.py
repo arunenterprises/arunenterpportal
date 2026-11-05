@@ -44,7 +44,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 # ---- App & Router ----
-app = FastAPI(title="Vendor Management API")
+app = FastAPI(title="arunerpportal")
 api_router = APIRouter(prefix="/api")
 
 # ---- Logging ----
@@ -268,7 +268,7 @@ async def register(body: RegisterBody, admin: Dict = Depends(require_admin)):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "Purchase"] + (["SuperAdmin"] if _is_super_admin(admin) else [])
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "Purchase", *MEMBER_DISC.keys()] + (["SuperAdmin"] if _is_super_admin(admin) else [])
     role_in = (body.role or "User").strip()
     role = role_in if role_in in allowed_roles else "User"
     # Resolve effective permissions:
@@ -605,7 +605,7 @@ async def update_user_role(email: str, body: RoleBody, admin: Dict = Depends(req
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
     if email == primary:
         raise HTTPException(status_code=400, detail="Primary SuperAdmin role is locked")
-    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin"]
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin", *MEMBER_DISC.keys()]
     new_role = (body.role or "").strip()
     if new_role == "SuperAdmin" and not _is_super_admin(admin):
         raise HTTPException(status_code=403, detail="Sirf SuperAdmin hi kisi ko SuperAdmin bana sakta hai")
@@ -623,6 +623,18 @@ async def update_user_role(email: str, body: RoleBody, admin: Dict = Depends(req
 @api_router.get("/auth/me")
 async def me(user: Dict = Depends(get_current_user)):
     return user
+
+
+class CoreAccessBody(BaseModel):
+    core_all: bool
+
+
+@api_router.patch("/users/{email}/core-access")
+async def set_core_access(email: str, body: CoreAccessBody, admin: Dict = Depends(require_super_admin)):
+    r = await db.users.update_one({"email": email.lower().strip()}, {"$set": {"core_all": bool(body.core_all)}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True, "core_all": bool(body.core_all)}
 
 
 class MyAccountBody(BaseModel):
@@ -2265,12 +2277,23 @@ OPS_KINDS = {
     "machine": "MACH", "machine_log": "RUNH", "diesel_log": "DESL", "booking": "BOOK", "demand_letter": "DMND",
     "tender": "TNDR", "agreement": "AGMT", "geo_site": "GEOS", "geo_att": "GATT",
     "labour": "LABR", "labour_att": "LATT", "labour_bill": "WAGE", "abstract": "ABST",
+    "core_project": "CPRJ", "core_progress": "CWRK", "core_escalation": "CESC",
 }
 OPS_DEPT = {
     "projects": "site", "dpr": "site", "indent": "site", "qc_test": "qc", "safety_audit": "qc",
     "machine": "plant", "machine_log": "plant", "diesel_log": "plant", "booking": "client", "demand_letter": "client",
     "tender": "client", "agreement": "client", "geo_site": "hr", "geo_att": "hr", "labour": "hr", "labour_att": "hr", "labour_bill": "hr", "abstract": "client",
+    "core_project": "site", "core_progress": "site", "core_escalation": "site",
 }
+MEMBER_DISC = {"Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"]}
+
+
+def _core_disc(user: Dict) -> Optional[List[str]]:
+    """Disciplines a Core Member may see; None = all (GM/Admin/SuperAdmin or core_all granted)."""
+    role = (user.get("role") or "").strip()
+    if role in MEMBER_DISC and not user.get("core_all"):
+        return MEMBER_DISC[role]
+    return None
 BACKUP_COLLECTIONS.extend(f"ops_{k}" for k in OPS_KINDS)
 
 
@@ -2284,7 +2307,9 @@ def _ops_coll(kind: str) -> str:
 async def ops_list(kind: str, user: Dict = Depends(get_current_user)):
     if kind in OPS_DEPT and not (await _acl_ok(user, OPS_DEPT[kind], "v") or await _acl_ok(user, "gm", "v")):
         await _rbac(user, OPS_DEPT[kind], "v")
-    return await db[_ops_coll(kind)].find({}, {"_id": 0}).sort("updatedAt", -1).to_list(20000)
+    docs = await db[_ops_coll(kind)].find({}, {"_id": 0}).sort("updatedAt", -1).to_list(20000)
+    allowed = _core_disc(user) if kind.startswith("core_") else None
+    return [d for d in docs if d.get("discipline") in allowed] if allowed is not None else docs
 
 
 @api_router.post("/ops/{kind}")
@@ -2298,6 +2323,9 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     old, new = ex.get("status") or "Draft", body.get("status") or ex.get("status") or "Draft"
     dept = OPS_DEPT[kind]
     await _rbac(user, dept, "e" if ex else "c")
+    allowed = _core_disc(user) if kind.startswith("core_") else None
+    if allowed is not None and (body.get("discipline") not in allowed or (ex and ex.get("discipline") not in allowed)):
+        raise HTTPException(status_code=403, detail=f"Aap sirf {', '.join(allowed)} discipline ka kaam kar sakte hain")
     if ((new in ("Approved", "Rejected") and new != old) or old == "Approved") and not await _acl_ok(user, dept, "a"):
         raise HTTPException(status_code=403, detail="Approval / approved record change ki permission nahi hai")
     now = datetime.now(timezone.utc)

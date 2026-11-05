@@ -5,8 +5,10 @@ import "@/index.css";
 import App from "@/App";
 import { hydrateStore } from "@/lib/store";
 import { installDisplayEngine } from "@/lib/displayEngine";
+import { installPrintPolish } from "@/lib/printKit";
 
 installDisplayEngine();
+installPrintPolish();
 
 const queryClient = new QueryClient({
   defaultOptions: {

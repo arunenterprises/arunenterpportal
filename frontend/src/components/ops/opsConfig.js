@@ -6,7 +6,64 @@ const P = { k: "project", l: "Project / Site", type: "project", req: true };
 const D = (k = "date", l = "Date") => ({ k, l, type: "date", req: true });
 const YN = ["Yes", "Partial", "No"];
 
+// ---- Core Projects (CIVIL / OHE / PSI / P&M / E&M) ----
+export const CORE_DISC = ["CIVIL", "OHE", "PSI", "P&M", "E&M"];
+export const CORE_MODULES = {
+  CIVIL: [["Earthwork", "Cum"], ["PCC", "Cum"], ["RCC", "Cum"], ["Brick / Block Work", "Cum"], ["Plaster", "Sqm"], ["Flooring / Tiling", "Sqm"], ["Platform / Road Work", "Sqm"], ["Drainage", "Rmt"], ["Building Finishing", "Sqm"]],
+  OHE: [["Survey & Pegging", "Km"], ["Mast Foundation", "Nos"], ["Mast / Portal Erection", "Nos"], ["Bracket Assembly", "Nos"], ["Catenary Wiring", "Km"], ["Contact Wire", "Km"], ["Dropper Fixing", "Nos"], ["Earthing & Bonding", "Nos"], ["Testing & Commissioning", "Km"]],
+  PSI: [["TSS / SP / SSP Civil Work", "%"], ["Power Transformer Erection", "Nos"], ["Circuit Breaker / Interrupter", "Nos"], ["Isolator & CT / PT", "Nos"], ["Control & Power Cabling", "Mtr"], ["Earth Mat", "Nos"], ["SCADA / RTU", "%"], ["Testing & Commissioning", "%"]],
+  "P&M": [["Machinery Deployment", "Nos"], ["Running Hours", "Hrs"], ["Diesel Consumption", "Ltr"], ["Breakdown Repair", "Nos"], ["Preventive Maintenance", "Nos"], ["Hiring / Mobilisation", "Nos"]],
+  "E&M": [["Internal Wiring", "Points"], ["Light Fittings", "Nos"], ["Fans & Fixtures", "Nos"], ["DB / Panel Installation", "Nos"], ["DG Set", "Nos"], ["Pump Sets", "Nos"], ["Fire Fighting System", "%"], ["HVAC", "TR"], ["Lift / Escalator", "Nos"]],
+};
+export const MEMBER_DISC = { "Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"] };
+export const CORE_MEMBERS = Object.keys(MEMBER_DISC);
+const memberOf = (disc) => CORE_MEMBERS.find((m) => MEMBER_DISC[m].includes(disc)) || "";
+const modList = (r) => (CORE_MODULES[r.discipline] || []).map((m) => m[0]);
+const DISC = { k: "discipline", l: "Discipline", type: "select", req: true, options: CORE_DISC };
+const CP = { k: "project", l: "Core Project", type: "coreproject", req: true, span: 2 };
+const LVL = ["L1 · Site Engineer", "L2 · Core Member", "L3 · GM", "L4 · SuperAdmin"];
+const daysSince = (d) => (d ? Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 86400000)) : 0);
+
 export const OPS = {
+  core_project: {
+    kind: "core_project", title: "Core Projects Register", color: "#1d4ed8",
+    fields: [DISC, { k: "name", l: "Core Project Name", req: true, span: 2 }, { k: "code", l: "Project Code" },
+      { k: "client", l: "Client / Railway Zone" }, { k: "location", l: "Location / Section" }, { k: "kmFrom", l: "Km From" }, { k: "kmTo", l: "Km To" },
+      { k: "loaNo", l: "LOA / Agreement No" }, { k: "value", l: "Contract Value (₹)", type: "number" }, D("startDate", "Start Date"), { k: "endDate", l: "Completion Date", type: "date" },
+      { k: "member", l: "Core Member (auto)", ro: true }, { k: "engineer", l: "Site Engineer" }, { k: "pstatus", l: "Project Status", type: "select", options: ["Planned", "Running", "On Hold", "Completed"] },
+      { k: "scope", l: "Scope of Work", type: "textarea", span: 3 }],
+    calc: (r) => ({ member: memberOf(r.discipline) }),
+    columns: ["docNo", "discipline", "name", "location", "value", "member", "pstatus"],
+  },
+  core_progress: {
+    kind: "core_progress", title: "Core Working Form (Daily Progress)", color: "#0369a1",
+    fields: [DISC, CP, D(), { k: "module", l: "Module / Activity", req: true, span: 2, listOf: modList }, { k: "unit", l: "Unit (auto)", ro: true },
+      { k: "scopeQty", l: "Total Scope Qty", type: "number" }, { k: "prevQty", l: "Previous Cumulative Qty", type: "number" }, { k: "todayQty", l: "Aaj ka Qty", type: "number", req: true },
+      { k: "cumQty", l: "Cumulative Qty (auto)", type: "number", ro: true }, { k: "progressPct", l: "Module Progress % (auto)", type: "number", ro: true },
+      { k: "labour", l: "Labour / Staff", type: "number" }, { k: "blockHrs", l: "Block / Shutdown Hrs", type: "number" }, { k: "machinery", l: "Machinery / T&P Used", span: 2 },
+      { k: "weather", l: "Weather", type: "select", options: ["Clear", "Cloudy", "Rain", "Extreme Heat", "Fog"] }, { k: "engineer", l: "Site Engineer" },
+      { k: "hindrance", l: "Hindrance / Issue", type: "textarea", span: 2 }, { k: "remarks", l: "Remarks / Kal ka Plan", type: "textarea", span: 2 }],
+    calc: (r) => {
+      const cum = n(r.prevQty) + n(r.todayQty);
+      return { unit: ((CORE_MODULES[r.discipline] || []).find((m) => m[0] === r.module) || [])[1] || r.unit || "", cumQty: cum, progressPct: n(r.scopeQty) > 0 ? Math.min(100, +((cum / n(r.scopeQty)) * 100).toFixed(1)) : "" };
+    },
+    alert: (r) => (String(r.hindrance || "").trim() ? "HINDRANCE" : ""),
+    columns: ["docNo", "date", "discipline", "project", "module", "todayQty", "cumQty", "progressPct"],
+  },
+  core_escalation: {
+    kind: "core_escalation", title: "Core Escalation Register", color: "#b91c1c",
+    fields: [DISC, CP, { k: "module", l: "Module / Activity", listOf: modList }, D("date", "Raised On"), { k: "issue", l: "Issue / Problem", req: true, span: 2 },
+      { k: "category", l: "Category", type: "select", options: ["Design / Drawing", "Material", "Manpower", "Machinery", "Block / Shutdown", "Payment", "Safety", "Client / Railway", "Other"] },
+      { k: "priority", l: "Priority", type: "select", options: ["Low", "Medium", "High", "Critical"] }, { k: "level", l: "Current Level", type: "select", options: LVL },
+      { k: "assignedTo", l: "Assigned To" }, { k: "targetDate", l: "Target Date", type: "date" }, { k: "estatus", l: "Issue Status", type: "select", options: ["Open", "In Progress", "Resolved"] },
+      { k: "daysOpen", l: "Days Open (auto)", type: "number", ro: true }, { k: "suggested", l: "Auto Escalate To", ro: true }, { k: "resolution", l: "Action / Resolution", type: "textarea", span: 2 }],
+    calc: (r) => {
+      const d = r.estatus === "Resolved" ? 0 : daysSince(r.date);
+      return { daysOpen: d, suggested: d > 5 || r.priority === "Critical" ? LVL[2] : d > 2 || r.priority === "High" ? LVL[1] : LVL[0] };
+    },
+    alert: (r) => (r.estatus === "Resolved" ? "" : r.targetDate && r.targetDate < new Date().toISOString().slice(0, 10) ? "OVERDUE" : LVL.indexOf(r.suggested) > LVL.indexOf(r.level) ? "ESCALATE" : ""),
+    columns: ["docNo", "date", "discipline", "project", "issue", "priority", "level", "estatus"],
+  },
   dpr: {
     kind: "dpr", title: "Daily Progress Report (DPR)", color: "#b45309",
     fields: [P, D(), { k: "weather", l: "Weather", type: "select", options: ["Clear", "Cloudy", "Rain", "Extreme Heat", "Fog"] },
@@ -113,7 +170,7 @@ export const OPS = {
 };
 
 export const DEPTS = {
-  site: { title: "Project Management", sub: "Daily Progress Report (DPR) · Material Indent / Issue", icon: HardHat, gradient: "linear-gradient(135deg,#78350f 0%,#b45309 55%,#f59e0b 100%)", shadow: "180,83,9,.28", tabs: ["dpr", "indent"], projectsLink: true },
+  site: { title: "Project Management", sub: "Core Projects (CIVIL · OHE · PSI · P&M · E&M) · Working Form · Escalation · DPR · Material Indent", icon: HardHat, gradient: "linear-gradient(135deg,#78350f 0%,#b45309 55%,#f59e0b 100%)", shadow: "180,83,9,.28", tabs: ["core_project", "core_progress", "core_escalation", "dpr", "indent"], projectsLink: true },
   qc: { title: "QC & Safety Management", sub: "Material Lab Test Reports · Daily Site Safety Audits", icon: FlaskConical, gradient: "linear-gradient(135deg,#4c1d95 0%,#7c3aed 55%,#dc2626 100%)", shadow: "124,58,237,.28", tabs: ["qc_test", "safety_audit"] },
   plant: { title: "P & M Management", sub: "Machinery Allocation · Running Hours · Diesel Chori Tracking", icon: Tractor, gradient: "linear-gradient(135deg,#422006 0%,#a16207 55%,#9a3412 100%)", shadow: "161,98,7,.28", tabs: ["machine", "machine_log", "diesel_log"] },
 };

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
 import { isSuperAdmin, currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiSetCoreAccess, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
 import { NightlyMissingBtn, DupFixBtn } from "../components/NightlyMissingBtn";
 import { OtpResetPanel } from "../components/OtpResetPanel";
 import HomeNavBar from "../components/HomeNavBar";
@@ -631,6 +631,10 @@ export default function UsersAdmin() {
                 <option value="Accounts">Accounts (check + approve)</option>
                 <option value="GM">General Manager (all + final approve)</option>
                 <option value="Admin">Admin (full access)</option>
+                <option value="Member Civil">Core Member · Civil</option>
+                <option value="Member OHE">Core Member · OHE</option>
+                <option value="Member Electrical">Core Member · Electrical (PSI + E&M)</option>
+                <option value="Member Procurement">Core Member · Procurement (P&M)</option>
               </select>
               {/* Live permissions preview for the selected role */}
               <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 2 }} data-testid="admin-role-perms-preview">
@@ -764,7 +768,7 @@ export default function UsersAdmin() {
                         style={{ padding: "3px 8px", fontSize: 10.5, fontWeight: 700, borderRadius: 999, background: u.role === "Admin" ? "#dbeafe" : "#e2e8f0", color: u.role === "Admin" ? "#1e40af" : "#334155", border: "1px solid #cbd5e1", cursor: "pointer", textTransform: "uppercase" }}
                         title="Change user role · SuperAdmin only"
                       >
-                        {["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin"].map((r) => (
+                        {["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin", "Member Civil", "Member OHE", "Member Electrical", "Member Procurement"].map((r) => (
                           <option key={r} value={r}>{r.toUpperCase()}</option>
                         ))}
                       </select>
@@ -775,6 +779,14 @@ export default function UsersAdmin() {
                       >
                         {(u.role || "User").toUpperCase()}
                       </span>
+                    )}
+                    {isSuperAdmin(me?.user) && !isPrimarySA(u.email) && /^Member /.test(u.role || "") && (
+                      <button
+                        data-testid={`user-core-all-${u.email}`}
+                        title="Core Committee: apna dashboard ya sabhi members ke dashboard"
+                        onClick={async () => { try { await apiSetCoreAccess(u.email, !u.core_all); toast.success(`${u.name}: Core ${!u.core_all ? "ALL" : "OWN"} access`); await load(); } catch (ex) { toast.error(ex.message); } }}
+                        style={{ marginLeft: 4, padding: "2px 8px", fontSize: 9.5, fontWeight: 800, borderRadius: 999, border: "1px solid #1d4ed8", background: u.core_all ? "#1d4ed8" : "#fff", color: u.core_all ? "#fff" : "#1d4ed8", cursor: "pointer" }}
+                      >CORE: {u.core_all ? "ALL" : "OWN"}</button>
                     )}
                   </td>
                   <td style={{ padding: "5px 8px" }} data-testid={`user-perms-${u.email}`}>

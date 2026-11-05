@@ -13,6 +13,7 @@ import PurchaseManagement from "./pages/PurchaseManagement";
 import GeneralManager from "./pages/GeneralManager";
 import HRManagement from "./pages/HRManagement";
 import ProjectManagement from "./pages/ProjectManagement";
+import CoreDashboard from "./pages/CoreDashboard";
 import ReportsHub from "./pages/ReportsHub";
 import ClientRevenue from "./pages/ClientRevenue";
 import VendorPortalWO from "./pages/VendorPortalWO";
@@ -109,6 +110,7 @@ function App() {
           <Route path="/reports" element={<Navigate to="/final" replace />} />
           <Route path="/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
           <Route path="/project" element={<RequireAuth><ProjectManagement /></RequireAuth>} />
+          <Route path="/core-dashboard" element={<RequireAuth><CoreDashboard /></RequireAuth>} />
           <Route path="/client-revenue" element={<RequireAuth><ClientRevenue /></RequireAuth>} />
           <Route path="/reports-hub" element={<RequireAuth><ReportsHub /></RequireAuth>} />
           <Route path="/site" element={<RequireAuth><OpsDepartment key="site" dept="site" /></RequireAuth>} />

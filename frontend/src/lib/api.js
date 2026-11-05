@@ -170,6 +170,8 @@ export const apiUpdateUserPermissions = (email, permissions) =>
   req(`/users/${encodeURIComponent(email)}/permissions`, { method: "PATCH", body: JSON.stringify(permissions) });
 export const apiUpdateUserRole = (email, role) =>
   req(`/users/${encodeURIComponent(email)}/role`, { method: "PATCH", body: JSON.stringify({ role }) });
+export const apiSetCoreAccess = (email, core_all) =>
+  req(`/users/${encodeURIComponent(email)}/core-access`, { method: "PATCH", body: JSON.stringify({ core_all }) });
 
 export const apiGetCounters = () => req("/counters");
 export const apiSetCounters = (c) =>

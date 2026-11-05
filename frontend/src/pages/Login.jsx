@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Shield, LogIn } from "lucide-react";
-import { login, currentUserProfile } from "../lib/store";
+import { login, currentUserProfile, currentRole } from "../lib/store";
 import AuthSplash from "../components/AuthSplash";
 
 export default function Login() {
@@ -54,7 +54,7 @@ export default function Login() {
         <AuthSplash
           mode="welcome"
           userName={splash.name}
-          onDone={() => nav("/home")}
+          onDone={() => nav(/^Member /.test(currentRole()) ? "/core-dashboard" : "/home")}
         />
       )}
       <Toaster position="top-center" richColors />
