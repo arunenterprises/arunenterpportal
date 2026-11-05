@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 50 tested on desktop: Project Management (/site) with no Core items, per-project forms in the Projects Register and /site, the editable Gross field in the HR Pay Bill, and the fixes for iteration 49. Backend: new pytest test_iter50_project_forms_tasks.py had 5 of 6 tests pass. The iter49 and iter48 suites were re-run and all 19 passed. UI: every requested flow works. Two new issues found: 'Create / Refresh Draft' wipes a manually edited Gross, and a Core Member who is assigned a task is wrongly switched to the 'Maine Diye Task' scope when opening that task's deep link. One minor backend gap: deleting a Core auto-task leaves its 'Naya Task' notification behind.",
+  "verified_working": [
+    "/site default tabs are Projects Register, DPR and Material Indent. dept-tab-core_project, core_progress, core_escalation and core-dashboard are all absent (count 0).",
+    "In the Projects Register form, pm-f-forms has all 10 pm-form-<kind> checkboxes, with dpr and indent ticked by default. A TEST project saved with dpr, qc_test and safety_audit, and the forms array was persisted on the server (confirmed by GET).",
+    "On /site, picking the TEST project in site-project-select shows only the DPR, Material Lab Test Report and Daily Site Safety Audit tabs, and site-project-forms shows the matching label. ops-new pre-fills ops-f-project with the project name in all 3 forms. The DPR data sheet shows only that project's records (1 of 2). Choosing 'Sabhi projects' shows both. The chosen project is remembered in localStorage across reloads.",
+    "HR Pay Bill: pb-gross-0 is an editable number input. Changing it from 0 to 54321 updates Net and the header totals live, and Save keeps the value. Tested on a TEST Jan-2099 draft, which was then deleted.",
+    "Fix (1): a plain User clicking the Core Escalation notification, or the task's 'Kaam kholein' button, sees core-assigned-work with the record loaded, and Save succeeds (toast 'Saved · AE/CESC/T0001/2627').",
+    "Fix (2): clicking a task notification while already on /my-tasks opens task-detail. For the SuperAdmin, the 'Task Submitted' notification switches to the 'assigned' scope and opens the task with Done/Reject/Reopen/Delete.",
+    "Fix (3): the Core Setup modules textarea is pre-filled with the saved custom modules (TESTSAFE | TEST Audit | Nos), including right after a reload.",
+    "Fix (4): assignedTo is lowercased and trimmed in ops_upsert. An assignee changing a Done task gets 403. Deleting a task removes its /my-tasks?task=<id> notifications."
+  ],
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE /api/tasks/{tid}", "issue": "Notifications are cleaned up with a regex on tid inside path. A Core auto-task (made by ops_upsert for core_progress/core_escalation) has the path /core-dashboard?kind=..&rid=<rid>, which does not contain tid, so its 'Naya Task' notification is left behind after the task is deleted (test_core_auto_task_delete_notification fails). Fix: also delete notifications whose path equals t['path'], or store taskId on notifications."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "HRManagement Pay Bill / store.createPayBillDraft", "issue": "Clicking 'Create / Refresh Draft' on an existing draft resets a manually edited Gross. Reproduced: 54321 became 0. In lib/store.js about line 1891, gross is always set to s.earned while PF/ESIC/advance keep their previous values. Fix: gross: prev?.gross ?? (s.earned || 0), or prevAny?.gross when it was edited by hand (store a grossOverride flag).", "selector": "[data-testid='pb-create'], [data-testid='pb-gross-0']", "priority": "HIGH"},
+      {"component": "MyTasks deep-link for senior assignees (Core Members)", "issue": "A Member-role user (counted as senior) opening /my-tasks?task=<own task id> on a fresh load is switched to scope 'assigned'. The cause: the sp effect runs while tasks=[] and treats the task as missing. The 'Maine Diye Task' button becomes active and the AssignForm appears, but the list and detail come from the 'mine' request that happened to finish last (a race). The detail opened in the test, but the scope state is inconsistent and depends on timing. Fix: only switch scope after the 'mine' list has loaded and the task is not in it (e.g. check inside load() with the current sel and scope via refs), not in the sp effect while tasks is empty.", "selector": "[data-testid='task-scope-assigned']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MyTasks task-detail", "issues": ["The status Pill in the detail header (Assigned/Submitted) is a tall oval with the text pushed to the top. Needs whiteSpace:nowrap / alignSelf:flex-start."]},
+      {"screen": "Core Setup", "issues": ["'Built-in:' label also lists custom disciplines (e.g. TESTSAFE)."]},
+      {"screen": "HR Pay Bill", "issues": ["The pb-gross input does not get a locked background colour when disabled, unlike the PF/ESIC inputs."]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "OpsDepartment: project-wise forms include labour/labour_bill (hr), machine_log/diesel_log (plant) and demand_letter/agreement (client). OpsModule and the backend check those departments' ACL, so a Project Management user who has only site permissions will get 403 / no-create on those tabs. Consider allowing site permissions for project-scoped records, or warn in the Projects Register.",
+    "Records are filtered and pre-filled by project NAME (r.project === proj.name). Renaming a project in the Projects Register orphans its existing DPR/QC records from the per-project view. Store a projectId on records.",
+    "Projects Register keeps localStorage as a mirror and pushes old browser-only projects up to the server on load (ProjectManagement useEffect). A project deleted on another device can come back from a stale browser cache.",
+    "pm-form-delete (Delete button) uses the same testid prefix as the pm-form-<kind> checkboxes, so prefix selectors pick it up. Rename it to pm-delete.",
+    "HRManagement.jsx is 2918 lines and should be split. ProjectManagement.jsx is 575 lines."
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter50_project_forms_tasks.py", "/app/backend/tests/iter50_ui_setup.py", "/app/test_reports/pytest/pytest_iter50.xml"],
+  "action_items": [
+    "HIGH: store.createPayBillDraft should keep a manually edited gross when the draft is refreshed.",
+    "MEDIUM: MyTasks: do not auto-switch to scope 'assigned' before the 'mine' list has loaded. Fix the race and stale-closure in load()/sp effect for senior assignees.",
+    "MINOR: task_delete should also remove notifications whose path equals the task's path (Core auto-tasks).",
+    "LOW: Pill sizing in task-detail; 'Built-in' label in Core Setup; locked styling of pb-gross; rename pm-form-delete testid; consider ACL for cross-department project forms."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter50_project_forms_tasks.py", "/app/backend/tests/iter50_ui_setup.py"],
+  "success_rate": {"backend": "83% (5/6 new) + 19/19 regression", "frontend": "~90% (all requested flows pass; 2 bugs found in adjacent behaviour)"},
+  "seed_data_creation": "None kept. All TEST data was deleted by id: TEST project, 2 DPRs, core escalation, 3 tasks plus their notifications, 2 TEST users, the Jan-2099 pay bill draft. A core_config settings doc created for the prefill test was removed again (it did not exist before).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n 0 and export REACT_APP_BACKEND_URL. Use SA POST /api/admin/users/{email}/otp-reset before every non-SA login. iter50_ui_setup.py setup|otp <email>|state|teardown manages test_i50_ui_user (User) and test_i50_ui_legal (Member Legal), password TestPw@1234. Before this run there were no real projects and no core_config doc. For Pay Bill use a far-future month (2099) so real drafts are untouched, and delete with pb-del-<id>. Retest: (1) edit gross, click pb-create again, the value must stay; (2) as Member Legal, open /my-tasks?task=<own id> fresh, scope must stay 'mine'; (3) delete a Core auto-task, its notification must be gone.",
+  "rca of the issue": "Pay Bill gross reset: createPayBillDraft rebuilds each line and keeps prev pf/esic/advance/otherDeductions, but sets gross: s.earned unconditionally. MyTasks scope: the useEffect on [sp] checks !tasks.find(...) while tasks is still [] on first mount, so every senior is moved to 'assigned'. load() also closes over a stale sel."
+}

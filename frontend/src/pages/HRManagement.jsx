@@ -1530,7 +1530,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
 
   const setLine = (idx, key, val) => {
     const num = Number(val) || 0;
-    const next = { ...cur, lines: cur.lines.map((l, i) => i === idx ? { ...l, [key]: num } : l) };
+    const next = { ...cur, lines: cur.lines.map((l, i) => i === idx ? { ...l, [key]: num, ...(key === "gross" ? { grossEdited: true } : {}) } : l) };
     setCur(next);
   };
 
@@ -1559,6 +1559,13 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
   };
 
   const remove = (id) => { if (!window.confirm("Delete this pay bill?")) return; deletePayBill(id); setCur(null); refresh(); };
+
+  const reopen = () => {
+    if (!approveAllowed) return toast.error("Edit sirf Admin / SuperAdmin kar sakte hain");
+    if (!window.confirm("Pay Bill ko dobara Draft mein khol kar edit karein?")) return;
+    const s = upsertPayBill({ ...cur, step: 1 });
+    setCur(s); refresh(); toast.success("Pay Bill edit ke liye khul gaya");
+  };
 
   const locked = cur && Number(cur.step) >= 2;
   const inrN = (n) => Number(n || 0).toLocaleString("en-IN");
@@ -1686,6 +1693,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
           </div>
           <div style={{ padding: 12, display: "flex", gap: 8, flexWrap: "wrap", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
             <button data-testid="pb-save" onClick={saveDraft} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#16a34a", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Save size={13} style={{ verticalAlign: -2 }} /> Save</button>
+            <button data-testid="pb-edit" onClick={reopen} disabled={!locked || Number(cur.step) >= 4 || !approveAllowed} title="Submitted / Approved Pay Bill ko dobara edit karein" style={{ padding: "7px 14px", background: !locked || Number(cur.step) >= 4 || !approveAllowed ? "#cbd5e1" : "#d97706", color: "#fff", border: "none", borderRadius: 5, cursor: !locked || Number(cur.step) >= 4 || !approveAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}>Edit</button>
             <button data-testid="pb-submit" onClick={submit} disabled={locked || !writeAllowed} style={{ padding: "7px 14px", background: locked || !writeAllowed ? "#cbd5e1" : "#7c3aed", color: "#fff", border: "none", borderRadius: 5, cursor: locked || !writeAllowed ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 12 }}><Send size={13} style={{ verticalAlign: -2 }} /> Submit to GM</button>
             {Number(cur.step) === 2 && <button data-testid="pb-approve" onClick={approveNow} disabled={!approveAllowed} style={{ padding: "7px 14px", background: approveAllowed ? "#dc2626" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> GM Approve</button>}
             {Number(cur.step) === 3 && <button data-testid="pb-settle" onClick={settle} disabled={!approveAllowed} style={{ padding: "7px 14px", background: approveAllowed ? "#0f766e" : "#cbd5e1", color: "#fff", border: "none", borderRadius: 5, cursor: approveAllowed ? "pointer" : "not-allowed", fontWeight: 700, fontSize: 12 }}><IndianRupee size={13} style={{ verticalAlign: -2 }} /> Mark Settled</button>}

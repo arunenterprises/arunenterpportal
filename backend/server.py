@@ -2555,11 +2555,13 @@ async def task_update(tid: str, body: Dict = Body(...), user: Dict = Depends(get
 
 @api_router.delete("/tasks/{tid}")
 async def task_delete(tid: str, user: Dict = Depends(get_current_user)):
-    t = await db.tasks.find_one({"id": tid}, {"_id": 0, "assignedBy": 1}) or {}
+    t = await db.tasks.find_one({"id": tid}, {"_id": 0, "assignedBy": 1, "path": 1}) or {}
     if not (t.get("assignedBy") == user["email"] or _is_super_admin(user) or (user.get("role") or "") == "Admin"):
         raise HTTPException(status_code=403, detail="Sirf task dene wala ya Admin delete kar sakta hai")
     await db.tasks.delete_one({"id": tid})
     await db.notifications.delete_many({"path": {"$regex": re.escape(tid)}})
+    if t.get("path"):
+        await db.notifications.delete_many({"path": t["path"]})
     return {"ok": True}
 
 

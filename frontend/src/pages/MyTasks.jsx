@@ -93,15 +93,16 @@ export default function MyTasks() {
   const [users, setUsers] = useState([]);
   const [sel, setSel] = useState(sp.get("task") || "");
   const [filter, setFilter] = useState("Open");
+  const [loaded, setLoaded] = useState(false);
   const load = (clear) => {
     if (clear) setSel("");
     return apiTasks(scope).then((list) => {
-      setTasks(list);
+      setTasks(list); setLoaded(true);
       if (sel && !list.find((t) => t.id === sel) && scope === "mine" && senior) setScope("assigned");
     }).catch((e) => toast.error(e.message));
   };
-  useEffect(() => { const t = sp.get("task"); if (t) { setSel(t); if (!tasks.find((x) => x.id === t) && scope === "mine" && senior) setScope("assigned"); } }, [sp]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const t = sp.get("task"); if (t) { setSel(t); if (loaded && !tasks.find((x) => x.id === t) && scope === "mine" && senior) setScope("assigned"); } }, [sp]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setLoaded(false); load(); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (senior) apiUserDirectory().then(setUsers).catch(() => {}); }, [senior]);
   const shown = useMemo(() => tasks.filter((t) => filter === "All" || (filter === "Open" ? !["Done"].includes(t.status) : filter === "Today" ? t.dueDate === today() && t.status !== "Done" : t.status === filter)), [tasks, filter]);
   const cur = tasks.find((t) => t.id === sel);
