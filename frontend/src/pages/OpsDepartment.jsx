@@ -1,17 +1,24 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { FolderKanban, LayoutDashboard } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import OpsModule from "../components/ops/OpsModule";
-import { OPS, DEPTS } from "../components/ops/opsConfig";
+import { OPS, DEPTS, MEMBER_DISC, CORE_DISC } from "../components/ops/opsConfig";
+import { apiMe } from "../lib/api";
+import { currentRole } from "../lib/store";
 import { QcNormsGuide } from "../components/ops/QcNormsGuide";
 
 export default function OpsDepartment({ dept }) {
   const d = DEPTS[dept];
   const nav = useNavigate();
-  const [tab, setTab] = useState(d.tabs[0]);
+  const [me, setMe] = useState({});
+  useEffect(() => { apiMe().then(setMe).catch(() => {}); }, []);
+  const role = currentRole();
+  const coreDisc = role === "SuperAdmin" || role === "GM" || me.core_all ? CORE_DISC : MEMBER_DISC[role] || [];
+  const tabs = d.tabs.filter((k) => !k.startsWith("core_") || coreDisc.length);
+  const [tab, setTab] = useState(tabs[0]);
   return (
     <>
       <Toaster position="top-center" richColors />
@@ -22,17 +29,17 @@ export default function OpsDepartment({ dept }) {
           {d.projectsLink && (
             <button data-testid="dept-tab-projects" onClick={() => nav("/project")} style={{ padding: "8px 16px", background: "#0f766e", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><FolderKanban size={13} /> Projects Register</button>
           )}
-          {d.projectsLink && (
+          {d.projectsLink && coreDisc.length > 0 && (
             <button data-testid="dept-tab-core-dashboard" onClick={() => nav("/core-dashboard")} style={{ padding: "8px 16px", background: "#1d4ed8", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><LayoutDashboard size={13} /> Core Committee Dashboard</button>
           )}
-          {d.tabs.map((k) => (
+          {tabs.map((k) => (
             <React.Fragment key={k}>
             <button data-testid={`dept-tab-${k}`} onClick={() => setTab(k)} style={{ padding: "8px 16px", background: tab === k ? OPS[k].color : `${OPS[k].color}14`, color: tab === k ? "#fff" : OPS[k].color, border: `1px solid ${OPS[k].color}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{OPS[k].title}</button>
             {k === "qc_test" && <QcNormsGuide />}
             </React.Fragment>
           ))}
         </div>
-        <OpsModule cfg={OPS[tab]} />
+        <OpsModule cfg={OPS[tab]} disc={coreDisc} />
       </div>
     </>
   );

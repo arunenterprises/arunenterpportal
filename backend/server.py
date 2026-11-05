@@ -2289,11 +2289,11 @@ MEMBER_DISC = {"Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electri
 
 
 def _core_disc(user: Dict) -> Optional[List[str]]:
-    """Disciplines a Core Member may see; None = all (GM/Admin/SuperAdmin or core_all granted)."""
+    """Disciplines allowed: None = all (SuperAdmin/GM/core_all), member = own, others = none."""
     role = (user.get("role") or "").strip()
-    if role in MEMBER_DISC and not user.get("core_all"):
-        return MEMBER_DISC[role]
-    return None
+    if _is_super_admin(user) or role == "GM" or user.get("core_all"):
+        return None
+    return MEMBER_DISC.get(role, [])
 BACKUP_COLLECTIONS.extend(f"ops_{k}" for k in OPS_KINDS)
 
 
@@ -2325,7 +2325,7 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     await _rbac(user, dept, "e" if ex else "c")
     allowed = _core_disc(user) if kind.startswith("core_") else None
     if allowed is not None and (body.get("discipline") not in allowed or (ex and ex.get("discipline") not in allowed)):
-        raise HTTPException(status_code=403, detail=f"Aap sirf {', '.join(allowed)} discipline ka kaam kar sakte hain")
+        raise HTTPException(status_code=403, detail=f"Aap sirf {', '.join(allowed)} discipline ka kaam kar sakte hain" if allowed else "Core Projects sirf GM, SuperAdmin aur Core Members ke liye hain")
     if ((new in ("Approved", "Rejected") and new != old) or old == "Approved") and not await _acl_ok(user, dept, "a"):
         raise HTTPException(status_code=403, detail="Approval / approved record change ki permission nahi hai")
     now = datetime.now(timezone.utc)
@@ -2360,6 +2360,11 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
 async def ops_delete(kind: str, rid: str, user: Dict = Depends(get_current_user)):
     await _rbac(user, OPS_DEPT[kind], "d")
     coll = _ops_coll(kind)
+    allowed = _core_disc(user) if kind.startswith("core_") else None
+    if allowed is not None:
+        doc = await db[coll].find_one({"id": rid}, {"_id": 0, "discipline": 1}) or {}
+        if doc.get("discipline") not in allowed:
+            raise HTTPException(status_code=403, detail="Is discipline ka record delete karne ki permission nahi hai")
     await db[coll].delete_one({"id": rid})
     # Roll counters back to highest number still in use (frees the last deleted number)
     mx: Dict[str, int] = {}

@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 47 - Core Committee feature + print polish + rename. Backend pytest 6/7 pass. UI: SuperAdmin /site core tabs, Core Project create (AE/CPRJ/T0001/2627, member auto 'Member Civil'), Core Working Form (unit Cum, cum 30, 30%), Core Escalation (daysOpen 4, suggested L2, ESCALATE badge), /core-dashboard 4 tabs + 30% progress + open escalation + Procurement extra KPIs, Users create form with Core Member roles, Member OHE login -> /core-dashboard with ONLY Member OHE tab, API filtered to OHE, POST CIVIL -> 403, CORE: OWN/ALL toggle -> 4 tabs + all disciplines, plain User sees core-not-permitted, Reports Hub '6. Project Management' has 3 core reports, Reports print + Work Order print have ae-lh-img letterhead and #000 table borders, /letterhead-header.jpg 200, title 'arunerpportal', home core button. FAILURES: (1) plain 'User' role (and any non-member role e.g. Admin/HR/Accounts/Viewer) can read+create all core data via API and /site tabs; (2) OpsModule Print has no letterhead image.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET/POST /api/ops/core_project|core_progress|core_escalation", "issue": "_core_disc() returns None (=ALL) for every role that is not a 'Member *' role, so a normal 'User' (also HR/Accounts/Viewer/Purchase/Admin) gets ALL core projects/working/escalations and can create/edit them. Spec says core data visible only to GM + assigned member + SuperAdmin. Verified: plain User GET /api/ops/core_project returned both CIVIL and OHE TEST projects. Fix: in _core_disc return [] (deny) for roles not in {SuperAdmin, GM} and not Member (or core_all), and enforce same in ops_upsert/ops_delete.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "DELETE /api/ops/core_*/{rid}", "issue": "No discipline check on delete (only ACL 'd'). If a Member is granted delete via ACL they could delete other-discipline records."},
+      {"endpoint": "POST /api/auth/login", "issue": "Login response 'user' object does not include core_all (frontend relies on /auth/me, works, but inconsistent)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "OpsModule print()", "issue": "OpsModule Print window HTML has plain <h2>M/S ARUN ENTERPRISES</h2> with no <div class='lh'>/'hdr', so polishPrintHtml never injects the scanned letterhead image (ae-lh-img missing). Dark border CSS IS injected. Fix: use letterheadImg() from lib/printKit in OpsModule print (as ReportsHub buildLetterhead does).", "selector": "[data-testid='ops-print']", "priority": "MEDIUM"},
+      {"component": "/site Project Management tabs", "issue": "Core Projects / Working Form / Escalation tabs are shown to every role (plain User sees all disciplines' data & can Save). Should be hidden/blocked for non GM/SuperAdmin/Member roles.", "selector": "[data-testid='dept-tab-core_project']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Core forms as Member", "issues": ["Discipline select (ops-f-discipline) shows all 5 disciplines to a Member OHE; choosing CIVIL only fails on save with 403 toast. Restrict options to MEMBER_DISC[role] unless core_all."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter47_core_committee.py", "/app/backend/tests/cleanup_iter47.py", "/app/test_reports/pytest/pytest_iter47.xml"],
+  "action_items": [
+    "Backend: restrict core_* kinds to SuperAdmin, GM, Member roles (own disciplines or core_all). Non-member roles (User/Admin/HR/Accounts/Viewer/Purchase) must get 403 or empty list on GET and 403 on POST/DELETE.",
+    "Frontend: hide core_project/core_progress/core_escalation tabs in DEPTS.site (OpsDepartment) for non-permitted roles; filter Reports Hub core reports similarly.",
+    "OpsModule print: prepend letterheadImg() (lib/printKit) to the print HTML so the scanned letterhead appears.",
+    "Member forms: limit discipline select options to the member's disciplines."
+  ],
+  "critical_code_review_comments": [
+    "_core_disc default-allow design is the root cause of data exposure; flip to default-deny for non-core roles.",
+    "core_escalation daysOpen/suggested are computed client-side and stored at save time; dashboard shows the stale stored daysOpen (won't grow day by day unless re-saved). Compute daysOpen at render time in CoreDashboard/table.",
+    "CoreDashboard tab logic uses currentRole() (localStorage) for SuperAdmin/GM but me.role for members - mixed sources; prefer me.role from /auth/me.",
+    "Core Members inherit default ACL view=True for all other departments (HR, Finance, Procurement etc.) - confirm with user if members should see entire ERP.",
+    "polishPrintHtml regex only matches exact '<div class=\"lh\">' / '<div class=hdr>' - any header with extra classes/attributes will not get the letterhead.",
+    "server.py is 2390 lines and UsersAdmin.jsx 1077, ReportsHub.jsx 1346 - should be split."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter47_core_committee.py", "/app/backend/tests/cleanup_iter47.py"],
+  "success_rate": {"backend": "86% (6/7)", "frontend": "88% (15/17 checks)"},
+  "seed_data_creation": "Created and then deleted: TEST core projects/working/escalation (UI + pytest), users test_member_ohe_<tag>@example.com, test_plain_user_<tag>@example.com, test_ui_member_ohe@example.com, test_ui_plain_user@example.com. All verified removed (core collections empty after cleanup).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Member logins: use SuperAdmin POST /api/admin/users/{email}/otp-reset to get a one-time OTP bypass (30 min), then login with password only. Member login is single-session (UI login invalidates API token). Preview server clock is Nov 2026 (FY 2627). Run tests with '-n 0'. Re-run test_iter47_core_committee.py::test_07 after access fix.",
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12 (from /app/memory/test_credentials.md)"
+}

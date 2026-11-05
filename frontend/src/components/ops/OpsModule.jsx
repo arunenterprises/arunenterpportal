@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { FilePlus2, Save, Pencil, Send, CheckCircle2, XCircle, Trash2, Download, Printer, Search } from "lucide-react";
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
 import { can, OPS_DEPT } from "../../lib/acl";
+import { letterheadImg } from "../../lib/printKit";
 
 export const STATUS_COLOR = { Draft: "#64748b", Submitted: "#d97706", Approved: "#15803d", Rejected: "#dc2626" };
 const uid = () => `op_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -24,7 +25,8 @@ const Field = ({ f, v, set, ro, lists, row }) => {
   return <input {...p} list={list} type={f.type === "number" ? f.type : "text"} placeholder={list && lists ? "Type / select" : ""} />;
 };
 
-export default function OpsModule({ cfg }) {
+export default function OpsModule({ cfg: baseCfg, disc }) {
+  const cfg = useMemo(() => (disc && baseCfg.kind.startsWith("core_") ? { ...baseCfg, fields: baseCfg.fields.map((f) => (f.k === "discipline" ? { ...f, options: disc } : f)) } : baseCfg), [baseCfg, disc]);
   const [rows, setRows] = useState([]);
   const [cur, setCur] = useState(() => blank(cfg));
   const [locked, setLocked] = useState(false);
@@ -72,7 +74,7 @@ export default function OpsModule({ cfg }) {
   const print = () => {
     const w = window.open("", "_blank"); if (!w) return;
     const tr = cfg.fields.map((f) => `<tr><th>${f.l}</th><td>${cur[f.k] ?? ""}</td></tr>`).join("");
-    w.document.write(`<html><head><title>${cur.docNo || cfg.title}</title><style>@page{size:A4 portrait;margin:14mm}body{font-family:Arial;font-size:12px}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:6px;text-align:left}th{width:35%;background:#f1f5f9}</style></head><body><h2>M/S ARUN ENTERPRISES</h2><h3>${cfg.title} · ${cur.docNo || "Draft"}</h3><table>${tr}<tr><th>Status</th><td>${cur.status}${cur.approvedByName ? ` · ${cur.approvedByName}` : ""}</td></tr></table><br/><br/><table style="border:0"><tr><td style="border:0">Prepared By</td><td style="border:0;text-align:right">Approved By</td></tr></table></body></html>`);
+    w.document.write(`<html><head><title>${cur.docNo || cfg.title}</title><style>@page{size:A4 portrait;margin:14mm}body{font-family:Arial;font-size:12px}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:6px;text-align:left}th{width:35%;background:#f1f5f9}</style></head><body>${letterheadImg()}<h3>${cfg.title} · ${cur.docNo || "Draft"}</h3><table>${tr}<tr><th>Status</th><td>${cur.status}${cur.approvedByName ? ` · ${cur.approvedByName}` : ""}</td></tr></table><br/><br/><table style="border:0"><tr><td style="border:0">Prepared By</td><td style="border:0;text-align:right">Approved By</td></tr></table></body></html>`);
     w.document.close(); w.print();
   };
   const sc = STATUS_COLOR[cur.status] || "#64748b";
