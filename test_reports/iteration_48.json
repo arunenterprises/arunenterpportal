@@ -1,0 +1,25 @@
+{
+  "summary": "Iteration 48 - Retest of Core Committee access fixes. Backend: new pytest test_iter48_core_access.py 10/10 PASS (User/HR/Accounts/Viewer/Admin GET core_project|core_progress|core_escalation = [], POST 403, DELETE 403; SuperAdmin + GM see all and GM can create; Member OHE sees only OHE and POST CIVIL 403; Member OHE with core_all sees all; Member OHE given temporary per-user site delete ACL still gets 403 deleting CIVIL record, 200 deleting own OHE record; ACL restored exactly afterwards). Regression test_iter47_core_committee.py 7/7 PASS (test_07 plain-user leak now fixed). Frontend: plain User /site shows no core tabs and no Core Committee Dashboard button (only Projects Register, DPR, Material Indent). Member OHE: discipline select offers only OHE, CIVIL record not visible. SuperAdmin: select offers all 5 disciplines. OpsModule Print popup has <img class='ae-lh-img'> (loaded, 1815px wide) and #000 !important table border CSS (computed td border rgb(0,0,0)). SuperAdmin /core-dashboard 4 tabs (Civil/OHE/Electrical/Procurement) all render; Procurement shows extra KPIs (9).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/site hero for plain User", "issues": ["Hero subtitle still reads 'Core Projects (CIVIL · OHE · PSI · P&M · E&M) · Working Form · Escalation · DPR · Material Indent' even though the core tabs are hidden for this user (cosmetic)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter48_core_access.py", "/app/backend/tests/iter48_ui_setup.py", "/app/test_reports/pytest/pytest_iter48.xml"],
+  "action_items": ["Optional: make the /site hero subtitle conditional so non-core roles don't see 'Core Projects ...' text."],
+  "critical_code_review_comments": [
+    "OpsDepartment uses currentRole() (localStorage) for role but me.core_all from /auth/me - mixed sources; backend is authoritative so this is safe, but prefer me.role.",
+    "OpsModule print still has inline 'border:1px solid #999'; it only turns dark because the global window.open polish hook injects '#000 !important'. Fine for now but fragile if hook is bypassed.",
+    "server.py remains very large (>2300 lines) - should be split into routers."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter48_core_access.py", "/app/backend/tests/iter48_ui_setup.py"],
+  "success_rate": {"backend": "100% (10/10 new + 7/7 regression)", "frontend": "100% (all requested checks)"},
+  "seed_data_creation": "Created and deleted: TEST_i48_* core records (all 3 kinds), test_i48_* users for roles User/HR/Accounts/Viewer/Admin/GM/Member OHE/core_all, test_i48_ui_user@example.com, test_i48_ui_ohe@example.com, TEST_i48_ui_civil. Verified 0 test_ users and 0 core records remain. ACL settings temporarily modified (per-user override) and restored to exact original value.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use SuperAdmin POST /api/admin/users/{email}/otp-reset to bypass OTP for TEST users. Run pytest with '-n 0'. iter48_ui_setup.py setup|otp|teardown manages UI test users.",
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com / Arun2023@12"
+}
