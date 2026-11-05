@@ -182,7 +182,7 @@ export default function CoreDashboard() {
   const active = tabs.includes(tab) ? tab : tabs[0];
   const role = currentRole();
   const discAllowed = role === "SuperAdmin" || role === "GM" || me?.core_all ? CORE_DISC : MEMBER_DISC[me?.role] || [];
-  const SECS = [["dash", "Dashboard"], ["core_project", "Core Projects"], ["core_progress", "Working Form"], ["core_escalation", "Escalation"], ...(role === "SuperAdmin" ? [["setup", "Core Setup"]] : [])];
+  const SECS = [["dash", "Dashboard"], ["core_project", "Core Projects"], ["core_progress", "Working Form"], ["core_escalation", "Escalation"], ["setup", "Core Setup"]];
   return (
     <>
       <Toaster position="top-center" richColors />
@@ -200,10 +200,16 @@ export default function CoreDashboard() {
           <>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
               {SECS.map(([k, l]) => (
-                <button key={k} data-testid={`core-sec-${k}`} onClick={() => (k === "dash" || k === "setup" ? (setSec(k), nav("/core-dashboard")) : go(k))} style={{ padding: "8px 16px", background: sec === k ? "#0b1f4d" : "#fff", color: sec === k ? "#fff" : "#0b1f4d", border: "1px solid #0b1f4d55", borderRadius: 7, cursor: "pointer", fontWeight: 800, fontSize: 12, display: "inline-flex", gap: 5, alignItems: "center" }}>{k === "setup" && <Settings2 size={13} />}{l}</button>
+                <button key={k} data-testid={`core-sec-${k}`} onClick={() => { if (k === "setup" && role !== "SuperAdmin") toast.error("Not Permitted — Core Setup sirf SuperAdmin ke liye"); if (k === "dash" || k === "setup") { setSec(k); nav("/core-dashboard"); } else go(k); }} style={{ padding: "8px 16px", background: sec === k ? "#0b1f4d" : "#fff", color: sec === k ? "#fff" : "#0b1f4d", border: "1px solid #0b1f4d55", borderRadius: 7, cursor: "pointer", fontWeight: 800, fontSize: 12, display: "inline-flex", gap: 5, alignItems: "center" }}>{k === "setup" && (role === "SuperAdmin" ? <Settings2 size={13} /> : <Lock size={12} />)}{l}</button>
               ))}
             </div>
-            {sec === "setup" && <div style={{ marginTop: 12 }}><CoreSetup onSaved={() => setRev((v) => v + 1)} /></div>}
+            {sec === "setup" && role === "SuperAdmin" && <div style={{ marginTop: 12 }}><CoreSetup onSaved={() => setRev((v) => v + 1)} /></div>}
+            {sec === "setup" && role !== "SuperAdmin" && (
+              <div data-testid="core-setup-not-permitted" style={{ ...card, marginTop: 12, textAlign: "center", padding: 36 }}>
+                <Lock size={28} color="#dc2626" /><div style={{ fontWeight: 800, marginTop: 8 }}>Not Permitted</div>
+                <div style={{ fontSize: 12, color: "#64748b" }}>Core Setup sirf SuperAdmin ke liye hai.</div>
+              </div>
+            )}
             {OPS[sec] && <div style={{ marginTop: 12 }}><OpsModule cfg={OPS[sec]} disc={discAllowed} openId={openId} /></div>}
             {sec === "dash" && <>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "14px 0", padding: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
