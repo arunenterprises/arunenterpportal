@@ -21,6 +21,9 @@ export const CORE_MODULES = {
 };
 export const MEMBER_DISC = { "Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"], "Member HR & Admin": ["HR & ADMIN"], "Member Legal": ["LEGAL"], "Member Financial": ["FINANCE"] };
 export const CORE_MEMBERS = Object.keys(MEMBER_DISC);
+export const CORE_CUSTOM = {};
+// Process forms a project can switch on in Projects Register
+export const PROJECT_FORMS = ["dpr", "indent", "labour", "labour_bill", "machine_log", "diesel_log", "qc_test", "safety_audit", "demand_letter", "agreement"];
 // Pull SuperAdmin-configured members / extra disciplines from server (mutates the shared lists in place)
 export const loadCoreConfig = async () => {
   const cfg = await apiCoreConfig();
@@ -28,6 +31,8 @@ export const loadCoreConfig = async () => {
   Object.assign(MEMBER_DISC, cfg.members || {});
   CORE_MEMBERS.splice(0, CORE_MEMBERS.length, ...Object.keys(MEMBER_DISC));
   Object.assign(CORE_MODULES, cfg.modules || {});
+  Object.keys(CORE_CUSTOM).forEach((k) => delete CORE_CUSTOM[k]);
+  Object.assign(CORE_CUSTOM, cfg.modules || {});
   [...Object.values(MEMBER_DISC).flat(), ...Object.keys(CORE_MODULES)].forEach((d) => { if (!CORE_DISC.includes(d)) CORE_DISC.push(d); });
   return cfg;
 };
@@ -184,7 +189,7 @@ export const OPS = {
 };
 
 export const DEPTS = {
-  site: { title: "Project Management", sub: "Core Projects (CIVIL · OHE · PSI · P&M · E&M) · Working Form · Escalation · DPR · Material Indent", icon: HardHat, gradient: "linear-gradient(135deg,#78350f 0%,#b45309 55%,#f59e0b 100%)", shadow: "180,83,9,.28", tabs: ["core_project", "core_progress", "core_escalation", "dpr", "indent"], projectsLink: true },
+  site: { title: "Project Management", sub: "Projects Register · Project-wise Forms · DPR · Material Indent", icon: HardHat, gradient: "linear-gradient(135deg,#78350f 0%,#b45309 55%,#f59e0b 100%)", shadow: "180,83,9,.28", tabs: ["dpr", "indent"], projectsLink: true },
   qc: { title: "QC & Safety Management", sub: "Material Lab Test Reports · Daily Site Safety Audits", icon: FlaskConical, gradient: "linear-gradient(135deg,#4c1d95 0%,#7c3aed 55%,#dc2626 100%)", shadow: "124,58,237,.28", tabs: ["qc_test", "safety_audit"] },
   plant: { title: "P & M Management", sub: "Machinery Allocation · Running Hours · Diesel Chori Tracking", icon: Tractor, gradient: "linear-gradient(135deg,#422006 0%,#a16207 55%,#9a3412 100%)", shadow: "161,98,7,.28", tabs: ["machine", "machine_log", "diesel_log"] },
 };

@@ -1,0 +1,58 @@
+{
+  "summary": "Iteration 49: tested Core config (dynamic members), Tasks, Notifications, assigning a core escalation to an employee, My Tasks UI, Bell, Sidebar T/C, Reports Hub Core Management group, plus a re-run of the iter48 core regression. Backend: 8 of 9 new tests pass and 10 of 10 iter48 regression tests pass. The one failure is minor (email case). UI: most flows work end-to-end. Found 2 important UI bugs that break the main promise of 'click notification -> open exact record': (1) a plain User who is assigned a core escalation gets 'Not Permitted' on /core-dashboard and cannot open, edit or save it in the UI (the backend allows it); (2) clicking a /my-tasks?task=<id> notification does not open the task when the user is already on /my-tasks, or when the task is in the 'assigned' scope (the assigner's 'Task Submitted' notification).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/ops/core_escalation|core_progress", "issue": "assignedTo is saved as typed (not lowercased). The task/notification uses the lowercased email, but ops_list matches d.assignedTo == user.email exactly, so a mixed-case assignedTo hides the record from the assignee (test_escalation_assign_mixed_case_email_visible FAILS). Fix: body['assignedTo'] = to (lowercased) before replace_one."},
+      {"endpoint": "PATCH /api/tasks/{id}", "issue": "The assignee can move a Done/Rejected task back to In Progress or Submitted (there is no status-transition guard), and this re-notifies the senior."},
+      {"endpoint": "DELETE /api/tasks/{id}", "issue": "Deleting a task leaves its notifications behind. There is also no endpoint to delete notifications."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CoreDashboard.jsx (assignee access)", "issue": "A plain User (or any non-member) who is assigned a Core Escalation or Working Form sees the 'Not Permitted' card after clicking the notification (notif-item) or 'Kaam kholein' (task-open-work). tabs=[] hides the OpsModule entirely, so the record cannot be opened, edited or saved, even though GET /api/ops/core_escalation returns it and POST works. Fix: when kind/rid is in the URL, render the OpsModule for that kind even if tabs is empty, with disc = [record.discipline]. Hide only the member dashboard tabs.", "selector": "[data-testid=core-not-permitted]", "priority": "HIGH"},
+      {"component": "MyTasks.jsx deep-link", "issue": "sel is initialised from ?task= only on mount. Clicking a task notification while already on /my-tasks (the default landing page for non-SuperAdmins) changes the URL but does not open task-detail. Also, scope defaults to 'mine', so the assigner's 'Task Submitted' notification (/my-tasks?task=id) never opens the task, because it lives in scope 'assigned'. Fix: useEffect on sp.get('task') -> setSel. If the task is not in the current list, switch scope to 'assigned' (or fetch by id).", "selector": "[data-testid=task-detail]", "priority": "HIGH"},
+      {"component": "CoreSetup (core-setup-modules)", "issue": "The modules textarea is not prefilled with the saved custom modules (confirmed: empty after reopening). Any later Save Setup sends modules={} and silently wipes every previously configured custom discipline module.", "selector": "[data-testid=core-setup-modules]", "priority": "MEDIUM"},
+      {"component": "opsConfig.loadCoreConfig", "issue": "After a member or discipline is removed, CORE_DISC and CORE_MODULES are never pruned. The removed discipline (TESTSAFE) still shows in the ops-f-discipline options until a full page reload.", "selector": "[data-testid=ops-f-discipline]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Top navbar bell", "issues": ["notif-bell uses the hn-link class and is about 136px wide, so the red notif-count badge floats about 50px to the right of the bell icon instead of sitting on it"]},
+      {"screen": "Core Committee hero", "issues": ["The subtitle still lists only 'Member Civil · Member OHE · Member Electrical · Member Procurement'. It should be built dynamically from CORE_MEMBERS (HR & Admin, Legal, Financial and custom members are missing)."]}
+    ]
+  },
+  "passed_items": [
+    "Sidebar: sidebar-T (My Tasks) and sidebar-C (Core Committee) appear above sidebar-1 GM Dashboard on /site. sidebar-C is hidden for the plain User role.",
+    "/core-dashboard SA: all 5 core-sec-* buttons and 7 member tabs, including HR & Admin, Legal and Financial",
+    "Core Setup: add 'Member TEST Safety'/TESTSAFE -> saved toast -> new member tab and board; TESTSAFE shows in the discipline options; 'Core Member TEST Safety (TESTSAFE)' shows in the /users admin-create-role dropdown; delete row + save removes it",
+    "PUT /core/config: 403 for non-SuperAdmin, 400 for an invalid member name",
+    "ops-f-assignedTo uses the ops-users datalist of user emails. Saving an escalation with assignedTo creates a task (template Core Escalation, path /core-dashboard?kind=core_escalation&rid=<id>) and a notification. Re-saving does not create a duplicate task.",
+    "The SA deep-link /core-dashboard?kind=core_escalation&rid=<id> loads the record into the form (openId works for SA)",
+    "My Tasks assign form: department -> templates -> title auto-fill -> employee -> toast 'Task assign hua · AE/TASK/0007/2627' (browser and server date is Nov 2026, so FY 2627 is correct)",
+    "A non-SA user logs in and lands on /my-tasks; the bell count shows; Save remarks, Start (In Progress) and Submit work; the assignee has no Done button; SA gets 'Task Submitted'; SA Done -> assignee gets 'Task Done'; the notification is marked read on click",
+    "Plain User: POST /tasks 403, GET /users/directory 403, GET /tasks?scope=all 403. A Member Legal user CAN use the directory and assign tasks. Assigning to an unknown email returns 404.",
+    "A plain-User assignee sees only the assigned record via the API, can save it in the same discipline, cannot reassign, change discipline, edit other records or delete, and another plain User cannot see it",
+    "Reports Hub: the CORE MANAGEMENT group shows Core Projects Register, Core Working Form and Core Escalation Register; 6. Project Management now lists only DPR and Material Indent",
+    "Regression: SA login lands on /home; the iter48 core access suite passes 10 of 10"
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter49_tasks_notif.py", "/app/backend/tests/iter49_ui_setup.py", "/app/test_reports/pytest/pytest_iter49.xml"],
+  "action_items": [
+    "HIGH: CoreDashboard: let assigned non-member users open the OpsModule for ?kind=&rid= (render the form for the assigned record instead of the core-not-permitted card)",
+    "HIGH: MyTasks: react to ?task= changes (useEffect on searchParams). Auto-switch to scope 'assigned' (or 'all' for boss) when the task is not in 'mine', so assigner notifications open the task.",
+    "MEDIUM: CoreSetup: prefill the modules textarea from cfg.modules so a re-save does not wipe custom modules",
+    "MINOR: lowercase body.assignedTo in ops_upsert; add a task status-transition guard; clean up notifications when a task is deleted",
+    "LOW: prune CORE_DISC/CORE_MODULES in loadCoreConfig; fix bell badge placement; make the Core hero subtitle dynamic"
+  ],
+  "critical_code_review_comments": [
+    "ops_upsert stores raw assignedTo but compares case-sensitively in ops_list (see failing test)",
+    "_load_core_cfg mutates the module-global MEMBER_DISC on every GET /core/config. This is fine for a single worker; with multiple workers, other workers stay stale until their next GET.",
+    "OpsModule: for a member assigned a record from another discipline, the discipline select options exclude that record's discipline, so the select renders blank",
+    "server.py is about 2570 lines; consider splitting the tasks/notifications/core into separate router modules"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter49_tasks_notif.py", "/app/backend/tests/iter49_ui_setup.py"],
+  "success_rate": {"backend": "95% (18/19 incl. iter48 regression)", "frontend": "80% (2 high-priority deep-link/open-record bugs)"},
+  "seed_data_creation": "None left. Cleaned up: all TEST_i49 users, the tasks and notifications they created or received, the SA 'Task Submitted' notifications for those tasks, the TEST escalations, and the TEST Safety member. The settings.core_config doc (created by the setup save, then equal to the builtins) was deleted, restoring the original state. Side effect: the tasks counter (FY 2627) advanced to 7 and is not rolled back.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Use SA POST /api/admin/users/{email}/otp-reset before EVERY non-SA login (the bypass is one-shot). Run pytest with -n 0. iter49_ui_setup.py setup|otp|state|teardown manages test_i49_ui_user@example.com (role User, pw TestPw@1234). Retest: (1) as the plain User, click the core escalation notification -> the form should load the record and Save should work; (2) clicking a task notification while on /my-tasks opens task-detail, and the assigner's 'Task Submitted' notification opens the task; (3) Core Setup re-save keeps modules. Browser and server date is Nov 2026, so the FY suffix is 2627."
+}

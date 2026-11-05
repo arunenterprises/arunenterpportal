@@ -25,21 +25,23 @@ const Field = ({ f, v, set, ro, lists, row }) => {
   return <input {...p} list={list} type={f.type === "number" ? f.type : "text"} placeholder={list && lists ? "Type / select" : ""} />;
 };
 
-export default function OpsModule({ cfg: baseCfg, disc, openId }) {
+export default function OpsModule({ cfg: baseCfg, disc, openId, preset }) {
   const cfg = useMemo(() => (disc && baseCfg.kind.startsWith("core_") ? { ...baseCfg, fields: baseCfg.fields.map((f) => (f.k === "discipline" ? { ...f, options: disc } : f)) } : baseCfg), [baseCfg, disc]);
+  const pre = preset?.project && cfg.fields.some((f) => f.k === "project") ? { project: preset.project } : null;
+  const fresh = () => ({ ...blank(cfg), ...(pre || {}) });
   const [rows, setRows] = useState([]);
-  const [cur, setCur] = useState(() => blank(cfg));
+  const [cur, setCur] = useState(fresh);
   const [locked, setLocked] = useState(false);
   const [q, setQ] = useState("");
   const [lists, setLists] = useState({ projects: [], machines: [], core: [], users: [] });
   const load = () => apiOpsList(cfg.kind).then((r) => { setRows(r); return r; }).catch((e) => { toast.error(e.message); return []; });
   useEffect(() => {
     load().then((r) => { const hit = openId && r.find((x) => x.id === openId); if (hit) { setCur(hit); setLocked(false); } });
-    setCur(blank(cfg)); setLocked(false);
+    setCur(fresh()); setLocked(false);
     const core = cfg.kind.startsWith("core_");
     Promise.all([apiOpsList("projects").catch(() => []), apiOpsList("machine").catch(() => []), core ? apiOpsList("core_project").catch(() => []) : [], core ? apiUserDirectory().catch(() => []) : []]).then(([p, m, c, u]) => setLists({ projects: p, machines: m, core: c, users: u }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg.kind, openId]);
+  }, [cfg.kind, openId, pre?.project]);
   const calc = (r) => (cfg.calc ? { ...r, ...cfg.calc(r) } : r);
   const set = (k, v) => setCur((c) => calc({ ...c, [k]: v }));
   const approved = cur.status === "Approved";
@@ -65,10 +67,10 @@ export default function OpsModule({ cfg: baseCfg, disc, openId }) {
   const del = async () => {
     if (!can(dept, "d")) { toast.error("Delete ki permission nahi hai"); return; }
     if (!rows.some((r) => r.id === cur.id) || !window.confirm(`Delete ${cur.docNo}?`)) return;
-    try { await apiOpsDelete(cfg.kind, cur.id); toast.success("Deleted"); setCur(blank(cfg)); setLocked(false); load(); } catch (e) { toast.error(e.message); }
+    try { await apiOpsDelete(cfg.kind, cur.id); toast.success("Deleted"); setCur(fresh()); setLocked(false); load(); } catch (e) { toast.error(e.message); }
   };
   const cols = ["docNo", "tempNo", ...cfg.columns.filter((c) => c !== "docNo"), "status"];
-  const shown = useMemo(() => rows.filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase())), [rows, q]);
+  const shown = useMemo(() => rows.filter((r) => (!pre || r.project === pre.project) && (!q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase()))), [rows, q, pre?.project]); // eslint-disable-line react-hooks/exhaustive-deps
   const excel = () => {
     const ws = XLSX.utils.json_to_sheet(shown.map((r) => Object.fromEntries([["Permanent / Ref No", r.permNo || r.docNo], ["Temp No", r.tempNo || ""], ...cfg.fields.map((f) => [f.l, r[f.k]]), ["Status", r.status], ["Approved By", r.approvedByName || ""]])));
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, cfg.kind); XLSX.writeFile(wb, `${cfg.kind}_${today()}.xlsx`);
@@ -103,7 +105,7 @@ export default function OpsModule({ cfg: baseCfg, disc, openId }) {
         </div>
       </div>
       <div data-testid="ops-action-row" style={{ margin: "12px 0", display: "flex", gap: 6, flexWrap: "wrap", padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6 }}>
-        <button data-testid="ops-new" onClick={() => { setCur(blank(cfg)); setLocked(false); }} style={btn("#0369a1")}><FilePlus2 size={13} /> New</button>
+        <button data-testid="ops-new" onClick={() => { setCur(fresh()); setLocked(false); }} style={btn("#0369a1")}><FilePlus2 size={13} /> New</button>
         <button data-testid="ops-edit" onClick={() => (!can(dept, "e") ? toast.error("Edit ki permission nahi hai") : approved && !canApprove() ? toast.error("Approved record sirf Admin badal sakte hain") : setLocked(false))} style={btn("#eab308")}><Pencil size={13} /> Edit</button>
         <button data-testid="ops-save" disabled={ro} onClick={() => save()} style={btn("#16a34a", ro)}><Save size={13} /> Save</button>
         <button data-testid="ops-submit" disabled={approved || noCreate} onClick={() => save({ status: "Submitted" }, "Submitted for GM Approval")} style={btn("#7c3aed", approved || noCreate)}><Send size={13} /> Submit</button>

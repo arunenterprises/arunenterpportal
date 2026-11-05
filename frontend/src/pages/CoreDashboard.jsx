@@ -7,7 +7,7 @@ import ModuleHero from "../components/ModuleHero";
 import OpsModule from "../components/ops/OpsModule";
 import { apiMe, apiOpsList, apiCoreConfigSave } from "../lib/api";
 import { currentRole, getVendors, getBills, getWOs } from "../lib/store";
-import { MEMBER_DISC, CORE_MEMBERS, CORE_DISC, CORE_MODULES, OPS, loadCoreConfig } from "../components/ops/opsConfig";
+import { MEMBER_DISC, CORE_MEMBERS, CORE_DISC, CORE_MODULES, CORE_CUSTOM, OPS, loadCoreConfig } from "../components/ops/opsConfig";
 
 const META0 = {
   "Member Civil": { icon: HardHat, c: "#b45309" },
@@ -126,7 +126,7 @@ const MemberBoard = ({ member, data, go }) => {
 
 const CoreSetup = ({ onSaved }) => {
   const [rows, setRows] = useState(() => Object.entries(MEMBER_DISC).map(([m, d]) => ({ m, d: d.join(", ") })));
-  const [extra, setExtra] = useState("");
+  const [extra, setExtra] = useState(() => Object.entries(CORE_CUSTOM).flatMap(([d, ms]) => ms.map((m) => `${d} | ${m[0]} | ${m[1]}`)).join("\n"));
   const save = async () => {
     const members = {};
     rows.filter((r) => r.m.trim()).forEach((r) => { members[r.m.trim().startsWith("Member ") ? r.m.trim() : `Member ${r.m.trim()}`] = r.d.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean); });
@@ -189,7 +189,8 @@ export default function CoreDashboard() {
       <HomeNavBar />
       <div data-testid="core-dashboard" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px) 80px" }}>
         <ModuleHero tag="Core Committee" title="Core Committee Dashboard" subtitle="Member Civil · Member OHE · Member Electrical · Member Procurement — sirf GM aur assigned member" icon={FolderKanban} gradient="linear-gradient(135deg,#0b1f4d 0%,#1d4ed8 55%,#c81e2b 100%)" shadowRgba="29,78,216,.28" />
-        {me && !tabs.length && (
+        {me && !tabs.length && OPS[sec] && openId && <div style={{ marginTop: 12 }} data-testid="core-assigned-work"><OpsModule cfg={OPS[sec]} openId={openId} /></div>}
+        {me && !tabs.length && !(OPS[sec] && openId) && (
           <div data-testid="core-not-permitted" style={{ ...card, marginTop: 14, textAlign: "center", padding: 40 }}>
             <Lock size={30} color="#dc2626" /><div style={{ fontWeight: 800, marginTop: 8 }}>Not Permitted</div>
             <div style={{ fontSize: 12, color: "#64748b" }}>Yeh dashboard sirf GM, SuperAdmin aur assigned Core Member dekh sakte hain.</div>

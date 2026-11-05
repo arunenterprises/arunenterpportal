@@ -11,6 +11,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import { currentUserProfile, currentRole, canApprove, canDelete, isSuperAdmin } from "../lib/store";
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../lib/api";
+import { OPS, PROJECT_FORMS } from "../components/ops/opsConfig";
 
 // ---------- Local persistence (Project Management is a draft layout for now) ----------
 const PM_KEY = "ae_vm_projects";
@@ -56,6 +57,7 @@ const emptyProject = () => ({
   status: "Planning",
   priority: "Medium",
   description: "",
+  forms: ["dpr", "indent"],
   milestones: [], // [{id, title, dueDate, done}]
   team: [], // [{id, name, role}]
   createdAt: "",
@@ -396,6 +398,19 @@ export default function ProjectManagement() {
               <F label="Budget (₹)"><input type="number" min="0" value={editing.budget} onChange={(e) => setEditing({ ...editing, budget: +e.target.value })} style={inputS} data-testid="pm-f-budget" /></F>
               <F label="Spent (₹)"><input type="number" min="0" value={editing.spent} onChange={(e) => setEditing({ ...editing, spent: +e.target.value })} style={inputS} data-testid="pm-f-spent" /></F>
               <F label="Description" span={4}><textarea value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} rows={3} style={{ ...inputS, resize: "vertical" }} data-testid="pm-f-desc" placeholder="Scope, deliverables, stakeholders..." /></F>
+              <F label="Is project mein kaun se Process Forms khulenge (Project Management mein)" span={4}>
+                <div data-testid="pm-f-forms" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {PROJECT_FORMS.map((k) => {
+                    const on = (editing.forms || ["dpr", "indent"]).includes(k);
+                    return (
+                      <label key={k} data-testid={`pm-form-${k}`} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, border: `1px solid ${on ? OPS[k].color : "#cbd5e1"}`, background: on ? `${OPS[k].color}14` : "#fff", fontSize: 11.5, fontWeight: 700, color: on ? OPS[k].color : "#475569", cursor: "pointer" }}>
+                        <input type="checkbox" checked={on} onChange={() => { const cur = editing.forms || ["dpr", "indent"]; setEditing({ ...editing, forms: on ? cur.filter((x) => x !== k) : [...cur, k] }); }} />
+                        {OPS[k].title}
+                      </label>
+                    );
+                  })}
+                </div>
+              </F>
             </div>
 
             {/* Milestones */}

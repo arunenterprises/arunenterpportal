@@ -1656,7 +1656,9 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", fontWeight: 700 }}>{l.name}</td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", fontSize: 10, color: "#64748b" }}>{l.designation}</td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "center", fontSize: 10 }}>{l.daysPresent}/{l.daysInMonth}</td>
-                    <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "right", fontWeight: 700, background: "#ecfdf5" }}>₹{inrN(l.gross)}</td>
+                    <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#ecfdf5" }}>
+                      <input type="number" value={l.gross || 0} onChange={(e) => setLine(i, "gross", e.target.value)} disabled={locked} data-testid={`pb-gross-${i}`} title="Gross payment badal sakte hain" style={{ width: "100%", padding: 3, fontSize: 11, fontWeight: 700, border: "1px solid #86efac", borderRadius: 3, textAlign: "right" }} />
+                    </td>
                     <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef2f2" }}>
                       <input type="number" value={l.pf || 0} onChange={(e) => setLine(i, "pf", e.target.value)} disabled={locked} data-testid={`pb-pf-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fca5a5", borderRadius: 3, textAlign: "right", background: locked ? "#fee2e2" : "#fff" }} />
                     </td>

@@ -2356,6 +2356,8 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     body["updatedAt"] = now.isoformat()
     if mine:
         body["assignedTo"] = ex.get("assignedTo")
+    if body.get("assignedTo"):
+        body["assignedTo"] = str(body["assignedTo"]).lower().strip()
     await db[coll].replace_one({"id": rid}, body, upsert=True)
     to = (body.get("assignedTo") or "").lower().strip()
     if kind in ("core_progress", "core_escalation") and to and to != (ex.get("assignedTo") or "").lower().strip():
@@ -2528,7 +2530,7 @@ async def task_update(tid: str, body: Dict = Body(...), user: Dict = Depends(get
     boss = t["assignedBy"] == me or _is_super_admin(user) or (user.get("role") or "") in ("GM", "Admin")
     upd: Dict[str, Any] = {}
     st = body.get("status")
-    if t["assignedTo"] == me:
+    if t["assignedTo"] == me and t.get("status") != "Done":
         if st in ("In Progress", "Submitted"):
             upd["status"] = st
         if "remarks" in body:
@@ -2557,6 +2559,7 @@ async def task_delete(tid: str, user: Dict = Depends(get_current_user)):
     if not (t.get("assignedBy") == user["email"] or _is_super_admin(user) or (user.get("role") or "") == "Admin"):
         raise HTTPException(status_code=403, detail="Sirf task dene wala ya Admin delete kar sakta hai")
     await db.tasks.delete_one({"id": tid})
+    await db.notifications.delete_many({"path": {"$regex": re.escape(tid)}})
     return {"ok": True}
 
 
