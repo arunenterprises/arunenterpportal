@@ -1466,7 +1466,7 @@ export const createEmployeeDraft = () => {
     // Statutory
     pfNo: "", esicNo: "", uan: "",
     // Salary
-    ctcAnnual: 0, basic: 0, hra: 0, da: 0, special: 0, bonus: 0,
+    ctcAnnual: 0, empType: "", basic: 0, hra: 0, da: 0, special: 0, bonus: 0,
     // Dynamic sections
     familyMembers: [], educations: [], experiences: [], references: [],
     documents: [], // {type, name, dataUrl, sizeKB}
@@ -1544,6 +1544,9 @@ export const reapproveEmployee = (e) => {
 // Paid days: P/W(week-off)/HL(holiday) = 1, H(half-day) = 0.5; A/L/blank = unpaid
 export const paidDaysOf = (days) => Object.values(days || {}).reduce((n, s) => n + (s === "P" || s === "W" || s === "HL" ? 1 : s === "H" ? 0.5 : 0), 0);
 
+// Site Employee = poori registered salary (attendance se nahi katti); Company Employee = paid days ke hisaab se
+export const empTypeOf = (e) => e?.empType || (e?.department === "Site" ? "Site Employee" : "Company Employee");
+
 // Compute monthly gross / deductions / net for an employee (per-day = gross ÷ actual days of month)
 export const computeSalary = (e, opts = {}) => {
   const daysInMonth = opts.daysInMonth || 30;
@@ -1554,7 +1557,7 @@ export const computeSalary = (e, opts = {}) => {
   const special = Number(e.special) || 0;
   const bonus = Number(e.bonus) || 0;
   const gross = basic + hra + da + special + bonus;
-  const ratio = daysInMonth > 0 ? daysPresent / daysInMonth : 0;
+  const ratio = empTypeOf(e) === "Site Employee" ? 1 : daysInMonth > 0 ? daysPresent / daysInMonth : 0;
   const earned = Math.round(gross * ratio);
   const pf = Math.round(basic * ratio * 0.12); // 12% of earned basic
   const esic = gross <= 21000 ? Math.round(earned * 0.0075) : 0; // 0.75% of earned if gross ≤ 21k
@@ -1885,7 +1888,7 @@ export const createPayBillDraft = (year, month) => {
     const line = {
       _id: `l_${e.id}`,
       empId: e.id, empCode: e.empCode, name: e.fullName,
-      department: e.department, designation: e.designation,
+      department: e.department, designation: e.designation, empType: empTypeOf(e),
       daysInMonth, daysPresent, fullGross: s.gross,
       basic: Number(e.basic) || 0, hra: Number(e.hra) || 0, da: Number(e.da) || 0, special: Number(e.special) || 0, bonus: Number(e.bonus) || 0,
       gross: prevAny?.grossEdited ? prevAny.gross : (s.earned || 0),
