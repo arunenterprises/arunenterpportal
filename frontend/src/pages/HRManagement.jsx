@@ -12,7 +12,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import { Header } from "../components/Header";
 import {
   getEmployees, createEmployeeDraft, upsertEmployee, advanceEmployeeStep, deleteEmployee,
-  reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary,
+  reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary, paidDaysOf,
   getMonthAttendance, upsertAttendance, sendPayrollToAccounts,
   getPayBills, createPayBillDraft, createSupplementaryPayBillDraft, upsertPayBill, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
@@ -755,7 +755,7 @@ const PayrollTab = () => {
   const daysInMonth = new Date(year, month, 0).getDate();
   const emp = emps.find((e) => e.id === selectedId);
   const att = emp ? getMonthAttendance(emp.id, year, month) : null;
-  const daysPresent = att ? Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length : 0;
+  const daysPresent = att ? paidDaysOf(att.days) : 0;
 
   // Payslip STRICTLY aligns with GM-Approved (step 3) / Settled (step 4) Pay Bill of the same month.
   const existingPB = useMemo(() => {
@@ -834,7 +834,7 @@ const PayrollTab = () => {
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Project</td><td style={{ padding: 5 }}>{emp.projectSite || "—"}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Location</td><td style={{ padding: 5 }}>{emp.location || "—"}</td></tr>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>PAN No.</td><td style={{ padding: 5 }}>{emp.pan || "—"}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Aadhaar</td><td style={{ padding: 5 }}>{emp.aadhaar || "—"}</td></tr>
               <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>PF No.</td><td style={{ padding: 5 }}>{emp.pfNo || "—"}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>UAN</td><td style={{ padding: 5 }}>{emp.uan || "—"}</td></tr>
-              <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Days in Month</td><td style={{ padding: 5 }}>{daysInMonth}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Days Present</td><td style={{ padding: 5 }}>{daysPresent}</td></tr>
+              <tr><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Days in Month</td><td style={{ padding: 5 }}>{daysInMonth}</td><td style={{ padding: 5, fontWeight: 700, background: "#f1f5f9" }}>Paid Days (P+W+HL+½H)</td><td style={{ padding: 5 }}>{daysPresent}</td></tr>
             </tbody>
           </table>
 

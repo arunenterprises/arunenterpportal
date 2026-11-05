@@ -1541,22 +1541,25 @@ export const reapproveEmployee = (e) => {
   return upsertEmployee(next);
 };
 
-// Compute monthly gross / deductions / net for an employee
+// Paid days: P/W(week-off)/HL(holiday) = 1, H(half-day) = 0.5; A/L/blank = unpaid
+export const paidDaysOf = (days) => Object.values(days || {}).reduce((n, s) => n + (s === "P" || s === "W" || s === "HL" ? 1 : s === "H" ? 0.5 : 0), 0);
+
+// Compute monthly gross / deductions / net for an employee (per-day = gross ÷ actual days of month)
 export const computeSalary = (e, opts = {}) => {
   const daysInMonth = opts.daysInMonth || 30;
-  const daysPresent = opts.daysPresent ?? daysInMonth;
+  const daysPresent = Math.min(opts.daysPresent ?? daysInMonth, daysInMonth);
   const basic = Number(e.basic) || 0;
   const hra = Number(e.hra) || 0;
   const da = Number(e.da) || 0;
   const special = Number(e.special) || 0;
   const bonus = Number(e.bonus) || 0;
   const gross = basic + hra + da + special + bonus;
-  const perDay = daysInMonth > 0 ? gross / daysInMonth : 0;
-  const earned = Math.round(perDay * daysPresent);
-  const pf = Math.round(basic * 0.12); // 12% of basic
-  const esic = gross <= 21000 ? Math.round(gross * 0.0075) : 0; // 0.75% if gross ≤ 21k
-  const proftax = gross > 10000 ? 200 : 0;
-  const tds = Math.round((earned * 0.0) || 0); // placeholder — user can override
+  const ratio = daysInMonth > 0 ? daysPresent / daysInMonth : 0;
+  const earned = Math.round(gross * ratio);
+  const pf = Math.round(basic * ratio * 0.12); // 12% of earned basic
+  const esic = gross <= 21000 ? Math.round(earned * 0.0075) : 0; // 0.75% of earned if gross ≤ 21k
+  const proftax = gross > 10000 && earned > 0 ? 200 : 0;
+  const tds = 0;
   const deductions = pf + esic + proftax + tds;
   const net = Math.max(0, earned - deductions);
   return { gross, earned, pf, esic, proftax, tds, deductions, net, daysInMonth, daysPresent };
@@ -1825,7 +1828,7 @@ export const getComplianceSnapshot = (year, month) => {
   let totalPF = 0, totalESIC = 0, totalPT = 0, totalTDS = 0, totalGross = 0, totalNet = 0;
   const rows = emps.map((e) => {
     const att = getMonthAttendance(e.id, year, month);
-    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const daysPresent = paidDaysOf(att.days);
     const s = computeSalary(e, { daysInMonth, daysPresent });
     totalPF += s.pf; totalESIC += s.esic; totalPT += s.proftax; totalTDS += s.tds; totalGross += s.gross; totalNet += s.net;
     return { empCode: e.empCode, name: e.fullName, uan: e.uan, esicNo: e.esicNo, pfNo: e.pfNo, pan: e.pan, ...s };
@@ -1872,30 +1875,31 @@ export const createPayBillDraft = (year, month) => {
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const lines = emps.map((e) => {
     const att = getMonthAttendance(e.id, year, month);
-    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const daysPresent = paidDaysOf(att.days);
     const s = computeSalary(e, { daysInMonth, daysPresent });
     // Preserve manually-edited values from existing draft line (if present) so admin edits persist across refresh.
-    const prev = existing?.lines?.find((l) => l.empId === e.id);
+    const prevAny = existing?.lines?.find((l) => l.empId === e.id);
+    // Statutory overrides kept only while paid days are unchanged; otherwise recompute
+    const prev = prevAny && prevAny.daysPresent === daysPresent ? prevAny : null;
     const autoAdv = approvedAdvFor(e.id);
-    return {
+    const line = {
       _id: `l_${e.id}`,
       empId: e.id, empCode: e.empCode, name: e.fullName,
       department: e.department, designation: e.designation,
-      daysInMonth, daysPresent,
-      basic: s.basic || 0, hra: s.hra || 0, da: s.da || 0, special: s.special || 0, bonus: s.bonus || 0,
+      daysInMonth, daysPresent, fullGross: s.gross,
+      basic: Number(e.basic) || 0, hra: Number(e.hra) || 0, da: Number(e.da) || 0, special: Number(e.special) || 0, bonus: Number(e.bonus) || 0,
       gross: s.earned || 0,
       pf: prev?.pf ?? (s.pf || 0),
       esic: prev?.esic ?? (s.esic || 0),
       proftax: prev?.proftax ?? (s.proftax || 0),
       tds: prev?.tds ?? (s.tds || 0),
-      // Auto-fill advance from Accounts-approved advance requests for THIS month,
-      // unless admin has already manually overridden on existing draft.
-      advance: prev?.advance ?? autoAdv,
+      advance: prevAny?.advance ?? autoAdv,
       autoAdvance: autoAdv,
-      otherDeductions: prev?.otherDeductions ?? 0,
-      net: s.net || 0,
-      excluded: prev?.excluded ?? false,
+      otherDeductions: prevAny?.otherDeductions ?? 0,
+      excluded: prevAny?.excluded ?? false,
     };
+    line.net = Math.max(0, line.gross - line.pf - line.esic - line.proftax - line.tds - (Number(line.advance) || 0) - (Number(line.otherDeductions) || 0));
+    return line;
   });
   return {
     id: existing?.id || `pb_${monthKey}_${Date.now()}`,
@@ -1938,19 +1942,19 @@ export const createSupplementaryPayBillDraft = (year, month) => {
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   const lines = emps.map((e) => {
     const att = getMonthAttendance(e.id, year, month);
-    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const daysPresent = paidDaysOf(att.days);
     const s = computeSalary(e, { daysInMonth, daysPresent });
     const autoAdv = approvedAdvFor(e.id);
     return {
       _id: `l_${e.id}`,
       empId: e.id, empCode: e.empCode, name: e.fullName,
       department: e.department, designation: e.designation,
-      daysInMonth, daysPresent,
-      basic: s.basic || 0, hra: s.hra || 0, da: s.da || 0, special: s.special || 0, bonus: s.bonus || 0,
+      daysInMonth, daysPresent, fullGross: s.gross,
+      basic: Number(e.basic) || 0, hra: Number(e.hra) || 0, da: Number(e.da) || 0, special: Number(e.special) || 0, bonus: Number(e.bonus) || 0,
       gross: s.earned || 0,
       pf: s.pf || 0, esic: s.esic || 0, proftax: s.proftax || 0, tds: s.tds || 0,
       advance: autoAdv, autoAdvance: autoAdv,
-      otherDeductions: 0, net: s.net || 0,
+      otherDeductions: 0, net: Math.max(0, (s.net || 0) - autoAdv),
       excluded: false,
     };
   });
@@ -2280,7 +2284,7 @@ export const sendPayrollToAccounts = (year, month, attendanceMap = {}) => {
   const rows = emps.map((e) => {
     const attKey = `att_${e.id}_${year}${String(month).padStart(2, "0")}`;
     const att = attendanceMap[attKey] || getMonthAttendance(e.id, year, month);
-    const daysPresent = Object.values(att.days || {}).filter((s) => s === "P" || s === "H").length;
+    const daysPresent = paidDaysOf(att.days);
     const salary = computeSalary(e, { daysInMonth, daysPresent });
     gross += salary.gross; pf += salary.pf; esic += salary.esic; proftax += salary.proftax; tds += salary.tds; net += salary.net;
     return { empCode: e.empCode, name: e.fullName, ...salary };

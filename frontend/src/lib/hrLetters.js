@@ -789,7 +789,7 @@ export const printPayrollSlipLetter = (emp, salary, year, month, daysInMonth, da
         <tr><td class="l">Designation</td><td class="v">${emp.designation || "—"}</td><td class="l">Department</td><td class="v">${emp.department || "—"}</td></tr>
         <tr><td class="l">PF No.</td><td class="v">${emp.pfNo || "—"}</td><td class="l">UAN</td><td class="v">${emp.uan || "—"}</td></tr>
         <tr><td class="l">PAN</td><td class="v">${emp.pan || "—"}</td><td class="l">Bank A/C</td><td class="v">${emp.bankAccount || "—"} (${emp.ifsc || "—"})</td></tr>
-        <tr><td class="l">Days in Month</td><td class="v">${daysInMonth}</td><td class="l">Days Present</td><td class="v"><b>${daysPresent}</b></td></tr>
+        <tr><td class="l">Days in Month</td><td class="v">${daysInMonth}</td><td class="l">Paid Days (P+W+HL+½H)</td><td class="v"><b>${daysPresent}</b></td></tr>
       </tbody>
     </table>
 
