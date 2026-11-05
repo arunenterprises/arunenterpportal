@@ -2432,8 +2432,20 @@ async def core_config_put(body: Dict = Body(...), admin: Dict = Depends(require_
             raise HTTPException(status_code=400, detail=f"Galat member: {name} (naam 'Member ' se shuru ho)")
         members[name] = [str(d).strip().upper() for d in disc if str(d).strip()]
     modules = {str(k).strip().upper(): [[str(m[0]), str(m[1] if len(m) > 1 else "Nos")] for m in v if m] for k, v in (body.get("modules") or {}).items()}
+    before = await _load_core_cfg()
+    changes = [f"+ {m} ({', '.join(d)})" for m, d in members.items() if m not in before["members"]]
+    changes += [f"- {m}" for m in before["members"] if m not in members]
+    changes += [f"~ {m}: {', '.join(before['members'][m])} → {', '.join(d)}" for m, d in members.items() if m in before["members"] and before["members"][m] != d]
+    if (before.get("modules") or {}) != modules:
+        changes.append(f"Modules updated ({sum(len(v) for v in modules.values())} custom)")
     await db.settings.update_one({"key": "core_config"}, {"$set": {"members": members, "modules": modules}}, upsert=True)
+    await db.core_config_history.insert_one({"id": uuid.uuid4().hex, "at": datetime.now(timezone.utc).isoformat(), "by": admin["email"], "byName": admin.get("name") or admin["email"], "changes": changes or ["Saved (no change)"]})
     return await _load_core_cfg()
+
+
+@api_router.get("/core/config/history")
+async def core_config_history(admin: Dict = Depends(require_super_admin)):
+    return await db.core_config_history.find({}, {"_id": 0}).sort("at", -1).to_list(200)
 
 
 async def _notify(to: str, title: str, body: str, path: str, mail: bool = True) -> None:

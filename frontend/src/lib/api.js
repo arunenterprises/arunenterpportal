@@ -219,6 +219,7 @@ export const apiNightlyRestoreMissing = (id, ids) =>
 export const apiFixDuplicateNumbers = (dry_run) => req("/admin/fix-duplicate-numbers", { method: "POST", body: JSON.stringify({ dry_run }) });
 export const apiCoreConfig = () => req("/core/config");
 export const apiCoreConfigSave = (cfg) => req("/core/config", { method: "PUT", body: JSON.stringify(cfg) });
+export const apiCoreConfigHistory = () => req("/core/config/history");
 export const apiUserDirectory = () => req("/users/directory");
 export const apiNotifications = () => req("/notifications");
 export const apiNotifRead = (id) => req(`/notifications/${id}/read`, { method: "POST" });

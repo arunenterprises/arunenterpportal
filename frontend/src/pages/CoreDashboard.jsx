@@ -5,7 +5,7 @@ import { HardHat, Zap, Cable, ShoppingCart, Lock, AlertTriangle, FolderKanban, T
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import OpsModule from "../components/ops/OpsModule";
-import { apiMe, apiOpsList, apiCoreConfigSave } from "../lib/api";
+import { apiMe, apiOpsList, apiCoreConfigSave, apiCoreConfigHistory } from "../lib/api";
 import { currentRole, getVendors, getBills, getWOs } from "../lib/store";
 import { MEMBER_DISC, CORE_MEMBERS, CORE_DISC, CORE_MODULES, CORE_CUSTOM, OPS, loadCoreConfig } from "../components/ops/opsConfig";
 
@@ -155,11 +155,37 @@ const CoreSetup = ({ onSaved }) => {
   );
 };
 
+const SetupHistory = ({ rev }) => {
+  const [h, setH] = useState([]);
+  useEffect(() => { apiCoreConfigHistory().then(setH).catch(() => {}); }, [rev]);
+  return (
+    <div style={{ ...card, marginTop: 12 }} data-testid="core-setup-history">
+      <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>Setup Change History</div>
+      {!h.length && <div style={{ fontSize: 12, color: "#94a3b8" }}>Abhi koi badlav record nahi hua</div>}
+      {h.length > 0 && (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr><th style={th}>Kab</th><th style={th}>Kisne</th><th style={th}>Kya badla</th></tr></thead>
+          <tbody>
+            {h.map((x) => (
+              <tr key={x.id} data-testid={`core-hist-${x.id}`}>
+                <td style={{ ...td, whiteSpace: "nowrap" }}>{new Date(x.at).toLocaleString("en-IN")}</td>
+                <td style={td}><b>{x.byName}</b><div style={{ fontSize: 10, color: "#64748b" }}>{x.by}</div></td>
+                <td style={td}>{(x.changes || []).map((c, i) => <div key={i} style={{ color: c.startsWith("+") ? "#15803d" : c.startsWith("-") ? "#dc2626" : "#0f172a" }}>{c}</div>)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
+
 export default function CoreDashboard() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const [me, setMe] = useState(null);
   const [, setRev] = useState(0);
+  const [histRev, setHistRev] = useState(0);
   const [data, setData] = useState({ projects: [], work: [], esc: [], indents: [] });
   const [tab, setTab] = useState("");
   const [sec, setSec] = useState(sp.get("kind") || "dash");
@@ -203,7 +229,7 @@ export default function CoreDashboard() {
                 <button key={k} data-testid={`core-sec-${k}`} onClick={() => { if (k === "setup" && role !== "SuperAdmin") toast.error("Not Permitted — Core Setup sirf SuperAdmin ke liye"); if (k === "dash" || k === "setup") { setSec(k); nav("/core-dashboard"); } else go(k); }} style={{ padding: "8px 16px", background: sec === k ? "#0b1f4d" : "#fff", color: sec === k ? "#fff" : "#0b1f4d", border: "1px solid #0b1f4d55", borderRadius: 7, cursor: "pointer", fontWeight: 800, fontSize: 12, display: "inline-flex", gap: 5, alignItems: "center" }}>{k === "setup" && (role === "SuperAdmin" ? <Settings2 size={13} /> : <Lock size={12} />)}{l}</button>
               ))}
             </div>
-            {sec === "setup" && role === "SuperAdmin" && <div style={{ marginTop: 12 }}><CoreSetup onSaved={() => setRev((v) => v + 1)} /></div>}
+            {sec === "setup" && role === "SuperAdmin" && <div style={{ marginTop: 12 }}><CoreSetup onSaved={() => { setRev((v) => v + 1); setHistRev((v) => v + 1); }} /><SetupHistory rev={histRev} /></div>}
             {sec === "setup" && role !== "SuperAdmin" && (
               <div data-testid="core-setup-not-permitted" style={{ ...card, marginTop: 12, textAlign: "center", padding: 36 }}>
                 <Lock size={28} color="#dc2626" /><div style={{ fontWeight: 800, marginTop: 8 }}>Not Permitted</div>
