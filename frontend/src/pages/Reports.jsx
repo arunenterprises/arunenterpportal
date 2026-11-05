@@ -39,9 +39,10 @@ const PvPaidCell = ({ p, onPaid }) => {
   const [dt, setDt] = useState(p.paidDate || new Date().toISOString().slice(0, 10));
   if (p.paidFinal) {
     return (
-      <div data-testid={`pay-final-${p.pvNo}`} style={{ display: "inline-flex", flexDirection: "column", gap: 2, padding: "4px 8px", background: "#dcfce7", border: "1.5px solid #16a34a", borderRadius: 5 }}>
+      <div data-testid={`pay-final-${p.pvNo}`} style={{ display: "inline-flex", flexDirection: "column", gap: 2, padding: "4px 8px", background: "#dcfce7", border: "1.5px solid #16a34a", borderRadius: 5, maxWidth: 190 }}>
         <b style={{ color: "#166534", fontSize: 11 }}>PAID (FINAL)</b>
-        <span style={{ fontSize: 10, color: "#14532d" }}>UTR {p.utrNo} · {p.paidDate}</span>
+        <span style={{ fontSize: 10, color: "#14532d", wordBreak: "break-all" }}>UTR {p.utrNo}</span>
+        <span style={{ fontSize: 10, color: "#14532d" }}>Paid: {p.paidDate ? p.paidDate.split("-").reverse().join("/") : "—"}</span>
         <span style={{ fontSize: 9, color: "#166534" }}>by {p.paidFinalBy || "—"}</span>
       </div>
     );
@@ -656,7 +657,7 @@ export default function Reports() {
         />
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="final" />
 
-        <div className="a4" data-testid="reports-page">
+        <div className="a4" data-testid="reports-page" style={{ width: "100%", maxWidth: 1480 }}>
           <div className="module-doc-header"><Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" /></div>
           <ModuleHero
             tag="Finance Management"
@@ -1524,7 +1525,8 @@ export default function Reports() {
                   No payment vouchers generated yet.
                 </div>
               ) : (
-                <table className="data-table" data-testid="payments-register">
+                <div style={{ overflowX: "auto" }}>
+                <table className="data-table" data-testid="payments-register" style={{ minWidth: 1100 }}>
                   <thead>
                     <tr style={{ background: "#f1f5f9" }}>
                       <th style={{ width: 34, textAlign: "center" }} title="Select approved voucher for export">
@@ -1545,7 +1547,7 @@ export default function Reports() {
                       <th>Mode</th>
                       <th>UTR / Ref</th>
                       <th>Status</th>
-                      <th style={{ minWidth: 260 }}>Actions</th>
+                      <th style={{ minWidth: 150 }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1589,18 +1591,18 @@ export default function Reports() {
                             disabled={!!p.paidFinal}
                             onChange={(e) => reschedulePayment(p.pvNo, e.target.value)}
                             data-testid={`pay-date-${p.pvNo}`}
-                            style={{ padding: "4px 6px", fontSize: 11, border: "1px solid #cfd8e3", borderRadius: 4 }}
+                            style={{ width: 120, padding: "4px 6px", fontSize: 11, border: "1px solid #cfd8e3", borderRadius: 4 }}
                             title="Change payment date"
                           />
                         </td>
                         <td className="num">{Number(p.amount || 0).toFixed(2)}</td>
                         <td>{p.mode}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 10.5 }} data-testid={`pay-utr-${p.pvNo}`}>{p.utrNo || "—"}</td>
+                        <td style={{ fontFamily: "monospace", fontSize: 10.5, maxWidth: 170, wordBreak: "break-all" }} data-testid={`pay-utr-${p.pvNo}`}>{p.utrNo || "—"}</td>
                         <td>
                           {p.paidFinal ? <PvPaidCell p={p} /> : <span className={`pill-tag ${p.status === "Approved" ? "paid" : "due"}`}>{p.status}</span>}
                         </td>
                         <td>
-                          {p.paidFinal ? <span data-testid={`pay-locked-${p.pvNo}`} style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>Locked — koi badlav / delete nahi</span> : (
+                          {p.paidFinal ? <span data-testid={`pay-locked-${p.pvNo}`} title="Final Paid voucher: koi badlav / delete nahi" style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", fontSize: 10.5, color: "#166534", fontWeight: 800, background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 999, whiteSpace: "nowrap" }}>🔒 Locked</span> : (
                           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                             <PvPaidCell key={`pp-${p.pvNo}-${refresh}`} p={p} onPaid={markPaidFinal} />
                             {p.status === "Approved" && (
@@ -1658,6 +1660,8 @@ export default function Reports() {
                     ))}
                   </tbody>
                 </table>
+                </div>
+
               )}
             </div>
           </div>
