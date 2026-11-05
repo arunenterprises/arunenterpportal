@@ -2229,15 +2229,18 @@ async def seed_admin():
             "employee_id": "AE-ADMIN-001",
             "designation": "Administrator",
             "password_hash": hash_password(admin_password),
+            "env_pw_fp": hmac.new(os.environ["JWT_SECRET"].encode(), admin_password.encode(), hashlib.sha256).hexdigest(),
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         logger.info(f"Seeded admin: {admin_email}")
     else:
-        # Keep name/role in sync with env; do NOT overwrite password if already changed by admin
-        await db.users.update_one(
-            {"email": admin_email},
-            {"$set": {"name": admin_name, "role": "Admin"}},
-        )
+        # Re-sync password only when the ADMIN_PASSWORD secret itself changes (in-app changes survive restarts)
+        fp = hmac.new(os.environ["JWT_SECRET"].encode(), admin_password.encode(), hashlib.sha256).hexdigest()
+        upd = {"name": admin_name, "role": "Admin"}
+        if existing.get("env_pw_fp") != fp:
+            upd.update({"password_hash": hash_password(admin_password), "env_pw_fp": fp})
+            logger.info("Admin password re-synced from ADMIN_PASSWORD secret")
+        await db.users.update_one({"email": admin_email}, {"$set": upd})
 
 
 @app.on_event("startup")
