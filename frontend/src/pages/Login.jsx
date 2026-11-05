@@ -54,7 +54,7 @@ export default function Login() {
         <AuthSplash
           mode="welcome"
           userName={splash.name}
-          onDone={() => nav(/^Member /.test(currentRole()) ? "/core-dashboard" : "/home")}
+          onDone={() => nav(currentRole() === "SuperAdmin" ? "/home" : "/my-tasks")}
         />
       )}
       <Toaster position="top-center" richColors />

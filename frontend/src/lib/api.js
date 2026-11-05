@@ -217,4 +217,15 @@ export const apiNightlyMissing = (id) => req(`/admin/nightly-backups/${encodeURI
 export const apiNightlyRestoreMissing = (id, ids) =>
   req(`/admin/nightly-backups/${encodeURIComponent(id)}/restore-missing`, { method: "POST", body: JSON.stringify({ ids }) });
 export const apiFixDuplicateNumbers = (dry_run) => req("/admin/fix-duplicate-numbers", { method: "POST", body: JSON.stringify({ dry_run }) });
+export const apiCoreConfig = () => req("/core/config");
+export const apiCoreConfigSave = (cfg) => req("/core/config", { method: "PUT", body: JSON.stringify(cfg) });
+export const apiUserDirectory = () => req("/users/directory");
+export const apiNotifications = () => req("/notifications");
+export const apiNotifRead = (id) => req(`/notifications/${id}/read`, { method: "POST" });
+export const apiNotifReadAll = () => req("/notifications/read-all", { method: "POST" });
+export const apiTasks = (scope = "mine") => req(`/tasks?scope=${scope}`);
+export const apiTaskCreate = (t) => req("/tasks", { method: "POST", body: JSON.stringify(t) });
+export const apiTaskUpdate = (id, patch) => req(`/tasks/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+export const apiTaskDelete = (id) => req(`/tasks/${id}`, { method: "DELETE" });
+
 

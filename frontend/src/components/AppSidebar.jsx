@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock } from "lucide-react";
+import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock, Crown, ListTodo } from "lucide-react";
 import { getToken, apiMe } from "../lib/api";
-import { canApprove, canDelete, isSuperAdmin, currentUserEmail, logout } from "../lib/store";
+import { canApprove, canDelete, isSuperAdmin, currentUserEmail, logout, currentRole } from "../lib/store";
 import { can, deptOfPath, loadAcl } from "../lib/acl";
 
 const ITEMS = [
+  { n: "T", l: "My Tasks", to: "/my-tasks", d: "tasks", icon: ListTodo, c: "#22c55e" },
+  { n: "C", l: "Core Committee", to: "/core-dashboard", d: "core", icon: Crown, c: "#c81e2b" },
   { n: 1, l: "GM Dashboard", to: "/gm", d: "gm", icon: Gauge, c: "#f59e0b" },
   { n: 2, l: "Client & Revenue Management", to: "/client-revenue", d: "client", icon: BadgeIndianRupee, c: "#0ea5e9" },
   { n: 3, l: "HR Management", to: "/hr", d: "hr", icon: UsersRound, c: "#ec4899" },
@@ -35,14 +37,15 @@ export const DeptNavList = ({ mini = false, showSubs = true }) => {
   const at = (to) => loc.pathname === to;
   return ITEMS.map((it) => {
     const Icon = it.icon;
-    const ok = can(it.d, "v");
+    const role = currentRole();
+    const ok = it.d === "tasks" ? true : it.d === "core" ? role === "SuperAdmin" || role === "GM" || /^Member /.test(role) : can(it.d, "v");
     if (!ok && it.d !== "gm") return null;
     const act = deptOfPath(loc.pathname) === it.d;
     return (
       <div key={it.n} className="sb-row">
         <button data-testid={`sidebar-${it.n}`} disabled={!ok} onClick={() => nav(it.to)} title={ok ? it.l : it.d === "gm" ? "Not Permitted — sirf GM / Admin / SuperAdmin" : `${it.l} · permission nahi`} className={`sb-item${act ? " active" : ""}`} style={{ "--c": it.c, opacity: ok ? 1 : 0.4 }}>
           <span className="sb-ico" style={{ "--c": it.c }}><Icon size={17} strokeWidth={2.3} /></span>
-          {!mini && <span>{it.n}. {it.l}</span>}
+          {!mini && <span>{typeof it.n === "number" ? `${it.n}. ` : ""}{it.l}</span>}
           {!mini && !ok && (it.d === "gm" ? <span data-testid="sidebar-gm-not-permitted" style={{ marginLeft: "auto", fontSize: 9, fontWeight: 800, color: "#fca5a5", whiteSpace: "nowrap" }}>Not Permitted</span> : <Lock size={11} style={{ marginLeft: "auto" }} />)}
         </button>
         {showSubs && !mini && act && it.subs && it.subs.filter((s) => s.to !== it.to).map((s) => (

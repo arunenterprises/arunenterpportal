@@ -1,19 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Toaster } from "sonner";
-import { HardHat, Zap, Cable, ShoppingCart, Lock, AlertTriangle, FolderKanban, TrendingUp, ClipboardList } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Toaster, toast } from "sonner";
+import { HardHat, Zap, Cable, ShoppingCart, Lock, AlertTriangle, FolderKanban, TrendingUp, ClipboardList, Users2, Scale, Wallet, Settings2, Plus, Trash2 } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
-import { apiMe, apiOpsList } from "../lib/api";
+import OpsModule from "../components/ops/OpsModule";
+import { apiMe, apiOpsList, apiCoreConfigSave } from "../lib/api";
 import { currentRole, getVendors, getBills, getWOs } from "../lib/store";
-import { MEMBER_DISC, CORE_MEMBERS } from "../components/ops/opsConfig";
+import { MEMBER_DISC, CORE_MEMBERS, CORE_DISC, CORE_MODULES, OPS, loadCoreConfig } from "../components/ops/opsConfig";
 
-const META = {
+const META0 = {
   "Member Civil": { icon: HardHat, c: "#b45309" },
   "Member OHE": { icon: Cable, c: "#1d4ed8" },
   "Member Electrical": { icon: Zap, c: "#7c3aed" },
   "Member Procurement": { icon: ShoppingCart, c: "#15803d" },
+  "Member HR & Admin": { icon: Users2, c: "#db2777" },
+  "Member Legal": { icon: Scale, c: "#475569" },
+  "Member Financial": { icon: Wallet, c: "#0f766e" },
 };
+const META = new Proxy(META0, { get: (o, k) => o[k] || { icon: Users2, c: "#0369a1" } });
 const inr = (v) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
 const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 };
 const th = { padding: 6, textAlign: "left", borderBottom: "1px solid #e2e8f0", background: "#f8fafc", fontSize: 11 };
@@ -47,7 +52,7 @@ const ProcurementKpis = ({ indents }) => {
   );
 };
 
-const MemberBoard = ({ member, data, nav }) => {
+const MemberBoard = ({ member, data, go }) => {
   const disc = MEMBER_DISC[member];
   const m = META[member];
   const projects = data.projects.filter((p) => disc.includes(p.discipline));
@@ -67,7 +72,7 @@ const MemberBoard = ({ member, data, nav }) => {
           <div style={{ fontSize: 12, color: "#475569" }}>Disciplines: {disc.join(" · ")}</div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          <button data-testid="core-open-working" onClick={() => nav("/site")} style={{ padding: "7px 12px", background: m.c, color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", display: "inline-flex", gap: 5, alignItems: "center" }}><ClipboardList size={13} /> Working Form / Escalation</button>
+          <button data-testid="core-open-working" onClick={() => go("core_progress")} style={{ padding: "7px 12px", background: m.c, color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", display: "inline-flex", gap: 5, alignItems: "center" }}><ClipboardList size={13} /> Working Form / Escalation</button>
         </div>
       </div>
       {member === "Member Procurement" && <ProcurementKpis indents={data.indents} />}
@@ -119,23 +124,65 @@ const MemberBoard = ({ member, data, nav }) => {
   );
 };
 
+const CoreSetup = ({ onSaved }) => {
+  const [rows, setRows] = useState(() => Object.entries(MEMBER_DISC).map(([m, d]) => ({ m, d: d.join(", ") })));
+  const [extra, setExtra] = useState("");
+  const save = async () => {
+    const members = {};
+    rows.filter((r) => r.m.trim()).forEach((r) => { members[r.m.trim().startsWith("Member ") ? r.m.trim() : `Member ${r.m.trim()}`] = r.d.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean); });
+    const modules = {};
+    extra.split("\n").map((l) => l.trim()).filter(Boolean).forEach((l) => { const [disc, mod, unit] = l.split("|").map((x) => (x || "").trim()); if (disc && mod) (modules[disc.toUpperCase()] = modules[disc.toUpperCase()] || []).push([mod, unit || "Nos"]); });
+    try { await apiCoreConfigSave({ members, modules }); await loadCoreConfig(); toast.success("Core setup saved"); onSaved(); } catch (e) { toast.error(e.message); }
+  };
+  const inp = { padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 12 };
+  return (
+    <div style={card} data-testid="core-setup">
+      <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 8 }}>Core Members Setup (SuperAdmin)</div>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>Naya member jodein: naam (jaise "Member Safety") aur uske discipline (comma se). Save ke baad yeh role User banate waqt bhi milega.</div>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: 6, marginBottom: 6 }}>
+          <input data-testid={`core-setup-member-${i}`} style={inp} value={r.m} onChange={(e) => setRows((x) => x.map((y, j) => (j === i ? { ...y, m: e.target.value } : y)))} />
+          <input data-testid={`core-setup-disc-${i}`} style={inp} value={r.d} onChange={(e) => setRows((x) => x.map((y, j) => (j === i ? { ...y, d: e.target.value } : y)))} />
+          <button data-testid={`core-setup-del-${i}`} onClick={() => setRows((x) => x.filter((_, j) => j !== i))} style={{ border: "1px solid #fecaca", background: "#fff", color: "#dc2626", borderRadius: 6, cursor: "pointer" }}><Trash2 size={13} /></button>
+        </div>
+      ))}
+      <button data-testid="core-setup-add" onClick={() => setRows((x) => [...x, { m: "Member ", d: "" }])} style={{ padding: "6px 12px", border: "1px dashed #1d4ed8", color: "#1d4ed8", background: "#fff", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", display: "inline-flex", gap: 4, alignItems: "center" }}><Plus size={13} /> Member jodein</button>
+      <div style={{ fontWeight: 800, fontSize: 12, margin: "14px 0 4px" }}>Naye discipline ke Modules (har line: DISCIPLINE | Module | Unit)</div>
+      <div style={{ fontSize: 10.5, color: "#64748b", marginBottom: 4 }}>Built-in: {CORE_DISC.filter((d) => CORE_MODULES[d]).join(" · ")}</div>
+      <textarea data-testid="core-setup-modules" rows={4} style={{ ...inp, width: "100%", boxSizing: "border-box" }} placeholder={"SAFETY | Safety Audit | Nos\nSAFETY | Toolbox Talk | Nos"} value={extra} onChange={(e) => setExtra(e.target.value)} />
+      <div style={{ marginTop: 8 }}><button data-testid="core-setup-save" onClick={save} style={{ padding: "8px 16px", background: "#0b1f4d", color: "#fff", border: "none", borderRadius: 6, fontWeight: 800, cursor: "pointer" }}>Save Setup</button></div>
+    </div>
+  );
+};
+
 export default function CoreDashboard() {
   const nav = useNavigate();
+  const [sp] = useSearchParams();
   const [me, setMe] = useState(null);
+  const [, setRev] = useState(0);
   const [data, setData] = useState({ projects: [], work: [], esc: [], indents: [] });
   const [tab, setTab] = useState("");
+  const [sec, setSec] = useState(sp.get("kind") || "dash");
+  const openId = sp.get("rid") || "";
+  useEffect(() => { if (sp.get("kind")) setSec(sp.get("kind")); }, [sp]);
+  const loadData = () => Promise.all(["core_project", "core_progress", "core_escalation", "indent"].map((k) => apiOpsList(k).catch(() => [])))
+    .then(([projects, work, esc, indents]) => setData({ projects, work, esc, indents }));
   useEffect(() => {
     apiMe().then(setMe).catch(() => setMe({}));
-    Promise.all(["core_project", "core_progress", "core_escalation", "indent"].map((k) => apiOpsList(k).catch(() => [])))
-      .then(([projects, work, esc, indents]) => setData({ projects, work, esc, indents }));
+    loadCoreConfig().then(() => setRev((v) => v + 1)).catch(() => {});
+    loadData();
   }, []);
-  const tabs = useMemo(() => {
+  const go = (k) => { setSec(k); nav(`/core-dashboard?kind=${k}`); };
+  const tabs = (() => {
     if (!me) return [];
     const role = currentRole();
-    if (role === "SuperAdmin" || role === "GM" || me.core_all) return CORE_MEMBERS;
+    if (role === "SuperAdmin" || role === "GM" || me.core_all) return [...CORE_MEMBERS];
     return MEMBER_DISC[me.role] ? [me.role] : [];
-  }, [me]);
+  })();
   const active = tabs.includes(tab) ? tab : tabs[0];
+  const role = currentRole();
+  const discAllowed = role === "SuperAdmin" || role === "GM" || me?.core_all ? CORE_DISC : MEMBER_DISC[me?.role] || [];
+  const SECS = [["dash", "Dashboard"], ["core_project", "Core Projects"], ["core_progress", "Working Form"], ["core_escalation", "Escalation"], ...(role === "SuperAdmin" ? [["setup", "Core Setup"]] : [])];
   return (
     <>
       <Toaster position="top-center" richColors />
@@ -150,12 +197,21 @@ export default function CoreDashboard() {
         )}
         {tabs.length > 0 && (
           <>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
+              {SECS.map(([k, l]) => (
+                <button key={k} data-testid={`core-sec-${k}`} onClick={() => (k === "dash" || k === "setup" ? (setSec(k), nav("/core-dashboard")) : go(k))} style={{ padding: "8px 16px", background: sec === k ? "#0b1f4d" : "#fff", color: sec === k ? "#fff" : "#0b1f4d", border: "1px solid #0b1f4d55", borderRadius: 7, cursor: "pointer", fontWeight: 800, fontSize: 12, display: "inline-flex", gap: 5, alignItems: "center" }}>{k === "setup" && <Settings2 size={13} />}{l}</button>
+              ))}
+            </div>
+            {sec === "setup" && <div style={{ marginTop: 12 }}><CoreSetup onSaved={() => setRev((v) => v + 1)} /></div>}
+            {OPS[sec] && <div style={{ marginTop: 12 }}><OpsModule cfg={OPS[sec]} disc={discAllowed} openId={openId} /></div>}
+            {sec === "dash" && <>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "14px 0", padding: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
               {tabs.map((t) => (
                 <button key={t} data-testid={`core-tab-${t.replace(/\s+/g, "-").toLowerCase()}`} onClick={() => setTab(t)} style={{ padding: "8px 16px", background: active === t ? META[t].c : `${META[t].c}14`, color: active === t ? "#fff" : META[t].c, border: `1px solid ${META[t].c}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{t}</button>
               ))}
             </div>
-            <MemberBoard member={active} data={data} nav={nav} />
+            <MemberBoard member={active} data={data} go={go} />
+            </>}
           </>
         )}
       </div>

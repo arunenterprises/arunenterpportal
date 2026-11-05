@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Home as HomeIcon, LogOut, ArrowLeft, ImageUp, ImageOff, Users, Store } from "lucide-react";
+import { Home as HomeIcon, LogOut, ArrowLeft, ImageUp, ImageOff, Users, Store, ListTodo } from "lucide-react";
 import { toast } from "sonner";
 import { logout, currentUser, currentUserProfile, isSuperAdmin, setLogo, clearLogo, getLogo } from "../lib/store";
 import AuthSplash from "./AuthSplash";
+import { NotificationBell } from "./NotificationBell";
 
 const HomeNavBar = () => {
   const navigate = useNavigate();
@@ -70,6 +71,9 @@ const HomeNavBar = () => {
         <NavLink to="/home" className={link} data-testid="hn-home">
           <HomeIcon size={15} /> Home
         </NavLink>
+        <NavLink to="/my-tasks" className={link} data-testid="hn-my-tasks">
+          <ListTodo size={15} /> My Tasks
+        </NavLink>
         {superAdmin && (
           <>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
@@ -101,6 +105,7 @@ const HomeNavBar = () => {
       </nav>
 
       <div className="hn-right">
+        <NotificationBell />
         <span className="hn-user" title={me?.user}>
           <b>{superAdmin ? "Ashish Srivastava" : (me?.name || currentUser())}</b>
           <span className={"hn-role " + (superAdmin ? "sa" : "usr")}>

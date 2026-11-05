@@ -6,7 +6,7 @@ export const ACL_DEPTS = [
   { k: "procurement", l: "4. Procurement Management" }, { k: "accounts", l: "5. Finance Management" }, { k: "site", l: "6. Project Management" },
   { k: "qc", l: "7. QC & Safety Management" }, { k: "plant", l: "8. P & M Management" }, { k: "reports", l: "9. Reports Management" }, { k: "admin", l: "10. System Management" },
 ];
-export const ACL_ROLES = ["Admin", "GM", "Purchase", "Accounts", "HR", "Viewer", "User", "Member Civil", "Member OHE", "Member Electrical", "Member Procurement"];
+export const ACL_ROLES = ["Admin", "GM", "Purchase", "Accounts", "HR", "Viewer", "User", "Member Civil", "Member OHE", "Member Electrical", "Member Procurement", "Member HR & Admin", "Member Legal", "Member Financial"];
 export const ACL_OPS = [["v", "View"], ["c", "Create"], ["e", "Edit"], ["d", "Delete"], ["a", "Approve"]];
 // Sensitive widgets / columns SuperAdmin can hide per role or per user
 export const MASK_ITEMS = [

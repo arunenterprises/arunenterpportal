@@ -1,4 +1,5 @@
 import { HardHat, FlaskConical, Tractor } from "lucide-react";
+import { apiCoreConfig } from "../../lib/api";
 import { QC_TESTS, qcCalc } from "./qcNorms";
 
 const n = (v) => Number(v) || 0;
@@ -7,16 +8,29 @@ const D = (k = "date", l = "Date") => ({ k, l, type: "date", req: true });
 const YN = ["Yes", "Partial", "No"];
 
 // ---- Core Projects (CIVIL / OHE / PSI / P&M / E&M) ----
-export const CORE_DISC = ["CIVIL", "OHE", "PSI", "P&M", "E&M"];
+export const CORE_DISC = ["CIVIL", "OHE", "PSI", "P&M", "E&M", "HR & ADMIN", "LEGAL", "FINANCE"];
 export const CORE_MODULES = {
   CIVIL: [["Earthwork", "Cum"], ["PCC", "Cum"], ["RCC", "Cum"], ["Brick / Block Work", "Cum"], ["Plaster", "Sqm"], ["Flooring / Tiling", "Sqm"], ["Platform / Road Work", "Sqm"], ["Drainage", "Rmt"], ["Building Finishing", "Sqm"]],
   OHE: [["Survey & Pegging", "Km"], ["Mast Foundation", "Nos"], ["Mast / Portal Erection", "Nos"], ["Bracket Assembly", "Nos"], ["Catenary Wiring", "Km"], ["Contact Wire", "Km"], ["Dropper Fixing", "Nos"], ["Earthing & Bonding", "Nos"], ["Testing & Commissioning", "Km"]],
   PSI: [["TSS / SP / SSP Civil Work", "%"], ["Power Transformer Erection", "Nos"], ["Circuit Breaker / Interrupter", "Nos"], ["Isolator & CT / PT", "Nos"], ["Control & Power Cabling", "Mtr"], ["Earth Mat", "Nos"], ["SCADA / RTU", "%"], ["Testing & Commissioning", "%"]],
   "P&M": [["Machinery Deployment", "Nos"], ["Running Hours", "Hrs"], ["Diesel Consumption", "Ltr"], ["Breakdown Repair", "Nos"], ["Preventive Maintenance", "Nos"], ["Hiring / Mobilisation", "Nos"]],
   "E&M": [["Internal Wiring", "Points"], ["Light Fittings", "Nos"], ["Fans & Fixtures", "Nos"], ["DB / Panel Installation", "Nos"], ["DG Set", "Nos"], ["Pump Sets", "Nos"], ["Fire Fighting System", "%"], ["HVAC", "TR"], ["Lift / Escalator", "Nos"]],
+  "HR & ADMIN": [["Manpower Deployment", "Nos"], ["Recruitment / Joining", "Nos"], ["Labour Licence / Compliance", "%"], ["Site Camp / Accommodation", "%"], ["Vehicle / Office Admin", "Nos"], ["Training", "Nos"]],
+  LEGAL: [["Agreement / Contract Vetting", "Nos"], ["Bank Guarantee / Security", "Nos"], ["Arbitration / Dispute", "Nos"], ["Legal Notice", "Nos"], ["Statutory Licences", "Nos"], ["Court Cases", "Nos"]],
+  FINANCE: [["Fund Requirement / Planning", "₹"], ["Bill Realisation", "₹"], ["Vendor Payments", "₹"], ["GST / TDS Compliance", "%"], ["Bank Limits / BG", "₹"], ["Budget vs Actual", "%"]],
 };
-export const MEMBER_DISC = { "Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"] };
+export const MEMBER_DISC = { "Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"], "Member HR & Admin": ["HR & ADMIN"], "Member Legal": ["LEGAL"], "Member Financial": ["FINANCE"] };
 export const CORE_MEMBERS = Object.keys(MEMBER_DISC);
+// Pull SuperAdmin-configured members / extra disciplines from server (mutates the shared lists in place)
+export const loadCoreConfig = async () => {
+  const cfg = await apiCoreConfig();
+  Object.keys(MEMBER_DISC).forEach((k) => delete MEMBER_DISC[k]);
+  Object.assign(MEMBER_DISC, cfg.members || {});
+  CORE_MEMBERS.splice(0, CORE_MEMBERS.length, ...Object.keys(MEMBER_DISC));
+  Object.assign(CORE_MODULES, cfg.modules || {});
+  [...Object.values(MEMBER_DISC).flat(), ...Object.keys(CORE_MODULES)].forEach((d) => { if (!CORE_DISC.includes(d)) CORE_DISC.push(d); });
+  return cfg;
+};
 const memberOf = (disc) => CORE_MEMBERS.find((m) => MEMBER_DISC[m].includes(disc)) || "";
 const modList = (r) => (CORE_MODULES[r.discipline] || []).map((m) => m[0]);
 const DISC = { k: "discipline", l: "Discipline", type: "select", req: true, options: CORE_DISC };
@@ -41,7 +55,7 @@ export const OPS = {
       { k: "scopeQty", l: "Total Scope Qty", type: "number" }, { k: "prevQty", l: "Previous Cumulative Qty", type: "number" }, { k: "todayQty", l: "Aaj ka Qty", type: "number", req: true },
       { k: "cumQty", l: "Cumulative Qty (auto)", type: "number", ro: true }, { k: "progressPct", l: "Module Progress % (auto)", type: "number", ro: true },
       { k: "labour", l: "Labour / Staff", type: "number" }, { k: "blockHrs", l: "Block / Shutdown Hrs", type: "number" }, { k: "machinery", l: "Machinery / T&P Used", span: 2 },
-      { k: "weather", l: "Weather", type: "select", options: ["Clear", "Cloudy", "Rain", "Extreme Heat", "Fog"] }, { k: "engineer", l: "Site Engineer" },
+      { k: "weather", l: "Weather", type: "select", options: ["Clear", "Cloudy", "Rain", "Extreme Heat", "Fog"] }, { k: "engineer", l: "Site Engineer" }, { k: "assignedTo", l: "Assign To (Employee email)", type: "user", span: 2 },
       { k: "hindrance", l: "Hindrance / Issue", type: "textarea", span: 2 }, { k: "remarks", l: "Remarks / Kal ka Plan", type: "textarea", span: 2 }],
     calc: (r) => {
       const cum = n(r.prevQty) + n(r.todayQty);
@@ -55,7 +69,7 @@ export const OPS = {
     fields: [DISC, CP, { k: "module", l: "Module / Activity", listOf: modList }, D("date", "Raised On"), { k: "issue", l: "Issue / Problem", req: true, span: 2 },
       { k: "category", l: "Category", type: "select", options: ["Design / Drawing", "Material", "Manpower", "Machinery", "Block / Shutdown", "Payment", "Safety", "Client / Railway", "Other"] },
       { k: "priority", l: "Priority", type: "select", options: ["Low", "Medium", "High", "Critical"] }, { k: "level", l: "Current Level", type: "select", options: LVL },
-      { k: "assignedTo", l: "Assigned To" }, { k: "targetDate", l: "Target Date", type: "date" }, { k: "estatus", l: "Issue Status", type: "select", options: ["Open", "In Progress", "Resolved"] },
+      { k: "assignedTo", l: "Assign To (Employee email)", type: "user", span: 2 }, { k: "targetDate", l: "Target Date", type: "date" }, { k: "estatus", l: "Issue Status", type: "select", options: ["Open", "In Progress", "Resolved"] },
       { k: "daysOpen", l: "Days Open (auto)", type: "number", ro: true }, { k: "suggested", l: "Auto Escalate To", ro: true }, { k: "resolution", l: "Action / Resolution", type: "textarea", span: 2 }],
     calc: (r) => {
       const d = r.estatus === "Resolved" ? 0 : daysSince(r.date);

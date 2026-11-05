@@ -3,7 +3,7 @@ import { DateInput } from "../DateInput";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { FilePlus2, Save, Pencil, Send, CheckCircle2, XCircle, Trash2, Download, Printer, Search } from "lucide-react";
-import { apiOpsList, apiOpsSave, apiOpsDelete } from "../../lib/api";
+import { apiOpsList, apiOpsSave, apiOpsDelete, apiUserDirectory } from "../../lib/api";
 import { can, OPS_DEPT } from "../../lib/acl";
 import { letterheadImg } from "../../lib/printKit";
 
@@ -20,24 +20,26 @@ const Field = ({ f, v, set, ro, lists, row }) => {
   if (f.type === "select") return <select {...p}>{!f.options.includes(v) && <option value="">— Select —</option>}{f.options.map((o) => <option key={o}>{o}</option>)}</select>;
   if (f.type === "textarea") return <textarea rows={2} {...p} />;
   if (f.listOf) return <><input {...p} list={`ops-dl-${f.k}`} placeholder="Type / select" /><datalist id={`ops-dl-${f.k}`}>{f.listOf(row || {}).map((o) => <option key={o} value={o} />)}</datalist></>;
-  const list = f.type === "project" ? "ops-projects" : f.type === "machine" ? "ops-machines" : f.type === "coreproject" ? "ops-core-projects" : undefined;
+  const list = f.type === "project" ? "ops-projects" : f.type === "machine" ? "ops-machines" : f.type === "coreproject" ? "ops-core-projects" : f.type === "user" ? "ops-users" : undefined;
   if (f.type === "date") return <DateInput {...p} type="date" />;
   return <input {...p} list={list} type={f.type === "number" ? f.type : "text"} placeholder={list && lists ? "Type / select" : ""} />;
 };
 
-export default function OpsModule({ cfg: baseCfg, disc }) {
+export default function OpsModule({ cfg: baseCfg, disc, openId }) {
   const cfg = useMemo(() => (disc && baseCfg.kind.startsWith("core_") ? { ...baseCfg, fields: baseCfg.fields.map((f) => (f.k === "discipline" ? { ...f, options: disc } : f)) } : baseCfg), [baseCfg, disc]);
   const [rows, setRows] = useState([]);
   const [cur, setCur] = useState(() => blank(cfg));
   const [locked, setLocked] = useState(false);
   const [q, setQ] = useState("");
-  const [lists, setLists] = useState({ projects: [], machines: [], core: [] });
-  const load = () => apiOpsList(cfg.kind).then(setRows).catch((e) => toast.error(e.message));
+  const [lists, setLists] = useState({ projects: [], machines: [], core: [], users: [] });
+  const load = () => apiOpsList(cfg.kind).then((r) => { setRows(r); return r; }).catch((e) => { toast.error(e.message); return []; });
   useEffect(() => {
-    load(); setCur(blank(cfg)); setLocked(false);
-    Promise.all([apiOpsList("projects").catch(() => []), apiOpsList("machine").catch(() => []), cfg.kind.startsWith("core_") ? apiOpsList("core_project").catch(() => []) : []]).then(([p, m, c]) => setLists({ projects: p, machines: m, core: c }));
+    load().then((r) => { const hit = openId && r.find((x) => x.id === openId); if (hit) { setCur(hit); setLocked(false); } });
+    setCur(blank(cfg)); setLocked(false);
+    const core = cfg.kind.startsWith("core_");
+    Promise.all([apiOpsList("projects").catch(() => []), apiOpsList("machine").catch(() => []), core ? apiOpsList("core_project").catch(() => []) : [], core ? apiUserDirectory().catch(() => []) : []]).then(([p, m, c, u]) => setLists({ projects: p, machines: m, core: c, users: u }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg.kind]);
+  }, [cfg.kind, openId]);
   const calc = (r) => (cfg.calc ? { ...r, ...cfg.calc(r) } : r);
   const set = (k, v) => setCur((c) => calc({ ...c, [k]: v }));
   const approved = cur.status === "Approved";
@@ -83,6 +85,7 @@ export default function OpsModule({ cfg: baseCfg, disc }) {
     <div data-testid={`ops-${cfg.kind}`}>
       <datalist id="ops-projects">{lists.projects.map((p) => <option key={p.id} value={p.name}>{p.code}</option>)}</datalist>
       <datalist id="ops-machines">{lists.machines.map((m) => <option key={m.id} value={m.machineCode}>{m.name}</option>)}</datalist>
+      <datalist id="ops-users">{lists.users.map((u) => <option key={u.email} value={u.email}>{u.name} · {u.role}</option>)}</datalist>
       <datalist id="ops-core-projects">{lists.core.filter((p) => !cur.discipline || p.discipline === cur.discipline).map((p) => <option key={p.id} value={p.name}>{p.discipline} · {p.docNo}</option>)}</datalist>
       <div className="section" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ padding: "9px 14px", background: cfg.color, color: "#fff", fontWeight: 800, fontSize: 13, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>

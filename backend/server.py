@@ -2285,7 +2285,8 @@ OPS_DEPT = {
     "tender": "client", "agreement": "client", "geo_site": "hr", "geo_att": "hr", "labour": "hr", "labour_att": "hr", "labour_bill": "hr", "abstract": "client",
     "core_project": "site", "core_progress": "site", "core_escalation": "site",
 }
-MEMBER_DISC = {"Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"]}
+MEMBER_DISC = {"Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"],
+               "Member HR & Admin": ["HR & ADMIN"], "Member Legal": ["LEGAL"], "Member Financial": ["FINANCE"]}
 
 
 def _core_disc(user: Dict) -> Optional[List[str]]:
@@ -2309,7 +2310,7 @@ async def ops_list(kind: str, user: Dict = Depends(get_current_user)):
         await _rbac(user, OPS_DEPT[kind], "v")
     docs = await db[_ops_coll(kind)].find({}, {"_id": 0}).sort("updatedAt", -1).to_list(20000)
     allowed = _core_disc(user) if kind.startswith("core_") else None
-    return [d for d in docs if d.get("discipline") in allowed] if allowed is not None else docs
+    return [d for d in docs if d.get("discipline") in allowed or d.get("assignedTo") == user["email"]] if allowed is not None else docs
 
 
 @api_router.post("/ops/{kind}")
@@ -2324,7 +2325,8 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     dept = OPS_DEPT[kind]
     await _rbac(user, dept, "e" if ex else "c")
     allowed = _core_disc(user) if kind.startswith("core_") else None
-    if allowed is not None and (body.get("discipline") not in allowed or (ex and ex.get("discipline") not in allowed)):
+    mine = bool(ex) and ex.get("assignedTo") == user["email"] and body.get("discipline") == ex.get("discipline")
+    if allowed is not None and not mine and (body.get("discipline") not in allowed or (ex and ex.get("discipline") not in allowed)):
         raise HTTPException(status_code=403, detail=f"Aap sirf {', '.join(allowed)} discipline ka kaam kar sakte hain" if allowed else "Core Projects sirf GM, SuperAdmin aur Core Members ke liye hain")
     if ((new in ("Approved", "Rejected") and new != old) or old == "Approved") and not await _acl_ok(user, dept, "a"):
         raise HTTPException(status_code=403, detail="Approval / approved record change ki permission nahi hai")
@@ -2352,7 +2354,15 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     body.setdefault("createdByName", user.get("name") or user.get("email"))
     body["status"] = new
     body["updatedAt"] = now.isoformat()
+    if mine:
+        body["assignedTo"] = ex.get("assignedTo")
     await db[coll].replace_one({"id": rid}, body, upsert=True)
+    to = (body.get("assignedTo") or "").lower().strip()
+    if kind in ("core_progress", "core_escalation") and to and to != (ex.get("assignedTo") or "").lower().strip():
+        label = "Core Escalation" if kind == "core_escalation" else "Core Working"
+        await _create_task(user, {"title": f"{label}: {body.get('issue') or body.get('module') or ''} · {body.get('project') or ''}", "description": body.get("issue") or body.get("remarks") or "",
+                                  "department": f"Core · {body.get('discipline')}", "template": label, "assignedTo": to, "priority": body.get("priority") or "Medium",
+                                  "dueDate": body.get("targetDate") or "", "path": f"/core-dashboard?kind={kind}&rid={rid}"})
     return body
 
 
@@ -2381,6 +2391,172 @@ async def ops_delete(kind: str, rid: str, user: Dict = Depends(get_current_user)
     upd = {k: mx.get(k, 0) for k in c if k.startswith(f"{kind}_") and (k[len(kind) + 1:].isdigit() or k.startswith(f"{kind}_tmp_"))}
     if upd:
         await db.counters.update_one({"key": "ops"}, {"$set": upd})
+    return {"ok": True}
+
+
+# ---- Core config (dynamic Core Members) + Tasks + Notifications ----
+CORE_BUILTIN_MEMBERS = {k: list(v) for k, v in MEMBER_DISC.items()}
+
+
+def _is_senior(user: Dict) -> bool:
+    role = (user.get("role") or "").strip()
+    return _is_super_admin(user) or role in ("GM", "Admin") or role in MEMBER_DISC
+
+
+async def _load_core_cfg() -> Dict:
+    doc = await db.settings.find_one({"key": "core_config"}, {"_id": 0}) or {}
+    members = {**CORE_BUILTIN_MEMBERS, **(doc.get("members") or {})}
+    MEMBER_DISC.clear()
+    MEMBER_DISC.update(members)
+    return {"members": members, "modules": doc.get("modules") or {}}
+
+
+@app.on_event("startup")
+async def _core_cfg_startup():
+    await _load_core_cfg()
+
+
+@api_router.get("/core/config")
+async def core_config_get(user: Dict = Depends(get_current_user)):
+    return await _load_core_cfg()
+
+
+@api_router.put("/core/config")
+async def core_config_put(body: Dict = Body(...), admin: Dict = Depends(require_super_admin)):
+    members = {}
+    for name, disc in (body.get("members") or {}).items():
+        name = str(name).strip()
+        if not name.startswith("Member ") or not isinstance(disc, list):
+            raise HTTPException(status_code=400, detail=f"Galat member: {name} (naam 'Member ' se shuru ho)")
+        members[name] = [str(d).strip().upper() for d in disc if str(d).strip()]
+    modules = {str(k).strip().upper(): [[str(m[0]), str(m[1] if len(m) > 1 else "Nos")] for m in v if m] for k, v in (body.get("modules") or {}).items()}
+    await db.settings.update_one({"key": "core_config"}, {"$set": {"members": members, "modules": modules}}, upsert=True)
+    return await _load_core_cfg()
+
+
+async def _notify(to: str, title: str, body: str, path: str, mail: bool = True) -> None:
+    to = (to or "").lower().strip()
+    u = await db.users.find_one({"email": to}, {"_id": 0, "email": 1, "name": 1})
+    if not u:
+        return
+    await db.notifications.insert_one({"id": uuid.uuid4().hex, "to": to, "title": title, "body": body, "path": path, "read": False, "createdAt": datetime.now(timezone.utc).isoformat()})
+    if mail:
+        html = f"<p>Namaste {u.get('name') or ''},</p><p><b>{title}</b></p><p>{body}</p><p>ERP mein login karke <b>My Tasks / Notifications</b> se kholein.</p><p>— ARUN ERP PORTAL</p>"
+
+        async def _m():
+            try:
+                await _send_email(to=to, subject=f"[ARUN ERP] {title}", html=html)
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"notify mail failed: {e}")
+        asyncio.create_task(_m())
+
+
+@api_router.get("/users/directory")
+async def users_directory(user: Dict = Depends(get_current_user)):
+    if not _is_senior(user):
+        raise HTTPException(status_code=403, detail="Sirf seniors task assign kar sakte hain")
+    return await db.users.find({}, {"_id": 0, "email": 1, "name": 1, "role": 1}).to_list(1000)
+
+
+@api_router.get("/notifications")
+async def notif_list(user: Dict = Depends(get_current_user)):
+    return await db.notifications.find({"to": user["email"]}, {"_id": 0}).sort("createdAt", -1).to_list(100)
+
+
+@api_router.post("/notifications/read-all")
+async def notif_read_all(user: Dict = Depends(get_current_user)):
+    await db.notifications.update_many({"to": user["email"]}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@api_router.post("/notifications/{nid}/read")
+async def notif_read(nid: str, user: Dict = Depends(get_current_user)):
+    await db.notifications.update_one({"id": nid, "to": user["email"]}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+class TaskBody(BaseModel):
+    title: str
+    description: str = ""
+    department: str = ""
+    template: str = ""
+    assignedTo: str
+    priority: str = "Medium"
+    dueDate: str = ""
+    path: str = ""
+
+
+async def _create_task(user: Dict, t: Dict) -> Dict:
+    now = datetime.now(timezone.utc)
+    fy_start = now.year if now.month >= 4 else now.year - 1
+    fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
+    c = await db.counters.find_one_and_update({"key": "tasks"}, {"$inc": {fy: 1}}, upsert=True, return_document=True)
+    assignee = await db.users.find_one({"email": t["assignedTo"].lower().strip()}, {"_id": 0, "email": 1, "name": 1})
+    if not assignee:
+        raise HTTPException(status_code=404, detail="Employee nahi mila")
+    doc = {**t, "id": uuid.uuid4().hex, "taskNo": f"AE/TASK/{int(c[fy]):04d}/{fy}", "assignedTo": assignee["email"], "assignedName": assignee.get("name") or assignee["email"],
+           "assignedBy": user["email"], "assignedByName": user.get("name") or user["email"], "status": "Assigned", "remarks": "",
+           "history": [{"at": now.isoformat(), "by": user.get("name") or user["email"], "action": "Assigned"}], "createdAt": now.isoformat(), "updatedAt": now.isoformat()}
+    await db.tasks.insert_one({**doc})
+    await _notify(doc["assignedTo"], f"Naya Task: {doc['title']}", f"{doc['taskNo']} · {doc['assignedByName']} ne diya · Priority {doc.get('priority')} · Due {doc.get('dueDate') or '—'}", doc.get("path") or f"/my-tasks?task={doc['id']}")
+    return doc
+
+
+@api_router.post("/tasks")
+async def task_create(body: TaskBody, user: Dict = Depends(get_current_user)):
+    if not _is_senior(user):
+        raise HTTPException(status_code=403, detail="Task sirf SuperAdmin, GM, Admin aur Core Members de sakte hain")
+    return await _create_task(user, body.model_dump())
+
+
+@api_router.get("/tasks")
+async def task_list(scope: str = "mine", user: Dict = Depends(get_current_user)):
+    q = {"assignedTo": user["email"]} if scope == "mine" else {"assignedBy": user["email"]}
+    if scope == "all":
+        if not (_is_super_admin(user) or (user.get("role") or "") in ("GM", "Admin")):
+            raise HTTPException(status_code=403, detail="Permission nahi hai")
+        q = {}
+    return await db.tasks.find(q, {"_id": 0}).sort("createdAt", -1).to_list(2000)
+
+
+@api_router.patch("/tasks/{tid}")
+async def task_update(tid: str, body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    t = await db.tasks.find_one({"id": tid}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="Task nahi mila")
+    me = user["email"]
+    boss = t["assignedBy"] == me or _is_super_admin(user) or (user.get("role") or "") in ("GM", "Admin")
+    upd: Dict[str, Any] = {}
+    st = body.get("status")
+    if t["assignedTo"] == me:
+        if st in ("In Progress", "Submitted"):
+            upd["status"] = st
+        if "remarks" in body:
+            upd["remarks"] = str(body["remarks"])
+    if boss:
+        for k in ("title", "description", "priority", "dueDate", "seniorRemarks"):
+            if k in body:
+                upd[k] = body[k]
+        if st in ("Done", "Rejected", "Assigned"):
+            upd["status"] = st
+    if not upd:
+        raise HTTPException(status_code=403, detail="Is task mein badlav ki permission nahi hai")
+    now = datetime.now(timezone.utc).isoformat()
+    upd["updatedAt"] = now
+    await db.tasks.update_one({"id": tid}, {"$set": upd, "$push": {"history": {"at": now, "by": user.get("name") or me, "action": upd.get("status") or "Updated"}}})
+    if upd.get("status") == "Submitted":
+        await _notify(t["assignedBy"], f"Task Submitted: {t['title']}", f"{t['taskNo']} · {t['assignedName']} ne submit kiya. Check karke Done / Reject karein.", f"/my-tasks?task={tid}")
+    elif upd.get("status") in ("Done", "Rejected"):
+        await _notify(t["assignedTo"], f"Task {upd['status']}: {t['title']}", f"{t['taskNo']} · {user.get('name') or me} ne {upd['status']} kiya. {upd.get('seniorRemarks') or ''}", f"/my-tasks?task={tid}")
+    return await db.tasks.find_one({"id": tid}, {"_id": 0})
+
+
+@api_router.delete("/tasks/{tid}")
+async def task_delete(tid: str, user: Dict = Depends(get_current_user)):
+    t = await db.tasks.find_one({"id": tid}, {"_id": 0, "assignedBy": 1}) or {}
+    if not (t.get("assignedBy") == user["email"] or _is_super_admin(user) or (user.get("role") or "") == "Admin"):
+        raise HTTPException(status_code=403, detail="Sirf task dene wala ya Admin delete kar sakta hai")
+    await db.tasks.delete_one({"id": tid})
     return {"ok": True}
 
 
