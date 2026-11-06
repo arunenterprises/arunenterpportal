@@ -1,0 +1,30 @@
+{
+  "summary": "Iter56 (frontend only): Contract Balance View + Item Code picker on the Vendor Bill screen (/purchase?tab=billing). Tested with Playwright as SuperAdmin: (1) Before a project is picked, item-code-0 is disabled and contract-balance is not shown. PASS. (2) Picking bill-project 'TEST_Naini Yard' shows contract-balance with 2 rows: I-01 Earthwork Cum 100 ₹250 ₹25,000 and I-02 Ballast Cum 50 ₹900 ₹45,000. Total shows 'Billed ₹0 / ₹70,000 · Balance ₹70,000'. PASS. (3) item-code-0 lists I-01 · Earthwork and I-02 · Ballast. Picking I-02 sets desc Ballast, unit Cum, woQty 50, woRate 900. PASS. (4) billedQty 20 gives cb-now-1=20, cb-bal-1=30, cb-balval-1=₹27,000 and total 'Billed ₹18,000 / ₹70,000 · Balance ₹52,000'. PASS. (5) Items totals row lines up with the new Item Code column (colSpan 4 + 7 cells = 11 columns): total-wo-qty 50, total-wo-value ₹45000, billed 20, balance 30, subtotal 18000. PASS. (6) The CONTRACT CHECK FAIL toast could not be reached in the browser: Submit is blocked first by 'Fetch approved vendor first'. contractBreaches/matchItem were checked with a Node unit test of the real ContractSelect.jsx code: code I-02 at rate 950 is a breach, 900 is not, matching by code still works when the description is edited, lines without a code fall back to a case-insensitive description match, and cumulative qty with prior bills is caught (25+30>50). PASS. One bug found in pickCode when the code on a row is changed (see below). No page errors. Nothing saved.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BillProcessing pickCode (line ~131)", "issue": "Switching the Item Code on a row that already has a code (I-01 -> I-02) keeps the old WO Qty/Rate (100 / ₹250) because of `Number(r.woQty) || c.qty` and `Number(r.woRate) || c.rate`. The description changes to Ballast but qty/rate stay from Earthwork. The row ends up with WO Qty 100 against a contract qty of 50 and a rate that silently comes from the other item. Fix: when the previous r.itemCode was a contract code (or differs from the new one), overwrite woQty/woRate with the new contract item's values.", "selector": "[data-testid='item-code-1']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vendor Bill items table", "issues": ["The Item Code select (9% width) cuts its label to 'I-02 · Ba'. The Unit select cuts 'Cum' to 'Cı' at 1920px. Consider showing only the code in the closed select or making the column wider."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix pickCode so that changing the code on a row replaces woQty/woRate (and unit) with the new contract item's values instead of keeping the old item's values",
+    "Optional: show only the code in the item-code select so it is not truncated"
+  ],
+  "critical_code_review_comments": [
+    "handleSubmit uses priorBillLines(getBills(), bill), but ContractBalance uses allBills (payroll/HR-INTERNAL filtered out). Results are the same in practice, but use one source for consistency.",
+    "matchItem: a line with an itemCode that is not in the contract (e.g. a legacy/typed code) is never checked, even if its description matches a contract item. This is acceptable, but note it as a possible bypass path for imported bills.",
+    "BillProcessing.jsx is 2023 lines and should be split (contract/items section into its own component).",
+    "updateItem seems to cap billedQty at woQty (typing 60 with WO qty 50 gave balance 0), so the red over-billing highlight in ContractBalance only shows through prior bills or a raised woQty. This is fine."
+  ],
+  "updated_files": ["/app/test_reports/iteration_56.json"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95% (6/6 requested checks pass; 1 extra bug found in code switching)"},
+  "seed_data_creation": "None. Used the existing TEST_c1 contract seeded by the main agent. No bills saved.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Log in by pressing Enter in login-password (SuperAdmin needs no captcha). Vendor Bill is at /purchase?tab=billing. Select bill-project 'TEST_Naini Yard', then btn-add-item-row, then item-code-N. To get the CONTRACT CHECK FAIL toast end-to-end you need an approved vendor fetched plus a full bill form (validate runs first). Breach logic was verified with a Node unit test of ContractSelect.jsx functions."
+}

@@ -128,7 +128,8 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
   const asLine = (r) => ({ description: r.description, itemCode: r.itemCode, rate: r.woRate, qty: r.billedQty });
   const pickCode = (r, code) => {
     const c = (master?.items || []).find((x) => x.itemCode === code);
-    updateItem(r.id, c ? { itemCode: code, description: c.description, hsn: c.hsn || r.hsn, unit: ITEM_UNITS.includes(c.unit) ? c.unit : r.unit, woQty: Number(r.woQty) || c.qty, woRate: Number(r.woRate) || c.rate } : { itemCode: code });
+    const keep = !r.itemCode;
+    updateItem(r.id, c ? { itemCode: code, description: c.description, hsn: c.hsn || r.hsn, unit: ITEM_UNITS.includes(c.unit) ? c.unit : r.unit, woQty: (keep && Number(r.woQty)) || c.qty, woRate: (keep && Number(r.woRate)) || c.rate } : { itemCode: code });
   };
   const itemsTotal = items.reduce((s, r) => s + (Number(r.woRate) || 0) * (Number(r.billedQty) || 0), 0);
 
@@ -919,7 +920,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                           <select value={r.itemCode || ""} onChange={(e) => pickCode(r, e.target.value)} disabled={locked || !master?.items?.length} data-testid={`item-code-${i}`} title={master?.items?.length ? "Contract item chunein" : "Pehle Project (Contract) chunein"}>
                             <option value="">{master?.items?.length ? "— Code —" : "—"}</option>
                             {r.itemCode && !(master?.items || []).some((x) => x.itemCode === r.itemCode) && <option value={r.itemCode}>{r.itemCode}</option>}
-                            {(master?.items || []).filter((x) => x.itemCode).map((x) => <option key={x.itemCode} value={x.itemCode}>{x.itemCode} · {String(x.description).slice(0, 30)}</option>)}
+                            {(master?.items || []).filter((x) => x.itemCode).map((x) => <option key={x.itemCode} value={x.itemCode}>{x.itemCode}</option>)}
                           </select>
                         </td>
                         <td style={{ minWidth: 220 }}>

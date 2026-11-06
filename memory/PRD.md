@@ -483,3 +483,9 @@ See `/app/memory/test_credentials.md`.
 - Vendor Bill: project pick applies contract TDS % and GST %; submit blocks lines whose rate > contract rate or cumulative billed qty (all bills of project) > contract qty. Lines not in contract are not blocked.
 - contractId stored on BOQ / WO / Bill / ops records. Tested iteration_55 (backend 5/5, frontend flows pass; bill-submit block verified by code only).
 
+## 2026-11-06 (later 4) — Contract Balance + Item Code in Vendor Bill
+- Vendor Bill items: Item Code picker (contract items of selected project) fills description, HSN, unit, WO qty/rate; switching code refreshes qty/rate. WO→Bill and BOQ→WO now carry itemCode.
+- ContractBalance.jsx under items table: per contract item Contract Qty/Rate/Value, earlier bills qty, this bill qty, balance qty & value; red when exceeded.
+- Contract check matches by Item Code first (description only for rows without code), cumulative across same-project bills. Tested iteration_56 (6/6 pass; code-switch bug fixed after).
+
+
