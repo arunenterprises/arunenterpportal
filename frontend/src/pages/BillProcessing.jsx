@@ -390,7 +390,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
   const handleSubmit = async () => {
     if (bill.step >= 5) { toast.error("Already in Payment Due List"); return; }
     if (!validate()) return;
-    if (Number(bill.tdsRate) !== tdsFor(bill.vendorSnapshot)) { setBill((b) => ({ ...b, tdsRate: tdsFor(b.vendorSnapshot) })); toast.error("TDS vendor type ke hisaab se auto-set hua — dobara Submit karein"); return; }
+    if (![0, 1, 2].includes(Number(bill.tdsRate))) { toast.error("TDS 0%, 1% ya 2% chunein"); return; }
     if (isCreate && Number(bill.step) < 2) {
       const locks = await apiBillLocks([{ billNo: bill.billNo, vendorCode: bill.vendorCode, createdAt: bill.createdAt || new Date().toISOString() }]).catch((e) => { toast.error(e.message); return null; });
       if (!locks) return;
@@ -1020,8 +1020,10 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 <F label="Gross Bill Amount (₹)">
                   <input value={comp.gross.toFixed(2)} readOnly data-testid="calc-gross" />
                 </F>
-                <F label="TDS u/s 194C (auto · 2% Company/Firm · 1% Individual/HUF)">
-                  <input value={`${bill.tdsRate}% · ${Number(bill.tdsRate) === 1 ? "Individual / HUF" : "Firm / Company"}`} readOnly data-testid="calc-tds-rate" style={{ background: "#f1f5f9", fontWeight: 700 }} />
+                <F label="TDS u/s 194C (default · 2% Company/Firm · 1% Individual/HUF)">
+                  <select data-testid="calc-tds-rate" value={Number(bill.tdsRate) || 0} onChange={(e) => setBill((b) => ({ ...b, tdsRate: Number(e.target.value) }))} disabled={locked} style={{ fontWeight: 700 }}>
+                    {[[0, "0% · Exempt / Nil (Lower deduction cert.)"], [1, "1% · Individual / HUF"], [2, "2% · Company / Firm"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
                 </F>
                 <F label={`TDS Deduction (${bill.tdsRate}%)`}>
                   <input value={comp.tds.toFixed(2)} readOnly data-testid="calc-tds" />
