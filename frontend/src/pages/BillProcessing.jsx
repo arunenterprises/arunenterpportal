@@ -12,6 +12,7 @@ import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import AccountsTabs from "../components/AccountsTabs";
 import AccountingPanel from "./Accounting";
+import Reports from "./Reports";
 import ExpenseProcess from "./ExpenseProcess";
 import HsnInput from "../components/HsnInput";
 import HsnFinder from "../components/HsnFinder";
@@ -552,7 +553,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
         />
         <VendorQueryModal open={queryOpen} onClose={() => setQueryOpen(false)} initialCode={queryCode} variant="bill" />
 
-        <div className={embedded ? "" : "a4"} data-testid="bill-page">
+        <div className={embedded ? "" : "a4"} data-testid="bill-page" style={embedded || isCreate ? undefined : { width: "100%", maxWidth: 1480 }}>
           {!embedded && <>
           <div className="module-doc-header"><Header formTitle={isCreate ? "PURCHASE · NEW VENDOR BILL CREATION" : "ACCOUNTS DEPARTMENT"} /></div>
           <ModuleHero
@@ -1460,6 +1461,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
           {activeView === "fooding" && <WeeklyFoodingTab writeAllowed={canCreate()} />}
           {activeView === "exit" && <AccountsExitView rev={rev} bumpRev={bumpRev} />}
           {activeView.startsWith("acc-") && <AccountingPanel view={activeView} />}
+          {activeView === "vouchers" && <Reports embedded />}
         </div>
       </div>
     </>

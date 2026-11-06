@@ -4,50 +4,40 @@ import { Receipt, Wallet, IndianRupee, Utensils, LogOut, FileCheck2, ListTree, N
 import { can } from "../lib/acl";
 
 const TABS = [
-  { id: "vendor", label: "1. Vendor Bill Process", tone: "#065f46", icon: Receipt },
-  { id: "expense", label: "2. Expenses", tone: "#065f46", icon: Wallet },
-  { id: "advance", label: "3. Advance Reg.", tone: "#065f46", icon: Wallet },
-  { id: "paybill", label: "4. Pay Bills Process", tone: "#065f46", icon: IndianRupee },
-  { id: "fooding", label: "5. Weekly Fooding", tone: "#065f46", icon: Utensils },
-  { id: "exit", label: "6. Exit & F&F", tone: "#065f46", icon: LogOut },
-  { id: "vouchers", label: "7. Payment Vouchers", tone: "#065f46", icon: FileCheck2 },
-];
-// Accounting & Ledger (double entry) — part of Finance Management; its reports live in Reports Management
-const ACC_TABS = [
-  { id: "acc-coa", label: "8. Chart of Accounts", tone: "#0f766e", icon: ListTree },
-  { id: "acc-jv", label: "9. Journal Entry", tone: "#0f766e", icon: NotebookPen },
-  { id: "acc-sales", label: "10. Sales & Receivables", tone: "#0f766e", icon: HandCoins },
-  { id: "acc-tax", label: "11. GST ITC Matching", tone: "#0f766e", icon: Percent },
-  { id: "acc-bank", label: "12. Banking & BRS", tone: "#0f766e", icon: Landmark },
+  { id: "acc-coa", label: "Chart of Accounts", icon: ListTree, acc: true },
+  { id: "acc-jv", label: "Journal Entry", icon: NotebookPen, acc: true },
+  { id: "acc-sales", label: "Sales & Receivables", icon: HandCoins, acc: true },
+  { id: "vendor", label: "Vendor Bills", icon: Receipt },
+  { id: "expense", label: "Expenses", icon: Wallet },
+  { id: "advance", label: "Advance Reg.", icon: Wallet },
+  { id: "fooding", label: "Weekly Fooding", icon: Utensils },
+  { id: "paybill", label: "Pay Bills Process", icon: IndianRupee },
+  { id: "exit", label: "Exit & F&F", icon: LogOut },
+  { id: "vouchers", label: "Payment Vouchers", icon: FileCheck2 },
+  { id: "acc-bank", label: "Banking & BRS", icon: Landmark, acc: true },
+  { id: "acc-tax", label: "GST ITC Matching", icon: Percent, acc: true },
 ];
 
-// Shared Accounts department tab bar (same on /bill and /expense so the heading stays fixed).
+// Finance Management tab bar — one row; every tab opens inside /bill (no separate page)
 export const AccountsTabs = ({ active, onSelect }) => {
   const nav = useNavigate();
   const go = (id) => {
-    if (id === "vouchers") { nav("/final"); return; }
     if (onSelect) { onSelect(id); return; }
     nav(id === "vendor" ? "/bill" : `/bill?view=${id}`);
   };
-  const Row = ({ list, testid, title }) => (
-    <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap", alignItems: "center" }} data-testid={testid}>
-      {title && <span style={{ fontSize: 10.5, fontWeight: 900, color: "#0f766e", letterSpacing: .5, padding: "0 6px" }}>{title}</span>}
+  const list = TABS.filter((t) => !t.acc || can("accounting", "v"));
+  return (
+    <div data-testid="accounts-view-tabs" style={{ display: "flex", gap: 3, marginTop: 8, padding: 3, background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, flexWrap: "nowrap" }}>
       {list.map((t) => {
         const Icon = t.icon; const on = active === t.id;
         return (
           <button key={t.id} data-testid={`accounts-tab-${t.id}`} onClick={() => go(t.id)}
-            style={{ padding: "8px 16px", background: on ? t.tone : "transparent", color: on ? "#fff" : "#334155", border: "none", borderRadius: "6px 6px 0 0", cursor: "pointer", fontWeight: 700, fontSize: 12, letterSpacing: .3, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Icon size={13} /> {t.label}
+            style={{ flex: "1 1 0", minWidth: 0, minHeight: 44, padding: "6px 3px", background: on ? "#065f46" : "#fff", color: on ? "#fff" : "#334155", border: `1px solid ${on ? "#065f46" : "#e2e8f0"}`, borderRadius: 6, cursor: "pointer", fontWeight: 700, fontSize: 10.5, lineHeight: 1.15, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, transition: "background-color .15s, color .15s" }}>
+            <Icon size={12} /> <span>{t.label}</span>
           </button>
         );
       })}
     </div>
-  );
-  return (
-    <>
-      <Row list={TABS} testid="accounts-view-tabs" />
-      {can("accounting", "v") && <Row list={ACC_TABS} testid="accounting-view-tabs" title="ACCOUNTING & LEDGER" />}
-    </>
   );
 };
 

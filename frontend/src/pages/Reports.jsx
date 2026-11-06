@@ -63,7 +63,7 @@ const PvPaidCell = ({ p, onPaid }) => {
   );
 };
 
-export default function Reports() {
+export default function Reports({ embedded = false }) {
   const nav = useNavigate();
   const fileInputRef = React.useRef(null);
   const pbFileInputRef = React.useRef(null);
@@ -656,10 +656,10 @@ export default function Reports() {
 
   return (
     <>
-      <Toaster position="top-center" richColors />
-      <HomeNavBar />
-      <div className="app-shell">
-        <AccountsTabs active="vouchers" />
+      {!embedded && <Toaster position="top-center" richColors />}
+      {!embedded && <HomeNavBar />}
+      <div className={embedded ? "" : "app-shell"}>
+        {!embedded && <AccountsTabs active="vouchers" />}
         <TopActionBar
           searchPlaceholder="Vendor Code / Firm / Bill Ref"
           searchLabel="Query"
@@ -683,14 +683,14 @@ export default function Reports() {
 
         <div className="a4" data-testid="reports-page" style={{ width: "100%", maxWidth: 1480 }}>
           <div className="module-doc-header"><Header formTitle="PAYABLES · DUE LIST &amp; SUMMARY (FINAL PROCESSING)" /></div>
-          <ModuleHero
+          {!embedded && <ModuleHero
             tag="Finance Management"
             title="Payment Vouchers · UTR · Due List"
             subtitle="PV generation (GPV → PN) · UTR capture · Due list aging · Bank advice · Excel"
             icon={FileBarChartIcon}
             gradient="linear-gradient(135deg,#581c87 0%,#7c3aed 45%,#0d9488 100%)"
             shadowRgba="124,58,237,.28"
-          />
+          />}
 
           {/* Reports Tabs */}
           <div style={{ display: "flex", gap: 6, borderBottom: "2px solid #e2e8f0", marginTop: 8, flexWrap: "wrap" }} data-testid="reports-tabs">
