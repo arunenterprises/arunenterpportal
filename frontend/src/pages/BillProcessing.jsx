@@ -33,6 +33,7 @@ import {
 import { exportBankTransferXLSX as _sharedXlsx, printBankTransferAdvice as _sharedAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { uploadBig, openFile } from "../lib/bigFiles";
+import { ContractSelect } from "../components/ContractSelect";
 import { apiBillLocks } from "../lib/api";
 import { SUPREME_LIMIT, routeToDiscussion, discussionCleared, gate30 } from "../lib/supremeGate";
 import { parseGstin } from "../lib/gstin";
@@ -785,8 +786,9 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 <F label="Total Work Order Value (₹)">
                   <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("totalWOValue")} />
                 </F>
-                <F label="Project Code &amp; Location">
-                  <input placeholder="Project Code / Site Name" {...bind("projectCodeLocation")} />
+                <F label="Project (Contract No) &amp; Location">
+                  <ContractSelect testid="bill-project" value={bill.projectCodeLocation} disabled={locked} onChange={(v, m) => setBill((b) => ({ ...b, projectCodeLocation: v, projectLocation: m?.siteLocation || b.projectLocation || "" }))} />
+                  <input data-testid="bill-location" placeholder="Location" {...bind("projectLocation")} style={{ marginTop: 4 }} />
                 </F>
                 <F label="Work Scope / Description">
                   <input placeholder="Description of executed work" {...bind("workScope")} />

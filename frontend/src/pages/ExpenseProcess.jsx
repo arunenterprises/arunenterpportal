@@ -11,6 +11,7 @@ import TopActionBar from "../components/TopActionBar";
 import AccountsTabs from "../components/AccountsTabs";
 import HomeNavBar from "../components/HomeNavBar";
 import { uploadBig, openFile } from "../lib/bigFiles";
+import { ContractSelect } from "../components/ContractSelect";
 import {
   createExpenseDraft, computeExpense, upsertExpense, advanceExpenseStep, reserveExpenseRef,
   EXPENSE_STEP_LABEL, currentUser, exportJSON, getExpenses, amountToWords,
@@ -34,7 +35,6 @@ const GST_SLABS = [0, 5, 12, 18, 28];
 
 const PETTY = "Site Expense / Petty Cash";
 const pmProjects = () => { try { return JSON.parse(localStorage.getItem("ae_vm_projects") || "[]"); } catch { return []; } };
-const projLabel = (p) => [p.code, p.name, p.siteLocation].filter(Boolean).join(" · ");
 const projKey = (p) => p.code || p.id;
 
 export default function ExpenseProcess({ embedded = false }) {
@@ -67,8 +67,8 @@ export default function ExpenseProcess({ embedded = false }) {
     if (!expense.paidToName.trim()) { toast.error("Enter 'Paid To' name"); return false; }
     if ((Number(expense.basicAmount) || 0) <= 0) { toast.error("Amount must be greater than 0"); return false; }
     if (expense.category === PETTY) {
-      const p = pmProjects().find((x) => projKey(x) === expense.projectCode);
-      const limit = Number(p?.pettyFloat) || 0;
+      const p = pmProjects().find((x) => x.name === expense.projectCode || projKey(x) === expense.projectCode);
+      const limit = Number(p?.pettyFloat) || Number(expense.pettyFloat) || 0;
       if (!limit) { toast.error("Is project ki Petty Cash Float limit Projects Register mein set nahi hai"); return false; }
       const m = String(expense.date || "").slice(0, 7);
       const used = getExpenses().filter((x) => x.id !== expense.id && x.category === PETTY && x.projectCode === expense.projectCode && String(x.date || "").slice(0, 7) === m && x.status !== "Rejected").reduce((s, x) => s + computeExpense(x).netPayable, 0);
@@ -269,11 +269,9 @@ export default function ExpenseProcess({ embedded = false }) {
               </F>
             </div>
             <div className="row cols-2" style={{ marginTop: 10 }}>
-              <F label="Project Code & Site Location" req>
-                <select {...bind("projectCode")} data-testid="expense-project">
-                  <option value="">— Select Project —</option>
-                  {pmProjects().map((p) => <option key={p.id} value={projKey(p)}>{projLabel(p)}{p.pettyFloat ? ` (Float ₹${Number(p.pettyFloat).toLocaleString("en-IN")}/month)` : ""}</option>)}
-                </select>
+              <F label="Project (Contract No) & Site Location" req>
+                <ContractSelect testid="expense-project" value={expense.projectCode} onChange={(v, m) => setExpense((x) => ({ ...x, projectCode: v, siteLocation: m?.siteLocation || x.siteLocation || "", pettyFloat: Number(m?.pettyFloat) || 0 }))} />
+                <input data-testid="expense-location" placeholder="Site Location" {...bind("siteLocation")} style={{ marginTop: 4 }} />
               </F>
             </div>
             <div className="row cols-2" style={{ marginTop: 10 }}>

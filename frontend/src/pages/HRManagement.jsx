@@ -33,6 +33,7 @@ import SuperAdminDelete from "../components/SuperAdminDelete";
 import GeoAttendance from "../components/GeoAttendance";
 import LabourWages from "../components/LabourWages";
 import { MapPin, HardHat } from "lucide-react";
+import { ContractSelect } from "../components/ContractSelect";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
 const DESIGNATIONS = ["Engineer", "Supervisor", "Sr. Operation Manager", "Manager", "Accountant", "HR Officer", "Store Keeper", "Executive", "Assistant", "Director"];
@@ -261,7 +262,7 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
         <div style={{ padding: 12, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
           <F label="Advertisement No."><input value={emp.advertisementNo || ""} onChange={(e) => set("advertisementNo", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-advt" placeholder="AE/HR/ADVT/2026/001" /></F>
           <F label="Date of Filing"><DateInput type="date" value={emp.dateOfFiling || ""} onChange={(e) => set("dateOfFiling", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-filingdate" /></F>
-          <F label="Project / Site"><input value={emp.projectSite || ""} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-project" /></F>
+          <F label="Project (Contract No)"><ContractSelect testid="emp-project" value={emp.projectSite || ""} onChange={(v) => set("projectSite", v)} disabled={locked} style={inputStyle} /></F>
           <F label="Location"><input value={emp.location || ""} onChange={(e) => set("location", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-location" /></F>
           <F label="Applied Post" req>
             <select value={emp.appliedPost || ""} onChange={(e) => set("appliedPost", e.target.value)} disabled={locked} style={inputStyle} data-testid="emp-appliedpost">

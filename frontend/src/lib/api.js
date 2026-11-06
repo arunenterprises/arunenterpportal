@@ -9,7 +9,7 @@ export const getToken = () => {
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
-const req = async (path, opts = {}) => {
+export const req = async (path, opts = {}) => {
   const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
   const t = getToken();
   if (t) headers["Authorization"] = `Bearer ${t}`;

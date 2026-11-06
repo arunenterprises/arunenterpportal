@@ -1398,6 +1398,21 @@ async def crm_all(user: Dict = Depends(get_current_user)):
     return dict(zip(names, lists))
 
 
+@api_router.get("/projects/master")
+async def projects_master(user: Dict = Depends(get_current_user)):
+    rows = await db.ops_projects.find({"status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(2000)
+    keys = ("id", "code", "name", "contractNo", "client", "siteLocation", "manager", "status", "startDate", "endDate", "budget", "pettyFloat", "projectType")
+    return [{k: r.get(k, "") for k in keys} for r in rows if r.get("name")]
+
+
+@api_router.get("/contracts/master")
+async def contracts_master(user: Dict = Depends(get_current_user)):
+    clients = {c.get("id"): c.get("name", "") for c in await _list_collection(_crm_coll("clients"))}
+    rows = await _list_collection(_crm_coll("contracts"))
+    return [{"id": c.get("id"), "contractNo": c.get("contractNo", ""), "projectName": c.get("projectName", ""), "siteLocation": c.get("siteLocation", ""),
+             "clientName": clients.get(c.get("clientId"), ""), "workOrderNo": c.get("workOrderNo", "")} for c in rows if c.get("contractNo")]
+
+
 @api_router.get("/crm/{name}")
 async def crm_list(name: str, user: Dict = Depends(get_current_user)):
     if not (await _acl_ok(user, "client", "v") or await _acl_ok(user, "gm", "v")):

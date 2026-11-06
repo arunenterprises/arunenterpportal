@@ -13,6 +13,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import { parseGstin } from "../lib/gstin";
 import VendorQueryModal from "../components/VendorQueryModal";
 import { FileSlot } from "../components/FileSlot";
+import { ContractSelect } from "../components/ContractSelect";
 const VENDOR_CATS = ["Manufacturer", "Authorized Dealer", "Sub-contractor", "Local Supplier"];
 const RLY_CLASS = ["Class-A", "Class-B", "Class-C", "Class-D", "Not Registered"];
 const DOCS = [["gstDoc", "Upload GST Certificate"], ["panDoc", "Upload PAN Card Copy"], ["chequeDoc", "Upload Cancelled Cheque / Bank Passbook"]];
@@ -316,7 +317,7 @@ export default function VendorRegistration({ embedded = false }) {
             <div className="sec-head">Project &amp; Site Details</div>
             <div className="sec-body">
               <div className="row cols-2">
-                <F label="Project Code"><input placeholder="e.g. PRJ-2026-NNA" {...bind("projectCode")} /></F>
+                <F label="Project (Contract No)"><ContractSelect testid="field-projectCode" value={vendor.projectCode || ""} disabled={locked} onChange={(v) => setVendor((p) => ({ ...p, projectCode: v }))} /></F>
                 <F label="Project Location / Site Name"><input placeholder="e.g. Naini Site / Prayagraj" {...bind("siteName")} /></F>
               </div>
             </div>

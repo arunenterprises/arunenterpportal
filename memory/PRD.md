@@ -466,3 +466,10 @@ See `/app/memory/test_credentials.md`.
 - My Tasks tabs renamed "Task Allotment" / "All Task"; RFQ tab moved next to Vendor Registration.
 - PENDING Finance: Fetch-bill read-only fill, Pay Bill JV on UTR + period filters, Weekly Fooding employee lookup + per-head cap (value needed from user), Exit F&F advance recovery equation, PV row-selection autofill; server-side 30L check for Pay Bill / F&F; Managers module ownership (PDF §5).
 - PENDING: Finance Module 5 upgrades (Fetch bill read-only, Expenses project + float limit + 5MB, Advance KPIs/auto payroll deduction, Pay Bills KPIs/JV on UTR/30L gate, Weekly Fooding employee lookup + per-head cap (user skipped value), Exit F&F recovery/30L, Payment Vouchers 30L gate on PAID/Generate/Submit + selection autofill); managers' module ownership (PDF §5).
+
+## 2026-11-06 (later 2) — Project Master alignment
+- Project Register = Project Master (ops kind "projects", server). Form has Project Name + "Contract No (Client & Revenue)" picker (CrmContractSelect from /api/contracts/master) that fills client & site location.
+- Every Project field now uses components/ContractSelect.jsx `ContractSelect` (source /api/projects/master, any logged-in user; value = project name, label code · name · contract · location) and auto-fills location: all OpsModule `type:"project"` fields (DPR, Indent, GRN, PO, RFQ, Stock, Labour, etc.), Core Projects name, Core RA Bill / EOT / BG project, BOQ, Work Order, Vendor Bill, Expenses (+ petty float from master), HR employee project, Vendor registration project.
+- Old free-text values stay visible as "(purana)" option.
+- TDS in Vendor Bill is a dropdown 0% / 1% / 2% (default by vendor type). Procurement tab order: Vendor → RFQ → BOQ → WO → Store & GRN → Vendor Bill.
+

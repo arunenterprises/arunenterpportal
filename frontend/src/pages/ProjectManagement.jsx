@@ -12,6 +12,7 @@ import ModuleHero from "../components/ModuleHero";
 import { currentUserProfile, currentRole, canApprove, canDelete, isSuperAdmin } from "../lib/store";
 import { apiOpsList, apiOpsSave, apiOpsDelete } from "../lib/api";
 import { OPS, PROJECT_FORMS } from "../components/ops/opsConfig";
+import { CrmContractSelect } from "../components/ContractSelect";
 
 // ---------- Local persistence (Project Management is a draft layout for now) ----------
 const PM_KEY = "ae_vm_projects";
@@ -378,7 +379,8 @@ export default function ProjectManagement() {
 
             <div style={{ padding: 20, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               <F label="Project Code"><input value={editing.code} readOnly style={{ ...inputS, background: "#f8fafc", fontFamily: "monospace", fontWeight: 700 }} data-testid="pm-f-code" /></F>
-              <F label="Project Name *" span={3}><input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} style={inputS} data-testid="pm-f-name" placeholder="E.g. Office Interior Renovation" /></F>
+              <F label="Project Name *" span={2}><input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} style={inputS} data-testid="pm-f-name" placeholder="E.g. Naini Yard Remodelling" /></F>
+              <F label="Contract No (Client & Revenue)"><CrmContractSelect testid="pm-f-contract" value={editing.contractNo || ""} style={inputS} onChange={(v, c) => setEditing({ ...editing, contractNo: v, name: editing.name || c?.projectName || "", client: c?.clientName || editing.client, siteLocation: editing.siteLocation || c?.siteLocation || "" })} /></F>
               <F label="Client / Owner"><input value={editing.client} onChange={(e) => setEditing({ ...editing, client: e.target.value })} style={inputS} data-testid="pm-f-client" /></F>
               <F label="Site Location"><input value={editing.siteLocation} onChange={(e) => setEditing({ ...editing, siteLocation: e.target.value })} style={inputS} data-testid="pm-f-site" /></F>
               <F label="Project Manager *"><input value={editing.manager} onChange={(e) => setEditing({ ...editing, manager: e.target.value })} style={inputS} data-testid="pm-f-manager" /></F>

@@ -9,6 +9,7 @@ import RfqCs from "../components/procurement/RfqCs";
 import OpsModule from "../components/ops/OpsModule";
 import { OPS } from "../components/ops/opsConfig";
 import { uploadBig, openFile } from "../lib/bigFiles";
+import { ContractSelect } from "../components/ContractSelect";
 const BOQ_TYPES = ["Client Master BOQ", "Sub-contractor Execution BOQ", "Vendor Supply BOQ"];
 export const woGst = (w) => (w.items || []).reduce((s, it) => s + (Number(it.amount) || 0) * (Number(it.gstPct ?? w.gstSlab ?? 18) || 0) / 100, 0);
 const norm = (s) => String(s || "").trim().toLowerCase();
@@ -297,7 +298,8 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
           {/* Row 2 — Project + Vendor */}
           <div className="field-b">
             <label>Project / Site <span className="req">*</span></label>
-            <input data-testid="boq-project" value={boq.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} placeholder="e.g. Kalindipuram Site A" />
+            <ContractSelect testid="boq-project" value={boq.projectSite} onChange={(v, m) => setBoq((p) => ({ ...p, projectSite: v, projectLocation: m?.siteLocation || p.projectLocation || "" }))} disabled={locked} />
+            <input data-testid="boq-location" value={boq.projectLocation || ""} onChange={(e) => set("projectLocation", e.target.value)} disabled={locked} placeholder="Location (sirf yeh bharein)" style={{ marginTop: 4 }} />
           </div>
           <div className="field-b">
             <label>Client Name</label>
@@ -922,7 +924,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
             </select>
           </div>
           <div><label>BOQ Ref No. (auto)</label><input data-testid="wo-boqrefno" value={wo.boqRefNo || "—"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
-          <div><label>Project / Site</label><input data-testid="wo-project" value={wo.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} /></div>
+          <div><label>Project (Contract No)</label><ContractSelect testid="wo-project" value={wo.projectSite} onChange={(v, m) => setWo((p) => ({ ...p, projectSite: v, projectLocation: m?.siteLocation || p.projectLocation || "" }))} disabled={locked} /><input data-testid="wo-location" value={wo.projectLocation || ""} onChange={(e) => set("projectLocation", e.target.value)} disabled={locked} placeholder="Location" style={{ marginTop: 4 }} /></div>
 
           <div style={{ gridColumn: "span 2" }}><label>Client Name</label><input data-testid="wo-client" value={wo.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
           <div><label>GST (row-wise · auto)</label><input data-testid="wo-gst" value={`₹ ${woGst(wo).toFixed(2)}`} readOnly style={{ background: "#f1f5f9", fontWeight: 700 }} /></div>
