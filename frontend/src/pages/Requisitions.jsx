@@ -15,7 +15,7 @@ const inp = { width: "100%", padding: "7px 9px", border: "1px solid #cbd5e1", bo
 const btn = (c, dis) => ({ padding: "7px 12px", background: dis ? "#cbd5e1" : c, color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: dis ? "not-allowed" : "pointer", display: "inline-flex", gap: 5, alignItems: "center" });
 const inr = (v) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
 const lbl = { fontSize: 11, fontWeight: 700, color: "#334155" };
-const Pill = ({ s }) => <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800, color: "#fff", background: ST_C[s] || "#64748b" }}>{s}</span>;
+const Pill = ({ s }) => <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800, color: "#fff", background: ST_C[s] || "#64748b", whiteSpace: "nowrap", alignSelf: "flex-start", height: "fit-content" }}>{s}</span>;
 const FILE_OK = ["application/pdf", "image/png", "image/jpeg", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
 
 const CreateForm = ({ onDone }) => {
@@ -140,8 +140,8 @@ const Detail = ({ r, role, me, onChange }) => {
       {canAct && (
         <div style={{ display: "flex", gap: 6, alignItems: "end" }}>
           <label style={{ ...lbl, flex: 1 }}>Remarks (Reject par zaroori)<input data-testid="req-remarks" style={inp} value={remarks} onChange={(e) => setRemarks(e.target.value)} /></label>
-          <button data-testid="req-approve-btn" onClick={() => act("approve")} style={btn("#15803d")}><CheckCircle2 size={13} /> {stg.label}</button>
-          <button data-testid="req-reject-btn" onClick={() => act("reject")} style={btn("#dc2626")}><XCircle size={13} /> Reject</button>
+          <button data-testid="req-step-ok" onClick={() => act("approve")} style={btn("#15803d")}><CheckCircle2 size={13} /> {stg.label}</button>
+          <button data-testid="req-step-no" onClick={() => act("reject")} style={btn("#dc2626")}><XCircle size={13} /> Reject</button>
         </div>
       )}
       {r.status === "Pending" && !canAct && stg && <div style={{ fontSize: 11.5, color: "#64748b" }}>Abhi {stg.role} ke paas ({stg.label})</div>}

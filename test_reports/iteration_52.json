@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 52 retested the Phase 1 Requisitions fixes. Backend: 12 of 12 pytest tests passed (the new test_iter52_requisitions_retest.py plus the regression test_iter51_requisitions.py). The file GET access check, the rule that conclude needs a comment from an assigned department, and clearing the discipline for non-Material requisitions are all fixed. The literal \\u escapes are fixed: the page shows ·, →, ₹ and — correctly. The CRITICAL approve/reject bug is still NOT fixed. The renamed testids 'req-approve-btn' and 'req-reject-btn' still match the global hide rule at App.css:1136. That rule includes [data-testid*=\"approve-\"] and [data-testid*=\"-reject-\"]. As a result Sr. Site Operation Manager, Member Civil and Purchase Manager still see display:none, and only GM sees the buttons. With a test-only CSS override, the full Material ₹50,000 CIVIL chain (SSOM → Member Civil → Purchase Manager → GM) reached Approved through the UI, with correct history and stepper.",
+  "verified_working": [
+    "GET /api/requisitions/{rid}/files/{fid}: unrelated roles (Member Financial, Accounts Manager on a Material CIVIL requisition) get 403. Creator, SSOM, Member Civil, GM and SuperAdmin get 200 with the data. An unknown fid gets 404.",
+    "Conclude: with only GM comments it returns 409. After an Accounts Manager comment it returns 200 and the status becomes Pending.",
+    "Finance and Machinery requisitions sent with a discipline are stored with discipline '' (checked in both the response and the DB). Material keeps CIVIL. The client also sends '' for non-Material.",
+    "No literal \\uXXXX text appears in the requisitions-page innerText. ·, →, ₹ and — render correctly in the hero, rows, detail and history.",
+    "After the test-only CSS override, the approve click works for every stage, the backend advances stage 0→1→2→3→4 and the status ends Approved."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Requisitions Detail approve/reject", "issue": "STILL HIDDEN for all non-GM stage roles. The renamed testids still match App.css:1136: 'req-approve-btn' matches [data-testid*=\"approve-\"] and 'req-reject-btn' matches [data-testid*=\"-reject-\"]. Confirmed: for SSOM, Member Civil and Purchase Manager, body has the ae-no-approve class and the computed display of req-approve-btn is none. GM has no ae-no-approve and sees the buttons. Accounts Manager and Member Financial use the same mechanism, so they are affected too (inferred). Fix: add :not(.ae-req-action) to the App.css:1136 rule and put className='ae-req-action' on both buttons, OR use testids that contain neither 'approve-' nor '-reject-' and do not end in approve/reject (e.g. 'req-act-ok' / 'req-act-no'). Verify with getComputedStyle.", "selector": "[data-testid='req-approve-btn'], [data-testid='req-reject-btn']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Requisitions detail", "issues": ["The status Pill in the detail header is still a tall oval (needs whiteSpace:nowrap and alignSelf:flex-start)."]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "The global CSS hide rule uses broad substring matches on testids. Any new testid containing 'approve-' or '-reject-' is hidden silently. Prefer an explicit opt-in class (.ae-approver-only) over testid pattern matching.",
+    "req_disc_conclude runs the department-comment check before the status check. A non-Discussion requisition returns the 'assigned department' message instead of the 'not in discussion' message. This is cosmetic (both are 409)."
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter52_requisitions_retest.py", "/app/backend/tests/test_iter51_requisitions.py", "/app/backend/tests/iter52_ui_setup.py", "/app/test_reports/pytest/pytest_iter52.xml"],
+  "action_items": [
+    "CRITICAL: make req-approve-btn and req-reject-btn visible for stage roles. Either exempt them in the App.css:1136 rule or rename the testids so they match none of the patterns there ($=approve, *=approve-, *=reapprove, $=reject, *=-reject-). Then check as SSOM that getComputedStyle(btn).display !== 'none'.",
+    "LOW: fix the Pill sizing in the detail header."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter52_requisitions_retest.py", "/app/backend/tests/iter52_ui_setup.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "80% (4/5 retest items pass; the approve/reject visibility fix failed)"},
+  "seed_data_creation": "None kept. All TEST users (test_i52_*), requisitions, req_files and notifications were deleted. There were 0 tasks. The counters doc {key:'requisitions'} was removed again because no requisitions remain.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run with -n 0 and export REACT_APP_BACKEND_URL. Use iter52_ui_setup.py setup|otp <gm|ssom|civil|pm|am|mf|user>|state|teardown (password TestPw@1234). Call SA otp-reset before each non-SA login. In browser scripts import asyncio for the dialog handler (window.confirm on approve). To work around the hidden buttons, the override CSS needs higher specificity: 'html body.ae-no-approve button[data-testid=\"req-approve-btn\"][data-testid]{display:inline-flex !important}'. Retest only the native visibility of the buttons for SSOM, Member Civil, Purchase Manager, Accounts Manager and Member Financial.",
+  "rca of the issue": "AppSidebar.jsx:108 adds body.ae-no-approve for users without the approve perm, and that includes all new stage roles. App.css:1136 hides any button matching [data-testid$=approve], [data-testid*=approve-], [data-testid$=reject] or [data-testid*=-reject-]. The rename changed 'req-approve' to 'req-approve-btn', which now matches the *=approve- pattern instead of $=approve. The same happens for reject. So the buttons are still hidden."
+}

@@ -71,7 +71,7 @@ const TaskDetail = ({ t, me, boss, onChange }) => {
           <label style={{ display: "block", fontSize: 11, fontWeight: 700 }}>Senior Remarks<textarea data-testid="task-senior-remarks" rows={2} style={inp} value={sr} onChange={(e) => setSr(e.target.value)} /></label>
           <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
             <button data-testid="task-done" onClick={() => upd({ status: "Done", seniorRemarks: sr }, "Task Done")} style={btn("#15803d")}><CheckCircle2 size={13} /> Done</button>
-            <button data-testid="task-reject" onClick={() => upd({ status: "Rejected", seniorRemarks: sr }, "Wapas bheja")} style={btn("#dc2626")}><XCircle size={13} /> Reject</button>
+            <button data-testid="task-send-back" onClick={() => upd({ status: "Rejected", seniorRemarks: sr }, "Wapas bheja")} style={btn("#dc2626")}><XCircle size={13} /> Reject</button>
             <button data-testid="task-reopen" onClick={() => upd({ status: "Assigned", seniorRemarks: sr }, "Reopen")} style={btn("#0369a1")}>Reopen</button>
             <button data-testid="task-delete" onClick={() => window.confirm("Task delete karein?") && apiTaskDelete(t.id).then(() => { toast.success("Deleted"); onChange(true); }).catch((e) => toast.error(e.message))} style={btn("#64748b")}><Trash2 size={13} /> Delete</button>
           </div>
