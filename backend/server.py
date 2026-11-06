@@ -448,6 +448,7 @@ async def login(body: LoginBody, request: Request):
             "is_full_access": bool(user.get("is_full_access", False)) or is_super,
             "employee_id": user.get("employee_id", ""),
             "mobile": user.get("mobile", ""),
+            "core_all": bool(user.get("core_all", False)),
         },
     }
 
@@ -2355,8 +2356,9 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
             raise HTTPException(status_code=400, detail="GRN sirf Approved PO par banega — PO No sahi bharein")
         body.update({"vendorCode": po.get("vendorCode"), "material": po.get("material"), "unit": po.get("unit"), "project": body.get("project") or po.get("project"),
                      "acceptedQty": _num(body.get("receivedQty")) if body.get("qcStatus") == "Pass" else 0})
-        others = await db.ops_proc_grn.find({"poNo": body.get("poNo"), "id": {"$ne": rid}, "status": {"$ne": "Rejected"}}, {"_id": 0, "acceptedQty": 1}).to_list(5000)
-        if sum(_num(o.get("acceptedQty")) for o in others) + _num(body["acceptedQty"]) > _num(po.get("qty")) + 1e-9:
+        others = await db.ops_proc_grn.find({"poNo": body.get("poNo"), "id": {"$ne": rid}, "status": {"$ne": "Rejected"}}, {"_id": 0, "acceptedQty": 1, "receivedQty": 1, "qcStatus": 1}).to_list(5000)
+        pending = [o for o in others if o.get("qcStatus") == "Under Lab Test"] + ([body] if body.get("qcStatus") == "Under Lab Test" else [])
+        if sum(_num(o.get("acceptedQty")) for o in others) + _num(body["acceptedQty"]) + sum(_num(o.get("receivedQty")) for o in pending) > _num(po.get("qty")) + 1e-9:
             raise HTTPException(status_code=400, detail=f"Total GRN qty PO qty ({_num(po.get('qty')):g}) se zyada nahi ho sakti")
         if old in ("Submitted", "Approved") and not await _acl_ok(user, dept, "a"):
             raise HTTPException(status_code=423, detail="Submitted GRN freeze hai — badlav sirf approver")
@@ -2998,6 +3000,8 @@ async def file_chunk(body: Dict = Body(...), user: Dict = Depends(require_write)
             raise HTTPException(status_code=400, detail=f"File {limit // (1024 * 1024)} MB se badi nahi ho sakti")
         if ctype not in BIG_FILE_TYPES:
             raise HTTPException(status_code=400, detail="Sirf PDF, Excel ya Image file")
+        if total < 1 or total > 32:
+            raise HTTPException(status_code=400, detail="Upload hisse galat hain")
         fid = uuid.uuid4().hex
         await db.files_meta.insert_one({"id": fid, "name": str(body.get("name") or "file")[:200], "type": ctype, "size": size, "total": total, "complete": False,
                                         "by": user["email"], "at": datetime.now(timezone.utc).isoformat()})
@@ -3011,6 +3015,11 @@ async def file_chunk(body: Dict = Body(...), user: Dict = Depends(require_write)
     if idx == total - 1:
         if await db.files_chunks.count_documents({"fileId": fid}) != total:
             raise HTTPException(status_code=400, detail="Kuch hisse upload nahi hue")
+        real = sum(len(base64.b64decode(p["data"])) for p in await db.files_chunks.find({"fileId": fid}, {"_id": 0, "data": 1}).to_list(total))
+        if real != meta["size"]:
+            await db.files_chunks.delete_many({"fileId": fid})
+            await db.files_meta.delete_one({"id": fid})
+            raise HTTPException(status_code=400, detail="File size match nahi hua — dobara upload karein")
         await db.files_meta.update_one({"id": fid}, {"$set": {"complete": True}})
     return {"fileId": fid, "done": idx == total - 1}
 
@@ -3018,9 +3027,9 @@ async def file_chunk(body: Dict = Body(...), user: Dict = Depends(require_write)
 @api_router.get("/files/{fid}")
 async def file_get(fid: str, user: Dict = Depends(get_current_user)):
     meta = await db.files_meta.find_one({"id": fid, "complete": True}, {"_id": 0})
-    if not meta:
+    if not meta or (user.get("role") == "Viewer" and meta.get("by") != user["email"]):
         raise HTTPException(status_code=404, detail="File nahi mili")
-    parts = await db.files_chunks.find({"fileId": fid}, {"_id": 0}).sort("i", 1).to_list(100)
+    parts = await db.files_chunks.find({"fileId": fid}, {"_id": 0}).sort("i", 1).to_list(meta["total"])
     raw = b"".join(base64.b64decode(p["data"]) for p in parts)
     return Response(content=raw, media_type=meta["type"], headers={"Content-Disposition": f'inline; filename="{meta["name"]}"'})
 

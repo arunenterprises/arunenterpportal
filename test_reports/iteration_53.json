@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 53 tested Procurement Module 4, the Anti-Fraud Engine and the 7 Core Member boards. Backend: 7 of 7 pytest tests passed (test_iter53_procurement_fraud.py). They covered PO→GRN rules, the 3-way invoice match and double billing, bill-locks dates, the stock reconcile → fraud block → indent/requisition 423 → GM release flow, auto-clear, chunked files and cron 401. Frontend: the Core Dashboard shows only the Dashboard and Core Setup buttons and all 7 member tabs. Each tab shows the spec KPI cards, grids and form buttons. The modal forms work: a Stock Register save gave RED ALERT and an HR Ticket saved. The fraud panel's Reconcile and Release work. The Financial link buttons navigate correctly. RFQ/CS works: L1 is auto-green, save → submit → approve → Generate PO created a Draft PO for the L1 vendor. The GRN tab has the GRN and stock register forms, and the billing tab has the three-way register. The new Vendor fields and the doc-slot gating work, and real 25MB chunk uploads go through the UI. The BOQ budget gate and the WO GST/retention UI render. With 3-way entry missing, a new bill submit shows the ANTI-FRAUD BLOCK toast. I found and fixed one CRITICAL bug: a missing await in VendorRegistration submit/approve. Two medium frontend bugs remain (see action items).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/files/{fid}", "issue": "Has no ACL. Any logged-in user can download any uploaded file (vendor PAN/GST/cheque docs) if they know the fileId."},
+      {"endpoint": "GET /api/fraud/blocks", "issue": "Any logged-in role can list all fraud blocks. Consider restricting it to the _fraud_ops roles."},
+      {"endpoint": "POST /api/files/chunk", "issue": "The declared size is not checked against the bytes actually received, so the client-declared size is trusted for the 25MB limit. Each chunk is limited to 1.5MB of base64, but 'total' is unbounded, and file_get only reads to_list(100) chunks."},
+      {"endpoint": "POST /api/ops/proc_grn", "issue": "The cumulative check only counts acceptedQty (QC Pass). receivedQty on Fail/Under-Lab-Test GRNs is unbounded versus PO qty. A GRN saved as 'Under Lab Test' and later edited to Pass is re-checked, which is OK."},
+      {"endpoint": "POST /api/requisitions (Material)", "issue": "The fraud-block 423 also applies to GM/SuperAdmin, unlike indents where GM/SA bypass. Confirm this is intended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorRegistration handleSubmit/handleApprove", "issue": "FIXED by testing agent. advanceVendorStep (store.js:919) is async, but both handlers used it without await. setVendor(Promise) blanked the form (Step 1, temp placeholder). Approve then said 'Please Submit for Checking first', and when it did run it spread a Promise ({...Promise} = {}), which upserted a junk vendor holding only {history}. This blocked approving any vendor from the UI. I added async/await to both handlers.", "selector": "[data-testid='vendor-btn-submit'], [data-testid='vendor-btn-approve']", "priority": "CRITICAL (fixed)"},
+      {"component": "BillProcessing fetchVendor / TDS", "issue": "calc-tds-rate is not recalculated when a vendor is fetched. For PAN ABCPK1234L (4th char P) it still shows '2% · Firm / Company'. It only switches to 1% on the first Submit, which aborts with the toast 'TDS vendor type ke hisaab se auto-set hua — dobara Submit karein', so the user has to submit twice. Fix: in fetchVendor call setBill({...bill, vendorCode, vendorSnapshot: v, tdsRate: tdsFor(v)}).", "selector": "[data-testid='calc-tds-rate']", "priority": "MEDIUM"},
+      {"component": "FraudPanel refresh", "issue": "After saving a Stock Register entry in the core modal (which creates a RED ALERT block), the FraudPanel list is not reloaded on modal close. The new block only appears after Reconcile Now or a page reload.", "selector": "[data-testid='fraud-panel']", "priority": "LOW"},
+      {"component": "PurchaseManagement BOQ/WO handleSubmit", "issue": "Uses `if (!saved) handleSave();` without checking the result. In the UI the 'Add at least one line item' toast fired, yet submit carried on to the gate. For a Client Master BOQ the gate passes, so an invalid or empty BOQ could be advanced to step 2. This is inferred from the code; I did not persist it to avoid polluting data.", "selector": "[data-testid='boq-btn-submit']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/purchase tabs", "issues": ["The 6th tab 'Store & GRN' wraps onto its own full-width row under the other 5 tab cards. Use a 6-column grid or make the cards smaller."]},
+      {"screen": "/purchase RFQ & CS matrix", "issues": ["The GST % select and Unit columns are too narrow: the select shows blank and the item description is truncated. GST options show '0' instead of 'Exempted', unlike the WO GST options."]},
+      {"screen": "/core-dashboard hero", "issues": ["The subtitle still lists only 4 members (Civil, OHE, Electrical, Procurement). It should mention all 7."]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "RfqCs.genPO uses the PO id `po_${Date.now()}_${j}`. Repeated clicks create duplicate POs with no idempotency, and two items with the same L1 vendor in the same millisecond would overwrite each other. Use `po_${cs.id}_${i}` and skip if it exists.",
+    "RfqCs: the CS-level l1Vendor is chosen by lowest total, while POs are generated per item by item-level L1. This is inconsistent when vendors differ per item.",
+    "BillProcessing.handleSubmit at step 3 with net >30L calls routeToDiscussion BEFORE the unverified-items and required-name checks, and mutates bill.discussionReqId directly. If a later check fails, the state is not persisted, and each retry or reload creates another Finance requisition.",
+    "Reports.threeWayLocks falls back to b.billDate when createdAt is missing. A back-dated billDate on a new bill would skip the 3-way rule. Always rely on server/creation timestamps.",
+    "cs-approve testid ends in 'approve', so the global App.css hide rule (body.ae-no-approve) hides it for non-approver roles. This is fine if intended, but the CSS rule is fragile (see iteration_52).",
+    "PurchaseManagement.jsx (1288 lines) and BillProcessing.jsx (1974 lines) are far over the 700-line limit. Split them by tab or step.",
+    "server.py has 3056 lines. Move the anti-fraud, files and requisitions code into routers."
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter53_procurement_fraud.py", "/app/backend/tests/iter53_cleanup.py", "/app/test_reports/pytest/pytest_iter53.xml"],
+  "action_items": [
+    "Review and keep the testing-agent fix in VendorRegistration.jsx: handleSubmit and handleApprove are now async and await advanceVendorStep.",
+    "MEDIUM: set tdsRate from tdsFor(v) in BillProcessing fetchVendor so the read-only TDS shows 1% for PAN 4th char P/H immediately and no double submit is needed.",
+    "MEDIUM: BOQ (and WO) handleSubmit must abort when handleSave validation fails.",
+    "MEDIUM: make RfqCs Generate PO idempotent with a deterministic PO id per CS item.",
+    "MEDIUM: in BillProcessing step 3 >30L, run all validations before routeToDiscussion and persist discussionReqId immediately with upsertBill.",
+    "LOW: reload FraudPanel after a core modal closes, add an ACL to GET /api/files/{id}, widen the CS matrix GST/Unit columns, update the core hero subtitle, and fix the purchase tab wrapping."
+  ],
+  "updated_files": ["/app/frontend/src/pages/VendorRegistration.jsx", "/app/backend/tests/test_iter53_procurement_fraud.py", "/app/backend/tests/iter53_cleanup.py"],
+  "success_rate": {"backend": "100% (7/7 pytest, ~45 assertions)", "frontend": "~88% (core boards, fraud panel, RFQ/CS, GRN, three-way register, vendor gating, BOQ gate, WO GST/retention and the anti-fraud bill block all work. Vendor approval was broken until fixed. The TDS display bug remains)"},
+  "seed_data_creation": "None kept. Deleted through the API (so counters rolled back to 0): E1's TEST_po1, TEST_grn1, TEST_inv1, TEST_dpr1, TEST_st1, TEST_ind1; the UI-created proc_cs, proc_po draft, stock_count and core_hr_ticket; 2 TEST_UI53 vendors. Deleted directly: fraud_blocks for TEST_PRJ and TEST_PRJ_UI53, 12 t53.pdf files_meta/chunks, the pytest users test_i53_* and their notifications. counters.global.vendorSerial was rolled back from 3 to 2, because my UI approval consumed AE0003. NOTE: counters.global.boqSerial may have been bumped by about 3-4 by my BOQ 'New' clicks (it is now 212). I left it unchanged because the original value is unknown. The vendors and boqs collections are empty.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n 0 and export REACT_APP_BACKEND_URL. For a non-SA login, call SA POST /api/admin/users/{email}/otp-reset first. The browser date is 2026-11-06, which equals THREE_WAY_FROM. Vendor/BOQ/bill data lives in the browser store and syncs via /api/snapshot and /api/vendors. To test the UI without persisting, page.route-abort POST to those endpoints, but note that vendor approval needs the server serial. Not tested: Step 3 Accounts-Manager-only restriction, the >30L Step-4 lock with Discussion Window, Reports voucher 3-way lock, WO cumulative budget block (code reviewed only), and a Member Procurement role's view of the fraud panel in the UI.",
+  "rca of the issue": "Vendor approval broken: store.advanceVendorStep became async (commit 96d7dd9, server-first vendor serial), but VendorRegistration still called it synchronously. setVendor got a Promise, so the form fields went blank and step became undefined, which displays as Step 1. Approve spread the Promise into {} and upserted a junk record. Repro: New Vendor → fill → Save → fill Checked By, Category, 3 docs → Submit → the status shows Step 1 again → Final Approval says 'Please Submit for Checking first'. Mitigation applied: await in both handlers."
+}

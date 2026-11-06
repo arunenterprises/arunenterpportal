@@ -205,7 +205,7 @@ const legal = ({ d, c }) => {
     forms: [["core_bg", "Bank Guarantee"], ["core_eot", "EOT Application"], ["core_claim", "Legal Claim"]],
     grids: [{ id: "timeline", title: "Contract & BG Expiry Timeline", cols: ["Date", "Event", "Project", "Value", "Days"],
       rows: tl.map((x) => ({ bg: left(x.dt) < 30 && left(x.dt) >= 0 ? "#fef2f2" : undefined, cells: [x.dt, x.w, x.p || "—", inr(x.a), left(x.dt)] })) },
-      { id: "eot", title: "Railway EOT Application Tracker", cols: ["EOT", "Project", "Original", "Requested", "Days", "Status"], rows: d.core_eot.map((e) => ({ cells: [e.eotNo || e.docNo, e.projectName, e.originalDate, e.requestedDate, e.days, e.estatus2] })) }],
+      { id: "eot", title: "Client EOT Application Tracker", cols: ["EOT", "Project", "Original", "Requested", "Days", "Status"], rows: d.core_eot.map((e) => ({ cells: [e.eotNo || e.docNo, e.projectName, e.originalDate, e.requestedDate, e.days, e.estatus2] })) }],
   };
 };
 
@@ -223,7 +223,7 @@ const fin = ({ d, c }) => {
       { id: "pv", l: "Vouchers Matrix (Draft / Approved / Final Paid)", v: `${cnt((p) => !p.paidFinal && p.status !== "Approved")} / ${cnt((p) => !p.paidFinal && p.status === "Approved")} / ${cnt((p) => p.paidFinal)}`, c: "#0369a1" }],
     forms: [["core_ra_bill", "RA Bill / MB Entry"], ["proc_invoice", "3-Way Match (PO + GRN + Bill)"], ["core_payroll_freeze", "Payroll Release Review"]],
     links: [["Vendor Bill Process", "/bill"], ["Expenses", "/bill?view=expense"], ["Advance Reg.", "/bill?view=advance"], ["Pay Bills Process", "/bill?view=paybill"], ["Weekly Fooding", "/bill?view=fooding"], ["Exit & F&F", "/bill?view=exit"], ["Payment Vouchers & Due List", "/final"], ["Finance Requisitions", "/requisitions"]],
-    grids: [{ id: "ra", span: true, title: "Railway RA Billing & MB Reconciliation Matrix", cols: ["RA No", "MB No", "Project", "Claimed", "Passed", "TDS", "SD", "Net", "Claimed − Passed", "Outstanding"],
+    grids: [{ id: "ra", span: true, title: "Client RA Billing & MB Reconciliation Matrix", cols: ["RA No", "MB No", "Project", "Claimed", "Passed", "TDS", "SD", "Net", "Claimed − Passed", "Outstanding"],
       rows: d.core_ra_bill.map((r) => ({ bg: n(r.diff) > 0 ? "#fff7ed" : undefined, cells: [r.raNo, r.mbNo, r.projectName, inr(r.claimed), inr(r.passed), inr(r.tds), inr(r.sd), inr(r.net), inr(r.diff), inr(r.outstanding)] })) },
       { id: "pl", span: true, title: "Project-wise P&L (Revenue = RA Passed · Cost = PO + Labour)", icon: TrendingUp, cols: ["Project", "Revenue vs Cost", "P&L"],
         rows: pl.map((o) => ({ cells: [<b>{o.p}</b>, <div style={{ minWidth: 220 }}><div style={{ height: 8, width: `${(o.r / mx) * 100}%`, background: "#16a34a", borderRadius: 99, marginBottom: 3 }} /><div style={{ height: 8, width: `${(o.x / mx) * 100}%`, background: "#dc2626", borderRadius: 99 }} /><span style={{ fontSize: 10 }}>{inr(o.r)} / {inr(o.x)}</span></div>, <b style={{ color: o.r - o.x >= 0 ? "#16a34a" : "#dc2626" }}>{inr(o.r - o.x)}</b>] })) }],
@@ -237,6 +237,7 @@ export default function SpecBoard({ member, meta, allowed }) {
   const [modal, setModal] = useState("");
   const nav = useNavigate();
   const load = () => Promise.all(KINDS.map((k) => apiOpsList(k).catch(() => []))).then((r) => setD(Object.fromEntries(KINDS.map((k, i) => [k, r[i]]))));
+  const [fr, setFr] = useState(0);
   useEffect(() => { load(); }, []);
   if (!d) return <div style={card}>Loading…</div>;
   const b = BOARDS[member]({ d, c: meta.c });
@@ -257,8 +258,8 @@ export default function SpecBoard({ member, meta, allowed }) {
       )}
       <Kpis items={b.kpis} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 12 }}>{b.grids.map((g) => <Grid key={g.id} {...g} />)}</div>
-      {b.fraud && <FraudPanel />}
-      {modal && <FormModal kind={modal} allowed={allowed} onClose={() => { setModal(""); load(); }} />}
+      {b.fraud && <FraudPanel key={fr} />}
+      {modal && <FormModal kind={modal} allowed={allowed} onClose={() => { setModal(""); load(); setFr((v) => v + 1); }} />}
     </div>
   );
 }

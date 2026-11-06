@@ -41,14 +41,19 @@ export default function RfqCs() {
   const genPO = async () => {
     if (cs.status !== "Approved") { toast.error("Pehle CS Approve karwayein"); return; }
     try {
-      for (const it of cs.items) {
+      const have = new Set((await apiOpsList("proc_po")).map((p) => p.id));
+      let made = 0;
+      for (const [idx, it] of cs.items.entries()) {
         const [rate, j] = l1(it);
         const v = cs.vendors[j];
         if (!v.code.trim()) { toast.error(`${v.name || "L1 vendor"} ka Vendor Code bharein`); return; }
-        await apiOpsSave("proc_po", { id: `po_${Date.now()}_${j}`, status: "Draft", project: cs.project, date: new Date().toISOString().slice(0, 10), indentNo: cs.indentNo, csNo: cs.docNo,
+        const pid = `po_${cs.id}_${idx}`;
+        if (have.has(pid)) continue;
+        made += 1;
+        await apiOpsSave("proc_po", { id: pid, status: "Draft", project: cs.project, date: new Date().toISOString().slice(0, 10), indentNo: cs.indentNo, csNo: cs.docNo,
           vendorCode: v.code.trim().toUpperCase(), vendorName: v.name, material: it.desc, qty: n(it.qty), unit: it.unit, rate, gstPct: it.gstPct || "18", amount: +(n(it.qty) * rate).toFixed(2), total: +(n(it.qty) * rate * (1 + n(it.gstPct || 18) / 100)).toFixed(2) });
       }
-      toast.success("L1 vendor ke PO draft ban gaye · neeche PO register mein authorize karein");
+      toast.success(made ? `${made} PO draft L1 vendor ke liye bane · neeche PO register mein authorize karein` : "Is CS ke PO pehle se bane hain");
     } catch (e) { toast.error(e.message); }
   };
   return (
@@ -81,10 +86,10 @@ export default function RfqCs() {
                 const best = l1(it);
                 return (
                   <tr key={i} data-testid={`cs-row-${i}`}>
-                    <td style={td}><input data-testid={`cs-desc-${i}`} disabled={ro} value={it.desc} onChange={(e) => setI(i, "desc", e.target.value)} style={inp} /></td>
+                    <td style={td}><input data-testid={`cs-desc-${i}`} disabled={ro} value={it.desc} onChange={(e) => setI(i, "desc", e.target.value)} style={{ ...inp, minWidth: 180 }} /></td>
                     <td style={td}><input data-testid={`cs-qty-${i}`} disabled={ro} type="number" value={it.qty} onChange={(e) => setI(i, "qty", e.target.value)} style={{ ...inp, width: 70 }} /></td>
-                    <td style={td}><input disabled={ro} value={it.unit} onChange={(e) => setI(i, "unit", e.target.value)} style={{ ...inp, width: 60 }} /></td>
-                    <td style={td}><select disabled={ro} value={it.gstPct} onChange={(e) => setI(i, "gstPct", e.target.value)} style={inp}>{["5", "12", "18", "28", "0"].map((g) => <option key={g}>{g}</option>)}</select></td>
+                    <td style={td}><input disabled={ro} value={it.unit} onChange={(e) => setI(i, "unit", e.target.value)} style={{ ...inp, width: 70 }} /></td>
+                    <td style={td}><select disabled={ro} value={it.gstPct} onChange={(e) => setI(i, "gstPct", e.target.value)} style={{ ...inp, width: 92 }}>{[["5", "5%"], ["12", "12%"], ["18", "18%"], ["28", "28%"], ["0", "Exempted"]].map(([g, l]) => <option key={g} value={g}>{l}</option>)}</select></td>
                     {it.rates.map((r, j) => <td key={j} style={{ ...td, background: best && best[1] === j ? "#bbf7d0" : undefined }}><input data-testid={`cs-rate-${i}-${j}`} disabled={ro} type="number" value={r} onChange={(e) => setR(i, j, e.target.value)} style={{ ...inp, fontWeight: best && best[1] === j ? 800 : 400 }} /></td>)}
                     <td data-testid={`cs-l1-${i}`} style={{ ...td, background: "#16a34a", color: "#fff", fontWeight: 900, userSelect: "none" }}>{best ? `${inr(best[0])} · ${cs.vendors[best[1]].name || `Vendor ${"ABC"[best[1]]}`}` : "—"}</td>
                     <td style={td}>{!ro && cs.items.length > 1 && <button onClick={() => setCs((c) => ({ ...c, items: c.items.filter((_, q) => q !== i) }))} style={{ border: "none", background: "none", color: "#dc2626", cursor: "pointer" }}><Trash2 size={13} /></button>}</td>

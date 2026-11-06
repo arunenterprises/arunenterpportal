@@ -215,7 +215,7 @@ export default function CoreDashboard() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div data-testid="core-dashboard" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px) 80px" }}>
-        <ModuleHero tag="Core Committee" title="Core Committee Dashboard" subtitle="Member Civil · Member OHE · Member Electrical · Member Procurement — sirf GM aur assigned member" icon={FolderKanban} gradient="linear-gradient(135deg,#0b1f4d 0%,#1d4ed8 55%,#c81e2b 100%)" shadowRgba="29,78,216,.28" />
+        <ModuleHero tag="Core Committee" title="Core Committee Dashboard" subtitle="Civil · OHE · Electrical · Procurement · HR & Admin · Legal · Financial — sirf GM aur assigned member" icon={FolderKanban} gradient="linear-gradient(135deg,#0b1f4d 0%,#1d4ed8 55%,#c81e2b 100%)" shadowRgba="29,78,216,.28" />
         {me && !tabs.length && OPS[sec] && openId && <div style={{ marginTop: 12 }} data-testid="core-assigned-work"><OpsModule cfg={OPS[sec]} openId={openId} /></div>}
         {me && !tabs.length && !(OPS[sec] && openId) && (
           <div data-testid="core-not-permitted" style={{ ...card, marginTop: 14, textAlign: "center", padding: 40 }}>

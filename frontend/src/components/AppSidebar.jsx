@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock, Crown, ListTodo, ClipboardCheck } from "lucide-react";
 import { getToken, apiMe } from "../lib/api";
-import { canApprove, canDelete, isSuperAdmin, currentUserEmail, logout, currentRole } from "../lib/store";
+import { canApprove, canDelete, isSuperAdmin, currentUserEmail, logout, currentRole, canSeeCore } from "../lib/store";
 import { can, deptOfPath, loadAcl } from "../lib/acl";
 
 const ITEMS = [
@@ -38,8 +38,7 @@ export const DeptNavList = ({ mini = false, showSubs = true }) => {
   const at = (to) => loc.pathname === to;
   return ITEMS.map((it) => {
     const Icon = it.icon;
-    const role = currentRole();
-    const ok = it.d === "tasks" ? true : it.d === "core" ? role === "SuperAdmin" || role === "GM" || /^Member /.test(role) : can(it.d, "v");
+    const ok = it.d === "tasks" ? true : it.d === "core" ? canSeeCore() : can(it.d, "v");
     if (!ok && it.d !== "gm") return null;
     const act = deptOfPath(loc.pathname) === it.d;
     return (

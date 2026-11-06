@@ -160,7 +160,7 @@ export default function VendorRegistration({ embedded = false }) {
     setLocked(false);
     toast.info("You can edit the form");
   };
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
     const isReSubmit = curStep === 2 && (vendor.revision || 0) > 0;
     if (curStep === 3) { toast.error("Already approved — click Edit to reopen for changes"); return; }
@@ -181,11 +181,11 @@ export default function VendorRegistration({ embedded = false }) {
       return;
     }
     if (curStep !== 1) { toast.error("Already submitted for checking"); return; }
-    const next = advanceVendorStep({ ...vendor, step: curStep });
+    const next = await advanceVendorStep({ ...vendor, step: curStep });
     setVendor(next);
     toast.success("Submitted for Checking & Verification");
   };
-  const handleApprove = () => {
+  const handleApprove = async () => {
     const curStep = [1, 2, 3].includes(vendor.step) ? vendor.step : 1;
     if (curStep === 3) { toast.info("Already approved"); return; }
     if (curStep === 1) { toast.error("Please Submit for Checking first"); return; }
@@ -197,7 +197,7 @@ export default function VendorRegistration({ embedded = false }) {
       by: currentUser(),
       at: new Date().toISOString(),
     });
-    const next = { ...advanceVendorStep({ ...vendor, step: curStep }), history };
+    const next = { ...(await advanceVendorStep({ ...vendor, step: curStep })), history };
     setVendor(upsertVendor(next));
     setLocked(true);
     toast.success(

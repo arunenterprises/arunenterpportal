@@ -291,7 +291,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     const v = findVendorByCode(code);
     if (!v) { toast.error("Vendor not found"); return; }
     if (v.step !== 3) { toast.error("Vendor is not approved yet"); return; }
-    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v });
+    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v, tdsRate: tdsFor(v) });
     toast.success(`Loaded ${v.firmName}`);
   };
 
@@ -300,7 +300,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     if (!v) { toast.error("Vendor not found"); return; }
     if (v.step !== 3) { toast.error("Vendor is not approved yet"); return; }
     setVendorInput(v.vendorCode);
-    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v });
+    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v, tdsRate: tdsFor(v) });
     toast.success(`Loaded ${v.firmName}`);
   };
   const openQuery = (q) => { setQueryCode(q || bill.vendorCode || ""); setQueryOpen(true); };
@@ -399,9 +399,12 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     }
     if (!isCreate && Number(bill.step) === 3 && !["Accounts Manager", "SuperAdmin"].includes(currentRole())) { toast.error("Step 3 Accounts & Tax Verification sirf Accounts Manager karega"); return; }
     if (!isCreate && Number(bill.step) === 3 && comp.netPayable > SUPREME_LIMIT && !bill.discussionReqId) {
+      if ((bill.items || []).some((r) => !(bill.itemVerify || {})[r.id])) { toast.error("Pehle sabhi items cross-verify karein"); return; }
+      if (!String(bill.accountInchargeName || "").trim()) { toast.error("Enter 'Account Incharge Name' first"); return; }
       const rid = await routeToDiscussion(`Vendor Bill ${bill.refNo} · ${bill.vendorSnapshot?.firmName || bill.vendorCode}`, comp.netPayable, `Bill ${bill.billNo} · WO ${bill.workOrderNo} · Net ₹${comp.netPayable}`);
       if (!rid) return;
       bill.discussionReqId = rid;
+      upsertBill({ ...bill });
     }
     if (isCreate) {
       if (Number(bill.step) >= 2) { toast.info(`Bill already Accounts mein hai · Ref No ${bill.refNo}`); return; }

@@ -9,6 +9,7 @@ import {
   currentUserProfile,
   isSuperAdmin,
   currentRole,
+  canSeeCore,
   getVendors,
   getBills,
   getPayments,
@@ -280,6 +281,7 @@ export default function Home() {
   const displayName = superAdmin
     ? "Ashish Srivastava"
     : (me?.name || me?.user?.split("@")[0] || "");
+  const myPhoto = (getEmployees().find((e) => String(e.contactEmail || "").toLowerCase().trim() === String(me?.user || "").toLowerCase().trim() && e.photoUrl) || {}).photoUrl || "";
 
   // REAL-TIME CROSS-USER SYNC: re-render badges when App.js dispatches ae-sync-done.
   const [syncTick, setSyncTick] = useState(0);
@@ -357,8 +359,8 @@ export default function Home() {
 
           {/* User info */}
           <div style={{ padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 18, background: "linear-gradient(135deg,#f59e0b,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 14 }}>
-              {(displayName || me?.user || "?").slice(0, 1).toUpperCase()}
+            <div data-testid="sidebar-user-photo" style={{ width: 36, height: 36, borderRadius: 18, background: myPhoto ? `url(${myPhoto}) center/cover` : "linear-gradient(135deg,#f59e0b,#d97706)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, color: "#fff", fontSize: 14, border: myPhoto ? "2px solid #fff" : "none" }}>
+              {!myPhoto && (displayName || me?.user || "?").slice(0, 1).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div data-testid="sidebar-user-name" style={{ fontSize: 12.5, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName || me?.user}</div>
@@ -380,7 +382,7 @@ export default function Home() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 1600, width: "100%", margin: "0 auto", flex: 1, minHeight: 0 }}>
 
             <CompanyBanner name={displayName || me?.user || "User"} pending={pendingApprovals} />
-            {(["SuperAdmin", "GM"].includes(currentRole()) || /^Member /.test(currentRole())) && (
+            {canSeeCore() && (
               <button data-testid="home-core-dashboard-btn" onClick={() => nav("/core-dashboard")} style={{ alignSelf: "flex-end", padding: "5px 14px", borderRadius: 999, border: "1px solid #1d4ed8", background: "#1d4ed8", color: "#fff", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>Core Committee Dashboard →</button>
             )}
             <div className="co-ticker" data-testid="home-company-ticker">

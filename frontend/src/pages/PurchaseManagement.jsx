@@ -111,8 +111,8 @@ const TABS = [
   { id: "vendor", title: "Vendor Registration", subtitle: "KYC · Vendor Code", icon: Users, color: "#166534" },
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#166534" },
   { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#166534" },
-  { id: "billing", title: "Vendor Bill Creation", subtitle: "3-Way Match · bill feed · submit", icon: Receipt, color: "#166534" },
-  { id: "rfq", title: "RFQ & Comp. Statement", subtitle: "L1 vendor · PO", icon: Scale, color: "#166534" },
+  { id: "billing", title: "Vendor Bill", subtitle: "3-Way Match · submit", icon: Receipt, color: "#166534" },
+  { id: "rfq", title: "RFQ & Comp. Stmt", subtitle: "L1 vendor · PO", icon: Scale, color: "#166534" },
   { id: "grn", title: "Store & GRN", subtitle: "Receipt · Stock Register", icon: Warehouse, color: "#166534" },
 ];
 
@@ -176,15 +176,16 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
   };
 
   const handleSave = () => {
-    if (!boq.projectSite.trim()) { toast.error("Project / Site required"); return; }
-    if (!boq.items?.length || boq.items.every((x) => !x.description.trim())) { toast.error("Add at least one line item"); return; }
+    if (!boq.projectSite.trim()) { toast.error("Project / Site required"); return false; }
+    if (!boq.items?.length || boq.items.every((x) => !x.description.trim())) { toast.error("Add at least one line item"); return false; }
     const saved = upsertBOQ({ ...boq });
     setBoq(saved); setSaved(true); refresh();
     toast.success(`BOQ ${saved.boqNo} saved`);
+    return true;
   };
   const handleSubmit = () => {
     if (!writeAllowed) { toast.error("Not permitted"); return; }
-    if (!saved) handleSave();
+    if (!saved && !handleSave()) return;
     // Re-Submit after reopen — BOQ was pushed back below step 3 with revision > 0
     if (Number(boq.step) < 3 && (boq.revision || 0) > 0) {
       const next = upsertBOQ({ ...boq, submittedDate: new Date().toISOString().slice(0, 10) });
@@ -777,16 +778,17 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
   const downloadAttachment = () => openFile(wo.attachmentFile || { dataUrl: wo.attachmentData, name: wo.attachmentName }, true);
 
   const handleSave = () => {
-    if (!wo.boqRefId) { toast.error("Select BOQ Reference"); return; }
-    if (!wo.vendorCode) { toast.error("Select Vendor Code"); return; }
-    if (!wo.items?.length || wo.items.every((x) => !x.description.trim())) { toast.error("Add at least one line item"); return; }
+    if (!wo.boqRefId) { toast.error("Select BOQ Reference"); return false; }
+    if (!wo.vendorCode) { toast.error("Select Vendor Code"); return false; }
+    if (!wo.items?.length || wo.items.every((x) => !x.description.trim())) { toast.error("Add at least one line item"); return false; }
     const s = upsertWO({ ...wo });
     setWo(s); setSaved(true); refresh();
     toast.success("Work Order draft saved");
+    return true;
   };
   const handleSubmit = () => {
     if (!writeAllowed) { toast.error("Not permitted"); return; }
-    if (!saved) handleSave();
+    if (!saved && !handleSave()) return;
     const parent = getBOQs().find((b) => b.id === wo.boqRefId);
     const cap = parent ? computeBOQTotal(parent) : 0;
     const used = getWOs().filter((w) => w.id !== wo.id && w.boqRefId === wo.boqRefId && Number(w.step) !== 6).reduce((s, w) => s + computeWOTotal(w), 0);
@@ -1236,7 +1238,7 @@ export default function PurchaseManagement() {
             gradient="linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)"
             shadowRgba="22,101,52,.28"
           />
-          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }} data-testid="purchase-tabs">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0,1fr))", gap: 6, marginTop: 10 }} data-testid="purchase-tabs">
             {TABS.map((t) => {
               const Icon = t.icon;
               const isActive = active === t.id;
@@ -1246,21 +1248,21 @@ export default function PurchaseManagement() {
                   data-testid={`purchase-tab-${t.id}`}
                   onClick={() => openTab(t)}
                   style={{
-                    flex: 1, minWidth: 180,
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "10px 12px", borderRadius: 6,
+                    minWidth: 0, minHeight: 58,
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+                    padding: "8px 6px", borderRadius: 8,
                     border: `1px solid ${isActive ? t.color : "#cbd5e1"}`,
                     background: isActive ? t.color : "#fff",
                     color: isActive ? "#fff" : "#0f172a",
                     cursor: "pointer",
-                    fontWeight: 700, fontSize: 12.5,
-                    letterSpacing: .3,
+                    fontWeight: 700, fontSize: 12,
+                    letterSpacing: .2, textAlign: "center",
                   }}
                 >
-                  <Icon size={18} strokeWidth={2} />
-                  <div style={{ textAlign: "left" }}>
-                    <div>{t.title}</div>
-                    <div style={{ fontSize: 10, opacity: .8, fontWeight: 500 }}>{t.subtitle}</div>
+                  <Icon size={17} strokeWidth={2} />
+                  <div style={{ textAlign: "center", lineHeight: 1.2 }}>
+                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.title}</div>
+                    <div style={{ fontSize: 9.5, opacity: .8, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.subtitle}</div>
                   </div>
                 </button>
               );

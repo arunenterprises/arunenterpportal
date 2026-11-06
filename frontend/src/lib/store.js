@@ -1244,6 +1244,7 @@ export const login = async (u, p, otpToken, otp) => {
     write(KEYS.AUTH, {
       user: user.email, name: user.name, role: user.role,
       permissions: user.permissions || null,
+      coreAll: !!user.core_all,
       at: Date.now(),
     });
     // Pull cloud snapshot after successful login so this device has latest data
@@ -1287,6 +1288,8 @@ export const currentUser = () => {
   return email.includes("@") ? email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : email;
 };
 export const currentUserProfile = () => read(KEYS.AUTH, null);
+// Core Committee: only SuperAdmin, GM, Core Members, or users SuperAdmin granted Core access
+export const canSeeCore = () => { const r = currentRole(); return r === "SuperAdmin" || r === "GM" || /^Member /.test(r) || !!currentUserProfile()?.coreAll; };
 
 // ---- Permission model ----
 // Primary Super Admin — has ALL powers including Final Approval / Re-Approval / Reset All Data

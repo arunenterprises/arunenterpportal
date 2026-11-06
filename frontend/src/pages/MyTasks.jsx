@@ -7,7 +7,7 @@ import ModuleHero from "../components/ModuleHero";
 import { DateInput } from "../components/DateInput";
 import { apiTasks, apiTaskCreate, apiTaskUpdate, apiTaskDelete, apiUserDirectory } from "../lib/api";
 import { currentRole, currentUserEmail } from "../lib/store";
-import { TASK_TEMPLATES, TASK_DEPTS, SENIOR } from "../lib/taskTemplates";
+import { TASK_LIB, TASK_DEPTS, SENIOR } from "../lib/taskTemplates";
 
 const ST_C = { Assigned: "#0369a1", "In Progress": "#d97706", Submitted: "#7c3aed", Done: "#15803d", Rejected: "#dc2626" };
 const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 };
@@ -17,24 +17,32 @@ const today = () => new Date().toISOString().slice(0, 10);
 const Pill = ({ s }) => <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800, color: "#fff", background: ST_C[s] || "#64748b" }}>{s}</span>;
 
 const AssignForm = ({ users, onDone }) => {
-  const [f, setF] = useState({ department: TASK_DEPTS[0], template: "", title: "", description: "", assignedTo: "", priority: "Medium", dueDate: today() });
+  const [f, setF] = useState({ department: TASK_DEPTS[0], vertical: Object.keys(TASK_LIB[TASK_DEPTS[0]])[0], template: "", title: "", description: "", path: "", assignedTo: "", priority: "Medium", dueDate: today() });
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
-  const pick = (t) => setF((x) => ({ ...x, template: t, title: t ? `${t}` : x.title }));
+  const pick = ([t, p] = ["", ""]) => setF((x) => ({ ...x, template: t, title: t || x.title, path: p, description: t ? `${x.department} › ${x.vertical}` : x.description }));
+  const verts = Object.keys(TASK_LIB[f.department]);
+  const list = TASK_LIB[f.department][f.vertical] || [];
   const submit = async () => {
     if (!f.title.trim() || !f.assignedTo) { toast.error("Task aur Employee chunein"); return; }
-    try { const t = await apiTaskCreate(f); toast.success(`Task assign hua · ${t.taskNo}`); setF((x) => ({ ...x, template: "", title: "", description: "" })); onDone(); } catch (e) { toast.error(e.message); }
+    const { vertical, ...body } = f;
+    try { const t = await apiTaskCreate({ ...body, department: `${f.department} › ${vertical}` }); toast.success(`Task assign hua · ${t.taskNo}`); setF((x) => ({ ...x, template: "", title: "", description: "", path: "" })); onDone(); } catch (e) { toast.error(e.message); }
   };
   return (
     <div style={{ ...card, marginBottom: 12 }} data-testid="task-assign-form">
       <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10, display: "flex", gap: 6, alignItems: "center" }}><UserPlus size={15} /> Task Assign Karein (Seniors)</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 10 }}>
-        <label style={{ fontSize: 11, fontWeight: 700 }}>Department<select data-testid="task-f-department" style={inp} value={f.department} onChange={(e) => { set("department", e.target.value); pick(""); }}>{TASK_DEPTS.map((d) => <option key={d}>{d}</option>)}</select></label>
-        <label style={{ fontSize: 11, fontWeight: 700, gridColumn: "span 2" }}>Default Task (select)<select data-testid="task-f-template" style={inp} value={f.template} onChange={(e) => pick(e.target.value)}><option value="">— Select / khud likhein —</option>{TASK_TEMPLATES[f.department].map((t) => <option key={t}>{t}</option>)}</select></label>
+        <label style={{ fontSize: 11, fontWeight: 700 }}>ERP Module<select data-testid="task-f-department" style={inp} value={f.department} onChange={(e) => setF((x) => ({ ...x, department: e.target.value, vertical: Object.keys(TASK_LIB[e.target.value])[0], template: "", path: "" }))}>{TASK_DEPTS.map((d) => <option key={d}>{d}</option>)}</select></label>
+        <label style={{ fontSize: 11, fontWeight: 700 }}>Vertical / Work<select data-testid="task-f-vertical" style={inp} value={f.vertical} onChange={(e) => setF((x) => ({ ...x, vertical: e.target.value, template: "", path: "" }))}>{verts.map((v) => <option key={v}>{v}</option>)}</select></label>
+        <label style={{ fontSize: 11, fontWeight: 700 }}>Default Task<select data-testid="task-f-template" style={inp} value={f.template} onChange={(e) => pick(list.find((x) => x[0] === e.target.value))}><option value="">— Select / khud likhein —</option>{list.map(([t]) => <option key={t}>{t}</option>)}</select></label>
         <label style={{ fontSize: 11, fontWeight: 700 }}>Employee<select data-testid="task-f-assignee" style={inp} value={f.assignedTo} onChange={(e) => set("assignedTo", e.target.value)}><option value="">— Select —</option>{users.map((u) => <option key={u.email} value={u.email}>{u.name || u.email} · {u.role}</option>)}</select></label>
         <label style={{ fontSize: 11, fontWeight: 700, gridColumn: "span 2" }}>Task Title<input data-testid="task-f-title" style={inp} value={f.title} onChange={(e) => set("title", e.target.value)} /></label>
         <label style={{ fontSize: 11, fontWeight: 700 }}>Priority<select data-testid="task-f-priority" style={inp} value={f.priority} onChange={(e) => set("priority", e.target.value)}>{["Low", "Medium", "High", "Critical"].map((p) => <option key={p}>{p}</option>)}</select></label>
         <label style={{ fontSize: 11, fontWeight: 700 }}>Due Date<DateInput data-testid="task-f-due" type="date" style={inp} value={f.dueDate} onChange={(e) => set("dueDate", e.target.value)} /></label>
         <label style={{ fontSize: 11, fontWeight: 700, gridColumn: "span 4" }}>Details / Instructions<textarea data-testid="task-f-desc" rows={2} style={inp} value={f.description} onChange={(e) => set("description", e.target.value)} /></label>
+      </div>
+      <div data-testid="task-library" style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "10px 0 2px" }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#475569", alignSelf: "center" }}>Default list · {f.vertical}:</span>
+        {list.map(([t, p], i) => <button key={t} type="button" data-testid={`task-lib-${i}`} onClick={() => pick([t, p])} style={{ padding: "4px 10px", borderRadius: 999, border: `1px solid ${f.template === t ? "#1d4ed8" : "#cbd5e1"}`, background: f.template === t ? "#1d4ed8" : "#fff", color: f.template === t ? "#fff" : "#0f172a", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{t}</button>)}
       </div>
       <div style={{ marginTop: 10 }}><button data-testid="task-assign-btn" onClick={submit} style={btn("#1d4ed8")}><Send size={13} /> Assign Task</button></div>
     </div>
