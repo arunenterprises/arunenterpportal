@@ -15,10 +15,14 @@ export const findProject = (name) => loadProjects().then((l) => l.find((p) => St
 export const contractRows = (m) => (m?.items || []).map((i, k) => ({ ...i, id: `ci_${Date.now()}_${k}` }));
 // Vendor bill lines vs contract approved rate / qty
 // prior = same-project lines of earlier bills (cumulative qty check); lines not in the contract are not blocked
+const norm = (s) => String(s || "").trim().toLowerCase();
+// Item Code first (exact), description only for lines without a code
+export const matchItem = (m, l) => (m?.items || []).find((x) => (l.itemCode ? norm(x.itemCode) === norm(l.itemCode) : norm(x.description) === norm(l.description)));
+export const priorBillLines = (bills, bill) => bills.filter((b) => b.id !== bill.id && bill.projectCodeLocation && b.projectCodeLocation === bill.projectCodeLocation && !/reject/i.test(String(b.status || "")))
+  .flatMap((b) => (b.items || []).map((r) => ({ description: r.description, itemCode: r.itemCode, rate: r.woRate, qty: r.billedQty })));
 export const contractBreaches = (m, lines, prior = []) => {
-  const norm = (s) => String(s || "").trim().toLowerCase();
   if (!m?.items?.length) return [];
-  const match = (l) => m.items.find((x) => (l.itemCode && norm(x.itemCode) === norm(l.itemCode)) || norm(x.description) === norm(l.description));
+  const match = (l) => matchItem(m, l);
   return lines.filter((l) => String(l.description || "").trim()).map((l) => {
     const c = match(l);
     if (!c) return "";

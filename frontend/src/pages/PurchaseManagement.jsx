@@ -759,7 +759,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
       projectSite: p.projectSite || b.projectSite,
       clientName: p.clientName || b.clientName,
       items: (b.items && b.items.length > 0)
-        ? b.items.map((it) => ({ id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, description: it.description, hsn: it.hsn || "", qty: it.qty, unit: it.unit, rate: it.rate, amount: it.amount }))
+        ? b.items.map((it) => ({ id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, itemCode: it.itemCode || "", description: it.description, hsn: it.hsn || "", qty: it.qty, unit: it.unit, rate: it.rate, amount: it.amount }))
         : p.items,
       total: (b.items && b.items.length > 0) ? b.items.reduce((s, it) => s + Number(it.amount || 0), 0) : p.total,
     }));

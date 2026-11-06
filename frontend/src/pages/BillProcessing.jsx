@@ -33,7 +33,8 @@ import {
 import { exportBankTransferXLSX as _sharedXlsx, printBankTransferAdvice as _sharedAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { uploadBig, openFile } from "../lib/bigFiles";
-import { ContractSelect, findProject, contractBreaches } from "../components/ContractSelect";
+import { ContractSelect, findProject, contractBreaches, priorBillLines } from "../components/ContractSelect";
+import { ContractBalance } from "../components/ContractBalance";
 import { apiBillLocks } from "../lib/api";
 import { SUPREME_LIMIT, routeToDiscussion, discussionCleared, gate30 } from "../lib/supremeGate";
 import { parseGstin } from "../lib/gstin";
@@ -122,6 +123,13 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
 
   // ---- Items & Work Scope Breakdown handlers ----
   const items = bill.items || [];
+  const [master, setMaster] = useState(null);
+  useEffect(() => { findProject(bill.projectCodeLocation).then(setMaster); }, [bill.projectCodeLocation]);
+  const asLine = (r) => ({ description: r.description, itemCode: r.itemCode, rate: r.woRate, qty: r.billedQty });
+  const pickCode = (r, code) => {
+    const c = (master?.items || []).find((x) => x.itemCode === code);
+    updateItem(r.id, c ? { itemCode: code, description: c.description, hsn: c.hsn || r.hsn, unit: ITEM_UNITS.includes(c.unit) ? c.unit : r.unit, woQty: Number(r.woQty) || c.qty, woRate: Number(r.woRate) || c.rate } : { itemCode: code });
+  };
   const itemsTotal = items.reduce((s, r) => s + (Number(r.woRate) || 0) * (Number(r.billedQty) || 0), 0);
 
   const addItem = () => {
@@ -262,8 +270,9 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
         ? w.items.map((it) => ({
             id: `it_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             categoryScope: "Civil Work",
+            itemCode: it.itemCode || "",
             description: it.description || "",
-            hsn: "",
+            hsn: it.hsn || "",
             woQty: Number(it.qty) || 0,
             unit: it.unit || "Nos",
             woRate: Number(it.rate) || 0,
@@ -392,9 +401,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     if (bill.step >= 5) { toast.error("Already in Payment Due List"); return; }
     if (!validate()) return;
     if (![0, 1, 2].includes(Number(bill.tdsRate))) { toast.error("TDS 0%, 1% ya 2% chunein"); return; }
-    const asLine = (r) => ({ description: r.description, itemCode: r.itemCode, rate: r.woRate, qty: r.billedQty });
-    const prior = getBills().filter((b) => b.id !== bill.id && b.projectCodeLocation === bill.projectCodeLocation && !/reject/i.test(String(b.status || ""))).flatMap((b) => (b.items || []).map(asLine));
-    const breaches = contractBreaches(await findProject(bill.projectCodeLocation), items.map(asLine), prior);
+    const breaches = contractBreaches(await findProject(bill.projectCodeLocation), items.map(asLine), priorBillLines(getBills(), bill));
     if (breaches.length) { toast.error(`CONTRACT CHECK FAIL · ${breaches[0]}${breaches.length > 1 ? ` (+${breaches.length - 1} aur)` : ""}`); return; }
     if (isCreate && Number(bill.step) < 2) {
       const locks = await apiBillLocks([{ billNo: bill.billNo, vendorCode: bill.vendorCode, createdAt: bill.createdAt || new Date().toISOString() }]).catch((e) => { toast.error(e.message); return null; });
@@ -880,6 +887,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 <thead>
                   <tr>
                     <th style={{ width: "11%" }}>Category Scope</th>
+                    <th style={{ width: "9%" }}>Item Code</th>
                     <th style={{ minWidth: 220, textAlign: "center" }}>Item Description</th>
                     <th style={{ width: "8%" }}>HSN / SAC</th>
                     <th style={{ width: "6%" }}>WO Qty</th>
@@ -905,6 +913,13 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                             onChange={(e) => updateItem(r.id, { categoryScope: e.target.value })}
                             disabled={locked} data-testid={`item-category-${i}`}>
                             {CATEGORY_SCOPES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <select value={r.itemCode || ""} onChange={(e) => pickCode(r, e.target.value)} disabled={locked || !master?.items?.length} data-testid={`item-code-${i}`} title={master?.items?.length ? "Contract item chunein" : "Pehle Project (Contract) chunein"}>
+                            <option value="">{master?.items?.length ? "— Code —" : "—"}</option>
+                            {r.itemCode && !(master?.items || []).some((x) => x.itemCode === r.itemCode) && <option value={r.itemCode}>{r.itemCode}</option>}
+                            {(master?.items || []).filter((x) => x.itemCode).map((x) => <option key={x.itemCode} value={x.itemCode}>{x.itemCode} · {String(x.description).slice(0, 30)}</option>)}
                           </select>
                         </td>
                         <td style={{ minWidth: 220 }}>
@@ -967,7 +982,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 </tbody>
                 <tfoot>
                   <tr style={{ background: "#f8fafc" }}>
-                    <td colSpan={3} style={{ textAlign: "right", fontWeight: 700 }}>Cumulative Totals →</td>
+                    <td colSpan={4} style={{ textAlign: "right", fontWeight: 700 }}>Cumulative Totals →</td>
                     <td className="num" data-testid="total-wo-qty" style={{ fontWeight: 700 }}>{totals.woQty.toFixed(2)}</td>
                     <td></td>
                     <td className="num" data-testid="total-wo-value" style={{ fontWeight: 700 }} title="Total WO Value (WO Qty × WO Rate)">₹{totals.woValue.toFixed(2)}</td>
@@ -987,6 +1002,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
               </table>
             )}
             </fieldset>
+            <ContractBalance master={master} prior={priorBillLines(allBills, bill)} current={items.map(asLine)} />
             {!isCreate && items.length > 0 && (
               <div data-testid="bill-cross-verify" style={{ marginTop: 10, padding: "10px 12px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
