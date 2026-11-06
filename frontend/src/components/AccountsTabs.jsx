@@ -27,13 +27,13 @@ export const AccountsTabs = ({ active, onSelect }) => {
   };
   const list = TABS.filter((t) => !t.acc || can("accounting", "v"));
   return (
-    <div data-testid="accounts-view-tabs" style={{ display: "flex", gap: 3, marginTop: 8, padding: 3, background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, flexWrap: "nowrap" }}>
+    <div data-testid="accounts-view-tabs" style={{ display: "flex", gap: 4, marginTop: 10, padding: 4, background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, flexWrap: "nowrap" }}>
       {list.map((t) => {
         const Icon = t.icon; const on = active === t.id;
         return (
           <button key={t.id} data-testid={`accounts-tab-${t.id}`} onClick={() => go(t.id)}
-            style={{ flex: "1 1 0", minWidth: 0, minHeight: 44, padding: "6px 3px", background: on ? "#065f46" : "#fff", color: on ? "#fff" : "#334155", border: `1px solid ${on ? "#065f46" : "#e2e8f0"}`, borderRadius: 6, cursor: "pointer", fontWeight: 700, fontSize: 10.5, lineHeight: 1.15, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, transition: "background-color .15s, color .15s" }}>
-            <Icon size={12} /> <span>{t.label}</span>
+            style={{ flex: "1 1 0", minWidth: 0, minHeight: 54, padding: "7px 4px", background: on ? "#065f46" : "#fff", color: on ? "#fff" : "#334155", border: `1px solid ${on ? "#065f46" : "#e2e8f0"}`, borderRadius: 6, cursor: "pointer", fontWeight: 700, fontSize: 12.5, lineHeight: 1.2, letterSpacing: .1, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, transition: "background-color .15s, color .15s" }}>
+            <Icon size={15} /> <span>{t.label}</span>
           </button>
         );
       })}
