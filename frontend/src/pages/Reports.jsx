@@ -1907,15 +1907,15 @@ export default function Reports({ embedded = false }) {
           )}
 
           {/* Bottom Action Bar · Section D PV actions · left-to-right: Generate → Save → Edit → Delete → Approval → Bank Advice → Fill UTR → Status */}
-          <div data-testid="pv-bottom-actions" style={{ marginTop: 16, padding: "14px 18px", background: "linear-gradient(135deg,#0f172a,#1e293b)", color: "#fff", borderRadius: 8, boxShadow: "0 4px 12px rgba(15,23,42,.25)" }}>
+          <div data-testid="pv-bottom-actions" style={{ marginTop: 16, padding: "14px 18px", background: "#fff", color: "#0f172a", border: "1px solid #e2e8f0", borderTop: "3px solid #065f46", borderRadius: 8, boxShadow: "0 1px 3px rgba(15,23,42,.08)" }}>
             <div style={{ fontSize: 11.5, lineHeight: 1.5, marginBottom: 10 }}>
-              <b style={{ color: "#fbbf24" }}>Single Bill Payment Voucher</b> ·
+              <b style={{ color: "#065f46" }}>Single Bill Payment Voucher</b> ·
               {selectedBillId ? (
                 <> Selected bill: <b>{(approvedBills.find((b) => b.id === selectedBillId)?.vendorSnapshot?.firmName) || "—"}</b></>
               ) : (
                 <> Pehle upar section D me "Approved Bill" select karein</>
               )}
-              {pv && <> · PV: <b style={{ color: "#fbbf24" }}>{pv.pvNo}</b></>}
+              {pv && <> · PV: <b style={{ color: "#b45309" }}>{pv.pvNo}</b></>}
             </div>
             <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {/* 1. Generate Voucher · Amber */}
@@ -1923,7 +1923,7 @@ export default function Reports({ embedded = false }) {
                 data-testid="pv-generate"
                 onClick={generateVoucher}
                 disabled={!selectedBillId}
-                style={{ padding: "9px 16px", background: selectedBillId ? "linear-gradient(135deg,#f59e0b,#d97706)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: selectedBillId ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: selectedBillId ? "0 2px 6px rgba(245,158,11,.4)" : "none", textTransform: "uppercase" }}
+                style={{ padding: "9px 16px", background: selectedBillId ? "linear-gradient(135deg,#f59e0b,#d97706)" : "#94a3b8", color: "#fff", border: "none", borderRadius: 6, cursor: selectedBillId ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: selectedBillId ? "0 2px 6px rgba(245,158,11,.4)" : "none", textTransform: "uppercase" }}
                 title={selectedBillId ? "Generate single-bill Payment Voucher draft" : "Select an approved bill first"}
               >🧾 Generate Voucher</button>
 
@@ -1932,7 +1932,7 @@ export default function Reports({ embedded = false }) {
                 data-testid="pv-save"
                 onClick={handleSave}
                 disabled={!pv || pv.status === "Approved"}
-                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#0ea5e9,#0369a1)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(14,165,233,.4)" : "none", textTransform: "uppercase" }}
+                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#0ea5e9,#0369a1)" : "#94a3b8", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(14,165,233,.4)" : "none", textTransform: "uppercase" }}
                 title={pv ? (pv.status === "Approved" ? "Approved voucher — Save disabled" : "Save draft voucher") : "Generate voucher first"}
               >💾 Save</button>
 
@@ -2011,7 +2011,7 @@ export default function Reports({ embedded = false }) {
                       setSelectedBillId("");
                     }}
                     disabled={!enabled}
-                    style={{ padding: "9px 16px", background: enabled ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: enabled ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: enabled ? "0 2px 6px rgba(239,68,68,.4)" : "none", textTransform: "uppercase" }}
+                    style={{ padding: "9px 16px", background: enabled ? "linear-gradient(135deg,#ef4444,#b91c1c)" : "#94a3b8", color: "#fff", border: "none", borderRadius: 6, cursor: enabled ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: enabled ? "0 2px 6px rgba(239,68,68,.4)" : "none", textTransform: "uppercase" }}
                     title={tooltip}
                   >{utrLocked ? "🔒 Delete" : "🗑️ Delete"}</button>
                 );
@@ -2028,7 +2028,7 @@ export default function Reports({ embedded = false }) {
                 }}
                 disabled={!pv || pv.status === "Approved"}
                 title={!pv ? "Generate voucher first" : pv.status === "Approved" ? "Already approved" : pv.status === "Submitted" ? "Submitted — approval ab sirf GM Dashboard me hoga" : "Submit to GM Dashboard for approval"}
-                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#8b5cf6,#6d28d9)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(139,92,246,.4)" : "none", textTransform: "uppercase" }}
+                style={{ padding: "9px 16px", background: pv && pv.status !== "Approved" ? "linear-gradient(135deg,#8b5cf6,#6d28d9)" : "#94a3b8", color: "#fff", border: "none", borderRadius: 6, cursor: pv && pv.status !== "Approved" ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv && pv.status !== "Approved" ? "0 2px 6px rgba(139,92,246,.4)" : "none", textTransform: "uppercase" }}
               >📤 Submit to GM</button>
 
               {/* 6. Bank Advice · Pink */}
@@ -2052,17 +2052,17 @@ export default function Reports({ embedded = false }) {
                   }], { monthLabel, period: pv.date || "" });
                 }}
                 disabled={!pv}
-                style={{ padding: "9px 16px", background: pv ? "linear-gradient(135deg,#ec4899,#be185d)" : "#334155", color: "#fff", border: "none", borderRadius: 6, cursor: pv ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv ? "0 2px 6px rgba(236,72,153,.4)" : "none", textTransform: "uppercase" }}
+                style={{ padding: "9px 16px", background: pv ? "linear-gradient(135deg,#ec4899,#be185d)" : "#94a3b8", color: "#fff", border: "none", borderRadius: 6, cursor: pv ? "pointer" : "not-allowed", fontWeight: 800, fontSize: 12.5, letterSpacing: 0.4, boxShadow: pv ? "0 2px 6px rgba(236,72,153,.4)" : "none", textTransform: "uppercase" }}
                 title={pv ? "Print A4 landscape bank advice for this voucher" : "Generate voucher first"}
               >🖨 Bank Advice</button>
 
               {/* 7. Fill UTR · Yellow highlighted when Approved */}
               <div
                 data-testid="pv-utr-wrap"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", background: pv && pv.status === "Approved" ? "linear-gradient(135deg,#fde68a,#fbbf24)" : "#334155", border: `1.5px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#475569"}`, borderRadius: 6, boxShadow: pv && pv.status === "Approved" ? "0 2px 6px rgba(251,191,36,.4)" : "none" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", background: pv && pv.status === "Approved" ? "linear-gradient(135deg,#fde68a,#fbbf24)" : "#f8fafc", border: `1.5px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#cbd5e1"}`, borderRadius: 6, boxShadow: pv && pv.status === "Approved" ? "0 2px 6px rgba(251,191,36,.4)" : "none" }}
                 title={pv ? (pv.status === "Approved" ? "UTR / Reference No — post-payment entry" : "UTR available after voucher is Approved") : "Generate voucher first"}
               >
-                <label style={{ fontSize: 10.5, color: pv && pv.status === "Approved" ? "#78350f" : "#fbbf24", fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase" }}>UTR</label>
+                <label style={{ fontSize: 10.5, color: pv && pv.status === "Approved" ? "#78350f" : "#475569", fontWeight: 900, letterSpacing: 0.6, textTransform: "uppercase" }}>UTR</label>
                 <input
                   data-testid="pv-utr-bottom"
                   value={pv?.utrNo || ""}
@@ -2070,7 +2070,7 @@ export default function Reports({ embedded = false }) {
                   onBlur={() => { if (pv && !pv.paidFinal && pv.status === "Approved" && pv.utrNo) { handleSave(); } }}
                   disabled={!pv || pv.status !== "Approved" || !!pv.paidFinal}
                   placeholder={pv && pv.status === "Approved" ? "Enter UTR / Ref No" : "Approve first"}
-                  style={{ width: 150, padding: "5px 8px", fontSize: 11.5, fontFamily: "monospace", letterSpacing: ".3px", background: pv && pv.status === "Approved" ? "#fffbeb" : "#1e293b", color: pv && pv.status === "Approved" ? "#0f172a" : "#94a3b8", border: `1px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#475569"}`, borderRadius: 4, fontWeight: pv?.utrNo ? 800 : 500 }}
+                  style={{ width: 150, padding: "5px 8px", fontSize: 11.5, fontFamily: "monospace", letterSpacing: ".3px", background: pv && pv.status === "Approved" ? "#fffbeb" : "#fff", color: pv && pv.status === "Approved" ? "#0f172a" : "#64748b", border: `1px solid ${pv && pv.status === "Approved" ? "#f59e0b" : "#cbd5e1"}`, borderRadius: 4, fontWeight: pv?.utrNo ? 800 : 500 }}
                 />
                 <DateInput type="date" data-testid="pv-paid-date-bottom" value={pv?.paidDate || ""} disabled={!pv || pv.status !== "Approved" || !!pv.paidFinal}
                   onChange={(e) => pv && setPv({ ...pv, paidDate: e.target.value })} style={{ width: 120, padding: "5px 8px", fontSize: 11.5, borderRadius: 4, border: "1px solid #f59e0b" }} />
@@ -2099,7 +2099,7 @@ export default function Reports({ embedded = false }) {
                 data-testid="pv-status-badge"
                 style={{
                   padding: "7px 16px",
-                  background: !pv ? "#334155" : pv.utrNo && pv.status === "Approved" ? "linear-gradient(135deg,#10b981,#059669)" : pv.status === "Approved" ? "linear-gradient(135deg,#22c55e,#15803d)" : pv.status === "Submitted" ? "linear-gradient(135deg,#8b5cf6,#6d28d9)" : "linear-gradient(135deg,#f59e0b,#d97706)",
+                  background: !pv ? "#94a3b8" : pv.utrNo && pv.status === "Approved" ? "linear-gradient(135deg,#10b981,#059669)" : pv.status === "Approved" ? "linear-gradient(135deg,#22c55e,#15803d)" : pv.status === "Submitted" ? "linear-gradient(135deg,#8b5cf6,#6d28d9)" : "linear-gradient(135deg,#f59e0b,#d97706)",
                   color: "#fff",
                   borderRadius: 999,
                   fontSize: 11.5,
