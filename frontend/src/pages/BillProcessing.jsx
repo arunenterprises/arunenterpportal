@@ -563,6 +563,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
             icon={isCreate ? ShoppingCart : LandmarkIcon}
             gradient={isCreate ? "linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)" : "linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"}
             shadowRgba={isCreate ? "22,101,52,.28" : "6,78,59,.28"}
+            rightSlot={isCreate ? null : <IndianRupee data-testid="finance-hero-rupee" size={64} strokeWidth={1.6} style={{ color: "rgba(255,255,255,.28)", marginRight: 150 }} />}
           />
           </>}
 
