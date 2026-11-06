@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { Shield, LogIn } from "lucide-react";
+import { Shield, LogIn, RefreshCw } from "lucide-react";
 import { login, currentUserProfile, currentRole } from "../lib/store";
+import { apiCaptcha } from "../lib/api";
+const SA_EMAIL = "arunenterprises2023@gmail.com";
 import AuthSplash from "../components/AuthSplash";
 
 export default function Login() {
@@ -18,6 +20,11 @@ export default function Login() {
   const [otpInfo, setOtpInfo] = useState(null);
   const [otp, setOtp] = useState("");
   const [left, setLeft] = useState(0);
+  const [cap, setCap] = useState(null);
+  const [capText, setCapText] = useState("");
+  const needCap = u.trim().toLowerCase() !== SA_EMAIL && !otpInfo;
+  const newCap = () => { setCapText(""); apiCaptcha().then(setCap).catch(() => setCap(null)); };
+  useEffect(() => { newCap(); }, []);
   useEffect(() => {
     if (!otpInfo) return undefined;
     const t = setInterval(() => setLeft(Math.max(0, Math.round((otpInfo.until - Date.now()) / 1000))), 500);
@@ -27,9 +34,10 @@ export default function Login() {
   const submitLogin = async (e) => {
     e.preventDefault();
     setErr("");
+    if (needCap && capText.trim().length < 5) { setErr("Captcha bharein"); return; }
     setBusy(true);
     try {
-      const r = await login(u, p, otpInfo?.otp_token, otpInfo ? otp : undefined);
+      const r = await login(u, p, otpInfo?.otp_token, otpInfo ? otp : undefined, needCap ? cap?.captcha_id : undefined, needCap ? capText : undefined);
       if (r.otp) {
         setOtpInfo({ ...r.otp, until: Date.now() + (r.otp.valid_seconds || 180) * 1000 });
         setOtp("");
@@ -41,12 +49,14 @@ export default function Login() {
     } catch (ex) {
       const msg = ex.message || "Login failed";
       if (/expire|Dobara login/i.test(msg)) { setOtpInfo(null); setOtp(""); }
+      newCap();
       setErr(msg);
     } finally {
       setBusy(false);
     }
   };
-  const resend = () => { setOtpInfo(null); setOtp(""); setTimeout(() => document.querySelector('[data-testid="login-submit"]')?.click(), 50); };
+  const resend = () => { setOtpInfo(null); setOtp(""); newCap(); toastHint(); };
+  const toastHint = () => setErr("Naya OTP ke liye naya captcha bhar kar Sign In dabayein");
 
   return (
     <div className="login-wrap" data-testid="login-page">
@@ -96,6 +106,16 @@ export default function Login() {
           <input data-testid="login-username" disabled={!!otpInfo} value={u} onChange={(e) => setU(e.target.value)} placeholder="you@example.com" autoFocus />
           <label>Password</label>
           <input data-testid="login-password" disabled={!!otpInfo} type="password" value={p} onChange={(e) => setP(e.target.value)} placeholder="••••••••" />
+          {needCap && (
+            <div data-testid="login-captcha-box" style={{ marginTop: 6 }}>
+              <label>Captcha</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {cap ? <img data-testid="login-captcha-img" src={cap.image} alt="captcha" style={{ height: 46, borderRadius: 6, border: "1px solid #c7d2fe", userSelect: "none" }} draggable={false} /> : <span style={{ fontSize: 12 }}>Loading…</span>}
+                <button type="button" data-testid="login-captcha-refresh" onClick={newCap} title="Naya captcha" style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 6, padding: 8, cursor: "pointer" }}><RefreshCw size={15} /></button>
+              </div>
+              <input data-testid="login-captcha" value={capText} onChange={(e) => setCapText(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5))} placeholder="Upar ke 5 akshar likhein" autoComplete="off" style={{ marginTop: 6, letterSpacing: 4, fontWeight: 800 }} />
+            </div>
+          )}
           {otpInfo && (
             <div data-testid="login-otp-box" style={{ marginTop: 10, padding: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e3a8a" }}>OTP aapki registered email {otpInfo.mobile} par bheja gaya hai (Inbox / Spam dekhein)</div>

@@ -21,7 +21,7 @@ import {
   BILL_STEP_LABEL, currentUser, exportJSON, findVendorByAny, amountToWords, getBills,
   canFinalApprove, currentUserEmail, APPROVER_EMAIL, APPROVER_NAME,
   getWOs, canCreate, canApprove, canDelete,
-  getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
+  getPayBills, advancePayBillStep, deletePayBill, PAYBILL_STATUS, upsertPayBill, upsertExit,
   getAdvanceRegister,
   getAdvanceRequests, advanceAdvanceRequestStep, rejectAdvanceRequest, deleteAdvanceRequest, ADVANCE_REQ_STATUS,
   getExits, advanceExitStep, deleteExit, EXIT_STATUS,
@@ -34,7 +34,7 @@ import { exportBankTransferXLSX as _sharedXlsx, printBankTransferAdvice as _shar
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { uploadBig, openFile } from "../lib/bigFiles";
 import { apiBillLocks } from "../lib/api";
-import { SUPREME_LIMIT, routeToDiscussion, discussionCleared } from "../lib/supremeGate";
+import { SUPREME_LIMIT, routeToDiscussion, discussionCleared, gate30 } from "../lib/supremeGate";
 import { parseGstin } from "../lib/gstin";
 const tdsFor = (v) => { const pan = String(v?.panNo || parseGstin(v?.gstNo || "").pan || "").toUpperCase(); return ["P", "H"].includes(pan[3]) ? 1 : 2; };
 const GST_SLABS = [0, 5, 12, 18, 28];
@@ -1427,6 +1427,10 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
   // and can nudge HR to Submit if needed. Approve action is still gated to status===2.
   const pending = reqs.filter((r) => Number(r.status) <= 2);
   const approved = reqs.filter((r) => Number(r.status) === 3);
+  const [aq, setAq] = useState({ emp: "", month: "", from: "", to: "" });
+  const pbs = useMemo(() => getPayBills(), [rev]);
+  const adjMonth = (r) => { const m = r.targetMonth || new Date().getMonth() + 1, y = r.targetYear || new Date().getFullYear(); return { m, y, label: new Date(y, m - 1).toLocaleString("en", { month: "short", year: "numeric" }), done: pbs.some((b) => Number(b.month) === Number(m) && Number(b.year) === Number(y) && Number(b.step) >= 3 && (b.lines || []).some((l) => l.empId === r.empId || l.empCode === r.empCode)) }; };
+  const approvedF = approved.filter((r) => (!aq.emp || `${r.empCode} ${r.empName}`.toLowerCase().includes(aq.emp.toLowerCase())) && (!aq.month || `${adjMonth(r).y}-${String(adjMonth(r).m).padStart(2, "0")}` === aq.month) && (!aq.from || (r.requestDate || "") >= aq.from) && (!aq.to || (r.requestDate || "") <= aq.to));
   const paid = []; // DEPRECATED: no PV auto-generation; Approved is terminal
   const totalPending = pending.reduce((a, r) => a + Number(r.amount || 0), 0);
 
@@ -1469,12 +1473,20 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
         )}
       />
 
-      <AdvanceSection title={`Approved · Auto-Adjusted in Pay Bill (${approved.length})`} rows={approved} tone="#16a34a"
-        testid="adv-approved" renderActions={(r, i) => (
-          <span style={{ fontSize: 10, color: "#166534", fontWeight: 800, padding: "3px 7px", background: "#dcfce7", border: "1px solid #86efac", borderRadius: 3 }} data-testid={`adv-approved-tag-${i}`}>
-            ✓ Auto-adjusted in {new Date(r.targetYear || new Date().getFullYear(), (r.targetMonth || new Date().getMonth() + 1) - 1).toLocaleString("en", { month: "short" })} {r.targetYear || new Date().getFullYear()}
+      <div data-testid="adv-filter-bar" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 12, padding: "8px 10px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6, fontSize: 11 }}>
+        <b>Filter Approved:</b>
+        <input data-testid="adv-filter-emp" placeholder="Employee code / name" value={aq.emp} onChange={(e) => setAq({ ...aq, emp: e.target.value })} style={{ padding: "4px 8px", border: "1px solid #cbd5e1", borderRadius: 4 }} />
+        <label>Month <input data-testid="adv-filter-month" type="month" value={aq.month} onChange={(e) => setAq({ ...aq, month: e.target.value })} /></label>
+        <label>From <input data-testid="adv-filter-from" type="date" value={aq.from} onChange={(e) => setAq({ ...aq, from: e.target.value })} /></label>
+        <label>To <input data-testid="adv-filter-to" type="date" value={aq.to} onChange={(e) => setAq({ ...aq, to: e.target.value })} /></label>
+        <button data-testid="adv-filter-clear" onClick={() => setAq({ emp: "", month: "", from: "", to: "" })} style={btnSm("#64748b")}>Clear</button>
+      </div>
+      <AdvanceSection title={`Approved · Auto-Adjusted in Pay Bill (${approvedF.length})`} rows={approvedF} tone="#16a34a"
+        testid="adv-approved" renderActions={(r, i) => { const a = adjMonth(r); return (
+          <span style={{ fontSize: 10, color: a.done ? "#166534" : "#92400e", fontWeight: 800, padding: "3px 7px", background: a.done ? "#dcfce7" : "#fef3c7", border: `1px solid ${a.done ? "#86efac" : "#fcd34d"}`, borderRadius: 3 }} data-testid={`adv-approved-tag-${i}`}>
+            {a.done ? `✓ Accounts Approved · Auto-adjusted in ${a.label}` : `⏳ Accounts Approved · ${a.label} Pay Bill mein katega`}
           </span>
-        )}
+        ); }}
       />
 
       {/* Deprecated "Paid · PV Generated" section — kept as collapsed placeholder for backward compatibility only */}
@@ -1557,8 +1569,9 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
     return n;
   });
 
-  const gmApprove = (b) => {
+  const gmApprove = async (b) => {
     if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
+    if (!(await gate30(b, b.totalNet, `Pay Bill ${b.refNo}`, (id) => { upsertPayBill({ ...b, discussionReqId: id }); bumpRev(); }))) return;
     const n = advancePayBillStep(b); bumpRev();
     toast.success(`GM approved · ${n.refNo}`);
   };
@@ -1572,6 +1585,7 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
     if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
     const targets = submitted.filter((b) => selected.has(b.id));
     if (targets.length === 0) return toast.error("Select at least one submitted pay bill");
+    if (targets.some((b) => Number(b.totalNet) > SUPREME_LIMIT)) return toast.error("₹30 lakh se upar ke Pay Bill alag se GM Approve karein (Discussion Window lock)");
     if (!window.confirm(`GM Approve ${targets.length} selected pay bills?`)) return;
     targets.forEach((b) => advancePayBillStep(b));
     setSelected(new Set()); bumpRev();
@@ -1705,8 +1719,9 @@ const AccountsExitView = ({ rev, bumpRev }) => {
   const drafts = exits.filter((x) => Number(x.status) < 3);
   const totalPending = pending.reduce((a, x) => a + Number(x.fnfNet || 0), 0);
 
-  const settle = (x) => {
+  const settle = async (x) => {
     if (!canApprove()) return toast.error("Only Admin / SuperAdmin / Accounts");
+    if (!(await gate30(x, x.fnfNet, `F&F ${x.empCode} ${x.empName || ""}`, (id) => { upsertExit({ ...x, discussionReqId: id }); bumpRev(); }))) return;
     if (!window.confirm(`Settle F&F for ${x.empName || x.empCode}? Payout ₹ ${inrN(x.fnfNet)} · A Payment Voucher will be auto-generated.`)) return;
     const n = advanceExitStep(x); bumpRev();
     toast.success(`F&F settled · PV ${n.linkedPvNo}`);

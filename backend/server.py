@@ -239,6 +239,50 @@ class LoginBody(BaseModel):
     password: str
     otp_token: Optional[str] = None
     otp: Optional[str] = None
+    captcha_id: Optional[str] = None
+    captcha: Optional[str] = None
+
+
+CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _captcha_png(text: str) -> bytes:
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter
+    import io
+    r = _secrets.SystemRandom()
+    img = Image.new("RGB", (170, 54), (238, 242, 255))
+    d = ImageDraw.Draw(img)
+    for _ in range(7):
+        d.line([(r.randint(0, 170), r.randint(0, 54)), (r.randint(0, 170), r.randint(0, 54))], fill=r.choice([(148, 163, 184), (165, 180, 252), (252, 165, 165)]), width=2)
+    for i, ch in enumerate(text):
+        font = ImageFont.load_default(size=r.randint(28, 34))
+        tile = Image.new("RGBA", (40, 48), (0, 0, 0, 0))
+        ImageDraw.Draw(tile).text((6, 4), ch, font=font, fill=r.choice([(30, 58, 138), (185, 28, 28), (22, 101, 52), (88, 28, 135)]))
+        tile = tile.rotate(r.randint(-28, 28), expand=False, resample=Image.BICUBIC)
+        img.paste(tile, (8 + i * 31, r.randint(0, 6)), tile)
+    for _ in range(60):
+        d.point((r.randint(0, 169), r.randint(0, 53)), fill=(100, 116, 139))
+    buf = io.BytesIO()
+    img.filter(ImageFilter.SMOOTH).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@api_router.get("/auth/captcha")
+async def get_captcha():
+    text = "".join(_secrets.choice(CAPTCHA_CHARS) for _ in range(5))
+    cid = uuid.uuid4().hex
+    await db.captchas.delete_many({"expires_at": {"$lt": datetime.now(timezone.utc).isoformat()}})
+    await db.captchas.insert_one({"id": cid, "hash": hashlib.sha256(text.encode()).hexdigest(), "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=3)).isoformat()})
+    return {"captcha_id": cid, "image": "data:image/png;base64," + base64.b64encode(_captcha_png(text)).decode()}
+
+
+async def _captcha_ok(cid: Optional[str], text: Optional[str]) -> bool:
+    if not cid or not text:
+        return False
+    doc = await db.captchas.find_one_and_delete({"id": cid})
+    if not doc or doc["expires_at"] < datetime.now(timezone.utc).isoformat():
+        return False
+    return hmac.compare_digest(doc["hash"], hashlib.sha256(text.strip().upper().encode()).hexdigest())
 
 
 def _send_otp_sms(mobile: str, code: str) -> None:
@@ -372,6 +416,10 @@ async def login(body: LoginBody, request: Request):
     if len(fails) >= 5:
         raise HTTPException(status_code=429, detail="Too many failed attempts. Try again after 15 minutes.")
     user = await db.users.find_one({"email": ident})
+    otp_step = bool(body.otp_token) and bool(await db.login_otps.find_one({"id": body.otp_token, "email": ident}))
+    is_sa = ident == (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip() or (user is not None and _is_super_admin(user))
+    if not is_sa and not otp_step and not await _captcha_ok(body.captcha_id, body.captcha):
+        raise HTTPException(status_code=400, detail="Captcha galat ya expire — naya captcha bharein")
     if not user or not verify_password(password, user.get("password_hash", "")):
         _LOGIN_FAILS[ident] = fails + [now_ts]
         raise HTTPException(status_code=401, detail="Invalid email or password")

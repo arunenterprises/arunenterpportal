@@ -341,19 +341,23 @@ export default function Home() {
   const totalApprovedAmount = payments.filter((p) => p.status === "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
   const pendingAmount = payments.filter((p) => p.status !== "Approved").reduce((s, p) => s + Number(p.amount || 0), 0);
 
-  const sidebarBg = "linear-gradient(180deg,#0b1f4d 0%,#13306e 55%,#1e3a8a 100%)";
+  const sidebarBg = "#0b1a3a";
 
   return (
     <>
       <Toaster position="top-center" richColors />
-      <HomeNavBar />
+      <HomeNavBar light />
 
-      <div data-testid="home-page" style={{ display: "flex", height: "calc(100vh - 52px)", background: "#f1f5f9", overflow: "hidden" }}>
+      <div data-testid="home-page" style={{ display: "flex", height: "calc(100vh - 52px)", background: "#eef2f7", overflow: "hidden" }}>
 
         {/* ============== LEFT SIDEBAR ============== */}
         <aside data-testid="home-sidebar" style={{ width: 260, flexShrink: 0, background: sidebarBg, color: "#fff", padding: "14px 0", display: "flex", flexDirection: "column", boxShadow: "2px 0 8px rgba(15,23,42,.1)", position: "sticky", top: 52, height: "calc(100vh - 52px)", alignSelf: "flex-start" }}>
           {/* Brand */}
-          <div style={{ padding: "0 18px 14px", borderBottom: "1px solid rgba(255,255,255,.08)", textAlign: "center" }}>
+          <div style={{ padding: "0 18px 12px", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
+            <div data-testid="home-sidebar-brand" style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+              <img src={getLogo() || "/arun-logo.jpg"} alt="" style={{ width: 30, height: 30, borderRadius: 999, objectFit: "cover", background: "#fff" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              <span style={{ fontSize: 15, fontWeight: 900, letterSpacing: 0.6 }}>{(getCompany().name || "").replace(/^M\/s\s*/i, "").toUpperCase()}</span>
+            </div>
             <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: 0.5, color: "#fff", textAlign: "center" }}>ERP · Workspace</div>
           </div>
 
@@ -383,7 +387,7 @@ export default function Home() {
 
             <CompanyBanner name={displayName || me?.user || "User"} pending={pendingApprovals} />
             {canSeeCore() && (
-              <button data-testid="home-core-dashboard-btn" onClick={() => nav("/core-dashboard")} style={{ alignSelf: "flex-end", padding: "5px 14px", borderRadius: 999, border: "1px solid #1d4ed8", background: "#1d4ed8", color: "#fff", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}>Core Committee Dashboard →</button>
+              <button data-testid="home-core-dashboard-btn" onClick={() => nav("/core-dashboard")} style={{ alignSelf: "flex-end", padding: "6px 14px", borderRadius: 999, border: "1px solid #cbd5e1", background: "#fff", color: "#0b1f4d", fontSize: 11.5, fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>Core Committee Dashboard →</button>
             )}
             <div className="co-ticker" data-testid="home-company-ticker">
               <div className="co-ticker-track">
@@ -422,7 +426,7 @@ const CompanyBanner = ({ name, pending }) => {
   const co = getCompany();
   const logo = getLogo() || "/arun-logo.jpg";
   return (
-    <div data-testid="home-company-banner" style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", gap: 18, background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
+    <div data-testid="home-company-banner" style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", gap: 18, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "10px 18px", boxShadow: "0 4px 14px rgba(15,23,42,.07)" }}>
       <img src={logo} alt="logo" style={{ height: 92, width: 104, objectFit: "contain", border: "1px solid #e2e8f0", borderRadius: 8, padding: 4 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
       <div style={{ minWidth: 0, textAlign: "center", borderBottom: "2.5px solid #c81e2b", paddingBottom: 6 }}>
         <div style={{ fontSize: 30, fontWeight: 900, color: "#c81e2b", letterSpacing: 1, lineHeight: 1.1 }}>{co.name}</div>
@@ -431,11 +435,11 @@ const CompanyBanner = ({ name, pending }) => {
         <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>{co.address}</div>
         <div style={{ fontSize: 11.5, color: "#334155" }}>{[co.tollFree && `Toll Free: ${co.tollFree}`, co.email && `Email: ${co.email}`, co.website && `Web: ${co.website}`].filter(Boolean).join("  •  ")}</div>
       </div>
-      <div style={{ background: "linear-gradient(135deg,#1e3a8a,#5b21b6 60%,#be185d)", color: "#fff", borderRadius: 10, padding: "12px 18px", textAlign: "right", minWidth: 210 }}>
-        <div style={{ fontSize: 10, letterSpacing: 2, color: "#e9d5ff", fontWeight: 800, textTransform: "uppercase" }}>Welcome back</div>
-        <div data-testid="welcome-user-name" style={{ fontSize: 16, fontWeight: 900 }}>Namaste, {name}</div>
-        <div style={{ fontSize: 10, letterSpacing: 1.5, color: "#fde68a", fontWeight: 800, textTransform: "uppercase", marginTop: 4 }}>Pending Approvals</div>
-        <div style={{ fontSize: 26, fontWeight: 900, lineHeight: 1 }}>{pending}</div>
+      <div data-testid="home-welcome-box" style={{ background: "linear-gradient(135deg,rgba(255,255,255,.95),rgba(226,232,240,.85))", backdropFilter: "blur(14px)", color: "#0f172a", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 18px", textAlign: "right", minWidth: 210, boxShadow: "0 10px 24px rgba(15,23,42,.12), inset 0 1px 0 #fff" }}>
+        <div style={{ fontSize: 10, letterSpacing: 2, color: "#475569", fontWeight: 800, textTransform: "uppercase" }}>Welcome back</div>
+        <div data-testid="welcome-user-name" style={{ fontSize: 16, fontWeight: 900, color: "#0b1f4d" }}>Namaste, {name}</div>
+        <div style={{ fontSize: 10, letterSpacing: 1.5, color: "#475569", fontWeight: 800, textTransform: "uppercase", marginTop: 4 }}>Pending Approvals</div>
+        <div style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, color: "#0b1f4d" }}>{pending}</div>
       </div>
     </div>
   );

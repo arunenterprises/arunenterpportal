@@ -10,6 +10,7 @@ import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import AccountsTabs from "../components/AccountsTabs";
 import HomeNavBar from "../components/HomeNavBar";
+import { uploadBig, openFile } from "../lib/bigFiles";
 import {
   createExpenseDraft, computeExpense, upsertExpense, advanceExpenseStep, reserveExpenseRef,
   EXPENSE_STEP_LABEL, currentUser, exportJSON, getExpenses, amountToWords,
@@ -24,12 +25,16 @@ const F = ({ label, req, children }) => (
 );
 
 const CATEGORIES = [
-  "Office Expense", "Travel", "Fuel / Conveyance", "Utility (Power/Water/Internet)",
+  "Site Expense / Petty Cash", "Office Expense", "Travel", "Fuel / Conveyance", "Utility (Power/Water/Internet)",
   "Rent", "Salary / Wages", "Marketing", "Printing & Stationery",
   "Repair & Maintenance", "Bank Charges", "Professional Fees", "Miscellaneous",
 ];
 const PAYMENT_MODES = ["Cash", "Cheque", "NEFT / RTGS", "IMPS", "UPI", "Debit / Credit Card"];
 const GST_SLABS = [0, 5, 12, 18, 28];
+
+const PETTY = "Site Expense / Petty Cash";
+const pmProjects = () => { try { return JSON.parse(localStorage.getItem("ae_vm_projects") || "[]"); } catch { return []; } };
+const projLabel = (p) => [p.code, p.name, p.siteLocation].filter(Boolean).join(" · ");
 
 export default function ExpenseProcess({ embedded = false }) {
   const [expense, setExpense] = useState(() => createExpenseDraft(false));
@@ -56,9 +61,19 @@ export default function ExpenseProcess({ embedded = false }) {
   });
 
   const validate = () => {
+    if (!String(expense.projectCode || "").trim()) { toast.error("Project Code & Site Location chunein"); return false; }
     if (!expense.description.trim()) { toast.error("Enter expense description"); return false; }
     if (!expense.paidToName.trim()) { toast.error("Enter 'Paid To' name"); return false; }
     if ((Number(expense.basicAmount) || 0) <= 0) { toast.error("Amount must be greater than 0"); return false; }
+    if (expense.category === PETTY) {
+      const p = pmProjects().find((x) => projLabel(x) === expense.projectCode);
+      const limit = Number(p?.pettyFloat) || 0;
+      if (!limit) { toast.error("Is project ki Petty Cash Float limit Projects Register mein set nahi hai"); return false; }
+      const m = String(expense.date || "").slice(0, 7);
+      const used = getExpenses().filter((x) => x.id !== expense.id && x.category === PETTY && x.projectCode === expense.projectCode && String(x.date || "").slice(0, 7) === m && x.status !== "Rejected").reduce((s, x) => s + computeExpense(x).netPayable, 0);
+      const mine = computeExpense(expense).netPayable;
+      if (used + mine > limit) { toast.error(`FLOAT LIMIT · Is mahine ₹${Math.round(used + mine).toLocaleString("en-IN")} > float ₹${limit.toLocaleString("en-IN")}`); return false; }
+    }
     return true;
   };
 
@@ -174,17 +189,11 @@ export default function ExpenseProcess({ embedded = false }) {
   };
   const handlePrint = () => window.print();
 
-  const handleWoFile = (e) => {
+  const handleWoFile = async (e) => {
     const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 300 * 1024) { toast.error(`File ${Math.round(f.size / 1024)} KB exceeds 300 KB limit`); e.target.value = ""; return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setExpense({ ...expense, receiptFile: { name: f.name, size: f.size, type: f.type, dataUrl: reader.result } });
-      toast.success(`Uploaded ${f.name}`);
-    };
-    reader.readAsDataURL(f);
     e.target.value = "";
+    const up = await uploadBig(f, 5);
+    if (up) setExpense((x) => ({ ...x, receiptFile: up }));
   };
   const removeReceipt = () => { setExpense({ ...expense, receiptFile: null }); toast.success("Receipt removed"); };
 
@@ -259,6 +268,14 @@ export default function ExpenseProcess({ embedded = false }) {
               </F>
             </div>
             <div className="row cols-2" style={{ marginTop: 10 }}>
+              <F label="Project Code & Site Location" req>
+                <select data-testid="expense-project" {...bind("projectCode")}>
+                  <option value="">— Select Project —</option>
+                  {pmProjects().map((p) => <option key={p.id} value={projLabel(p)}>{projLabel(p)}{p.pettyFloat ? ` (Float ₹${Number(p.pettyFloat).toLocaleString("en-IN")}/month)` : ""}</option>)}
+                </select>
+              </F>
+            </div>
+            <div className="row cols-2" style={{ marginTop: 10 }}>
               <F label="Paid To (Vendor / Party Name)" req>
                 <input placeholder="e.g. Reliance Fuel Station" {...bind("paidToName")} />
               </F>
@@ -267,7 +284,7 @@ export default function ExpenseProcess({ embedded = false }) {
               </F>
             </div>
             <div className="row cols-2" style={{ marginTop: 10 }}>
-              <F label="Receipt Upload (PDF / Image · Max 300 KB)">
+              <F label="Receipt Upload (PDF / Image · Max 5 MB)">
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   {!expense.receiptFile ? (
                     <input type="file" accept="application/pdf,image/*"
@@ -276,7 +293,7 @@ export default function ExpenseProcess({ embedded = false }) {
                       style={{ flex: 1, padding: "4px 6px", fontSize: 10.5, border: "1px solid #cfd8e3", borderRadius: 4, background: "#fff", minWidth: 0 }} />
                   ) : (
                     <>
-                      <a href={expense.receiptFile.dataUrl} target="_blank" rel="noreferrer"
+                      <a href="#receipt" onClick={(ev) => { ev.preventDefault(); openFile(expense.receiptFile); }}
                         data-testid="receipt-file-link"
                         style={{ flex: 1, padding: "6px 10px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 600, fontSize: 11, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                         title={`${expense.receiptFile.name} · ${Math.round(expense.receiptFile.size / 1024)}KB`}>

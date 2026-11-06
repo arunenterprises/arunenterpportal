@@ -12,6 +12,7 @@ import AccountsTabs from "../components/AccountsTabs";
 import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
 import { apiPushPayments, apiBillLocks } from "../lib/api";
+import { gate30 } from "../lib/supremeGate";
 const threeWayLocks = async (list) => {
   try { return await apiBillLocks(list.map((b) => ({ billNo: b.billNo || "", vendorCode: b.vendorCode || "", createdAt: b.createdAt || b.billDate || "" }))); } catch (e) { toast.error(`3-Way check fail: ${e.message}`); return null; }
 };
@@ -325,9 +326,16 @@ export default function Reports() {
   const handleNew = () => { setSelectedBillId(""); setPv(null); toast.success("New voucher draft"); };
 
   // ---- Payment management (Edit / Delete / Reschedule after approval) ----
+  const pvGate = async (p) => {
+    const b = getBills().find((x) => x.id === p.billId);
+    const holder = { discussionReqId: p.discussionReqId || b?.discussionReqId || "" };
+    return gate30(holder, p.amount, `Payment Voucher ${p.pvNo}`, (id) => { savePayments(getPayments().map((x) => (x.pvNo === p.pvNo ? { ...x, discussionReqId: id } : x))); setRefresh((n) => n + 1); });
+  };
   const markPaidFinal = async (pvNo, utr, dt) => {
     if (!utr) { toast.error("Pehle UTR No bharein"); return; }
     if (!dt) { toast.error("Paid Date bharein"); return; }
+    const cur = getPayments().find((x) => x.pvNo === pvNo);
+    if (cur && !(await pvGate(cur))) return;
     if (!window.confirm(`${pvNo} ko FINAL PAID karein?\nUTR: ${utr}\n\nIske baad yeh voucher kabhi Edit, Reopen ya Delete nahi hoga.`)) return;
     const list = getPayments().map((x) => (x.pvNo === pvNo ? { ...x, utrNo: utr, paidDate: dt, paidAt: new Date().toISOString(), paidFinal: true, paidFinalBy: currentUser() || "" } : x));
     try {
@@ -451,9 +459,10 @@ export default function Reports() {
     toast.success(`Saved ${pv.pvNo}`);
   };
   const handleEdit = () => pv && pv.status !== "Approved" ? toast.info("Editable") : toast.error("No editable voucher");
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!pv) { toast.error("Generate a voucher first"); return; }
     if (pv.status !== "Draft") { toast.error("Already submitted"); return; }
+    if (!(await gate30({ discussionReqId: pv.discussionReqId || getBills().find((x) => x.id === pv.billId)?.discussionReqId || "" }, pv.amount, `Payment Voucher ${pv.pvNo}`, (id) => { setPv({ ...pv, discussionReqId: id }); savePayments(getPayments().map((x) => (x.pvNo === pv.pvNo ? { ...x, discussionReqId: id } : x))); }))) return;
     const next = { ...pv, status: "Submitted", preparedByName: pv.preparedByName || currentUser() };
     setPv(next);
     const list = getPayments();
@@ -492,6 +501,7 @@ export default function Reports() {
     const locks = await threeWayLocks([b]);
     if (!locks) return;
     if (locks[lockKey(b)]) { toast.error(`Voucher LOCKED · ${locks[lockKey(b)]}`); return; }
+    if (!(await gate30(b, computeBill(b).netPayable, `Payment Voucher · Bill ${b.billNo || b.refNo}`, (id) => { upsertBill({ ...b, discussionReqId: id }); setRefresh((n) => n + 1); }))) return;
     // Prevent duplicate voucher for same bill (billId primary + fallback vendorCode+billNo)
     const existing = payments.find(
       (p) => p.billId === b.id ||

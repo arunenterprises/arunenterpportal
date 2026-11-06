@@ -122,7 +122,7 @@ export default function MyTasks() {
       <div data-testid="my-tasks-page" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px) 80px" }}>
         <ModuleHero tag="Task Management" title="My Tasks · Daily Task Allotment" subtitle="Aaj ke task chunein, kaam kholein, Save / Edit / Submit karein" icon={ListTodo} gradient="linear-gradient(135deg,#0b1f4d 0%,#0369a1 55%,#22c55e 100%)" shadowRgba="3,105,161,.28" />
         <div style={{ display: "flex", gap: 6, margin: "14px 0", flexWrap: "wrap" }}>
-          {[["mine", "Mere Task"], ...(senior ? [["assigned", "Maine Diye Task"]] : []), ...(isBoss ? [["all", "Sabhi Task"]] : [])].map(([k, l]) => (
+          {[["mine", "Mere Task"], ...(senior ? [["assigned", "Task Allotment"]] : []), ...(isBoss ? [["all", "All Task"]] : [])].map(([k, l]) => (
             <button key={k} data-testid={`task-scope-${k}`} onClick={() => { setScope(k); setSel(""); }} style={{ ...btn(scope === k ? "#0b1f4d" : "#94a3b8") }}>{l}</button>
           ))}
         </div>

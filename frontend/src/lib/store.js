@@ -1233,10 +1233,10 @@ export const createUser = async ({ name, email, username, password, role = "User
   return user;
 };
 
-export const login = async (u, p, otpToken, otp) => {
+export const login = async (u, p, otpToken, otp, captchaId, captcha) => {
   const identifier = (u || "").trim();
   const password = (p || "").trim();
-  const res = await apiLogin(identifier, password, otpToken || undefined, otp || undefined);
+  const res = await apiLogin(identifier, password, otpToken || undefined, otp || undefined, captchaId || undefined, captcha || undefined);
   if (res.otp_required) return { otp: res };
   const { token, user } = res;
   {

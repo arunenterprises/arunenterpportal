@@ -29,8 +29,9 @@ const req = async (path, opts = {}) => {
 };
 
 // ---- Auth ----
-export const apiLogin = (identifier, password, otp_token, otp) =>
-  req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, otp_token, otp }) });
+export const apiLogin = (identifier, password, otp_token, otp, captcha_id, captcha) =>
+  req("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, otp_token, otp, captcha_id, captcha }) });
+export const apiCaptcha = () => req("/auth/captcha");
 export const apiGetUiButtons = () => req("/settings/ui-buttons");
 export const apiGetPrintLayout = (doc) => req(`/settings/print-layout/${doc}`);
 export const apiSetPrintLayout = (doc, value) => req(`/settings/print-layout/${doc}`, { method: "POST", body: JSON.stringify({ value }) });

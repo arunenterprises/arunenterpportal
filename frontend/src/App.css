@@ -974,6 +974,14 @@ body {
   min-height: 56px;
   font-size: 14px;
 }
+.home-navbar.hn-light { background: #fff; color: #0f172a; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(15,23,42,.06); }
+.home-navbar.hn-light .hn-brand, .home-navbar.hn-light .hn-link { color: #0f172a !important; }
+.home-navbar.hn-light .hn-link.active { background: #eef2ff; color: #1e3a8a !important; }
+.home-navbar.hn-light .hn-user { background: #f1f5f9; color: #0f172a; border-radius: 999px; padding: 4px 12px; }
+.home-navbar.hn-light .hn-user b { color: #0f172a; }
+.home-navbar.hn-light .hn-portal { background: #fff; color: #1e3a8a; border: 1px solid #cbd5e1; }
+.home-navbar.hn-light .hn-logout { background: #fff; color: #0f172a; border: 1px solid #e2e8f0; }
+
 .home-navbar .hn-brand {
   display: inline-flex; align-items: center; gap: 8px;
   font-weight: 800; letter-spacing: .6px;

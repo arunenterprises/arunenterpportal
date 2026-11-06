@@ -397,6 +397,7 @@ export default function ProjectManagement() {
               <F label="Progress %"><input type="number" min="0" max="100" value={editing.progress} onChange={(e) => setEditing({ ...editing, progress: +e.target.value })} style={inputS} data-testid="pm-f-progress" /></F>
               <F label="Budget (₹)"><input type="number" min="0" value={editing.budget} onChange={(e) => setEditing({ ...editing, budget: +e.target.value })} style={inputS} data-testid="pm-f-budget" /></F>
               <F label="Spent (₹)"><input type="number" min="0" value={editing.spent} onChange={(e) => setEditing({ ...editing, spent: +e.target.value })} style={inputS} data-testid="pm-f-spent" /></F>
+              <F label="Petty Cash Float / Month (₹)"><input type="number" min="0" value={editing.pettyFloat || ""} onChange={(e) => setEditing({ ...editing, pettyFloat: +e.target.value })} style={inputS} data-testid="pm-f-petty-float" /></F>
               <F label="Description" span={4}><textarea value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} rows={3} style={{ ...inputS, resize: "vertical" }} data-testid="pm-f-desc" placeholder="Scope, deliverables, stakeholders..." /></F>
               <F label="Is project mein kaun se Process Forms khulenge (Project Management mein)" span={4}>
                 <div data-testid="pm-f-forms" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
