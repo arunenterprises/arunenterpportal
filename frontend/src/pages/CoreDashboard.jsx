@@ -9,6 +9,7 @@ import SpecBoard, { BOARDS, FraudPanel } from "../components/core/MemberBoards";
 import { apiMe, apiOpsList, apiCoreConfigSave, apiCoreConfigHistory } from "../lib/api";
 import { currentRole, getVendors, getBills, getWOs } from "../lib/store";
 import { MEMBER_DISC, CORE_MEMBERS, CORE_DISC, CORE_MODULES, CORE_CUSTOM, OPS, loadCoreConfig } from "../components/ops/opsConfig";
+import { DeptTabs } from "../components/DeptTabs";
 
 const META0 = {
   "Member Civil": { icon: HardHat, c: "#b45309" },
@@ -239,11 +240,7 @@ export default function CoreDashboard() {
             )}
             {OPS[sec] && <div style={{ marginTop: 12 }}><OpsModule cfg={OPS[sec]} disc={discAllowed} openId={openId} /></div>}
             {sec === "dash" && <>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "14px 0", padding: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
-              {tabs.map((t) => (
-                <button key={t} data-testid={`core-tab-${t.replace(/\s+/g, "-").toLowerCase()}`} onClick={() => setTab(t)} style={{ padding: "8px 16px", background: active === t ? META[t].c : `${META[t].c}14`, color: active === t ? "#fff" : META[t].c, border: `1px solid ${META[t].c}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{t}</button>
-              ))}
-            </div>
+            <DeptTabs idPrefix="core-tab" tone="#991b1b" active={active} onSelect={setTab} tabs={tabs.map((t) => ({ id: t, label: t, icon: META[t].icon }))} style={{ margin: "14px 0" }} />
             {BOARDS[active] ? <SpecBoard key={active} member={active} meta={META[active]} allowed={discAllowed} /> : <MemberBoard member={active} data={data} go={go} />}
             {(role === "GM" || role === "SuperAdmin") && active !== "Member Procurement" && <FraudPanel />}
             </>}

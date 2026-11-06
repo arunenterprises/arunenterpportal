@@ -33,6 +33,7 @@ import SuperAdminDelete from "../components/SuperAdminDelete";
 import GeoAttendance from "../components/GeoAttendance";
 import LabourWages from "../components/LabourWages";
 import { MapPin, HardHat } from "lucide-react";
+import { DeptTabs } from "../components/DeptTabs";
 import { ContractSelect } from "../components/ContractSelect";
 
 const DEPARTMENTS = ["Operations", "Site", "Purchase", "Accounts", "HR", "Admin", "Sales", "Store"];
@@ -2854,8 +2855,7 @@ export default function HRManagement() {
             </div>
           </div>
 
-          <div style={{ marginTop: 18, background: "#fff", borderRadius: 10, padding: 5, display: "inline-flex", gap: 3, border: "1px solid #e2e8f0", flexWrap: "wrap" }} data-testid="hr-tabs">
-            {[
+          <DeptTabs testid="hr-tabs" idPrefix="hr-tab" tone="#9d174d" active={tab} onSelect={setTab} style={{ marginTop: 18 }} tabs={[
               { id: "dashboard", label: "Dashboard", tone: "#0f172a", icon: Sparkles },
               { id: "recruit", label: "Recruitment", tone: "#16a34a", icon: Briefcase },
               { id: "employees", label: "Employees", tone: "#0369a1", icon: Users2 },
@@ -2870,11 +2870,7 @@ export default function HRManagement() {
               { id: "compliance", label: "Compliance", tone: "#7c3aed", icon: ShieldCheck },
               { id: "payroll", label: "Payroll Slip", tone: "#dc2626", icon: IndianRupee },
               { id: "exit", label: "Exit & F&F", tone: "#991b1b", icon: LogOut },
-            ].map((t) => {
-              const Icon = t.icon; const active = tab === t.id;
-              return <button key={t.id} data-testid={`hr-tab-${t.id}`} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: active ? t.tone : "transparent", color: active ? "#fff" : "#334155", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><Icon size={13} /> {t.label}</button>;
-            })}
-          </div>
+            ].map(({ tone, ...t }) => t)} />
 
           <div style={{ marginTop: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12 }}>
             {tab === "dashboard" && (

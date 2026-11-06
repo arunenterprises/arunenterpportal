@@ -22,6 +22,7 @@ import { CrmReports } from "../components/crm/CrmReports";
 import OpsModule from "../components/ops/OpsModule";
 import { OPS } from "../components/ops/opsConfig";
 import { CalendarCheck, Mail, Gavel, Scale } from "lucide-react";
+import { DeptTabs } from "../components/DeptTabs";
 
 const opsTab = (k) => function OpsTab() { return <OpsModule cfg={OPS[k]} />; };
 
@@ -90,15 +91,7 @@ export default function ClientRevenue() {
         <ModuleHero tag="Client & Revenue Management" title="CRM · Measurement Book · RA Billing · Retention" subtitle="Lead se lekar client payment aur retention release tak ka poora workflow"
           icon={Handshake} gradient="linear-gradient(135deg, #0b1f4d 0%, #1e3a8a 55%, #0891b2 100%)" shadowRgba="30,58,138,.28" />
         {!crm.loading && <WorkflowStrip data={crm.data} onGo={setTab} />}
-        <div data-testid="crm-tabs" className="crm-one-line-flex" style={{ display: "flex", gap: 4, marginBottom: 14, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 5 }}>
-          {TABS.map((t) => (
-            <button key={t.k} data-testid={`crm-tab-${t.k}`} onClick={() => setTab(t.k)} className="crm-tab"
-              style={{ flex: "1 1 0", minWidth: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "7px 4px", borderRadius: 7, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
-                border: `1px solid ${t.c}${tab === t.k ? "" : "55"}`, background: tab === t.k ? t.c : `${t.c}14`, color: tab === t.k ? "#fff" : t.c }}>
-              <t.icon size={12} style={{ flexShrink: 0 }} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis" }} title={t.l}>{t.l}</span>
-            </button>
-          ))}
-        </div>
+        <DeptTabs testid="crm-tabs" idPrefix="crm-tab" tone="#1e3a8a" active={tab} onSelect={setTab} tabs={TABS.map((t) => ({ id: t.k, label: t.l, icon: t.icon }))} />
         {crm.loading ? <div data-testid="crm-loading" style={{ padding: 30, textAlign: "center", color: "#64748b" }}>Loading…</div> : <Active {...crm} />}
         {["contracts", "co"].includes(tab) && <HsnFinder />}
       </div>

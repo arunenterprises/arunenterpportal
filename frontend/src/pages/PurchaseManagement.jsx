@@ -10,6 +10,7 @@ import OpsModule from "../components/ops/OpsModule";
 import { OPS } from "../components/ops/opsConfig";
 import { uploadBig, openFile } from "../lib/bigFiles";
 import { ContractSelect, contractRows } from "../components/ContractSelect";
+import { DeptTabs } from "../components/DeptTabs";
 const BOQ_TYPES = ["Client Master BOQ", "Sub-contractor Execution BOQ", "Vendor Supply BOQ"];
 export const woGst = (w) => (w.items || []).reduce((s, it) => s + (Number(it.amount) || 0) * (Number(it.gstPct ?? w.gstSlab ?? 18) || 0) / 100, 0);
 const norm = (s) => String(s || "").trim().toLowerCase();
@@ -1247,36 +1248,9 @@ export default function PurchaseManagement() {
             gradient="linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)"
             shadowRgba="22,101,52,.28"
           />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0,1fr))", gap: 6, marginTop: 10 }} data-testid="purchase-tabs">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const isActive = active === t.id;
-              return (
-                <button
-                  key={t.id}
-                  data-testid={`purchase-tab-${t.id}`}
-                  onClick={() => openTab(t)}
-                  style={{
-                    minWidth: 0, minHeight: 58,
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
-                    padding: "8px 6px", borderRadius: 8,
-                    border: `1px solid ${isActive ? t.color : "#cbd5e1"}`,
-                    background: isActive ? t.color : "#fff",
-                    color: isActive ? "#fff" : "#0f172a",
-                    cursor: "pointer",
-                    fontWeight: 700, fontSize: 12,
-                    letterSpacing: .2, textAlign: "center",
-                  }}
-                >
-                  <Icon size={17} strokeWidth={2} />
-                  <div style={{ textAlign: "center", lineHeight: 1.2 }}>
-                    <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.title}</div>
-                    <div style={{ fontSize: 9.5, opacity: .8, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.subtitle}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <DeptTabs testid="purchase-tabs" idPrefix="purchase-tab" tone="#166534" active={active}
+            onSelect={(id) => openTab(TABS.find((x) => x.id === id))}
+            tabs={TABS.map((t) => ({ id: t.id, label: t.title, icon: t.icon }))} />
 
           <div style={{ marginTop: 10, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }} data-testid="purchase-role-note">
             <Info size={13} />

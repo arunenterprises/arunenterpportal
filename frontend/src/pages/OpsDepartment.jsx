@@ -8,6 +8,7 @@ import OpsModule from "../components/ops/OpsModule";
 import { OPS, DEPTS } from "../components/ops/opsConfig";
 import { apiOpsList } from "../lib/api";
 import { QcNormsGuide } from "../components/ops/QcNormsGuide";
+import { DeptTabs } from "../components/DeptTabs";
 
 export default function OpsDepartment({ dept }) {
   const d = DEPTS[dept];
@@ -37,17 +38,10 @@ export default function OpsDepartment({ dept }) {
             {proj && <span data-testid="site-project-forms" style={{ fontSize: 11, color: "#475569" }}>Is project ke form: <b>{tabs.map((k) => OPS[k].title).join(" · ")}</b> (Projects Register mein badlein)</span>}
           </div>
         )}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "14px 0", padding: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
-          {d.projectsLink && (
-            <button data-testid="dept-tab-projects" onClick={() => nav("/project")} style={{ padding: "8px 16px", background: "#0f766e", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}><FolderKanban size={13} /> Projects Register</button>
-          )}
-          {tabs.map((k) => (
-            <React.Fragment key={k}>
-            <button data-testid={`dept-tab-${k}`} onClick={() => setTab(k)} style={{ padding: "8px 16px", background: active === k ? OPS[k].color : `${OPS[k].color}14`, color: active === k ? "#fff" : OPS[k].color, border: `1px solid ${OPS[k].color}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{OPS[k].title}</button>
-            {k === "qc_test" && <QcNormsGuide />}
-            </React.Fragment>
-          ))}
-        </div>
+        <DeptTabs idPrefix="dept-tab" tone={OPS[active]?.color || "#0f766e"} active={active} style={{ margin: "14px 0" }}
+          onSelect={(k) => (k === "projects" ? nav("/project") : setTab(k))}
+          tabs={[...(d.projectsLink ? [{ id: "projects", label: "Projects Register", icon: FolderKanban }] : []), ...tabs.map((k) => ({ id: k, label: OPS[k].title }))]} />
+        {tabs.includes("qc_test") && <QcNormsGuide />}
         <OpsModule cfg={OPS[active]} preset={proj ? { project: proj.name } : null} />
       </div>
     </>
