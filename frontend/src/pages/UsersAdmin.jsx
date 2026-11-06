@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "sonner";
 import { UserPlus, Trash2, Key, ArrowLeft, Shield, Lock, AlertTriangle, Download, Upload, Database, Moon, RefreshCw } from "lucide-react";
 import { isSuperAdmin, currentUserProfile, logout, resetLocalCache, resetHrFinancials, listFYOptions, getActiveFYOverride, setActiveFYOverride, getCompany, setCompanyLocal, DEFAULT_COMPANY } from "../lib/store";
-import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiSetCoreAccess, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany } from "../lib/api";
+import { apiListUsers, apiRegisterUser, apiDeleteUser, apiChangePassword, apiChangeMyPassword, apiResetData, apiUpdateUserPermissions, apiUpdateUserRole, apiSetCoreAccess, apiDownloadBackup, apiRestoreBackup, apiListNightlyBackups, apiDownloadNightlyBackup, apiDeleteNightlyBackup, apiTriggerNightlyBackup, apiListSessions, apiForceLogout, apiGetActiveFY, apiSetActiveFY, apiGetCompany, apiSetCompany, apiSetUserPhoto } from "../lib/api";
 import { NightlyMissingBtn, DupFixBtn } from "../components/NightlyMissingBtn";
 import { OtpResetPanel } from "../components/OtpResetPanel";
 import HomeNavBar from "../components/HomeNavBar";
@@ -738,7 +738,22 @@ export default function UsersAdmin() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.email} data-testid={`user-row-${u.email}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                  <td style={{ padding: "5px 8px" }}>{u.name}</td>
+                  <td style={{ padding: "5px 8px" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <label title={isSuperAdmin(me?.user) ? "Photo upload (≤ 300 KB)" : ""} style={{ cursor: isSuperAdmin(me?.user) ? "pointer" : "default" }}>
+                        <span data-testid={`user-photo-${u.email}`} style={{ width: 26, height: 26, borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: u.photo ? `url(${u.photo}) center/cover` : "#e2e8f0", fontSize: 10, fontWeight: 800, color: "#475569" }}>{!u.photo && "+"}</span>
+                        {isSuperAdmin(me?.user) && <input data-testid={`user-photo-input-${u.email}`} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => {
+                          const f = e.target.files?.[0]; e.target.value = "";
+                          if (!f) return;
+                          if (f.size > 300 * 1024) { toast.error("Photo 300 KB se chhoti ho"); return; }
+                          const rd = new FileReader();
+                          rd.onload = async () => { try { await apiSetUserPhoto(u.email, rd.result); toast.success("Photo saved · agle login se dikhegi"); load(); } catch (er) { toast.error(er.message); } };
+                          rd.readAsDataURL(f);
+                        }} />}
+                      </label>
+                      {u.name}
+                    </span>
+                  </td>
                   <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{u.email}</td>
                   <td style={{ padding: "5px 8px" }}>{u.mobile || "—"}</td>
                   <td style={{ padding: "5px 8px", fontFamily: "monospace" }}>{u.employee_id || "—"}</td>

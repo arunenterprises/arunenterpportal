@@ -992,6 +992,7 @@ export const createBillDraft = (peek = false) => {
     basicAmount: 0,
     gstSlab: 18,
     tdsRate: 2,
+    retentionPct: 5,
     otherDeductions: 0,
     dueDate: "",
     // Approvals (5-step)
@@ -1245,6 +1246,7 @@ export const login = async (u, p, otpToken, otp, captchaId, captcha) => {
       user: user.email, name: user.name, role: user.role,
       permissions: user.permissions || null,
       coreAll: !!user.core_all,
+      photo: user.photo || "",
       at: Date.now(),
     });
     // Pull cloud snapshot after successful login so this device has latest data
@@ -1286,6 +1288,13 @@ export const currentUser = () => {
   if (email && email.toLowerCase().trim() === SUPER_ADMIN_EMAIL) return "Ashish Srivastava";
   // Return Title-Cased email-prefix (before @) as last-resort display label — never the full email
   return email.includes("@") ? email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : email;
+};
+// Logged-in user's photo: HR Employee Registration (same email) first, else photo set in User creation
+export const myPhotoUrl = () => {
+  const me = currentUserProfile();
+  const em = String(me?.user || "").toLowerCase().trim();
+  const e = getEmployees().find((x) => String(x.contactEmail || "").toLowerCase().trim() === em && x.photoUrl);
+  return e?.photoUrl || me?.photo || "";
 };
 export const currentUserProfile = () => read(KEYS.AUTH, null);
 // Core Committee: only SuperAdmin, GM, Core Members, or users SuperAdmin granted Core access

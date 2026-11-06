@@ -453,4 +453,16 @@ See `/app/memory/test_credentials.md`.
 - My Tasks: default task library by ERP module → vertical/work (lib/taskTemplates.js TASK_LIB) with chips; task saves form path.
 - Print Page Setup on every window.open print (lib/printKit.js): bar with Orientation (auto Landscape when a table row has >9 columns), Paper A4/A3/A5/Letter/Legal, Margin None/5/10/15/20mm/Custom T R B L; window.print() shows the bar first, "Print" applies @page; paper/margin remembered (localStorage ae_print_setup). Not covered: html2pdf exports.
 - Procurement tabs as 6-column equal grid (short titles).
+
+## 2026-11-06 (later) — Finance Module 5 part 1 + Captcha + Home restyle (iteration_54: backend 5/5, frontend flows pass)
+- ₹30L gate (lib/supremeGate.js gate30, double-click guard): PV Generate (after duplicate check) / Submit to GM / FINAL PAID, Pay Bill GM Approve (bulk blocks >30L), Exit F&F Settle → Finance requisition in Discussion Window, allowed only after Concluded. Server: /payments/bulk FINAL PAID >30L requires concluded discussionReqId (423). Pay Bill / F&F gates are client-side only (snapshot data).
+- Expenses: mandatory Project Code & Site (stores project code), "Site Expense / Petty Cash" monthly float check vs Project Register field pettyFloat, receipt ≤5 MB (chunked upload).
+- Advance Reg: filter bar (employee/month/date range); token "Accounts Approved · Auto-adjusted in <Mon YYYY>" once that month's Pay Bill is GM-approved/settled (deduction itself was already automatic).
+- Vendor Bill defaults: GST 18%, Retention 5% (WO % if set), TDS u/s 194C 2% Company/Firm, 1% Individual/HUF.
+- Print Page Setup remembers layout per report title (localStorage ae_print_setup_map).
+- Login CAPTCHA (server PNG via Pillow, one-time, 3 min) for all except SuperAdmin; /api/auth/captcha.
+- Home restyle per user mockup (light navbar, navy sidebar brand, glass welcome box, gradient KPI cards, area trend).
+- User photo: HR employee photo (contactEmail match) else SuperAdmin-set photo in System Management user list (PATCH /api/admin/users/{email}/photo, ≤300 KB); shown in Home sidebar + top bar.
+- My Tasks tabs renamed "Task Allotment" / "All Task"; RFQ tab moved next to Vendor Registration.
+- PENDING Finance: Fetch-bill read-only fill, Pay Bill JV on UTR + period filters, Weekly Fooding employee lookup + per-head cap (value needed from user), Exit F&F advance recovery equation, PV row-selection autofill; server-side 30L check for Pay Bill / F&F; Managers module ownership (PDF §5).
 - PENDING: Finance Module 5 upgrades (Fetch bill read-only, Expenses project + float limit + 5MB, Advance KPIs/auto payroll deduction, Pay Bills KPIs/JV on UTR/30L gate, Weekly Fooding employee lookup + per-head cap (user skipped value), Exit F&F recovery/30L, Payment Vouchers 30L gate on PAID/Generate/Submit + selection autofill); managers' module ownership (PDF §5).

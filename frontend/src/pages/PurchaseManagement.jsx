@@ -109,10 +109,10 @@ const logBOQDeletion = (b, approved) => {
 
 const TABS = [
   { id: "vendor", title: "Vendor Registration", subtitle: "KYC · Vendor Code", icon: Users, color: "#166534" },
+  { id: "rfq", title: "RFQ & Comp. Stmt", subtitle: "L1 vendor · PO", icon: Scale, color: "#166534" },
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#166534" },
   { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#166534" },
   { id: "billing", title: "Vendor Bill", subtitle: "3-Way Match · submit", icon: Receipt, color: "#166534" },
-  { id: "rfq", title: "RFQ & Comp. Stmt", subtitle: "L1 vendor · PO", icon: Scale, color: "#166534" },
   { id: "grn", title: "Store & GRN", subtitle: "Receipt · Stock Register", icon: Warehouse, color: "#166534" },
 ];
 

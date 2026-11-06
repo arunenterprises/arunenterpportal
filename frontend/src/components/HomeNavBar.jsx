@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Home as HomeIcon, LogOut, ArrowLeft, ImageUp, ImageOff, Users, Store, ListTodo } from "lucide-react";
 import { toast } from "sonner";
-import { logout, currentUser, currentUserProfile, isSuperAdmin, setLogo, clearLogo, getLogo, getEmployees } from "../lib/store";
+import { logout, currentUser, currentUserProfile, isSuperAdmin, setLogo, clearLogo, getLogo, myPhotoUrl } from "../lib/store";
 import AuthSplash from "./AuthSplash";
 import { NotificationBell } from "./NotificationBell";
 
@@ -107,7 +107,7 @@ const HomeNavBar = ({ light = false }) => {
       <div className="hn-right">
         <NotificationBell />
         <span className="hn-user" title={me?.user} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          {(() => { const ph = (getEmployees().find((e) => String(e.contactEmail || "").toLowerCase().trim() === String(me?.user || "").toLowerCase().trim() && e.photoUrl) || {}).photoUrl; return ph ? <img data-testid="hn-user-photo" src={ph} alt="" style={{ width: 24, height: 24, borderRadius: 999, objectFit: "cover" }} /> : null; })()}
+          {(() => { const ph = myPhotoUrl(); return ph ? <img data-testid="hn-user-photo" src={ph} alt="" style={{ width: 24, height: 24, borderRadius: 999, objectFit: "cover" }} /> : null; })()}
           <b>{superAdmin ? "Ashish Srivastava" : (me?.name || currentUser())}</b>
           <span className={"hn-role " + (superAdmin ? "sa" : "usr")}>
             {superAdmin ? "SUPERADMIN" : (me?.role || "User").toUpperCase()}

@@ -35,6 +35,7 @@ const GST_SLABS = [0, 5, 12, 18, 28];
 const PETTY = "Site Expense / Petty Cash";
 const pmProjects = () => { try { return JSON.parse(localStorage.getItem("ae_vm_projects") || "[]"); } catch { return []; } };
 const projLabel = (p) => [p.code, p.name, p.siteLocation].filter(Boolean).join(" · ");
+const projKey = (p) => p.code || p.id;
 
 export default function ExpenseProcess({ embedded = false }) {
   const [expense, setExpense] = useState(() => createExpenseDraft(false));
@@ -66,7 +67,7 @@ export default function ExpenseProcess({ embedded = false }) {
     if (!expense.paidToName.trim()) { toast.error("Enter 'Paid To' name"); return false; }
     if ((Number(expense.basicAmount) || 0) <= 0) { toast.error("Amount must be greater than 0"); return false; }
     if (expense.category === PETTY) {
-      const p = pmProjects().find((x) => projLabel(x) === expense.projectCode);
+      const p = pmProjects().find((x) => projKey(x) === expense.projectCode);
       const limit = Number(p?.pettyFloat) || 0;
       if (!limit) { toast.error("Is project ki Petty Cash Float limit Projects Register mein set nahi hai"); return false; }
       const m = String(expense.date || "").slice(0, 7);
@@ -269,9 +270,9 @@ export default function ExpenseProcess({ embedded = false }) {
             </div>
             <div className="row cols-2" style={{ marginTop: 10 }}>
               <F label="Project Code & Site Location" req>
-                <select data-testid="expense-project" {...bind("projectCode")}>
+                <select {...bind("projectCode")} data-testid="expense-project">
                   <option value="">— Select Project —</option>
-                  {pmProjects().map((p) => <option key={p.id} value={projLabel(p)}>{projLabel(p)}{p.pettyFloat ? ` (Float ₹${Number(p.pettyFloat).toLocaleString("en-IN")}/month)` : ""}</option>)}
+                  {pmProjects().map((p) => <option key={p.id} value={projKey(p)}>{projLabel(p)}{p.pettyFloat ? ` (Float ₹${Number(p.pettyFloat).toLocaleString("en-IN")}/month)` : ""}</option>)}
                 </select>
               </F>
             </div>

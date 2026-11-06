@@ -9,6 +9,7 @@ import {
   currentUserProfile,
   isSuperAdmin,
   currentRole,
+  myPhotoUrl,
   canSeeCore,
   getVendors,
   getBills,
@@ -281,7 +282,7 @@ export default function Home() {
   const displayName = superAdmin
     ? "Ashish Srivastava"
     : (me?.name || me?.user?.split("@")[0] || "");
-  const myPhoto = (getEmployees().find((e) => String(e.contactEmail || "").toLowerCase().trim() === String(me?.user || "").toLowerCase().trim() && e.photoUrl) || {}).photoUrl || "";
+  const myPhoto = myPhotoUrl();
 
   // REAL-TIME CROSS-USER SYNC: re-render badges when App.js dispatches ae-sync-done.
   const [syncTick, setSyncTick] = useState(0);

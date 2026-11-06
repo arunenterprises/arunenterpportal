@@ -19,14 +19,19 @@ export const discussionCleared = async (reqId) => {
 };
 
 // One gate for every >₹30L money action: routes once, then allows only after Concluded
+let inflight = false;
 export const gate30 = async (rec, amount, title, persist) => {
   if ((Number(amount) || 0) <= SUPREME_LIMIT) return true;
+  if (inflight) { toast.info("Pichhla request chal raha hai…"); return false; }
   if (rec.discussionReqId) {
     if (await discussionCleared(rec.discussionReqId)) return true;
     toast.error("Locked: Core Discussion Window mein Conclude hone tak yeh action band hai");
     return false;
   }
-  const id = await routeToDiscussion(title, amount, `${title} · ₹${Number(amount).toLocaleString("en-IN")}`);
-  if (id) persist(id);
+  inflight = true;
+  try {
+    const id = await routeToDiscussion(title, amount, `${title} · ₹${Number(amount).toLocaleString("en-IN")}`);
+    if (id) persist(id);
+  } finally { inflight = false; }
   return false;
 };

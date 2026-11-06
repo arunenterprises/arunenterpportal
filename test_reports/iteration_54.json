@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 54: Tested Login CAPTCHA (API + UI), Home restyle, My Tasks tabs + default task library, Expense mandatory project + petty-cash float gate, Advance Reg filter bar, Print Page Setup per-report memory, and reviewed the gate30 code. Backend 5/5 pytest passed. All requested frontend flows work. Fixed one bug myself: the expense-project select's data-testid was being overwritten by the {...bind()} spread, so the 'expense-project' testid did not exist in the DOM. Not checked with data: the 'Auto-adjusted in <Mon YYYY>' token, because there are 0 approved advances and approving the user's real pending advances would change their data. The gate30 30-lakh flows were reviewed in code only; I did not run them in the UI, because they need a PV/PayBill/F&F above ₹30 lakh.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/auth/captcha", "issue": "Anyone can call it without logging in and there is no rate limit. Each call inserts a Mongo doc, and expired docs are only cleaned by delete_many on later calls (no TTL index). Add a TTL index on expires_at (stored as a Date) and an IP rate limit."},
+      {"endpoint": "POST /api/auth/login", "issue": "The brute-force lockout (_LOGIN_FAILS) lives in process memory, so it resets on restart and is not shared across workers. CORS is allow_origins='*' and auth uses a bearer token, not httpOnly cookies. Both were already like this before this change."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ExpenseProcess project select", "issue": "data-testid='expense-project' was overridden by the {...bind('projectCode')} spread, which sets data-testid='field-projectCode'. FIXED by moving the testid after the spread.", "selector": "[data-testid='expense-project']", "priority": "LOW"},
+      {"component": "HomeProgressChart Monthly Approved Trend", "issue": "The custom smooth() curve overshoots below the 0 baseline: the area dips under the x-axis between Jul and Sep when values are 0→0→3. The y-axis tick labels repeat (e.g. 3,2,2,1,1,0) because max*0.25 steps are rounded when max is small. Clamp the control points to y(0), and use integer ticks when max < 4.", "selector": "[data-testid='home-monthly-trend'] svg", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bill?view=advance filter bar", "issues": ["adv-filter-month/from/to use the browser's native type=month/date pickers instead of the app's DateInput component used everywhere else. The inputs also have no border styling, unlike adv-filter-emp."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter54_captcha.py", "/app/test_reports/pytest/iter54.xml"],
+  "action_items": [
+    "Fix the Home trend curve overshoot below the zero baseline and the duplicate y-axis tick labels (HomeProgressChart.jsx smooth() and tick fmt).",
+    "gate30 is enforced only in the client (localStorage records plus a frontend check). A user can bypass it with devtools or a direct API/localStorage edit. Add a server-side check that blocks PV FINAL PAID / PayBill GM approve / F&F settle above ₹30L unless the linked requisition is Concluded.",
+    "Reports.generateVoucher calls gate30 BEFORE the duplicate-voucher check, so a bill above ₹30L that already has a PV still creates a Core Discussion requisition. Move gate30 after the duplicate check.",
+    "gate30/routeToDiscussion has no guard against a second click while a request is running. A double click on Submit/GM Approve/Settle can create two Finance requisitions before persist(id) runs.",
+    "Expense projectCode is stored as the label 'code · name · site'. Renaming a project or editing its site breaks the petty-float lookup and the month-total matching. Store the project id/code instead.",
+    "Use the shared DateInput for the Advance filter month/from/to inputs.",
+    "Optional: add a TTL index and rate limit for the captchas collection."
+  ],
+  "critical_code_review_comments": [
+    "supremeGate.gate30: routes to discussion once, then returns true only when discussionCleared(reqId).concluded. If the API errors it returns false (fails closed), which is correct. Enforcement is client-only (see action items).",
+    "BillProcessing: Pay Bill bulk approve correctly refuses targets above ₹30L (line 1588). gmApprove and Exit settle are gated. Exit settle runs gate30 before window.confirm, which is fine.",
+    "Reports: pvGate is used for markPaidFinal. handleSubmit gate uses pv.discussionReqId, falling back to bill.discussionReqId. generateVoucher gates on computeBill(b).netPayable. The amount used for gating is consistent.",
+    "The backend login treats any user with the SuperAdmin role as captcha-exempt, but Login.jsx hides the captcha only for the hard-coded SA_EMAIL. Other SuperAdmins still see a captcha; the backend accepts their login either way. This is harmless but inconsistent.",
+    "adjMonth() falls back to the current month when targetMonth is missing, so the 'Auto-adjusted in' label changes over time for old records.",
+    "Reports.jsx (2235 lines) and BillProcessing.jsx (1992 lines) are far over the 700-line guideline."
+  ],
+  "updated_files": ["/app/frontend/src/pages/ExpenseProcess.jsx", "/app/backend/tests/test_iter54_captcha.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% of executed flows (login captcha, home, my-tasks, expense validation, petty float, advance filters, print setup)"},
+  "seed_data_creation": "Created TEST_Iter54 Project (PRJ/2026/0001) with pettyFloat 1000 and deleted it through the UI (verified gone after reload). Inserted one TEST_-prefixed captcha doc, which was consumed and deleted by login. No expenses were saved: the save attempts were rejected by validation as intended. One failed-login entry was added for Komal (wrong password); it is in memory and expires after 15 minutes.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Captcha one-time use can be tested by inserting a known-hash captcha doc into db.captchas (see test_iter54_captcha.py). Non-SA login with a correct captcha triggers the email OTP step, so it cannot be fully completed. There are currently no projects in the Project Register and no approved advances, so the expense module cannot save real entries until a project exists. Print setup is stored in localStorage key ae_print_setup_map, keyed by window title with digits removed.",
+  "test_credentials": "From /app/memory/test_credentials.md: SA arunenterprises2023@gmail.com / Arun2023@12; Komal komal.srivastava@arunenterprises.online / Komal2026@12"
+}

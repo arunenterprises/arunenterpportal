@@ -501,7 +501,6 @@ export default function Reports() {
     const locks = await threeWayLocks([b]);
     if (!locks) return;
     if (locks[lockKey(b)]) { toast.error(`Voucher LOCKED · ${locks[lockKey(b)]}`); return; }
-    if (!(await gate30(b, computeBill(b).netPayable, `Payment Voucher · Bill ${b.billNo || b.refNo}`, (id) => { upsertBill({ ...b, discussionReqId: id }); setRefresh((n) => n + 1); }))) return;
     // Prevent duplicate voucher for same bill (billId primary + fallback vendorCode+billNo)
     const existing = payments.find(
       (p) => p.billId === b.id ||
@@ -512,6 +511,7 @@ export default function Reports() {
       setPv(existing);
       return;
     }
+    if (!(await gate30(b, computeBill(b).netPayable, `Payment Voucher · Bill ${b.billNo || b.refNo}`, (id) => { upsertBill({ ...b, discussionReqId: id }); setRefresh((n) => n + 1); }))) return;
     const c = computeBill(b);
     const paid = payments.filter((p) => p.billId === b.id).reduce((s, p) => s + Number(p.amount || 0), 0);
     const balance = +(c.netPayable - paid).toFixed(2);

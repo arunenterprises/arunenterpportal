@@ -497,8 +497,20 @@ async def login(body: LoginBody, request: Request):
             "employee_id": user.get("employee_id", ""),
             "mobile": user.get("mobile", ""),
             "core_all": bool(user.get("core_all", False)),
+            "photo": user.get("photo", ""),
         },
     }
+
+
+@api_router.patch("/admin/users/{email}/photo")
+async def set_user_photo(email: str, body: Dict = Body(...), user: Dict = Depends(require_super_admin)):
+    photo = str(body.get("photo") or "")
+    if photo and (not photo.startswith("data:image/") or len(photo) > 400_000):
+        raise HTTPException(status_code=400, detail="Photo image ho aur 300 KB se chhoti")
+    r = await db.users.update_one({"email": email.lower().strip()}, {"$set": {"photo": photo}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="User nahi mila")
+    return {"ok": True}
 
 
 @api_router.post("/admin/users/{email}/otp-reset")
@@ -844,6 +856,10 @@ async def replace_payments(body: Dict = Body(...), user: Dict = Depends(require_
         if p.get("paidFinal"):
             if (ex or p).get("status") != "Approved" or not (p.get("utrNo") or "").strip() or not p.get("paidDate"):
                 raise HTTPException(status_code=400, detail="Final Paid ke liye voucher Approved ho aur UTR + Paid Date bhara ho")
+            if float(p.get("amount") or 0) > 3000000:
+                rq = await db.requisitions.find_one({"id": p.get("discussionReqId") or ""}, {"_id": 0, "discussion": 1})
+                if not rq or not (rq.get("discussion") or {}).get("concluded"):
+                    raise HTTPException(status_code=423, detail="₹30 lakh se upar — Core Discussion Window Conclude hone tak FINAL PAID locked")
             p["paidFinalBy"] = user.get("name") or user.get("email")
             p["paidFinalAt"] = datetime.now(timezone.utc).isoformat()
         await db.payments.update_one(key, {"$set": p}, upsert=True)

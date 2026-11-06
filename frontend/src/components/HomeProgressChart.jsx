@@ -37,10 +37,11 @@ const Kpi = ({ icon: I, bg, label, value, l1, l2, testid, onClick }) => (
   </button>
 );
 
-const smooth = (pts) => pts.map((p, i) => {
+const smooth = (pts, base = Infinity) => pts.map((p, i) => {
   if (!i) return `M${p[0]},${p[1]}`;
   const p0 = pts[i - 2] || pts[i - 1], p1 = pts[i - 1], p3 = pts[i + 1] || p;
-  return `C${p1[0] + (p[0] - p0[0]) / 6},${p1[1] + (p[1] - p0[1]) / 6} ${p[0] - (p3[0] - p1[0]) / 6},${p[1] - (p3[1] - p1[1]) / 6} ${p[0]},${p[1]}`;
+  const c = (v) => Math.min(v, base);
+  return `C${p1[0] + (p[0] - p0[0]) / 6},${c(p1[1] + (p[1] - p0[1]) / 6)} ${p[0] - (p3[0] - p1[0]) / 6},${c(p[1] - (p3[1] - p1[1]) / 6)} ${p[0]},${p[1]}`;
 }).join(" ");
 
 const Trend = ({ rows }) => {
@@ -50,7 +51,7 @@ const Trend = ({ rows }) => {
     const recs = rows.filter((r) => String(r.d) === d).flatMap((r) => r.list.filter((x) => r.f(x) === "done"));
     return { d, l, c, v: months.map((m) => recs.filter((x) => monthOf(x) === m).reduce((s, x) => s + (mode === "amount" ? amt(x) : 1), 0)) };
   });
-  const max = Math.max(1, ...series.flatMap((s) => s.v));
+  const max = Math.max(mode === "count" ? 4 : 1, ...series.flatMap((s) => s.v));
   const W = 640, H = 240, P = 44, x = (i) => P + (i * (W - P - 16)) / 5, y = (v) => H - 30 - (v / max) * (H - 50);
   const fmt = (v) => (mode === "amount" ? inr(v) : Math.round(v));
   const sw = (k, l) => <button data-testid={`trend-mode-${k}`} onClick={() => setMode(k)} style={{ padding: "4px 12px", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 800, cursor: "pointer", background: mode === k ? "#1e3a8a" : "transparent", color: mode === k ? "#fff" : "#475569" }}>{l}</button>;
@@ -63,7 +64,7 @@ const Trend = ({ rows }) => {
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", flex: 1, minHeight: 0 }}>
         {[0, 0.25, 0.5, 0.75, 1].map((t) => <g key={t}><line x1={P} x2={W - 16} y1={y(max * t)} y2={y(max * t)} stroke="#e2e8f0" strokeDasharray="3 4" /><text x={P - 6} y={y(max * t) + 4} fontSize="10" fill="#94a3b8" textAnchor="end">{fmt(max * t)}</text></g>)}
         {months.map((m, i) => <text key={m} x={x(i)} y={H - 8} fontSize="11" fill="#64748b" textAnchor="middle">{new Date(`${m}-01`).toLocaleDateString("en-IN", { month: "short" })}</text>)}
-        {series.map((s) => { const pts = s.v.map((v, i) => [x(i), y(v)]); const d = smooth(pts); return <g key={s.d}><path d={`${d} L${x(5)},${y(0)} L${x(0)},${y(0)} Z`} fill={s.c} fillOpacity="0.18" stroke="none" /><path d={d} fill="none" stroke={s.c} strokeWidth="2.2"><title>{`${s.l}: ${s.v.map(fmt).join(" → ")}`}</title></path></g>; })}
+        {series.map((s) => { const pts = s.v.map((v, i) => [x(i), y(v)]); const d = smooth(pts, y(0)); return <g key={s.d}><path d={`${d} L${x(5)},${y(0)} L${x(0)},${y(0)} Z`} fill={s.c} fillOpacity="0.18" stroke="none" /><path d={d} fill="none" stroke={s.c} strokeWidth="2.2"><title>{`${s.l}: ${s.v.map(fmt).join(" → ")}`}</title></path></g>; })}
       </svg>
     </div>
   );

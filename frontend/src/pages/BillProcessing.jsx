@@ -251,7 +251,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
       workOrderDate: w.woDate || prev.workOrderDate,
       workOrderExpiryDate: w.expiryDate || prev.workOrderExpiryDate,
       totalWOValue: Number(w.total) || prev.totalWOValue,
-      retentionPct: Number(w.retentionPct) || 0,
+      retentionPct: w.retentionPct === undefined || w.retentionPct === "" ? 5 : Number(w.retentionPct) || 0,
       tdsRate: tdsFor(v || prev.vendorSnapshot),
       projectCodeLocation: w.projectSite || prev.projectCodeLocation,
       workScope: w.scopeOfWork || prev.workScope,
@@ -1020,7 +1020,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 <F label="Gross Bill Amount (₹)">
                   <input value={comp.gross.toFixed(2)} readOnly data-testid="calc-gross" />
                 </F>
-                <F label="TDS Rate (auto · vendor type)">
+                <F label="TDS u/s 194C (auto · 2% Company/Firm · 1% Individual/HUF)">
                   <input value={`${bill.tdsRate}% · ${Number(bill.tdsRate) === 1 ? "Individual / HUF" : "Firm / Company"}`} readOnly data-testid="calc-tds-rate" style={{ background: "#f1f5f9", fontWeight: 700 }} />
                 </F>
                 <F label={`TDS Deduction (${bill.tdsRate}%)`}>
