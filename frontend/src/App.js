@@ -105,6 +105,7 @@ function App() {
           <Route path="/bill" element={<RequireAuth><BillProcessing mode="process" /></RequireAuth>} />
           <Route path="/bill-create" element={<Navigate to="/purchase?tab=billing" replace />} />
           <Route path="/accounts" element={<Navigate to="/bill" replace />} />
+          <Route path="/accounting" element={<Navigate to="/bill?view=acc-coa" replace />} />
           <Route path="/expense" element={<Navigate to="/bill?view=expense" replace />} />
           <Route path="/gm" element={<RequireAuth><GeneralManager /></RequireAuth>} />
           <Route path="/hr" element={<RequireAuth><HRManagement /></RequireAuth>} />

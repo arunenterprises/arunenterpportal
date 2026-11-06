@@ -3,7 +3,7 @@ import { currentRole, currentUserEmail } from "./store";
 
 export const ACL_DEPTS = [
   { k: "gm", l: "1. GM Dashboard" }, { k: "client", l: "2. Client & Revenue Management" }, { k: "hr", l: "3. HR Management" },
-  { k: "procurement", l: "4. Procurement Management" }, { k: "accounts", l: "5. Finance Management" }, { k: "site", l: "6. Project Management" },
+  { k: "procurement", l: "4. Procurement Management" }, { k: "accounts", l: "5. Finance Management" }, { k: "accounting", l: "5. Finance · Accounting & Ledger" }, { k: "site", l: "6. Project Management" },
   { k: "qc", l: "7. QC & Safety Management" }, { k: "plant", l: "8. P & M Management" }, { k: "reports", l: "9. Reports Management" }, { k: "admin", l: "10. System Management" },
 ];
 export const ACL_ROLES = ["Admin", "GM", "Purchase", "Accounts", "HR", "Viewer", "User", "Member Civil", "Member OHE", "Member Electrical", "Member Procurement", "Member HR & Admin", "Member Legal", "Member Financial", "Sr. Site Operation Manager", "Accounts Manager", "Purchase Manager"];
@@ -35,7 +35,8 @@ const PATH_DEPT = [["/gm", "gm"], ["/client-revenue", "client"], ["/hr", "hr"], 
 const KEY = "ae_acl_v1";
 
 export const getAcl = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
-export const aclDefault = (role, dept) => ({ v: dept === "gm" ? ["Admin", "GM"].includes(role) : true, c: role !== "Viewer", e: role !== "Viewer", d: role === "Admin", a: role === "Admin" });
+const ACC_DEF = (role) => { const full = ["GM", "Accounts Manager"].includes(role), mf = role === "Member Financial"; return { v: full || mf, c: full || mf, e: full || mf, d: full, a: full }; };
+export const aclDefault = (role, dept) => dept === "accounting" ? ACC_DEF(role) : ({ v: dept === "gm" ? ["Admin", "GM"].includes(role) : true, c: role !== "Viewer", e: role !== "Viewer", d: role === "Admin", a: role === "Admin" });
 export const aclRoleCell = (m, role, dept) => ({ ...aclDefault(role, dept), ...((m[role] || {})[dept] || {}) });
 export const aclCell = (m, role, dept, email = "") => ({ ...aclRoleCell(m, role, dept), ...((((m._users || {})[email]) || {})[dept] || {}) });
 export const can = (dept, op) => {

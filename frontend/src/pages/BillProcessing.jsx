@@ -11,6 +11,7 @@ import { Landmark as LandmarkIcon, ShoppingCart } from "lucide-react";
 import StepTabs from "../components/StepTabs";
 import TopActionBar from "../components/TopActionBar";
 import AccountsTabs from "../components/AccountsTabs";
+import AccountingPanel from "./Accounting";
 import ExpenseProcess from "./ExpenseProcess";
 import HsnInput from "../components/HsnInput";
 import HsnFinder from "../components/HsnFinder";
@@ -39,6 +40,20 @@ import { apiBillLocks } from "../lib/api";
 import { SUPREME_LIMIT, routeToDiscussion, discussionCleared, gate30 } from "../lib/supremeGate";
 import { parseGstin } from "../lib/gstin";
 const tdsFor = (v) => { const pan = String(v?.panNo || parseGstin(v?.gstNo || "").pan || "").toUpperCase(); return ["P", "H"].includes(pan[3]) ? 1 : 2; };
+const TDS_RATES = [0, 0.1, 1, 2, 5, 10, 20];
+// Income Tax sections → rate (ind = Individual/HUF PAN, firm = others)
+const TDS_SECTIONS = [
+  { k: "194C", l: "194C · Contractor / Sub-contractor", ind: 1, firm: 2 },
+  { k: "194J", l: "194J(b) · Professional fees", ind: 10, firm: 10 },
+  { k: "194J-T", l: "194J(a) · Technical services", ind: 2, firm: 2 },
+  { k: "194I-PM", l: "194I(a) · Rent – Plant & Machinery", ind: 2, firm: 2 },
+  { k: "194I", l: "194I(b) · Rent – Land / Building", ind: 10, firm: 10 },
+  { k: "194H", l: "194H · Commission / Brokerage", ind: 2, firm: 2 },
+  { k: "194Q", l: "194Q · Purchase of Goods", ind: 0.1, firm: 0.1 },
+  { k: "206AA", l: "206AA · No PAN (higher rate)", ind: 20, firm: 20 },
+  { k: "NA", l: "No TDS / Lower deduction certificate", ind: 0, firm: 0 },
+];
+const sectionRate = (sec, v) => { const s = TDS_SECTIONS.find((x) => x.k === sec) || TDS_SECTIONS[0]; return tdsFor(v) === 1 ? s.ind : s.firm; };
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
 const CATEGORY_SCOPES = [
@@ -262,7 +277,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
       workOrderExpiryDate: w.expiryDate || prev.workOrderExpiryDate,
       totalWOValue: Number(w.total) || prev.totalWOValue,
       retentionPct: w.retentionPct === undefined || w.retentionPct === "" ? 5 : Number(w.retentionPct) || 0,
-      tdsRate: tdsFor(v || prev.vendorSnapshot),
+      tdsRate: sectionRate(prev.tdsSection, v || prev.vendorSnapshot),
       projectCodeLocation: w.projectSite || prev.projectCodeLocation,
       workScope: w.scopeOfWork || prev.workScope,
       vendorCode: v?.vendorCode || prev.vendorCode,
@@ -302,7 +317,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     const v = findVendorByCode(code);
     if (!v) { toast.error("Vendor not found"); return; }
     if (v.step !== 3) { toast.error("Vendor is not approved yet"); return; }
-    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v, tdsRate: tdsFor(v) });
+    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v, tdsRate: sectionRate(bill.tdsSection, v) });
     toast.success(`Loaded ${v.firmName}`);
   };
 
@@ -311,7 +326,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     if (!v) { toast.error("Vendor not found"); return; }
     if (v.step !== 3) { toast.error("Vendor is not approved yet"); return; }
     setVendorInput(v.vendorCode);
-    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v, tdsRate: tdsFor(v) });
+    setBill({ ...bill, vendorCode: v.vendorCode, vendorSnapshot: v, tdsRate: sectionRate(bill.tdsSection, v) });
     toast.success(`Loaded ${v.firmName}`);
   };
   const openQuery = (q) => { setQueryCode(q || bill.vendorCode || ""); setQueryOpen(true); };
@@ -401,7 +416,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
   const handleSubmit = async () => {
     if (bill.step >= 5) { toast.error("Already in Payment Due List"); return; }
     if (!validate()) return;
-    if (![0, 1, 2].includes(Number(bill.tdsRate))) { toast.error("TDS 0%, 1% ya 2% chunein"); return; }
+    if (!TDS_RATES.includes(Number(bill.tdsRate))) { toast.error("TDS rate list mein se chunein"); return; }
     const breaches = contractBreaches(await findProject(bill.projectCodeLocation), items.map(asLine), priorBillLines(getBills(), bill));
     if (breaches.length) { toast.error(`CONTRACT CHECK FAIL · ${breaches[0]}${breaches.length > 1 ? ` (+${breaches.length - 1} aur)` : ""}`); return; }
     if (isCreate && Number(bill.step) < 2) {
@@ -542,7 +557,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
           <div className="module-doc-header"><Header formTitle={isCreate ? "PURCHASE · NEW VENDOR BILL CREATION" : "ACCOUNTS DEPARTMENT"} /></div>
           <ModuleHero
             tag={isCreate ? "Procurement Management" : "Finance Management"}
-            title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F"}
+            title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "Vendor Bill Process · Expenses · Advance Reg. · Pay Bill · Weekly Fooding · Exit & F&F · Accounting & Ledger"}
             subtitle={isCreate ? "Vendor + WO select · items feed · Submit karte hi Reference No milega" : "Ref No se bill fetch · cross-verify · GST / TDS · approval · PV"}
             icon={isCreate ? ShoppingCart : LandmarkIcon}
             gradient={isCreate ? "linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)" : "linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"}
@@ -800,7 +815,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 </F>
                 <F label="Project (Contract No) &amp; Location">
                   <ContractSelect testid="bill-project" value={bill.projectCodeLocation} disabled={locked} onChange={(v, m) => setBill((b) => {
-                    const tds = m?.contractId && [0, 1, 2].includes(Number(m.tdsPct)) ? Number(m.tdsPct) : b.tdsRate;
+                    const tds = m?.contractId && TDS_RATES.includes(Number(m.tdsPct)) ? Number(m.tdsPct) : b.tdsRate;
                     const g = m?.contractId ? m.items?.[0]?.gstPct : undefined;
                     const gst = g !== undefined && GST_SLABS.some((s) => Number(s) === Number(g)) ? GST_SLABS.find((s) => Number(s) === Number(g)) : b.gstSlab;
                     return { ...b, projectCodeLocation: v, contractId: m?.contractId || "", contractNo: m?.contractNo || "", projectLocation: m?.siteLocation || b.projectLocation || "", tdsRate: tds, gstSlab: gst };
@@ -1049,9 +1064,14 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 <F label="Gross Bill Amount (₹)">
                   <input value={comp.gross.toFixed(2)} readOnly data-testid="calc-gross" />
                 </F>
-                <F label="TDS u/s 194C (default · 2% Company/Firm · 1% Individual/HUF)">
+                <F label="TDS Section (Income Tax)">
+                  <select data-testid="calc-tds-section" value={bill.tdsSection || "194C"} onChange={(e) => setBill((b) => ({ ...b, tdsSection: e.target.value, tdsRate: sectionRate(e.target.value, b.vendorSnapshot) }))} disabled={locked} style={{ fontWeight: 700 }}>
+                    {TDS_SECTIONS.map((s) => <option key={s.k} value={s.k}>{s.l}</option>)}
+                  </select>
+                </F>
+                <F label={`TDS Rate u/s ${bill.tdsSection || "194C"}`}>
                   <select data-testid="calc-tds-rate" value={Number(bill.tdsRate) || 0} onChange={(e) => setBill((b) => ({ ...b, tdsRate: Number(e.target.value) }))} disabled={locked} style={{ fontWeight: 700 }}>
-                    {[[0, "0% · Exempt / Nil (Lower deduction cert.)"], [1, "1% · Individual / HUF"], [2, "2% · Company / Firm"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    {TDS_RATES.map((v) => <option key={v} value={v}>{`${v}%`}{v === 0 ? " · Nil" : v === 1 ? " · Individual/HUF" : v === 2 ? " · Company/Firm" : ""}</option>)}
                   </select>
                 </F>
                 <F label={`TDS Deduction (${bill.tdsRate}%)`}>
@@ -1439,6 +1459,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
           {activeView === "paybill" && <AccountsPayBillView rev={rev} bumpRev={bumpRev} />}
           {activeView === "fooding" && <WeeklyFoodingTab writeAllowed={canCreate()} />}
           {activeView === "exit" && <AccountsExitView rev={rev} bumpRev={bumpRev} />}
+          {activeView.startsWith("acc-") && <AccountingPanel view={activeView} />}
         </div>
       </div>
     </>

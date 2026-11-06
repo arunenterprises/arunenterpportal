@@ -1101,6 +1101,8 @@ async def set_acl(body: Dict = Body(...), admin: Dict = Depends(require_super_ad
 
 
 def _acl_default(role: str, dept: str, op: str) -> bool:
+    if dept == "accounting":
+        return role in ("GM", "Accounts Manager") or (role == "Member Financial" and op in ("v", "c", "e"))
     if op == "v":
         return role in ("Admin", "GM") if dept == "gm" else True
     if op in ("c", "e"):
@@ -3190,6 +3192,8 @@ async def cron_stock_reconcile(body: Dict = Body(default={}), background: Backgr
     return {"ok": True, "accepted": True, "run_id": run_id}
 
 
+from accounting import make_router as _acc_router  # noqa: E402
+api_router.include_router(_acc_router(db, get_current_user, _acl_ok, _num, _list_collection))
 app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
