@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Receipt, Wallet, IndianRupee, Utensils, LogOut, FileCheck2, ListTree, NotebookPen, HandCoins, Percent, Landmark } from "lucide-react";
+import { Receipt, Wallet, Utensils, LogOut, FileCheck2, ListTree, NotebookPen, HandCoins, Percent, Landmark, Banknote, Coins } from "lucide-react";
 import { can } from "../lib/acl";
 
 const TABS = [
@@ -9,9 +9,9 @@ const TABS = [
   { id: "acc-sales", label: "Sales & Receivables", icon: HandCoins, acc: true },
   { id: "vendor", label: "Vendor Bills", icon: Receipt },
   { id: "expense", label: "Expenses", icon: Wallet },
-  { id: "advance", label: "Advance Reg.", icon: Wallet },
+  { id: "advance", label: "Advance Reg.", icon: Coins },
   { id: "fooding", label: "Weekly Fooding", icon: Utensils },
-  { id: "paybill", label: "Pay Bills Process", icon: IndianRupee },
+  { id: "paybill", label: "Pay Bills Process", icon: Banknote },
   { id: "exit", label: "Exit & F&F", icon: LogOut },
   { id: "vouchers", label: "Payment Vouchers", icon: FileCheck2 },
   { id: "acc-bank", label: "Banking & BRS", icon: Landmark, acc: true },
