@@ -12,7 +12,7 @@ import HomeNavBar from "../components/HomeNavBar";
 import { Header } from "../components/Header";
 import {
   getEmployees, createEmployeeDraft, upsertEmployee, advanceEmployeeStep, deleteEmployee,
-  reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary, paidDaysOf, empTypeOf,
+  reapproveEmployee, EMPLOYEE_STEP_LABEL, computeSalary, paidDaysOf, empTypeOf, salaryBasisOf,
   getMonthAttendance, upsertAttendance, sendPayrollToAccounts,
   getPayBills, createPayBillDraft, createSupplementaryPayBillDraft, upsertPayBill, advancePayBillStep, deletePayBill, PAYBILL_STATUS,
   getAdvanceRegister,
@@ -461,10 +461,17 @@ const EmployeeEditor = ({ writeAllowed, approveAllowed, onSaved }) => {
           <F label="Special"><input type="number" value={emp.special} onChange={(e) => set("special", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
           <F label="Bonus"><input type="number" value={emp.bonus} onChange={(e) => set("bonus", +e.target.value || 0)} disabled={locked} style={inputStyle} /></F>
           <F label="Gross (auto)"><input value={(+emp.basic || 0) + (+emp.hra || 0) + (+emp.da || 0) + (+emp.special || 0) + (+emp.bonus || 0)} readOnly style={{ ...inputStyle, background: "#eef2ff", fontWeight: 700, textAlign: "right" }} /></F>
-          <F label="Employee Type (Site = poori salary · Company = paid days)">
+          <F label="Employee Type">
             <select data-testid="emp-type" value={empTypeOf(emp)} onChange={(e) => set("empType", e.target.value)} disabled={locked} style={inputStyle}>
               <option value="Company Employee">Company Employee</option>
               <option value="Site Employee">Site Employee</option>
+            </select>
+          </F>
+          <F label="Salary Month Days (1 din = Gross ÷ ?)">
+            <select data-testid="emp-salary-days" value={salaryBasisOf(emp)} onChange={(e) => set("salaryDays", e.target.value)} disabled={locked} style={inputStyle}>
+              <option value="30">30 din (har mahina barabar)</option>
+              <option value="26">26 working din</option>
+              <option value="Actual">Mahine ke asli din</option>
             </select>
           </F>
         </div>
@@ -1670,7 +1677,7 @@ const PayBillTab = ({ writeAllowed, approveAllowed }) => {
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", fontSize: 10, color: "#64748b" }}>{l.designation}</td>
                     <td style={{ padding: 4, border: "1px solid #e2e8f0", textAlign: "center", fontSize: 10 }}>{l.daysPresent}/{l.daysInMonth}</td>
                     <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#ecfdf5" }}>
-                      <input type="number" value={l.gross || 0} onChange={(e) => setLine(i, "gross", e.target.value)} disabled={locked} data-testid={`pb-gross-${i}`} title={l.empType === "Site Employee" ? "Site Employee: registration ki poori final salary" : "Company Employee: paid days ke hisaab se"} style={{ width: "100%", padding: 3, fontSize: 11, fontWeight: 700, border: "1px solid #86efac", borderRadius: 3, textAlign: "right" }} />
+                      <input type="number" value={l.gross || 0} onChange={(e) => setLine(i, "gross", e.target.value)} disabled={locked} data-testid={`pb-gross-${i}`} title={`${l.empType || ""} · 1 din = Gross ÷ ${l.salaryDays === "Actual" ? l.daysInMonth : l.salaryDays || 30} · Gross badal sakte hain`} style={{ width: "100%", padding: 3, fontSize: 11, fontWeight: 700, border: "1px solid #86efac", borderRadius: 3, textAlign: "right" }} />
                     </td>
                     <td style={{ padding: 2, border: "1px solid #e2e8f0", background: "#fef2f2" }}>
                       <input type="number" value={l.pf || 0} onChange={(e) => setLine(i, "pf", e.target.value)} disabled={locked} data-testid={`pb-pf-${i}`} style={{ width: "100%", padding: 3, fontSize: 11, border: "1px solid #fca5a5", borderRadius: 3, textAlign: "right", background: locked ? "#fee2e2" : "#fff" }} />
