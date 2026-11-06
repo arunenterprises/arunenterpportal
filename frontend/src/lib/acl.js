@@ -27,6 +27,8 @@ export const MASK_ITEMS = [
 export const OPS_DEPT = {
   projects: "site", dpr: "site", indent: "site", qc_test: "qc", safety_audit: "qc", machine: "plant", machine_log: "plant", diesel_log: "plant",
   booking: "client", demand_letter: "client", tender: "client", agreement: "client", geo_site: "hr", geo_att: "hr", labour: "hr", labour_att: "hr", labour_bill: "hr", abstract: "client",
+  ...Object.fromEntries(["core_project", "core_progress", "core_escalation", "core_target", "core_block", "core_drum", "core_substation", "core_equip_test", "core_amc", "core_hr_ticket", "core_payroll_freeze", "core_bg", "core_eot", "core_claim", "core_ra_bill"].map((k) => [k, "site"])),
+  ...Object.fromEntries(["proc_rfq", "proc_cs", "proc_po", "proc_grn", "proc_invoice", "stock_count"].map((k) => [k, "procurement"])),
 };
 const PATH_DEPT = [["/gm", "gm"], ["/client-revenue", "client"], ["/hr", "hr"], ["/vendor", "procurement"], ["/purchase", "procurement"], ["/bill", "accounts"], ["/final", "accounts"],
   ["/site", "site"], ["/project", "site"], ["/qc-safety", "qc"], ["/plant", "plant"], ["/reports-hub", "reports"], ["/users", "admin"]];

@@ -1022,9 +1022,10 @@ export const computeBill = (b) => {
   const gst = +(basic * (Number(b.gstSlab) || 0) / 100).toFixed(2);
   const gross = +(basic + gst).toFixed(2);
   const tds = +(basic * (Number(b.tdsRate) || 0) / 100).toFixed(2);
+  const retention = +(basic * (Number(b.retentionPct) || 0) / 100).toFixed(2);
   const other = Number(b.otherDeductions) || 0;
-  const netPayable = +(gross - tds - other).toFixed(2);
-  return { basic, gst, gross, tds, other, netPayable };
+  const netPayable = +(gross - tds - retention - other).toFixed(2);
+  return { basic, gst, gross, tds, retention, other, netPayable };
 };
 
 export const upsertBill = (b) => {

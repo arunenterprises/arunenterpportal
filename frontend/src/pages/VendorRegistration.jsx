@@ -12,6 +12,10 @@ import TopActionBar from "../components/TopActionBar";
 import HomeNavBar from "../components/HomeNavBar";
 import { parseGstin } from "../lib/gstin";
 import VendorQueryModal from "../components/VendorQueryModal";
+import { FileSlot } from "../components/FileSlot";
+const VENDOR_CATS = ["Manufacturer", "Authorized Dealer", "Sub-contractor", "Local Supplier"];
+const RLY_CLASS = ["Class-A", "Class-B", "Class-C", "Class-D", "Not Registered"];
+const DOCS = [["gstDoc", "Upload GST Certificate"], ["panDoc", "Upload PAN Card Copy"], ["chequeDoc", "Upload Cancelled Cheque / Bank Passbook"]];
 import {
   createVendorDraft, upsertVendor, findVendorByAny, advanceVendorStep,
   STEP_LABEL, currentUser, exportJSON, generateTempRefId, getVendors,
@@ -163,6 +167,10 @@ export default function VendorRegistration({ embedded = false }) {
     if (!validateStep1()) return;
     if (!vendor.tempRefId) { toast.error("Please Save the record first — Temp Ref ID is required"); return; }
     if (!(vendor.checkedByName || "").trim()) { toast.error("Enter 'Checked By (Name)' in Step 2 section"); return; }
+    if (!vendor.vendorCategory) { toast.error("Vendor Category chunein"); return; }
+    if (vendor.msme === "Yes" && !String(vendor.udyamNo || "").trim()) { toast.error("MSME / Udyam Registration No bharein"); return; }
+    const missDoc = DOCS.find(([k]) => !vendor[k]);
+    if (missDoc) { toast.error(`'${missDoc[1]}' zaroori hai`); return; }
     if (isReSubmit) {
       // Re-Submit after reopen — record is at step 2 with revision > 0, awaiting Re-Approval.
       const history = Array.isArray(vendor.history) ? vendor.history : [];
@@ -327,6 +335,18 @@ export default function VendorRegistration({ embedded = false }) {
                 <F label="Vendor / Firm Name" req><input placeholder="Full Firm Name" {...bind("firmName")} /></F>
                 <F label="Contact Person Name"><input placeholder="Contact Person Name" {...bind("contactPerson")} /></F>
               </div>
+              <div className="row cols-4" style={{ marginTop: 10 }}>
+                <F label="Vendor Category" req>
+                  <select {...bind("vendorCategory")} disabled={locked}><option value="">— Select —</option>{VENDOR_CATS.map((c) => <option key={c}>{c}</option>)}</select>
+                </F>
+                <F label="MSME / Udyam Registered">
+                  <select {...bind("msme")} disabled={locked}><option value="">No</option><option>Yes</option></select>
+                </F>
+                <F label="Udyam Registration No"><input placeholder="UDYAM-XX-00-0000000" {...bind("udyamNo", { readOnly: locked || vendor.msme !== "Yes" })} /></F>
+                <F label="Railway Registration Class">
+                  <select {...bind("railwayClass")} disabled={locked}><option value="">— Select —</option>{RLY_CLASS.map((c) => <option key={c}>{c}</option>)}</select>
+                </F>
+              </div>
               <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="Mobile Number" req><input placeholder="Phone Number" maxLength={12} {...bind("mobileNo")} /></F>
                 <F label="Vendor Email ID (For Work Orders)"><input type="email" placeholder="vendor@domain.com" {...bind("email")} /></F>
@@ -347,7 +367,7 @@ export default function VendorRegistration({ embedded = false }) {
               </div>
               <div className="row cols-3" style={{ marginTop: 10 }}>
                 <F label="City"><input placeholder="City" {...bind("city")} /></F>
-                <F label="State"><input placeholder="State" {...bind("state")} /></F>
+                <F label={`State${gstInfo.valid ? ` · Code ${gstInfo.stateCode}` : ""}`}><input placeholder="State" {...bind("state")} /></F>
                 <F label="Pincode / PIN Number"><input placeholder="PIN Code" maxLength={6} {...bind("pincode")} /></F>
               </div>
             </div>
@@ -402,6 +422,13 @@ export default function VendorRegistration({ embedded = false }) {
                 <F label="Account Holder Name"><input placeholder="Name as per Bank" {...bind("accountHolder")} /></F>
                 <F label="Account Number"><input placeholder="Bank Account Number" {...bind("accountNumber")} /></F>
               </div>
+            </div>
+          </div>
+
+          <div className="section">
+            <div className="sec-head">2B. KYC Documents (Mandatory · ≤ 25 MB each)</div>
+            <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 10 }}>
+              {DOCS.map(([k, l]) => <FileSlot key={k} label={l} req value={vendor[k]} disabled={locked} testid={`vendor-doc-${k}`} onChange={(f) => setVendor((p) => ({ ...p, [k]: f }))} />)}
             </div>
           </div>
 

@@ -195,6 +195,10 @@ export const apiResetNumbering = (target) => req(`/admin/reset-numbering/${targe
 export const apiRenumber = (target) => req(`/admin/renumber/${target}`, { method: "POST" });
 export const apiListCounters = () => req("/admin/counters");
 export const apiRealignCounter = (key, dry = false) => req(`/admin/realign-counter/${key}${dry ? "?dry=1" : ""}`, { method: "POST" });
+export const apiFraudBlocks = () => req("/fraud/blocks");
+export const apiFraudRelease = (id, remark) => req(`/fraud/blocks/${id}/release`, { method: "POST", body: JSON.stringify({ remark }) });
+export const apiFraudReconcile = () => req("/fraud/reconcile", { method: "POST" });
+export const apiBillLocks = (bills) => req("/fraud/bill-locks", { method: "POST", body: JSON.stringify({ bills }) });
 export const apiOpsDelete = (kind, id) => req(`/ops/${kind}/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const apiNewSyncKey = () => req("/admin/sync-key", { method: "POST" });
 export const apiSyncReport = () => req("/admin/sync-report");
@@ -221,6 +225,7 @@ export const apiCoreConfig = () => req("/core/config");
 export const apiCoreConfigSave = (cfg) => req("/core/config", { method: "PUT", body: JSON.stringify(cfg) });
 export const apiCoreConfigHistory = () => req("/core/config/history");
 export const apiReqList = (scope) => req(`/requisitions?scope=${scope}`);
+export const apiReqGate = (id) => req(`/requisitions/${id}/gate`);
 export const apiReqCreate = (b) => req("/requisitions", { method: "POST", body: JSON.stringify(b) });
 export const apiReqAction = (id, b) => req(`/requisitions/${id}/action`, { method: "POST", body: JSON.stringify(b) });
 export const apiReqDiscSetup = (id, b) => req(`/requisitions/${id}/discussion`, { method: "POST", body: JSON.stringify(b) });

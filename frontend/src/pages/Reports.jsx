@@ -11,7 +11,11 @@ import HomeNavBar from "../components/HomeNavBar";
 import AccountsTabs from "../components/AccountsTabs";
 import VendorQueryModal from "../components/VendorQueryModal";
 import SuperAdminDelete from "../components/SuperAdminDelete";
-import { apiPushPayments } from "../lib/api";
+import { apiPushPayments, apiBillLocks } from "../lib/api";
+const threeWayLocks = async (list) => {
+  try { return await apiBillLocks(list.map((b) => ({ billNo: b.billNo || "", vendorCode: b.vendorCode || "", createdAt: b.createdAt || b.billDate || "" }))); } catch (e) { toast.error(`3-Way check fail: ${e.message}`); return null; }
+};
+const lockKey = (b) => `${String(b.vendorCode || "").trim().toUpperCase()}|${String(b.billNo || "").trim()}`;
 import { RealignCounterBtn } from "../components/crm/ResetNumberingBtn";
 import { exportBankTransferXLSX, printBankTransferAdvice, printBulkBankAdvice } from "../lib/bankTransfer";
 import {
@@ -253,13 +257,16 @@ export default function Reports() {
   };
 
   // ---- Bulk process: generate PVs or print bulk advice for "Marked Pay" rows ----
-  const processSinglePVs = () => {
+  const processSinglePVs = async () => {
     const toPay = consolidatedDues.filter((r) => r.decision === "MarkedPay");
     if (!toPay.length) { toast.error("No vendor bills marked 'Pay' for this month"); return; }
     if (!window.confirm(`Generate ${toPay.length} party-wise Payment Voucher(s) for ${monthLabel}?\n\nEach vendor gets a separate PV draft. Review & approve in Payment Vouchers tab.`)) return;
+    const locks = await threeWayLocks(toPay.map((r) => bills.find((x) => x.id === r.id)).filter(Boolean));
+    if (!locks) return;
     let created = 0;
     toPay.forEach((r) => {
       const b = bills.find((x) => x.id === r.id); if (!b) return;
+      if (locks[lockKey(b)]) { toast.error(`${b.billNo} LOCKED · ${locks[lockKey(b)]}`); return; }
       const amt = r.scheduledPay > 0 ? Math.min(r.scheduledPay, r.balance) : r.balance;
       if (amt <= 0) return;
       const pvNo = nextPvNo();
@@ -479,9 +486,12 @@ export default function Reports() {
     toast.success(`Voucher approved · ${oldNo}${oldNo !== newNo ? " → " + newNo : ""}`);
   };
 
-  const generateVoucher = () => {
+  const generateVoucher = async () => {
     const b = approvedBills.find((x) => x.id === selectedBillId);
     if (!b) { toast.error("Select an approved bill"); return; }
+    const locks = await threeWayLocks([b]);
+    if (!locks) return;
+    if (locks[lockKey(b)]) { toast.error(`Voucher LOCKED · ${locks[lockKey(b)]}`); return; }
     // Prevent duplicate voucher for same bill (billId primary + fallback vendorCode+billNo)
     const existing = payments.find(
       (p) => p.billId === b.id ||

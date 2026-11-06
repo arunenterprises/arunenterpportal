@@ -30,7 +30,7 @@ export const printWorkOrder = (wo, boqRef = "") => {
   if (!wo) return;
   const logo = getLogo() || "/arun-logo.jpg";
   const totalWO = (wo.items || []).reduce((s, i) => s + (Number(i.amount) || 0), 0);
-  const gst = Math.round(totalWO * (Number(wo.gstSlab) || 0) / 100);
+  const gst = Math.round((wo.items || []).reduce((s, i) => s + (Number(i.amount) || 0) * (Number(i.gstPct ?? wo.gstSlab ?? 0) || 0) / 100, 0));
   const retention = Math.round(totalWO * (Number(wo.retentionPct) || 0) / 100);
   const grand = totalWO + gst - retention;
 

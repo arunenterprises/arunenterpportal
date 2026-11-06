@@ -4,7 +4,30 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BillProcessing from "./BillProcessing";
 import VendorRegistration from "./VendorRegistration";
-import { Users } from "lucide-react";
+import { Users, Scale, Warehouse } from "lucide-react";
+import RfqCs from "../components/procurement/RfqCs";
+import OpsModule from "../components/ops/OpsModule";
+import { OPS } from "../components/ops/opsConfig";
+import { uploadBig, openFile } from "../lib/bigFiles";
+const BOQ_TYPES = ["Client Master BOQ", "Sub-contractor Execution BOQ", "Vendor Supply BOQ"];
+export const woGst = (w) => (w.items || []).reduce((s, it) => s + (Number(it.amount) || 0) * (Number(it.gstPct ?? w.gstSlab ?? 18) || 0) / 100, 0);
+const norm = (s) => String(s || "").trim().toLowerCase();
+// Sub-contractor / Vendor BOQ must stay within the approved Client Master BOQ of the same project
+const boqBudgetGate = (b) => {
+  const type = b.boqType || "Client Master BOQ";
+  if (type === "Client Master BOQ") return "";
+  if (type === "Sub-contractor Execution BOQ" && (!b.vendorCode || !String(b.projectSite || "").trim())) return "Sub-contractor BOQ ke liye Vendor Code aur Project Code zaroori";
+  const master = getBOQs().find((x) => x.id !== b.id && (x.boqType || "Client Master BOQ") === "Client Master BOQ" && Number(x.step) >= 4 && norm(x.projectSite) === norm(b.projectSite));
+  if (!master) return `Project '${b.projectSite}' ka Approved Client Master BOQ nahi mila`;
+  for (const it of b.items || []) {
+    if (!String(it.description || "").trim()) continue;
+    const m = (master.items || []).find((x) => norm(x.description) === norm(it.description));
+    if (!m) return `'${it.description}' Client Master BOQ mein nahi hai`;
+    if (Number(it.qty) > Number(m.qty)) return `'${it.description}' qty ${it.qty} > Client approved ${m.qty}`;
+    if (Number(it.rate) > Number(m.rate)) return `'${it.description}' rate ₹${it.rate} > Client approved ₹${m.rate}`;
+  }
+  return "";
+};
 import { Toaster, toast } from "sonner";
 import { FileText, ClipboardList, Receipt, Wallet, ArrowRight, Info, Plus, Trash2, Save, Send, FilePlus2, Paperclip, Printer, ShoppingCart } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
@@ -88,7 +111,9 @@ const TABS = [
   { id: "vendor", title: "Vendor Registration", subtitle: "KYC · Vendor Code", icon: Users, color: "#166534" },
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#166534" },
   { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#166534" },
-  { id: "billing", title: "Vendor Bill Creation", subtitle: "Vendor select · bill feed · submit", icon: Receipt, color: "#166534" },
+  { id: "billing", title: "Vendor Bill Creation", subtitle: "3-Way Match · bill feed · submit", icon: Receipt, color: "#166534" },
+  { id: "rfq", title: "RFQ & Comp. Statement", subtitle: "L1 vendor · PO", icon: Scale, color: "#166534" },
+  { id: "grn", title: "Store & GRN", subtitle: "Receipt · Stock Register", icon: Warehouse, color: "#166534" },
 ];
 
 // Shared datalist for units. Users can type any custom unit that isn't listed.
@@ -143,18 +168,11 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
     return { ...p, items, total: items.reduce((s, it) => s + (Number(it.amount) || 0), 0) };
   });
 
-  const onAttach = (e) => {
+  const onAttach = async (e) => {
     const f = e.target.files?.[0];
-    if (!f) return;
-    if (!/^(application\/pdf|application\/vnd\.ms-excel|application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet|image\/)/i.test(f.type)) {
-      toast.error("Choose PDF / Excel / Image only"); return;
-    }
-    if (f.size > 500 * 1024) { toast.error("File must be ≤ 500 KB"); return; }
-    const r = new FileReader();
-    r.onload = () => set("attachmentData", r.result) || set("attachmentName", f.name);
-    r.onload = () => { setBoq((p) => ({ ...p, attachmentData: r.result, attachmentName: f.name })); };
-    r.readAsDataURL(f);
     e.target.value = "";
+    const up = await uploadBig(f, 25);
+    if (up) setBoq((p) => ({ ...p, attachmentData: "", attachmentName: up.name, attachmentFile: up }));
   };
 
   const handleSave = () => {
@@ -175,6 +193,8 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
       return;
     }
     if (Number(boq.step) >= 3) { toast.info("Already submitted"); return; }
+    const gate = boqBudgetGate(boq);
+    if (gate) { toast.error(`BUDGET GATE BLOCK · ${gate}`); return; }
     const next = advanceBOQStep({ ...boq, step: Math.max(boq.step, 2) });
     setBoq(next); setLocked(true); refresh();
     toast.success(`BOQ ${next.boqNo || next.tempRefId} submitted to Accounts (${BOQ_STEP_LABEL[next.step]})`);
@@ -318,7 +338,12 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
             <label>Submitted Date</label>
             <input data-testid="boq-submitted" value={boq.submittedDate ? fmtDMY(boq.submittedDate) : "—"} readOnly style={{ background: "#f8fafc" }} />
           </div>
-          <div className="field-b" />
+          <div className="field-b">
+            <label>BOQ Type <span className="req">*</span></label>
+            <select data-testid="boq-type" value={boq.boqType || "Client Master BOQ"} onChange={(e) => set("boqType", e.target.value)} disabled={locked}>
+              {BOQ_TYPES.map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </div>
           <div className="field-b" />
         </div>
       </div>
@@ -338,6 +363,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
             <thead>
               <tr style={{ background: "#f1f5f9" }}>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 40 }}>#</th>
+                <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 120 }}>Schedule Type</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1" }}>Description</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 130 }}>HSN / SAC</th>
                 <th style={{ padding: 6, textAlign: "center", border: "1px solid #cbd5e1", width: 80 }}>Qty</th>
@@ -351,6 +377,9 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               {(boq.items || []).map((it, idx) => (
                 <tr key={it.id} data-testid={`boq-row-${idx}`}>
                   <td style={{ padding: 4, textAlign: "center", border: "1px solid #cbd5e1" }}>{idx + 1}</td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}>
+                    <select data-testid={`boq-sched-${idx}`} value={it.scheduleType || "USSOR Item"} onChange={(e) => setItem(idx, "scheduleType", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", fontSize: 11.5 }}>{["USSOR Item", "NS Item", "Supply Item"].map((s) => <option key={s}>{s}</option>)}</select>
+                  </td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}>
                     <input data-testid={`boq-desc-${idx}`} value={it.description} onChange={(e) => setItem(idx, "description", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }} />
                   </td>
@@ -408,7 +437,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
         <div className="sec-head">C. Attachment & Approval</div>
         <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, alignItems: "start" }}>
           <div>
-            <label>Attachment (PDF / Excel / Image, ≤ 500 KB)</label>
+            <label>Attachment (PDF / Excel / Image, ≤ 25 MB)</label>
             {!locked && (
               <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, marginTop: 4 }}>
                 <Paperclip size={12} /> Upload
@@ -419,15 +448,10 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               <div style={{ marginTop: 6, fontSize: 11, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }} data-testid="boq-attach-name">
                 📎 {boq.attachmentName}
                 {" "}
-                <a href={boq.attachmentData} target="_blank" rel="noopener noreferrer" style={{ color: "#1d4ed8" }}>View</a>
+                <a href="#boq-file" onClick={(e) => { e.preventDefault(); openFile(boq.attachmentFile || { dataUrl: boq.attachmentData, name: boq.attachmentName }); }} style={{ color: "#1d4ed8" }}>View</a>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!boq.attachmentData) { toast.error("No attachment"); return; }
-                    const a = document.createElement("a");
-                    a.href = boq.attachmentData; a.download = boq.attachmentName || "boq-attachment";
-                    document.body.appendChild(a); a.click(); a.remove();
-                  }}
+                  onClick={() => openFile(boq.attachmentFile || { dataUrl: boq.attachmentData, name: boq.attachmentName }, true)}
                   data-testid="boq-attach-download"
                   style={{ padding: "3px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 700 }}
                 >
@@ -744,21 +768,13 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
     toast.success(`Vendor ${v.vendorCode} selected`);
   };
 
-  const onAttach = (e) => {
+  const onAttach = async (e) => {
     const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 500 * 1024) { toast.error("File must be ≤ 500 KB"); return; }
-    const r = new FileReader();
-    r.onload = () => { setWo((p) => ({ ...p, attachmentData: r.result, attachmentName: f.name })); };
-    r.readAsDataURL(f);
     e.target.value = "";
+    const up = await uploadBig(f, 25);
+    if (up) setWo((p) => ({ ...p, attachmentData: "", attachmentName: up.name, attachmentFile: up }));
   };
-  const downloadAttachment = () => {
-    if (!wo.attachmentData) { toast.error("No attachment"); return; }
-    const a = document.createElement("a");
-    a.href = wo.attachmentData; a.download = wo.attachmentName || "wo-attachment";
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  };
+  const downloadAttachment = () => openFile(wo.attachmentFile || { dataUrl: wo.attachmentData, name: wo.attachmentName }, true);
 
   const handleSave = () => {
     if (!wo.boqRefId) { toast.error("Select BOQ Reference"); return; }
@@ -771,6 +787,10 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
   const handleSubmit = () => {
     if (!writeAllowed) { toast.error("Not permitted"); return; }
     if (!saved) handleSave();
+    const parent = getBOQs().find((b) => b.id === wo.boqRefId);
+    const cap = parent ? computeBOQTotal(parent) : 0;
+    const used = getWOs().filter((w) => w.id !== wo.id && w.boqRefId === wo.boqRefId && Number(w.step) !== 6).reduce((s, w) => s + computeWOTotal(w), 0);
+    if (parent && used + computeWOTotal(wo) > cap + 0.01) { toast.error(`BUDGET BLOCK · Cumulative WO ₹${(used + computeWOTotal(wo)).toLocaleString("en-IN")} > BOQ budget ₹${cap.toLocaleString("en-IN")}`); return; }
     const next = advanceWOStep({ ...wo, step: Math.max(wo.step, 2) });
     setWo(next); setLocked(true); refresh();
     toast.success(`Work Order submitted (${WO_STEP_LABEL[next.step]})`);
@@ -903,7 +923,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
           <div><label>Project / Site</label><input data-testid="wo-project" value={wo.projectSite} onChange={(e) => set("projectSite", e.target.value)} disabled={locked} /></div>
 
           <div style={{ gridColumn: "span 2" }}><label>Client Name</label><input data-testid="wo-client" value={wo.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
-          <div><label>GST Slab (%)</label><input data-testid="wo-gst" type="number" value={wo.gstSlab} onChange={(e) => set("gstSlab", Number(e.target.value))} disabled={locked} /></div>
+          <div><label>GST (row-wise · auto)</label><input data-testid="wo-gst" value={`₹ ${woGst(wo).toFixed(2)}`} readOnly style={{ background: "#f1f5f9", fontWeight: 700 }} /></div>
           <div><label>Retention (%)</label><input data-testid="wo-ret" type="number" value={wo.retentionPct} onChange={(e) => set("retentionPct", Number(e.target.value))} disabled={locked} /></div>
 
           <div style={{ gridColumn: "span 3" }}>
@@ -948,6 +968,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 80 }}>Qty</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 90 }}>Unit</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 110 }}>Rate (₹)</th>
+                <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 90 }}>GST Slab</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 130 }}>Amount (₹)</th>
                 <th style={{ padding: 6, border: "1px solid #cbd5e1", width: 50 }} />
               </tr>
@@ -961,17 +982,28 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-qty-${idx}`} type="number" step="any" value={it.qty} onChange={(e) => setItem(idx, "qty", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} /></td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-unit-${idx}`} list="ae-units" value={it.unit} onChange={(e) => setItem(idx, "unit", e.target.value)} disabled={locked} placeholder="Type or pick…" style={{ width: "100%", border: "none", padding: 4, fontSize: 12 }} /></td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><input data-testid={`wo-rate-${idx}`} type="number" step="any" value={it.rate} onChange={(e) => setItem(idx, "rate", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", padding: 4, fontSize: 12, textAlign: "right" }} /></td>
+                  <td style={{ padding: 4, border: "1px solid #cbd5e1" }}><select data-testid={`wo-gst-${idx}`} value={it.gstPct ?? String(wo.gstSlab ?? 18)} onChange={(e) => setItem(idx, "gstPct", e.target.value)} disabled={locked} style={{ width: "100%", border: "none", fontSize: 12 }}>{[["5", "5%"], ["12", "12%"], ["18", "18%"], ["28", "28%"], ["0", "Exempted"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "right", fontWeight: 700 }}>{Number(it.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                   <td style={{ padding: 4, border: "1px solid #cbd5e1", textAlign: "center" }}>{!locked && (<button data-testid={`wo-del-${idx}`} onClick={() => delRow(idx)} style={{ background: "transparent", border: "none", color: "#dc2626", cursor: "pointer" }}><Trash2 size={13} /></button>)}</td>
                 </tr>
               ))}
               <tr style={{ background: "#f8fafc" }}>
-                <td colSpan={5} style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 800 }}>TOTAL WO VALUE</td>
+                <td colSpan={6} style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 800 }}>TOTAL WO VALUE</td>
                 <td style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 800 }} data-testid="wo-total">₹ {computeWOTotal(wo).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                 <td style={{ border: "1px solid #cbd5e1" }} />
               </tr>
+              <tr style={{ background: "#f8fafc" }}>
+                <td colSpan={6} style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 700 }}>GST (row-wise slabs · ITC)</td>
+                <td style={{ padding: 8, textAlign: "right", border: "1px solid #cbd5e1", fontWeight: 700 }} data-testid="wo-gst-total">₹ {woGst(wo).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                <td style={{ border: "1px solid #cbd5e1" }} />
+              </tr>
+              <tr data-testid="wo-retention-banner">
+                <td colSpan={8} style={{ padding: "12px 14px", border: "2px solid #dc2626", background: "#fef2f2", color: "#991b1b", fontWeight: 900, fontSize: 15, userSelect: "none" }}>
+                  RETENTION AMOUNT LOCKED ({Number(wo.retentionPct) || 0}%): ₹ {(computeWOTotal(wo) * (Number(wo.retentionPct) || 0) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })} <span style={{ fontSize: 11, fontWeight: 600 }}>· Finance bills par auto-deduct</span>
+                </td>
+              </tr>
               <tr style={{ background: "#f1f5f9" }} data-testid="wo-amount-words">
-                <td colSpan={7} style={{ padding: "7px 10px", border: "1px solid #cbd5e1", fontSize: 11.5, color: "#0f172a" }}>
+                <td colSpan={8} style={{ padding: "7px 10px", border: "1px solid #cbd5e1", fontSize: 11.5, color: "#0f172a" }}>
                   <b>Amount in Words:</b> <i>{amountToWords(computeWOTotal(wo))}</i>
                 </td>
               </tr>
@@ -997,7 +1029,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
         <div className="sec-head">E. Attachment &amp; Approval</div>
         <div className="sec-body" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
           <div>
-            <label>WO Attachment (PDF · ≤ 500 KB)</label>
+            <label>WO / Signed Contract Attachment (PDF · ≤ 25 MB)</label>
             {!locked && (
               <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "#dbeafe", color: "#1e3a8a", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontSize: 11, fontWeight: 700, marginTop: 4 }}>
                 <Paperclip size={12} /> Upload
@@ -1007,7 +1039,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
             {wo.attachmentName && (
               <div style={{ marginTop: 6, fontSize: 11, display: "flex", gap: 8, alignItems: "center" }}>
                 📎 {wo.attachmentName}
-                <a href={wo.attachmentData} target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>View</a>
+                <a href="#wo-file" onClick={(e) => { e.preventDefault(); openFile(wo.attachmentFile || { dataUrl: wo.attachmentData, name: wo.attachmentName }); }} style={{ color: "#1d4ed8" }}>View</a>
                 <button onClick={downloadAttachment} data-testid="wo-attach-download" style={{ padding: "2px 8px", fontSize: 10, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 3, cursor: "pointer", fontWeight: 700 }}>⬇ Download</button>
               </div>
             )}
@@ -1243,7 +1275,10 @@ export default function PurchaseManagement() {
           {activeTab.id === "vendor" && <VendorRegistration embedded />}
           {activeTab.id === "boq" && <BOQEditor writeAllowed={write} approveAllowed={approve} />}
           {activeTab.id === "wo" && <WOEditor writeAllowed={write} approveAllowed={approve} />}
+          {activeTab.id === "billing" && <div style={{ marginTop: 12 }} data-testid="three-way-register"><OpsModule cfg={OPS.proc_invoice} /></div>}
           {activeTab.id === "billing" && <BillProcessing key="create" mode="create" embedded />}
+          {activeTab.id === "rfq" && <RfqCs />}
+          {activeTab.id === "grn" && <div data-testid="store-grn-tab"><div style={{ marginTop: 12 }}><OpsModule cfg={OPS.proc_grn} /></div><div style={{ marginTop: 12 }}><OpsModule cfg={OPS.stock_count} /></div></div>}
           {["boq", "wo"].includes(activeTab.id) && <HsnFinder />}
           <UnitDataList />
         </div>

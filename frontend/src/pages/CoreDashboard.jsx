@@ -5,6 +5,7 @@ import { HardHat, Zap, Cable, ShoppingCart, Lock, AlertTriangle, FolderKanban, T
 import HomeNavBar from "../components/HomeNavBar";
 import ModuleHero from "../components/ModuleHero";
 import OpsModule from "../components/ops/OpsModule";
+import SpecBoard, { BOARDS, FraudPanel } from "../components/core/MemberBoards";
 import { apiMe, apiOpsList, apiCoreConfigSave, apiCoreConfigHistory } from "../lib/api";
 import { currentRole, getVendors, getBills, getWOs } from "../lib/store";
 import { MEMBER_DISC, CORE_MEMBERS, CORE_DISC, CORE_MODULES, CORE_CUSTOM, OPS, loadCoreConfig } from "../components/ops/opsConfig";
@@ -208,7 +209,7 @@ export default function CoreDashboard() {
   const active = tabs.includes(tab) ? tab : tabs[0];
   const role = currentRole();
   const discAllowed = role === "SuperAdmin" || role === "GM" || me?.core_all ? CORE_DISC : MEMBER_DISC[me?.role] || [];
-  const SECS = [["dash", "Dashboard"], ["core_project", "Core Projects"], ["core_progress", "Working Form"], ["core_escalation", "Escalation"], ["setup", "Core Setup"]];
+  const SECS = [["dash", "Dashboard"], ["setup", "Core Setup"]];
   return (
     <>
       <Toaster position="top-center" richColors />
@@ -243,7 +244,8 @@ export default function CoreDashboard() {
                 <button key={t} data-testid={`core-tab-${t.replace(/\s+/g, "-").toLowerCase()}`} onClick={() => setTab(t)} style={{ padding: "8px 16px", background: active === t ? META[t].c : `${META[t].c}14`, color: active === t ? "#fff" : META[t].c, border: `1px solid ${META[t].c}55`, borderRadius: 7, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>{t}</button>
               ))}
             </div>
-            <MemberBoard member={active} data={data} go={go} />
+            {BOARDS[active] ? <SpecBoard key={active} member={active} meta={META[active]} allowed={discAllowed} /> : <MemberBoard member={active} data={data} go={go} />}
+            {(role === "GM" || role === "SuperAdmin") && active !== "Member Procurement" && <FraudPanel />}
             </>}
           </>
         )}

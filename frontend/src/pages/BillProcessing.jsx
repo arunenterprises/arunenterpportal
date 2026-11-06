@@ -32,6 +32,11 @@ import {
 } from "../lib/store";
 import { exportBankTransferXLSX as _sharedXlsx, printBankTransferAdvice as _sharedAdvice } from "../lib/bankTransfer";
 import SuperAdminDelete from "../components/SuperAdminDelete";
+import { uploadBig, openFile } from "../lib/bigFiles";
+import { apiBillLocks } from "../lib/api";
+import { SUPREME_LIMIT, routeToDiscussion, discussionCleared } from "../lib/supremeGate";
+import { parseGstin } from "../lib/gstin";
+const tdsFor = (v) => { const pan = String(v?.panNo || parseGstin(v?.gstNo || "").pan || "").toUpperCase(); return ["P", "H"].includes(pan[3]) ? 1 : 2; };
 const GST_SLABS = [0, 5, 12, 18, 28];
 const UOMS = ["Nos", "Kg", "Km", "Mtr", "Sqm", "Cum", "Ton", "Ltr", "Lot", "Job"];
 const CATEGORY_SCOPES = [
@@ -172,22 +177,11 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
   };
 
   // ---- Work Order file upload (max 300 KB) ----
-  const handleWoFile = (e) => {
+  const handleWoFile = async (e) => {
     const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 300 * 1024) {
-      toast.error(`File size ${Math.round(f.size / 1024)} KB exceeds 300 KB limit`);
-      e.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBill({ ...bill, workOrderFile: { name: f.name, size: f.size, type: f.type, dataUrl: reader.result } });
-      toast.success(`Uploaded ${f.name} (${Math.round(f.size / 1024)} KB)`);
-    };
-    reader.onerror = () => toast.error("Failed to read file");
-    reader.readAsDataURL(f);
     e.target.value = "";
+    const up = await uploadBig(f, 25);
+    if (up) setBill((b) => ({ ...b, workOrderFile: up }));
   };
   const removeWoFile = () => {
     setBill({ ...bill, workOrderFile: null });
@@ -195,22 +189,11 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
   };
 
   // ---- Vendor Invoice file upload (max 500 KB) ----
-  const handleInvoiceFile = (e) => {
+  const handleInvoiceFile = async (e) => {
     const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 500 * 1024) {
-      toast.error(`File size ${Math.round(f.size / 1024)} KB exceeds 500 KB limit`);
-      e.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBill({ ...bill, invoiceFile: { name: f.name, size: f.size, type: f.type, dataUrl: reader.result } });
-      toast.success(`Uploaded ${f.name} (${Math.round(f.size / 1024)} KB)`);
-    };
-    reader.onerror = () => toast.error("Failed to read file");
-    reader.readAsDataURL(f);
     e.target.value = "";
+    const up = await uploadBig(f, 25);
+    if (up) setBill((b) => ({ ...b, invoiceFile: up }));
   };
   const removeInvoiceFile = () => {
     setBill({ ...bill, invoiceFile: null });
@@ -218,29 +201,18 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
   };
 
   // ---- JMC & Abstract (Summary of Item Schedules) uploads (max 500 KB each) ----
-  const handleScheduleFile = (fileKey, labelName) => (e) => {
+  const handleScheduleFile = (fileKey) => async (e) => {
     const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 500 * 1024) {
-      toast.error(`File size ${Math.round(f.size / 1024)} KB exceeds 500 KB limit`);
-      e.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBill({ ...bill, [fileKey]: { name: f.name, size: f.size, type: f.type, dataUrl: reader.result } });
-      toast.success(`${labelName} uploaded (${Math.round(f.size / 1024)} KB)`);
-    };
-    reader.onerror = () => toast.error("Failed to read file");
-    reader.readAsDataURL(f);
     e.target.value = "";
+    const up = await uploadBig(f, 25);
+    if (up) setBill((b) => ({ ...b, [fileKey]: up }));
   };
   const removeScheduleFile = (fileKey, labelName) => () => {
     setBill({ ...bill, [fileKey]: null });
     toast.success(`${labelName} removed`);
   };
 
-  // ---- Force-download any file stored as data URL ----
+  // eslint-disable-next-line no-unused-vars
   const downloadDataUrl = (dataUrl, name) => {
     if (!dataUrl) { toast.error("No file to download"); return; }
     const a = document.createElement("a");
@@ -279,6 +251,8 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
       workOrderDate: w.woDate || prev.workOrderDate,
       workOrderExpiryDate: w.expiryDate || prev.workOrderExpiryDate,
       totalWOValue: Number(w.total) || prev.totalWOValue,
+      retentionPct: Number(w.retentionPct) || 0,
+      tdsRate: tdsFor(v || prev.vendorSnapshot),
       projectCodeLocation: w.projectSite || prev.projectCodeLocation,
       workScope: w.scopeOfWork || prev.workScope,
       vendorCode: v?.vendorCode || prev.vendorCode,
@@ -413,9 +387,22 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     return null;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (bill.step >= 5) { toast.error("Already in Payment Due List"); return; }
     if (!validate()) return;
+    if (Number(bill.tdsRate) !== tdsFor(bill.vendorSnapshot)) { setBill((b) => ({ ...b, tdsRate: tdsFor(b.vendorSnapshot) })); toast.error("TDS vendor type ke hisaab se auto-set hua — dobara Submit karein"); return; }
+    if (isCreate && Number(bill.step) < 2) {
+      const locks = await apiBillLocks([{ billNo: bill.billNo, vendorCode: bill.vendorCode, createdAt: bill.createdAt || new Date().toISOString() }]).catch((e) => { toast.error(e.message); return null; });
+      if (!locks) return;
+      const why = locks[`${String(bill.vendorCode || "").trim().toUpperCase()}|${String(bill.billNo || "").trim()}`];
+      if (why) { toast.error(`ANTI-FRAUD BLOCK · ${why}`); return; }
+    }
+    if (!isCreate && Number(bill.step) === 3 && !["Accounts Manager", "SuperAdmin"].includes(currentRole())) { toast.error("Step 3 Accounts & Tax Verification sirf Accounts Manager karega"); return; }
+    if (!isCreate && Number(bill.step) === 3 && comp.netPayable > SUPREME_LIMIT && !bill.discussionReqId) {
+      const rid = await routeToDiscussion(`Vendor Bill ${bill.refNo} · ${bill.vendorSnapshot?.firmName || bill.vendorCode}`, comp.netPayable, `Bill ${bill.billNo} · WO ${bill.workOrderNo} · Net ₹${comp.netPayable}`);
+      if (!rid) return;
+      bill.discussionReqId = rid;
+    }
     if (isCreate) {
       if (Number(bill.step) >= 2) { toast.info(`Bill already Accounts mein hai · Ref No ${bill.refNo}`); return; }
       const sent = advanceBillStep({ ...bill });
@@ -446,11 +433,12 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     toast.success(`Advanced to ${BILL_STEP_LABEL[next.step]}`);
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (isCreate) { toast.info("Approval Accounts > Vendor Bill Process mein hoga"); return; }
     const step = Number(bill.step) || 1;
     if (step === 5) { toast.info("Already in Payment Due List"); return; }
     if (step !== 4) { toast.error("Complete all approval steps first (use Submit)"); return; }
+    if (comp.netPayable > SUPREME_LIMIT && !(await discussionCleared(bill.discussionReqId))) { toast.error("Locked: Sent to Core Discussion Window — Conclude hone ke baad hi approval"); return; }
     if (!validate()) return;
     if (!bill.approverName.trim()) { toast.error("Enter Approver Name first"); return; }
     const isReApproval = (bill.revision || 0) > 0;
@@ -816,7 +804,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                     {UOMS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </F>
-                <F label="Work Order Copy (PDF / Image · Max 300 KB)">
+                <F label="Work Order Copy (PDF / Image · Max 25 MB)">
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     {!bill.workOrderFile ? (
                       <input
@@ -829,7 +817,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                       />
                     ) : (
                       <>
-                        <a href={bill.workOrderFile.dataUrl} target="_blank" rel="noreferrer"
+                        <a href="#wo" onClick={(e) => { e.preventDefault(); openFile(bill.workOrderFile); }}
                           data-testid="wo-file-link"
                           style={{ flex: 1, padding: "6px 10px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 600, fontSize: 11, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}
                           title={`${bill.workOrderFile.name} · ${Math.round(bill.workOrderFile.size / 1024)}KB`}>
@@ -837,7 +825,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                         </a>
                         <button
                           type="button"
-                          onClick={() => downloadDataUrl(bill.workOrderFile.dataUrl, bill.workOrderFile.name)}
+                          onClick={() => openFile(bill.workOrderFile, true)}
                           data-testid="wo-file-download"
                           title="Download Work Order"
                           style={{ padding: "5px 10px", fontSize: 10.5, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 4, cursor: "pointer", fontWeight: 700, flex: "0 0 auto" }}
@@ -1029,21 +1017,22 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 <F label="Gross Bill Amount (₹)">
                   <input value={comp.gross.toFixed(2)} readOnly data-testid="calc-gross" />
                 </F>
-                <F label="TDS Rate">
-                  <select {...bind("tdsRate")}>
-                    {[0, 1, 2, 5, 10].map((r) => <option key={r} value={r}>{`${r}%`}</option>)}
-                  </select>
+                <F label="TDS Rate (auto · vendor type)">
+                  <input value={`${bill.tdsRate}% · ${Number(bill.tdsRate) === 1 ? "Individual / HUF" : "Firm / Company"}`} readOnly data-testid="calc-tds-rate" style={{ background: "#f1f5f9", fontWeight: 700 }} />
                 </F>
-                <F label={`TDS / Retention Deduction (${bill.tdsRate}%)`}>
+                <F label={`TDS Deduction (${bill.tdsRate}%)`}>
                   <input value={comp.tds.toFixed(2)} readOnly data-testid="calc-tds" />
                 </F>
               </div>
-              <div className="row cols-2" style={{ marginTop: 10 }}>
+              <div className="row cols-3" style={{ marginTop: 10 }}>
+                <F label={`Retention (${Number(bill.retentionPct) || 0}% from WO · locked)`}>
+                  <input value={comp.retention.toFixed(2)} readOnly data-testid="calc-retention" style={{ background: "#f1f5f9", fontWeight: 700 }} />
+                </F>
                 <F label="Other Deductions / Penalties (₹)">
                   <input type="number" step="0.01" min="0" placeholder="0.00" {...bind("otherDeductions")} />
                 </F>
-                <F label="Net Payable Amount (₹)">
-                  <input className="pill-generated" value={comp.netPayable.toFixed(2)} readOnly data-testid="calc-net" />
+                <F label="Net Payable = Basic + GST − TDS − Retention − Penalties (₹)">
+                  <input className="pill-generated" value={comp.netPayable.toFixed(2)} readOnly data-testid="calc-net" style={{ color: "#dc2626", fontWeight: 900, fontSize: 15 }} />
                 </F>
               </div>
               <div className="row cols-1" style={{ marginTop: 10 }}>
@@ -1058,7 +1047,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 </F>
               </div>
               <div className="row cols-1" style={{ marginTop: 10 }}>
-                <F label="Vendor Bill / Invoice Copy (PDF / Image · Max 500 KB)">
+                <F label="Vendor Bill / Invoice Copy (PDF / Image · Max 25 MB)">
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     {!bill.invoiceFile ? (
                       <label
@@ -1078,7 +1067,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                         }}
                       >
                         <span style={{ fontSize: 20 }}>🧾</span>
-                        <span style={{ flex: 1 }}>Click to attach Vendor Invoice (PDF / Image · Max 500 KB)</span>
+                        <span style={{ flex: 1 }}>Click to attach Vendor Invoice (PDF / Image · Max 25 MB)</span>
                         <span style={{ padding: "4px 10px", background: "#f59e0b", color: "#fff", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>Choose file</span>
                         <input
                           type="file"
@@ -1092,7 +1081,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                     ) : (
                       <>
                         <a
-                          href={bill.invoiceFile.dataUrl} target="_blank" rel="noreferrer"
+                          href="#inv" onClick={(e) => { e.preventDefault(); openFile(bill.invoiceFile); }}
                           data-testid="invoice-file-link"
                           style={{ flex: 1, padding: "10px 14px", background: "#fef3c7", color: "#78350f", border: "1px solid #fcd34d", borderRadius: 6, fontWeight: 700, fontSize: 12, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}
                           title={`${bill.invoiceFile.name} · ${Math.round(bill.invoiceFile.size / 1024)}KB`}
@@ -1103,7 +1092,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                         </a>
                         <button
                           type="button"
-                          onClick={() => downloadDataUrl(bill.invoiceFile.dataUrl, bill.invoiceFile.name)}
+                          onClick={() => openFile(bill.invoiceFile, true)}
                           data-testid="invoice-file-download"
                           title="Download Invoice"
                           style={{ padding: "8px 14px", fontSize: 11, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 5, cursor: "pointer", fontWeight: 700, flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 4 }}
@@ -1130,14 +1119,14 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
 
           {/* 3B. JMC & ABSTRACT (Summary of Item Schedules) */}
           <div className="section">
-            <div className="sec-head">3B. JMC &amp; Abstract (Summary of Item Schedules) · Max 500 KB each</div>
+            <div className="sec-head">3B. JMC &amp; Abstract (Summary of Item Schedules) · Max 25 MB each</div>
             <div className="sec-body">
               <div className="row cols-2">
                 {[
                   { key: "jmcFile", label: "JMC (Joint Measurement Certificate)", icon: "📏", theme: { bg: "#eff6ff", border: "#60a5fa", pill: "#2563eb", text: "#1e3a8a" } },
                   { key: "abstractFile", label: "Abstract (Summary of Item Schedules)", icon: "📑", theme: { bg: "#f0fdf4", border: "#4ade80", pill: "#16a34a", text: "#14532d" } },
                 ].map(({ key, label, icon, theme }) => (
-                  <F key={key} label={`${label} (PDF / Image · Max 500 KB)`}>
+                  <F key={key} label={`${label} (PDF / Image · Max 25 MB)`}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       {!bill[key] ? (
                         <label
@@ -1162,7 +1151,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                           <input
                             type="file"
                             accept="application/pdf,image/*"
-                            onChange={handleScheduleFile(key, label)}
+                            onChange={handleScheduleFile(key)}
                             disabled={locked}
                             data-testid={`${key}-input`}
                             style={{ display: "none" }}
@@ -1171,7 +1160,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                       ) : (
                         <>
                           <a
-                            href={bill[key].dataUrl} target="_blank" rel="noreferrer"
+                            href={`#${key}`} onClick={(e) => { e.preventDefault(); openFile(bill[key]); }}
                             data-testid={`${key}-link`}
                             style={{ flex: 1, padding: "10px 14px", background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 6, fontWeight: 700, fontSize: 12, textDecoration: "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}
                             title={`${bill[key].name} · ${Math.round(bill[key].size / 1024)}KB`}
@@ -1182,7 +1171,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                           </a>
                           <button
                             type="button"
-                            onClick={() => downloadDataUrl(bill[key].dataUrl, bill[key].name)}
+                            onClick={() => openFile(bill[key], true)}
                             data-testid={`${key}-download`}
                             title={`Download ${label}`}
                             style={{ padding: "8px 14px", fontSize: 11, background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: 5, cursor: "pointer", fontWeight: 700, flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 4 }}
@@ -1248,11 +1237,12 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 </div>
                 <div className="substep">
                   <div className="substep-title">[STEP 4] MANAGEMENT APPROVAL</div>
+                  {comp.netPayable > SUPREME_LIMIT && <div data-testid="bill-30l-lock" style={{ color: "#dc2626", fontWeight: 800, fontSize: 12, margin: "4px 0" }}>Locked: Sent to Core Discussion Window (Net &gt; ₹30,00,000)</div>}
                   <F label="Approver Name">
                     <input placeholder="Enter Approver Name" {...bind("approverName")} />
                   </F>
                   <F label="Approval Status" style={{ marginTop: 8 }}>
-                    <select {...bind("approvalStatus")}>
+                    <select {...bind("approvalStatus")} disabled={locked || comp.netPayable > SUPREME_LIMIT}>
                       {APPROVAL_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </F>

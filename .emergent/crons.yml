@@ -7,3 +7,11 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: stock-reconcile
+    description: "Daily 11:30 PM IST stock check (Opening + GRN - DPR vs physical); blocks indents if variance > 5%"
+    cron: "30 23 * * *"
+    timezone: "Asia/Kolkata"
+    endpoint: "{{BASE_URL}}/api/cron/stock-reconcile"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

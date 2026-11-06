@@ -15,6 +15,8 @@ load_dotenv(ROOT_DIR / ".env")
 
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Body, BackgroundTasks, Header
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import Response
+import base64
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr
 from typing import Any, Dict, List, Optional
@@ -2278,12 +2280,18 @@ OPS_KINDS = {
     "tender": "TNDR", "agreement": "AGMT", "geo_site": "GEOS", "geo_att": "GATT",
     "labour": "LABR", "labour_att": "LATT", "labour_bill": "WAGE", "abstract": "ABST",
     "core_project": "CPRJ", "core_progress": "CWRK", "core_escalation": "CESC",
+    "core_target": "CTGT", "core_block": "CBLK", "core_drum": "CDRM", "core_substation": "CSUB", "core_equip_test": "CEQT", "core_amc": "CAMC",
+    "core_hr_ticket": "CHRT", "core_payroll_freeze": "CPRF", "core_bg": "CBGR", "core_eot": "CEOT", "core_claim": "CCLM", "core_ra_bill": "CRAB",
+    "proc_rfq": "RFQS", "proc_cs": "CMPS", "proc_po": "PORD", "proc_grn": "GRNS", "proc_invoice": "VINV", "stock_count": "STCK",
 }
 OPS_DEPT = {
     "projects": "site", "dpr": "site", "indent": "site", "qc_test": "qc", "safety_audit": "qc",
     "machine": "plant", "machine_log": "plant", "diesel_log": "plant", "booking": "client", "demand_letter": "client",
     "tender": "client", "agreement": "client", "geo_site": "hr", "geo_att": "hr", "labour": "hr", "labour_att": "hr", "labour_bill": "hr", "abstract": "client",
     "core_project": "site", "core_progress": "site", "core_escalation": "site",
+    **{k: "site" for k in ("core_target", "core_block", "core_drum", "core_substation", "core_equip_test", "core_amc", "core_hr_ticket",
+                           "core_payroll_freeze", "core_bg", "core_eot", "core_claim", "core_ra_bill")},
+    **{k: "procurement" for k in ("proc_rfq", "proc_cs", "proc_po", "proc_grn", "proc_invoice", "stock_count")},
 }
 MEMBER_DISC = {"Member Civil": ["CIVIL"], "Member OHE": ["OHE"], "Member Electrical": ["PSI", "E&M"], "Member Procurement": ["P&M"],
                "Member HR & Admin": ["HR & ADMIN"], "Member Legal": ["LEGAL"], "Member Financial": ["FINANCE"]}
@@ -2330,6 +2338,28 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
         raise HTTPException(status_code=403, detail=f"Aap sirf {', '.join(allowed)} discipline ka kaam kar sakte hain" if allowed else "Core Projects sirf GM, SuperAdmin aur Core Members ke liye hain")
     if ((new in ("Approved", "Rejected") and new != old) or old == "Approved") and not await _acl_ok(user, dept, "a"):
         raise HTTPException(status_code=403, detail="Approval / approved record change ki permission nahi hai")
+    if kind == "indent" and new != "Rejected" and not (_is_super_admin(user) or user.get("role") == "GM"):
+        blk = await db.fraud_blocks.find_one({"project": body.get("project"), "active": True}, {"_id": 0})
+        if blk:
+            raise HTTPException(status_code=423, detail=f"Site Indent BLOCKED — {blk['project']} · {blk['material']} stock variance {blk['variancePct']}% (>5%). GM release karega.")
+    if kind == "proc_invoice":
+        issues = await _three_way(body)
+        body.update({"matchStatus": "MATCHED" if not issues else "MISMATCH · LOCKED", "matchIssues": issues, "paymentLocked": bool(issues)})
+        if issues and new == "Approved":
+            raise HTTPException(status_code=423, detail="3-Way Match fail — voucher LOCKED: " + "; ".join(issues))
+    if kind == "stock_count":
+        await _stock_fill(body)
+    if kind == "proc_grn" and new != "Rejected":
+        po = await _find_doc("proc_po", body.get("poNo"))
+        if not po or po.get("status") != "Approved":
+            raise HTTPException(status_code=400, detail="GRN sirf Approved PO par banega — PO No sahi bharein")
+        body.update({"vendorCode": po.get("vendorCode"), "material": po.get("material"), "unit": po.get("unit"), "project": body.get("project") or po.get("project"),
+                     "acceptedQty": _num(body.get("receivedQty")) if body.get("qcStatus") == "Pass" else 0})
+        others = await db.ops_proc_grn.find({"poNo": body.get("poNo"), "id": {"$ne": rid}, "status": {"$ne": "Rejected"}}, {"_id": 0, "acceptedQty": 1}).to_list(5000)
+        if sum(_num(o.get("acceptedQty")) for o in others) + _num(body["acceptedQty"]) > _num(po.get("qty")) + 1e-9:
+            raise HTTPException(status_code=400, detail=f"Total GRN qty PO qty ({_num(po.get('qty')):g}) se zyada nahi ho sakti")
+        if old in ("Submitted", "Approved") and not await _acl_ok(user, dept, "a"):
+            raise HTTPException(status_code=423, detail="Submitted GRN freeze hai — badlav sirf approver")
     now = datetime.now(timezone.utc)
     if new == "Approved" and old != "Approved":
         body["approvedByName"] = user.get("name") or user.get("email")
@@ -2359,6 +2389,12 @@ async def ops_upsert(kind: str, body: Dict = Body(...), user: Dict = Depends(req
     if body.get("assignedTo"):
         body["assignedTo"] = str(body["assignedTo"]).lower().strip()
     await db[coll].replace_one({"id": rid}, body, upsert=True)
+    if kind == "stock_count":
+        await _stock_block(body)
+    elif kind in ("proc_grn", "dpr") and body.get("project") and body.get("date"):
+        await _stock_reconcile({"project": body["project"], "date": body["date"]})
+    if kind == "core_payroll_freeze" and new == "Approved" and old != "Approved":
+        await _notify_role("Accounts Manager", f"Payroll Frozen: {body.get('month')}", f"Net ₹{_num(body.get('netPayable')):,.0f} · {body.get('employees') or 0} employees — salary release ke liye taiyaar", "/bill")
     to = (body.get("assignedTo") or "").lower().strip()
     if kind in ("core_progress", "core_escalation") and to and to != (ex.get("assignedTo") or "").lower().strip():
         label = "Core Escalation" if kind == "core_escalation" else "Core Working"
@@ -2628,6 +2664,8 @@ async def req_create(body: ReqBody, user: Dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Amount sahi bharein (Finance mein 0 se zyada)")
     if body.rtype == "Material" and body.discipline not in sum(MEMBER_DISC.values(), []):
         raise HTTPException(status_code=400, detail="Material requisition ke liye discipline chunein")
+    if body.rtype == "Material" and body.project and await db.fraud_blocks.find_one({"project": body.project, "active": True}):
+        raise HTTPException(status_code=423, detail=f"{body.project} par stock variance alert hai — Material requisition BLOCKED. GM release karega.")
     now = datetime.now(timezone.utc)
     fy_start = now.year if now.month >= 4 else now.year - 1
     fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
@@ -2672,6 +2710,12 @@ async def _req_get(rid: str) -> Dict:
     if not d:
         raise HTTPException(status_code=404, detail="Requisition nahi mili")
     return d
+
+
+@api_router.get("/requisitions/{rid}/gate")
+async def req_gate(rid: str, user: Dict = Depends(get_current_user)):
+    d = await _req_get(rid)
+    return {"reqNo": d["reqNo"], "status": d["status"], "concluded": bool((d.get("discussion") or {}).get("concluded"))}
 
 
 @api_router.post("/requisitions/{rid}/action")
@@ -2791,6 +2835,215 @@ async def req_file_get(rid: str, fid: str, user: Dict = Depends(get_current_user
         raise HTTPException(status_code=404, detail="File nahi mili")
     return f
 
+
+# ---- Anti-Fraud Safety Engine: 3-Way Matching + Daily Stock Reconciliation ----
+FRAUD_VARIANCE = 5.0
+THREE_WAY_FROM = "2026-11-06"
+
+
+def _num(v) -> float:
+    try:
+        return float(v or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+async def _find_doc(kind: str, no: str) -> Optional[Dict]:
+    no = (no or "").strip()
+    if not no:
+        return None
+    return await db[f"ops_{kind}"].find_one({"$or": [{"docNo": no}, {"permNo": no}, {"tempNo": no}]}, {"_id": 0})
+
+
+async def _three_way(inv: Dict) -> List[str]:
+    issues: List[str] = []
+    po = await _find_doc("proc_po", inv.get("poNo"))
+    grn = await _find_doc("proc_grn", inv.get("grnNo"))
+    if not po:
+        issues.append("PO nahi mila")
+    elif po.get("status") != "Approved":
+        issues.append("PO approved nahi hai")
+    if not grn:
+        issues.append("GRN nahi mila")
+    elif grn.get("status") != "Approved":
+        issues.append("GRN approved nahi hai")
+    if po and grn:
+        if grn.get("poNo") not in (po.get("docNo"), po.get("permNo"), po.get("tempNo")):
+            issues.append("GRN is PO ka nahi hai")
+        if (po.get("vendorCode") or "").strip().upper() != (inv.get("vendorCode") or "").strip().upper():
+            issues.append("Vendor Code PO se match nahi")
+        gq, iq = _num(grn.get("acceptedQty")), _num(inv.get("invoiceQty"))
+        if gq > _num(po.get("qty")) + 1e-9:
+            issues.append("GRN qty PO qty se zyada")
+        if abs(iq - gq) > 1e-9:
+            issues.append(f"Invoice qty {iq:g} ≠ GRN accepted qty {gq:g}")
+        expected = round(gq * _num(po.get("rate")) * (1 + _num(po.get("gstPct")) / 100), 2)
+        inv["expectedAmount"] = expected
+        if abs(round(_num(inv.get("invoiceAmount")), 2) - expected) > 0.01:
+            issues.append(f"Invoice ₹{_num(inv.get('invoiceAmount')):,.2f} ≠ PO rate × GRN qty ₹{expected:,.2f}")
+        if grn and await db.ops_proc_invoice.find_one({"grnNo": inv.get("grnNo"), "id": {"$ne": inv.get("id")}, "status": {"$ne": "Rejected"}}):
+            issues.append("Is GRN par pehle se invoice hai (double billing)")
+    return issues
+
+
+def _same(a, b) -> bool:
+    return (a or "").strip().lower() == (b or "").strip().lower()
+
+
+async def _stock_fill(s: Dict) -> None:
+    if str(s.get("openingStock", "")).strip() == "":
+        prev = [p for p in await db.ops_stock_count.find({"project": s.get("project"), "date": {"$lt": s.get("date") or ""}, "id": {"$ne": s.get("id")}}, {"_id": 0}).sort("date", -1).to_list(500) if _same(p.get("material"), s.get("material"))]
+        s["openingStock"] = _num(prev[0].get("physicalClosing")) if prev else 0
+    q = {"project": s.get("project"), "date": s.get("date"), "status": {"$ne": "Rejected"}}
+    grn = sum(_num(g.get("acceptedQty")) for g in await db.ops_proc_grn.find(q, {"_id": 0}).to_list(5000) if _same(g.get("material"), s.get("material")))
+    cons = sum(_num(d.get("consumedQty")) for d in await db.ops_dpr.find(q, {"_id": 0}).to_list(5000) if _same(d.get("consumedMaterial"), s.get("material")))
+    book = round(_num(s.get("openingStock")) + grn - cons, 3)
+    var = round(abs(_num(s.get("physicalClosing")) - book) / max(abs(book), 1) * 100, 2)
+    s.update({"grnQty": grn, "consumedQty": cons, "bookClosing": book, "variancePct": var, "fraudFlag": "RED ALERT" if var > FRAUD_VARIANCE else "OK",
+              "reconciledAt": datetime.now(timezone.utc).isoformat()})
+
+
+async def _stock_block(s: Dict) -> None:
+    ex = await db.fraud_blocks.find_one({"stockId": s["id"]}, {"_id": 0})
+    now = datetime.now(timezone.utc).isoformat()
+    if s.get("fraudFlag") == "RED ALERT":
+        vals = {"variancePct": s["variancePct"], "bookClosing": s["bookClosing"], "physicalClosing": _num(s.get("physicalClosing")), "grnQty": s["grnQty"], "consumedQty": s["consumedQty"]}
+        if ex:
+            await db.fraud_blocks.update_one({"stockId": s["id"]}, {"$set": vals})
+            return
+        blk = {"id": uuid.uuid4().hex, "stockId": s["id"], "stockNo": s.get("docNo"), "project": s.get("project"), "material": s.get("material"), "date": s.get("date"),
+               **vals, "active": True, "createdAt": now, "history": [{"at": now, "by": "System", "action": f"Variance {s['variancePct']}% > 5% — Indent BLOCKED"}]}
+        await db.fraud_blocks.insert_one({**blk})
+        msg = f"{s.get('project')} · {s.get('material')} · {s.get('date')}: Book {s['bookClosing']:g} vs Physical {_num(s.get('physicalClosing')):g} ({s['variancePct']}%) — Site Indent BLOCKED"
+        for r in ("Member Procurement", "GM"):
+            await _notify_role(r, "RED ALERT: Stock Variance > 5%", msg, "/core-dashboard?fraud=1")
+    elif ex and ex.get("active"):
+        await db.fraud_blocks.update_one({"stockId": s["id"]}, {"$set": {"active": False, "variancePct": s.get("variancePct"), "releasedBy": "System", "releasedAt": now},
+                                                                "$push": {"history": {"at": now, "by": "System", "action": "Variance ≤ 5% — auto cleared"}}})
+
+
+async def _stock_reconcile(q: Dict) -> int:
+    n = 0
+    for s in await db.ops_stock_count.find({**q, "status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(20000):
+        await _stock_fill(s)
+        await db.ops_stock_count.replace_one({"id": s["id"]}, s)
+        await _stock_block(s)
+        n += 1
+    return n
+
+
+def _fraud_ops(user: Dict) -> bool:
+    return _is_super_admin(user) or (user.get("role") or "") in ("GM", "Admin", "Member Procurement", "Purchase Manager")
+
+
+@api_router.get("/fraud/blocks")
+async def fraud_blocks(user: Dict = Depends(get_current_user)):
+    return await db.fraud_blocks.find({}, {"_id": 0}).sort("createdAt", -1).to_list(500)
+
+
+@api_router.post("/fraud/blocks/{bid}/release")
+async def fraud_release(bid: str, body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    if not (_is_super_admin(user) or user.get("role") == "GM"):
+        raise HTTPException(status_code=403, detail="Block sirf GM release kar sakta hai")
+    remark = str(body.get("remark") or "").strip()
+    if len(remark) < 5:
+        raise HTTPException(status_code=400, detail="Release ka kaaran (kam se kam 5 akshar) likhein")
+    b = await db.fraud_blocks.find_one({"id": bid}, {"_id": 0})
+    if not b or not b.get("active"):
+        raise HTTPException(status_code=404, detail="Active block nahi mila")
+    now = datetime.now(timezone.utc).isoformat()
+    by = user.get("name") or user["email"]
+    await db.fraud_blocks.update_one({"id": bid}, {"$set": {"active": False, "releasedBy": by, "releasedAt": now, "remark": remark},
+                                                  "$push": {"history": {"at": now, "by": by, "action": f"Released: {remark}"}}})
+    return {"ok": True}
+
+
+@api_router.post("/fraud/reconcile")
+async def fraud_reconcile(user: Dict = Depends(get_current_user)):
+    if not _fraud_ops(user):
+        raise HTTPException(status_code=403, detail="Reconciliation sirf GM / Member Procurement / Purchase Manager")
+    since = (datetime.now(timezone.utc) - timedelta(days=31)).strftime("%Y-%m-%d")
+    n = await _stock_reconcile({"date": {"$gte": since}})
+    return {"ok": True, "checked": n, "activeBlocks": await db.fraud_blocks.count_documents({"active": True})}
+
+
+@api_router.post("/fraud/bill-locks")
+async def fraud_bill_locks(body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    out: Dict[str, str] = {}
+    for b in (body.get("bills") or [])[:500]:
+        key = f"{(b.get('vendorCode') or '').strip().upper()}|{(b.get('billNo') or '').strip()}"
+        rows = await db.ops_proc_invoice.find({"billNo": (b.get("billNo") or "").strip(), "status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(50)
+        rows = [r for r in rows if (r.get("vendorCode") or "").strip().upper() == key.split("|")[0]]
+        bad = [r for r in rows if r.get("matchStatus") != "MATCHED" or r.get("status") != "Approved"]
+        if not rows and (b.get("createdAt") or "")[:10] >= THREE_WAY_FROM:
+            out[key] = "3-Way Match (PO + GRN + Bill) register mein entry nahi — Procurement → Vendor Bill 3-Way se match karein"
+        elif bad:
+            r = bad[0]
+            out[key] = f"{r.get('docNo')}: " + ("; ".join(r.get("matchIssues") or []) or "3-way invoice abhi Approved nahi")
+    return out
+
+
+BIG_FILE_MAX = 25 * 1024 * 1024
+BIG_FILE_TYPES = REQ_FILE_TYPES | {"image/webp", "image/jpg"}
+
+
+@api_router.post("/files/chunk")
+async def file_chunk(body: Dict = Body(...), user: Dict = Depends(require_write)):
+    idx, total = int(body.get("index", 0)), int(body.get("total", 1))
+    fid = body.get("fileId") or ""
+    if idx == 0:
+        size, ctype = int(body.get("size") or 0), str(body.get("type") or "")
+        limit = min(int(body.get("maxMB") or 25), 25) * 1024 * 1024
+        if size <= 0 or size > limit:
+            raise HTTPException(status_code=400, detail=f"File {limit // (1024 * 1024)} MB se badi nahi ho sakti")
+        if ctype not in BIG_FILE_TYPES:
+            raise HTTPException(status_code=400, detail="Sirf PDF, Excel ya Image file")
+        fid = uuid.uuid4().hex
+        await db.files_meta.insert_one({"id": fid, "name": str(body.get("name") or "file")[:200], "type": ctype, "size": size, "total": total, "complete": False,
+                                        "by": user["email"], "at": datetime.now(timezone.utc).isoformat()})
+    meta = await db.files_meta.find_one({"id": fid, "by": user["email"]}, {"_id": 0})
+    if not meta or meta.get("complete") or total != meta["total"] or not 0 <= idx < total:
+        raise HTTPException(status_code=400, detail="Upload session galat hai")
+    data = str(body.get("data") or "")
+    if len(data) > 1_500_000:
+        raise HTTPException(status_code=400, detail="Chunk bahut bada hai")
+    await db.files_chunks.update_one({"fileId": fid, "i": idx}, {"$set": {"data": data}}, upsert=True)
+    if idx == total - 1:
+        if await db.files_chunks.count_documents({"fileId": fid}) != total:
+            raise HTTPException(status_code=400, detail="Kuch hisse upload nahi hue")
+        await db.files_meta.update_one({"id": fid}, {"$set": {"complete": True}})
+    return {"fileId": fid, "done": idx == total - 1}
+
+
+@api_router.get("/files/{fid}")
+async def file_get(fid: str, user: Dict = Depends(get_current_user)):
+    meta = await db.files_meta.find_one({"id": fid, "complete": True}, {"_id": 0})
+    if not meta:
+        raise HTTPException(status_code=404, detail="File nahi mili")
+    parts = await db.files_chunks.find({"fileId": fid}, {"_id": 0}).sort("i", 1).to_list(100)
+    raw = b"".join(base64.b64decode(p["data"]) for p in parts)
+    return Response(content=raw, media_type=meta["type"], headers={"Content-Disposition": f'inline; filename="{meta["name"]}"'})
+
+
+async def _run_stock_cron(run_id: str) -> None:
+    if await db.cron_runs.find_one({"run_id": run_id}):
+        return
+    await db.cron_runs.insert_one({"run_id": run_id, "job": "stock-reconcile", "at": datetime.now(timezone.utc).isoformat()})
+    since = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%d")
+    n = await _stock_reconcile({"date": {"$gte": since}})
+    logger.info(f"stock reconcile {run_id}: {n} entries")
+
+
+@api_router.post("/cron/stock-reconcile")
+# Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+async def cron_stock_reconcile(body: Dict = Body(default={}), background: BackgroundTasks = None,
+                               authorization: Optional[str] = Header(default=None), x_webhook_id: Optional[str] = Header(default=None)):
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not WEBHOOK_CRON_SECRET or not token or not hmac.compare_digest(token, WEBHOOK_CRON_SECRET):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    run_id = x_webhook_id or (body.get("run_id") if isinstance(body, dict) else None) or f"manual_{datetime.now(timezone.utc).isoformat()}"
+    background.add_task(_run_stock_cron, run_id)
+    return {"ok": True, "accepted": True, "run_id": run_id}
 
 
 app.include_router(api_router)
