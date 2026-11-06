@@ -1151,3 +1151,5 @@ body.sidebar-mini :is(.app-sidebar, .home-deptnav) .sb-item { justify-content: c
 :is(.app-sidebar, .home-deptnav) .sb-sub:hover, :is(.app-sidebar, .home-deptnav) .sb-sub.active { color: #fff; }
 @media print { body.has-sidebar { padding-left: 0 !important; } .app-sidebar { display: none !important; } }
 
+
+.pv-actions > button { min-height: 38px; }

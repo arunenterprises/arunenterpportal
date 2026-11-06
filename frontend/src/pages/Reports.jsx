@@ -1907,9 +1907,9 @@ export default function Reports({ embedded = false }) {
           )}
 
           {/* Bottom Action Bar · Section D PV actions · left-to-right: Generate → Save → Edit → Delete → Approval → Bank Advice → Fill UTR → Status */}
-          <div data-testid="pv-bottom-actions" style={{ marginTop: 16, padding: "14px 18px", background: "#fff", color: "#0f172a", border: "1px solid #e2e8f0", borderTop: "3px solid #065f46", borderRadius: 8, boxShadow: "0 1px 3px rgba(15,23,42,.08)" }}>
-            <div style={{ fontSize: 11.5, lineHeight: 1.5, marginBottom: 10 }}>
-              <b style={{ color: "#065f46" }}>Single Bill Payment Voucher</b> ·
+          <div data-testid="pv-bottom-actions" style={{ marginTop: 16, padding: "12px 16px 14px", background: "#eef2ff", color: "#1e1b4b", border: "1px solid #c7d2fe", borderLeft: "5px solid #4338ca", borderRadius: 10, boxShadow: "0 2px 8px rgba(67,56,202,.10)" }}>
+            <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10, paddingBottom: 8, borderBottom: "1px dashed #c7d2fe", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <b style={{ color: "#fff", background: "#4338ca", padding: "3px 10px", borderRadius: 999, fontSize: 11, letterSpacing: .4 }}>Single Bill Payment Voucher</b>
               {selectedBillId ? (
                 <> Selected bill: <b>{(approvedBills.find((b) => b.id === selectedBillId)?.vendorSnapshot?.firmName) || "—"}</b></>
               ) : (
@@ -1917,7 +1917,7 @@ export default function Reports({ embedded = false }) {
               )}
               {pv && <> · PV: <b style={{ color: "#b45309" }}>{pv.pvNo}</b></>}
             </div>
-            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div className="pv-actions" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {/* 1. Generate Voucher · Amber */}
               <button
                 data-testid="pv-generate"
@@ -2108,7 +2108,7 @@ export default function Reports({ embedded = false }) {
                   textTransform: "uppercase",
                   border: "1.5px solid rgba(255,255,255,.25)",
                   marginLeft: "auto",
-                  boxShadow: pv ? "0 2px 6px rgba(0,0,0,.3)" : "none",
+                  boxShadow: pv ? "0 2px 6px rgba(67,56,202,.25)" : "none",
                 }}
                 title="Current voucher status"
               >
