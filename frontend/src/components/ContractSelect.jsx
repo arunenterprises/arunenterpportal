@@ -10,6 +10,21 @@ const mk = (path) => {
   };
 };
 export const loadProjects = mk("/projects/master");
+export const findProject = (name) => loadProjects().then((l) => l.find((p) => String(p.name).trim().toLowerCase() === String(name || "").trim().toLowerCase()) || null);
+// Contract item grid → BOQ / RFQ / Bill rows
+export const contractRows = (m) => (m?.items || []).map((i, k) => ({ ...i, id: `ci_${Date.now()}_${k}` }));
+// Vendor bill lines vs contract approved rate / qty
+export const contractBreaches = (m, lines) => {
+  const norm = (s) => String(s || "").trim().toLowerCase();
+  if (!m?.items?.length) return [];
+  return lines.filter((l) => String(l.description || "").trim()).map((l) => {
+    const c = m.items.find((x) => (l.itemCode && norm(x.itemCode) === norm(l.itemCode)) || norm(x.description) === norm(l.description));
+    if (!c) return `'${l.description}' contract items mein nahi hai`;
+    if (Number(l.rate) > Number(c.rate) + 1e-6) return `'${l.description}' rate ₹${l.rate} > contract rate ₹${c.rate}`;
+    if (Number(l.qty) > Number(c.qty) + 1e-6) return `'${l.description}' qty ${l.qty} > contract BOQ qty ${c.qty}`;
+    return "";
+  }).filter(Boolean);
+};
 export const loadContracts = mk("/contracts/master");
 const useList = (loader) => {
   const [list, setList] = useState([]);

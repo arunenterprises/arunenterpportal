@@ -9,7 +9,7 @@ import RfqCs from "../components/procurement/RfqCs";
 import OpsModule from "../components/ops/OpsModule";
 import { OPS } from "../components/ops/opsConfig";
 import { uploadBig, openFile } from "../lib/bigFiles";
-import { ContractSelect } from "../components/ContractSelect";
+import { ContractSelect, contractRows } from "../components/ContractSelect";
 const BOQ_TYPES = ["Client Master BOQ", "Sub-contractor Execution BOQ", "Vendor Supply BOQ"];
 export const woGst = (w) => (w.items || []).reduce((s, it) => s + (Number(it.amount) || 0) * (Number(it.gstPct ?? w.gstSlab ?? 18) || 0) / 100, 0);
 const norm = (s) => String(s || "").trim().toLowerCase();
@@ -298,7 +298,14 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
           {/* Row 2 — Project + Vendor */}
           <div className="field-b">
             <label>Project / Site <span className="req">*</span></label>
-            <ContractSelect testid="boq-project" value={boq.projectSite} onChange={(v, m) => setBoq((p) => ({ ...p, projectSite: v, projectLocation: m?.siteLocation || p.projectLocation || "" }))} disabled={locked} />
+            <ContractSelect testid="boq-project" value={boq.projectSite} disabled={locked} onChange={(v, m) => setBoq((p) => {
+              const rows = contractRows(m);
+              const blankGrid = !(p.items || []).some((x) => String(x.description || "").trim());
+              const take = rows.length && (blankGrid || window.confirm(`Contract ${m.contractNo} ke ${rows.length} items (Item Code, Qty, Rate) grid mein load karein? Purani lines hat jayengi.`));
+              const items = take ? rows.map((i) => ({ id: i.id, scheduleType: "USSOR Item", itemCode: i.itemCode, description: i.description, hsn: i.hsn, qty: i.qty, unit: i.unit, rate: i.rate, gstPct: i.gstPct, amount: i.amount })) : p.items;
+              return { ...p, projectSite: v, contractId: m?.contractId || "", contractNo: m?.contractNo || "", projectLocation: m?.siteLocation || p.projectLocation || "", items, total: (items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0) };
+            })} />
+            {boq.contractNo && <div data-testid="boq-contract-info" style={{ fontSize: 10.5, color: "#166534", marginTop: 3 }}>Contract {boq.contractNo} se items/rates linked</div>}
             <input data-testid="boq-location" value={boq.projectLocation || ""} onChange={(e) => set("projectLocation", e.target.value)} disabled={locked} placeholder="Location (sirf yeh bharein)" style={{ marginTop: 4 }} />
           </div>
           <div className="field-b">
@@ -924,7 +931,7 @@ const WOEditor = ({ writeAllowed, approveAllowed }) => {
             </select>
           </div>
           <div><label>BOQ Ref No. (auto)</label><input data-testid="wo-boqrefno" value={wo.boqRefNo || "—"} readOnly style={{ background: "#f8fafc", fontWeight: 700 }} /></div>
-          <div><label>Project (Contract No)</label><ContractSelect testid="wo-project" value={wo.projectSite} onChange={(v, m) => setWo((p) => ({ ...p, projectSite: v, projectLocation: m?.siteLocation || p.projectLocation || "" }))} disabled={locked} /><input data-testid="wo-location" value={wo.projectLocation || ""} onChange={(e) => set("projectLocation", e.target.value)} disabled={locked} placeholder="Location" style={{ marginTop: 4 }} /></div>
+          <div><label>Project (Contract No)</label><ContractSelect testid="wo-project" value={wo.projectSite} onChange={(v, m) => setWo((p) => ({ ...p, projectSite: v, contractId: m?.contractId || "", projectLocation: m?.siteLocation || p.projectLocation || "" }))} disabled={locked} /><input data-testid="wo-location" value={wo.projectLocation || ""} onChange={(e) => set("projectLocation", e.target.value)} disabled={locked} placeholder="Location" style={{ marginTop: 4 }} /></div>
 
           <div style={{ gridColumn: "span 2" }}><label>Client Name</label><input data-testid="wo-client" value={wo.clientName} onChange={(e) => set("clientName", e.target.value)} disabled={locked} /></div>
           <div><label>GST (row-wise · auto)</label><input data-testid="wo-gst" value={`₹ ${woGst(wo).toFixed(2)}`} readOnly style={{ background: "#f1f5f9", fontWeight: 700 }} /></div>

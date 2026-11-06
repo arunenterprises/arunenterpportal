@@ -20,7 +20,7 @@ const Field = ({ f, v, set, ro, lists, row }) => {
   const p = { value: v ?? "", disabled: ro || f.ro, "data-testid": `ops-f-${f.k}`, style: { ...inp, background: ro || f.ro ? "#f8fafc" : "#fff" }, onChange: (e) => set(f.k, e.target.value) };
   if (f.type === "select") return <select {...p}>{!f.options.includes(v) && <option value="">— Select —</option>}{f.options.map((o) => <option key={o}>{o}</option>)}</select>;
   if (f.type === "textarea") return <textarea rows={2} {...p} />;
-  if (f.type === "project") return <ContractSelect value={v} disabled={ro || f.ro} testid={`ops-f-${f.k}`} style={p.style} onChange={(val) => set(f.k, val)} />;
+  if (f.type === "project") return <ContractSelect value={v} disabled={ro || f.ro} testid={`ops-f-${f.k}`} style={p.style} onChange={(val, m) => { set(f.k, val); set("contractId", m?.contractId || ""); if (m && f.fill) Object.entries(f.fill).forEach(([k, src]) => set(k, m[src] ?? "")); }} />;
   if (f.listOf) return <><input {...p} list={`ops-dl-${f.k}`} placeholder="Type / select" /><datalist id={`ops-dl-${f.k}`}>{f.listOf(row || {}).map((o) => <option key={o} value={o} />)}</datalist></>;
   const list = f.type === "project" ? "ops-projects" : f.type === "machine" ? "ops-machines" : f.type === "coreproject" ? "ops-core-projects" : f.type === "user" ? "ops-users" : undefined;
   if (f.type === "date") return <DateInput {...p} type="date" />;

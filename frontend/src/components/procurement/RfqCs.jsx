@@ -5,6 +5,7 @@ import OpsModule from "../ops/OpsModule";
 import { OPS } from "../ops/opsConfig";
 import { apiOpsList, apiOpsSave } from "../../lib/api";
 import { can } from "../../lib/acl";
+import { ContractSelect, contractRows } from "../ContractSelect";
 
 const uid = () => `cs_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 const n = (v) => Number(v) || 0;
@@ -73,7 +74,13 @@ export default function RfqCs() {
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: 10, overflowX: "auto" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
             <b style={{ fontSize: 13 }}>Comparative Statement {cs.docNo ? `· ${cs.docNo}` : ""}</b>
-            <span style={{ fontSize: 11, color: "#64748b" }}>Indent: {cs.indentNo || "—"} · Project: {cs.project || "—"} · Status: <b data-testid="cs-status">{cs.status}</b></span>
+            <span style={{ fontSize: 11, color: "#64748b" }}>Indent: {cs.indentNo || "—"} · Status: <b data-testid="cs-status">{cs.status}</b></span>
+            <ContractSelect testid="cs-project" value={cs.project} disabled={ro} style={{ ...inp, width: 320 }} onChange={(v, m) => setCs((c) => {
+              const rows = contractRows(m);
+              const blankGrid = !c.items.some((x) => String(x.desc || "").trim());
+              const take = rows.length && (blankGrid || window.confirm(`Contract ${m.contractNo} ke ${rows.length} items load karein? Grid ki purani lines hat jayengi.`));
+              return { ...c, project: v, contractId: m?.contractId || "", items: take ? rows.map((i) => ({ desc: i.description, itemCode: i.itemCode, qty: i.qty, unit: i.unit, gstPct: String(i.gstPct || 18), contractRate: i.rate, rates: ["", "", ""] })) : c.items };
+            })} />
           </div>
           <table style={{ width: "100%", borderCollapse: "collapse" }} data-testid="cs-matrix">
             <thead>

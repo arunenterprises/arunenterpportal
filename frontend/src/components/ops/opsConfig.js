@@ -46,7 +46,7 @@ const daysSince = (d) => (d ? Math.max(0, Math.floor((Date.now() - new Date(d).g
 export const OPS = {
   core_project: {
     kind: "core_project", title: "Core Projects Register", color: "#1d4ed8",
-    fields: [DISC, { k: "name", l: "Core Project (Contract No)", type: "project", req: true, span: 2 }, { k: "code", l: "Project Code" },
+    fields: [DISC, { k: "name", l: "Core Project (Contract No)", type: "project", req: true, span: 2, fill: { code: "code", client: "client", location: "siteLocation", loaNo: "contractNo", value: "contractValue", startDate: "startDate", endDate: "endDate" } }, { k: "code", l: "Project Code" },
       { k: "client", l: "Client / Railway Zone" }, { k: "location", l: "Location / Section" }, { k: "kmFrom", l: "Km From" }, { k: "kmTo", l: "Km To" },
       { k: "loaNo", l: "LOA / Agreement No" }, { k: "value", l: "Contract Value (₹)", type: "number" }, D("startDate", "Start Date"), { k: "endDate", l: "Completion Date", type: "date" },
       { k: "member", l: "Core Member (auto)", ro: true }, { k: "engineer", l: "Site Engineer" }, { k: "pstatus", l: "Project Status", type: "select", options: ["Planned", "Running", "On Hold", "Completed"] },

@@ -380,17 +380,17 @@ export default function ProjectManagement() {
             <div style={{ padding: 20, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               <F label="Project Code"><input value={editing.code} readOnly style={{ ...inputS, background: "#f8fafc", fontFamily: "monospace", fontWeight: 700 }} data-testid="pm-f-code" /></F>
               <F label="Project Name *" span={2}><input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} style={inputS} data-testid="pm-f-name" placeholder="E.g. Naini Yard Remodelling" /></F>
-              <F label="Contract No (Client & Revenue)"><CrmContractSelect testid="pm-f-contract" value={editing.contractNo || ""} style={inputS} onChange={(v, c) => setEditing({ ...editing, contractNo: v, name: editing.name || c?.projectName || "", client: c?.clientName || editing.client, siteLocation: editing.siteLocation || c?.siteLocation || "" })} /></F>
-              <F label="Client / Owner"><input value={editing.client} onChange={(e) => setEditing({ ...editing, client: e.target.value })} style={inputS} data-testid="pm-f-client" /></F>
-              <F label="Site Location"><input value={editing.siteLocation} onChange={(e) => setEditing({ ...editing, siteLocation: e.target.value })} style={inputS} data-testid="pm-f-site" /></F>
+              <F label="Contract No (Client & Revenue)"><CrmContractSelect testid="pm-f-contract" value={editing.contractNo || ""} style={inputS} onChange={(v, c) => setEditing({ ...editing, contractNo: v, contractId: c?.id || "", name: editing.name || c?.projectName || "", client: c?.clientName || editing.client, siteLocation: c?.siteLocation || editing.siteLocation, startDate: c?.startDate || editing.startDate, endDate: c?.completionDate || editing.endDate, budget: editing.budget || c?.contractValue || 0 })} /></F>
+              <F label={editing.contractNo ? "Client / Owner (Contract se)" : "Client / Owner"}><input value={editing.client} readOnly={!!editing.contractNo} onChange={(e) => setEditing({ ...editing, client: e.target.value })} style={{ ...inputS, background: editing.contractNo ? "#f8fafc" : "#fff" }} data-testid="pm-f-client" /></F>
+              <F label={editing.contractNo ? "Site Location (Contract se)" : "Site Location"}><input value={editing.siteLocation} readOnly={!!editing.contractNo} onChange={(e) => setEditing({ ...editing, siteLocation: e.target.value })} style={{ ...inputS, background: editing.contractNo ? "#f8fafc" : "#fff" }} data-testid="pm-f-site" /></F>
               <F label="Project Manager *"><input value={editing.manager} onChange={(e) => setEditing({ ...editing, manager: e.target.value })} style={inputS} data-testid="pm-f-manager" /></F>
               <F label="Status">
                 <select value={editing.status} onChange={(e) => setEditing({ ...editing, status: e.target.value })} style={inputS} data-testid="pm-f-status">
                   {STATUS.map((s) => <option key={s.k}>{s.k}</option>)}
                 </select>
               </F>
-              <F label="Start Date"><DateInput type="date" value={editing.startDate} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} style={inputS} data-testid="pm-f-start" /></F>
-              <F label="End Date"><DateInput type="date" value={editing.endDate} onChange={(e) => setEditing({ ...editing, endDate: e.target.value })} style={inputS} data-testid="pm-f-end" /></F>
+              <F label="Start Date"><DateInput type="date" value={editing.startDate} disabled={!!editing.contractNo} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} style={inputS} data-testid="pm-f-start" /></F>
+              <F label="End Date"><DateInput type="date" value={editing.endDate} disabled={!!editing.contractNo} onChange={(e) => setEditing({ ...editing, endDate: e.target.value })} style={inputS} data-testid="pm-f-end" /></F>
               <F label="Priority">
                 <select value={editing.priority} onChange={(e) => setEditing({ ...editing, priority: e.target.value })} style={inputS} data-testid="pm-f-priority">
                   {PRIORITY.map((p) => <option key={p.k}>{p.k}</option>)}

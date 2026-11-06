@@ -1398,19 +1398,70 @@ async def crm_all(user: Dict = Depends(get_current_user)):
     return dict(zip(names, lists))
 
 
+def _nk(s) -> str:
+    return str(s or "").strip().lower()
+
+
+async def _contracts_full() -> List[Dict]:
+    clients = {c.get("id"): c.get("name", "") for c in await _list_collection(_crm_coll("clients"))}
+    out = []
+    for c in await _list_collection(_crm_coll("contracts")):
+        no = c.get("contractNo") or c.get("workOrderNo") or ""
+        if not no:
+            continue
+        items = [{"itemCode": i.get("itemCode", ""), "hsn": i.get("code") or i.get("hsn") or "", "description": i.get("description", ""), "unit": i.get("unit", ""),
+                  "qty": _num(i.get("qty")), "rate": _num(i.get("rate")), "gstPct": _num(i.get("gstPct")), "amount": round(_num(i.get("qty")) * _num(i.get("rate")), 2)}
+                 for i in (c.get("items") or []) if i.get("description")]
+        out.append({"id": c.get("id"), "contractNo": no, "workOrderNo": c.get("workOrderNo", ""), "woType": c.get("woType", ""), "projectName": c.get("projectName", ""),
+                    "siteLocation": c.get("siteLocation", ""), "clientName": clients.get(c.get("clientId")) or (c.get("newClient") or {}).get("name", ""),
+                    "startDate": c.get("startDate", ""), "completionDate": c.get("completionDate", ""), "contractValue": _num(c.get("contractValue")),
+                    "retentionPct": _num(c.get("retentionPct")), "tdsPct": _num(c.get("tdsPct")), "advanceAmount": _num(c.get("advanceAmount")),
+                    "advanceRecoveryPct": _num(c.get("advanceRecoveryPct")), "items": items})
+    return out
+
+
+def _with_contract(p: Dict, c: Dict) -> Dict:
+    return {**p, "contractId": c.get("id", ""), "contractNo": p.get("contractNo") or c.get("contractNo", ""), "client": p.get("client") or c.get("clientName", ""),
+            "siteLocation": p.get("siteLocation") or c.get("siteLocation", ""), "startDate": p.get("startDate") or c.get("startDate", ""),
+            "endDate": p.get("endDate") or c.get("completionDate", ""), "contractValue": c.get("contractValue", 0), "retentionPct": c.get("retentionPct", 0),
+            "tdsPct": c.get("tdsPct", 0), "advanceAmount": c.get("advanceAmount", 0), "advanceRecoveryPct": c.get("advanceRecoveryPct", 0),
+            "woType": c.get("woType", ""), "items": c.get("items", [])}
+
+
+# Single master for every "Project" dropdown: Project Register + Client & Revenue contracts + older Core Project entries
 @api_router.get("/projects/master")
 async def projects_master(user: Dict = Depends(get_current_user)):
-    rows = await db.ops_projects.find({"status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(2000)
+    cons = await _contracts_full()
+    by_no = {_nk(c["contractNo"]): c for c in cons}
     keys = ("id", "code", "name", "contractNo", "client", "siteLocation", "manager", "status", "startDate", "endDate", "budget", "pettyFloat", "projectType")
-    return [{k: r.get(k, "") for k in keys} for r in rows if r.get("name")]
+    out, seen, linked = [], set(), set()
+    for r in await db.ops_projects.find({"status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(2000):
+        if not r.get("name") or _nk(r["name"]) in seen:
+            continue
+        c = by_no.get(_nk(r.get("contractNo"))) or {}
+        linked.add(c.get("id"))
+        seen.add(_nk(r["name"]))
+        out.append({**_with_contract({k: r.get(k, "") for k in keys}, c), "source": "project"})
+    for c in cons:
+        name = c["projectName"] or c["contractNo"]
+        if c["id"] in linked or _nk(name) in seen:
+            continue
+        seen.add(_nk(name))
+        out.append({**_with_contract({"id": f"crm-{c['id']}", "code": c["contractNo"], "name": name, "status": "Contract"}, c), "source": "contract"})
+    for r in await db.ops_core_project.find({"status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(2000):
+        if not r.get("name") or _nk(r["name"]) in seen:
+            continue
+        seen.add(_nk(r["name"]))
+        c = by_no.get(_nk(r.get("loaNo"))) or {}
+        out.append({**_with_contract({"id": f"core-{r.get('id')}", "code": r.get("code", ""), "name": r["name"], "contractNo": r.get("loaNo", ""), "client": r.get("client", ""),
+                                      "siteLocation": r.get("location", ""), "startDate": r.get("startDate", ""), "endDate": r.get("endDate", ""), "status": r.get("pstatus", "")}, c),
+                    "contractValue": _num(r.get("value")) or c.get("contractValue", 0), "source": "core"})
+    return out
 
 
 @api_router.get("/contracts/master")
 async def contracts_master(user: Dict = Depends(get_current_user)):
-    clients = {c.get("id"): c.get("name", "") for c in await _list_collection(_crm_coll("clients"))}
-    rows = await _list_collection(_crm_coll("contracts"))
-    return [{"id": c.get("id"), "contractNo": c.get("contractNo", ""), "projectName": c.get("projectName", ""), "siteLocation": c.get("siteLocation", ""),
-             "clientName": clients.get(c.get("clientId"), ""), "workOrderNo": c.get("workOrderNo", "")} for c in rows if c.get("contractNo")]
+    return await _contracts_full()
 
 
 @api_router.get("/crm/{name}")
