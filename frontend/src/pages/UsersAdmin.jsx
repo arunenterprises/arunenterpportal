@@ -635,6 +635,7 @@ export default function UsersAdmin() {
                 <option value="GM">General Manager (all + final approve)</option>
                 <option value="Admin">Admin (full access)</option>
                 {CORE_MEMBERS.map((m) => <option key={m} value={m}>Core {m} ({(MEMBER_DISC[m] || []).join(" + ")})</option>)}
+                {["Sr. Site Operation Manager", "Accounts Manager", "Purchase Manager"].map((m) => <option key={m} value={m}>Execution · {m}</option>)}
               </select>
               {/* Live permissions preview for the selected role */}
               <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 2 }} data-testid="admin-role-perms-preview">
@@ -768,7 +769,7 @@ export default function UsersAdmin() {
                         style={{ padding: "3px 8px", fontSize: 10.5, fontWeight: 700, borderRadius: 999, background: u.role === "Admin" ? "#dbeafe" : "#e2e8f0", color: u.role === "Admin" ? "#1e40af" : "#334155", border: "1px solid #cbd5e1", cursor: "pointer", textTransform: "uppercase" }}
                         title="Change user role · SuperAdmin only"
                       >
-                        {["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin", ...CORE_MEMBERS].map((r) => (
+                        {["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin", ...CORE_MEMBERS, "Sr. Site Operation Manager", "Accounts Manager", "Purchase Manager"].map((r) => (
                           <option key={r} value={r}>{r.toUpperCase()}</option>
                         ))}
                       </select>

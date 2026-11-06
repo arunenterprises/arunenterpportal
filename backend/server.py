@@ -268,7 +268,7 @@ async def register(body: RegisterBody, admin: Dict = Depends(require_admin)):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "Purchase", *MEMBER_DISC.keys()] + (["SuperAdmin"] if _is_super_admin(admin) else [])
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "Purchase", *MEMBER_DISC.keys(), *MANAGER_ROLES] + (["SuperAdmin"] if _is_super_admin(admin) else [])
     role_in = (body.role or "User").strip()
     role = role_in if role_in in allowed_roles else "User"
     # Resolve effective permissions:
@@ -605,7 +605,7 @@ async def update_user_role(email: str, body: RoleBody, admin: Dict = Depends(req
     primary = (os.environ.get("ADMIN_EMAIL", "") or "").lower().strip()
     if email == primary:
         raise HTTPException(status_code=400, detail="Primary SuperAdmin role is locked")
-    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin", *MEMBER_DISC.keys()]
+    allowed_roles = ["User", "Admin", "Accounts", "GM", "HR", "Viewer", "SuperAdmin", *MEMBER_DISC.keys(), *MANAGER_ROLES]
     new_role = (body.role or "").strip()
     if new_role == "SuperAdmin" and not _is_super_admin(admin):
         raise HTTPException(status_code=403, detail="Sirf SuperAdmin hi kisi ko SuperAdmin bana sakta hai")
@@ -2402,7 +2402,7 @@ CORE_BUILTIN_MEMBERS = {k: list(v) for k, v in MEMBER_DISC.items()}
 
 def _is_senior(user: Dict) -> bool:
     role = (user.get("role") or "").strip()
-    return _is_super_admin(user) or role in ("GM", "Admin") or role in MEMBER_DISC
+    return _is_super_admin(user) or role in ("GM", "Admin") or role in MEMBER_DISC or role in MANAGER_ROLES
 
 
 async def _load_core_cfg() -> Dict:
@@ -2575,6 +2575,214 @@ async def task_delete(tid: str, user: Dict = Depends(get_current_user)):
     if t.get("path"):
         await db.notifications.delete_many({"path": t["path"]})
     return {"ok": True}
+
+
+# ---- Centralized Requisitions (Material / Finance / Machinery) + Discussion Window ----
+MANAGER_ROLES = ["Sr. Site Operation Manager", "Accounts Manager", "Purchase Manager"]
+REQ_THRESHOLD = 3000000
+REQ_FILE_MAX = 2 * 1024 * 1024
+REQ_FILE_TYPES = {"application/pdf", "image/png", "image/jpeg", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+
+
+def _member_for(disc: str) -> str:
+    return next((m for m, d in MEMBER_DISC.items() if disc in d), "GM")
+
+
+def _req_stages(rtype: str, disc: str, amount: float) -> List[Dict]:
+    if rtype == "Material":
+        st = [{"role": "Sr. Site Operation Manager", "label": "Verification"}, {"role": _member_for(disc or "CIVIL"), "label": "Core Member Approval"}, {"role": "Purchase Manager", "label": "Purchase Execution"}]
+    elif rtype == "Finance":
+        st = [{"role": "Accounts Manager", "label": "Audit"}, {"role": "Member Financial", "label": "Review"}, {"role": "GM", "label": "Final Payment Approval"}]
+    else:
+        st = [{"role": "Sr. Site Operation Manager", "label": "Scheduling"}, {"role": _member_for("P&M"), "label": "Allocation (Member P&M)"}]
+    if amount > 0 and st[-1]["role"] != "GM":
+        st.append({"role": "GM", "label": "GM Master Approval"})
+    return st
+
+
+def _req_view(user: Dict) -> bool:
+    return _is_super_admin(user) or (user.get("role") or "") in ("GM", "Admin")
+
+
+async def _notify_role(role: str, title: str, body: str, path: str) -> None:
+    async for u in db.users.find({"role": role}, {"_id": 0, "email": 1}):
+        await _notify(u["email"], title, body, path)
+
+
+class ReqBody(BaseModel):
+    rtype: str
+    title: str
+    project: str = ""
+    discipline: str = ""
+    amount: float = 0
+    description: str = ""
+
+
+@api_router.post("/requisitions")
+async def req_create(body: ReqBody, user: Dict = Depends(get_current_user)):
+    if body.rtype not in ("Material", "Finance", "Machinery"):
+        raise HTTPException(status_code=400, detail="Requisition type galat hai")
+    if len(body.title.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Title kam se kam 3 akshar ka ho")
+    if body.amount < 0 or (body.rtype == "Finance" and body.amount <= 0):
+        raise HTTPException(status_code=400, detail="Amount sahi bharein (Finance mein 0 se zyada)")
+    if body.rtype == "Material" and body.discipline not in sum(MEMBER_DISC.values(), []):
+        raise HTTPException(status_code=400, detail="Material requisition ke liye discipline chunein")
+    now = datetime.now(timezone.utc)
+    fy_start = now.year if now.month >= 4 else now.year - 1
+    fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
+    c = await db.counters.find_one_and_update({"key": "requisitions"}, {"$inc": {fy: 1}}, upsert=True, return_document=True)
+    big = body.amount > REQ_THRESHOLD
+    doc = {**body.model_dump(), "id": uuid.uuid4().hex, "reqNo": f"AE/REQ/{int(c[fy]):04d}/{fy}", "stages": _req_stages(body.rtype, body.discipline, body.amount),
+           "stage": 0, "status": "Discussion" if big else "Pending", "locked": big, "requestedBy": user["email"], "requestedByName": user.get("name") or user["email"],
+           "discussion": {"topic": "", "departments": [], "comments": [], "concluded": False} if big else None,
+           "history": [{"at": now.isoformat(), "by": user.get("name") or user["email"], "action": "Created" + (" \u00b7 >\u20b930L locked to Discussion Window" if big else "")}], "createdAt": now.isoformat()}
+    await db.requisitions.insert_one({**doc})
+    path = f"/requisitions?id={doc['id']}"
+    if big:
+        await _notify_role("GM", f"Discussion Window: {doc['reqNo']}", f"\u20b9{body.amount:,.0f} > \u20b930 lakh \u2014 topic aur departments set karein", path)
+    else:
+        await _notify_role(doc["stages"][0]["role"], f"Requisition {doc['reqNo']} aapke paas", f"{body.rtype} \u00b7 {body.title} \u00b7 {doc['stages'][0]['label']}", path)
+    return doc
+
+
+@api_router.get("/requisitions")
+async def req_list(scope: str = "inbox", user: Dict = Depends(get_current_user)):
+    role = user.get("role") or ""
+    docs = await db.requisitions.find({}, {"_id": 0}).sort("createdAt", -1).to_list(3000)
+    if scope == "mine":
+        return [d for d in docs if d["requestedBy"] == user["email"]]
+    if scope == "all":
+        if not (_req_view(user) or role in MANAGER_ROLES or role in MEMBER_DISC):
+            raise HTTPException(status_code=403, detail="Permission nahi hai")
+        return docs
+    out = []
+    for d in docs:
+        if d["status"] == "Pending" and d["stage"] < len(d["stages"]) and (d["stages"][d["stage"]]["role"] == role or role == "GM"):
+            out.append(d)
+        elif d["status"] == "Discussion" and (role == "GM" or role in (d.get("discussion") or {}).get("departments", [])):
+            out.append(d)
+    return out
+
+
+async def _req_get(rid: str) -> Dict:
+    d = await db.requisitions.find_one({"id": rid}, {"_id": 0})
+    if not d:
+        raise HTTPException(status_code=404, detail="Requisition nahi mili")
+    return d
+
+
+@api_router.post("/requisitions/{rid}/action")
+async def req_action(rid: str, body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    d = await _req_get(rid)
+    act, remarks = body.get("action"), str(body.get("remarks") or "").strip()
+    role = user.get("role") or ""
+    if d["status"] != "Pending" or d.get("locked"):
+        raise HTTPException(status_code=409, detail="Yeh requisition abhi action ke liye open nahi hai (Discussion / Closed)")
+    stg = d["stages"][d["stage"]]
+    if not (role == stg["role"] or role == "GM"):
+        raise HTTPException(status_code=403, detail=f"Yeh step sirf {stg['role']} (ya GM) kar sakta hai")
+    if d["requestedBy"] == user["email"] and role != "GM":
+        raise HTTPException(status_code=403, detail="Apni requisition khud approve nahi kar sakte")
+    if act not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Action galat hai")
+    if act == "reject" and len(remarks) < 5:
+        raise HTTPException(status_code=400, detail="Reject karne ka kaaran (kam se kam 5 akshar) likhein")
+    now = datetime.now(timezone.utc).isoformat()
+    h = {"at": now, "by": user.get("name") or user["email"], "role": role, "action": f"{stg['label']}: {'Approved' if act == 'approve' else 'Rejected'}", "remarks": remarks}
+    upd: Dict[str, Any] = {}
+    path = f"/requisitions?id={rid}"
+    if act == "reject":
+        upd["status"] = "Rejected"
+        await _notify(d["requestedBy"], f"Requisition Rejected: {d['reqNo']}", f"{stg['label']} \u00b7 {remarks}", path)
+    elif d["stage"] + 1 >= len(d["stages"]):
+        upd.update({"status": "Approved", "stage": d["stage"] + 1})
+        await _notify(d["requestedBy"], f"Requisition Approved: {d['reqNo']}", f"{d['title']} \u2014 final approval ho gaya", path)
+    else:
+        upd["stage"] = d["stage"] + 1
+        nxt = d["stages"][d["stage"] + 1]
+        await _notify_role(nxt["role"], f"Requisition {d['reqNo']} aapke paas", f"{d['rtype']} \u00b7 {d['title']} \u00b7 {nxt['label']}", path)
+    await db.requisitions.update_one({"id": rid}, {"$set": upd, "$push": {"history": h}})
+    return await _req_get(rid)
+
+
+@api_router.post("/requisitions/{rid}/discussion")
+async def req_disc_setup(rid: str, body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    d = await _req_get(rid)
+    if (user.get("role") or "") != "GM":
+        raise HTTPException(status_code=403, detail="Discussion Window sirf GM set kar sakta hai")
+    if d["status"] != "Discussion":
+        raise HTTPException(status_code=409, detail="Yeh requisition Discussion mein nahi hai")
+    topic = str(body.get("topic") or "").strip()
+    deps = [x for x in (body.get("departments") or []) if x in [*MEMBER_DISC.keys(), *MANAGER_ROLES]]
+    if len(topic) < 3 or not deps:
+        raise HTTPException(status_code=400, detail="Topic (zaroori) aur kam se kam ek department chunein")
+    await db.requisitions.update_one({"id": rid}, {"$set": {"discussion.topic": topic, "discussion.departments": deps}})
+    for r in deps:
+        await _notify_role(r, f"Discussion: {d['reqNo']}", f"Topic: {topic} \u2014 working decision aur financial parameters dein", f"/requisitions?id={rid}")
+    return await _req_get(rid)
+
+
+@api_router.post("/requisitions/{rid}/discussion/comment")
+async def req_disc_comment(rid: str, body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    d = await _req_get(rid)
+    role = user.get("role") or ""
+    disc = d.get("discussion") or {}
+    if d["status"] != "Discussion" or not disc.get("topic"):
+        raise HTTPException(status_code=409, detail="Discussion abhi open nahi hai")
+    if role != "GM" and role not in disc.get("departments", []):
+        raise HTTPException(status_code=403, detail="Aapka department is discussion mein assign nahi hai")
+    text = str(body.get("text") or "").strip()
+    if len(text) < 3:
+        raise HTTPException(status_code=400, detail="Decision / comment likhein")
+    c = {"at": datetime.now(timezone.utc).isoformat(), "by": user.get("name") or user["email"], "role": role, "text": text, "decision": str(body.get("decision") or ""), "amount": float(body.get("amount") or 0)}
+    await db.requisitions.update_one({"id": rid}, {"$push": {"discussion.comments": c}})
+    return await _req_get(rid)
+
+
+@api_router.post("/requisitions/{rid}/discussion/conclude")
+async def req_disc_conclude(rid: str, body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    d = await _req_get(rid)
+    if (user.get("role") or "") != "GM":
+        raise HTTPException(status_code=403, detail="Discussion sirf GM conclude kar sakta hai")
+    disc = d.get("discussion") or {}
+    if d["status"] != "Discussion" or not disc.get("comments"):
+        raise HTTPException(status_code=409, detail="Kam se kam ek department ka decision aane ke baad hi conclude karein")
+    summary = str(body.get("summary") or "").strip()
+    if len(summary) < 5:
+        raise HTTPException(status_code=400, detail="Final discussion summary likhein")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.requisitions.update_one({"id": rid}, {"$set": {"status": "Pending", "locked": False, "discussion.concluded": True, "discussion.summary": summary},
+                                                   "$push": {"history": {"at": now, "by": user.get("name") or user["email"], "role": "GM", "action": "Discussion concluded \u2014 approval flow shuru", "remarks": summary}}})
+    await _notify_role(d["stages"][0]["role"], f"Requisition {d['reqNo']} aapke paas", f"Discussion poori \u00b7 {d['stages'][0]['label']}", f"/requisitions?id={rid}")
+    return await _req_get(rid)
+
+
+@api_router.post("/requisitions/{rid}/files")
+async def req_file_upload(rid: str, body: Dict = Body(...), user: Dict = Depends(get_current_user)):
+    d = await _req_get(rid)
+    role = user.get("role") or ""
+    if not (d["requestedBy"] == user["email"] or role == "GM" or role in (d.get("discussion") or {}).get("departments", []) or any(s["role"] == role for s in d["stages"])):
+        raise HTTPException(status_code=403, detail="File upload ki permission nahi hai")
+    ctype, data = str(body.get("type") or ""), str(body.get("data") or "")
+    if ctype not in REQ_FILE_TYPES:
+        raise HTTPException(status_code=400, detail="Sirf PDF, Excel ya Image (JPG/PNG) file")
+    if len(data) * 3 / 4 > REQ_FILE_MAX:
+        raise HTTPException(status_code=400, detail="File 2 MB se badi nahi honi chahiye")
+    f = {"id": uuid.uuid4().hex, "reqId": rid, "name": str(body.get("name") or "file")[:120], "type": ctype, "data": data, "by": user.get("name") or user["email"], "at": datetime.now(timezone.utc).isoformat()}
+    await db.req_files.insert_one({**f})
+    meta = {k: f[k] for k in ("id", "name", "type", "by", "at")}
+    await db.requisitions.update_one({"id": rid}, {"$push": {"files": meta}})
+    return meta
+
+
+@api_router.get("/requisitions/{rid}/files/{fid}")
+async def req_file_get(rid: str, fid: str, user: Dict = Depends(get_current_user)):
+    f = await db.req_files.find_one({"id": fid, "reqId": rid}, {"_id": 0})
+    if not f:
+        raise HTTPException(status_code=404, detail="File nahi mili")
+    return f
+
 
 
 app.include_router(api_router)

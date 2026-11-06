@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock, Crown, ListTodo } from "lucide-react";
+import { Gauge, BadgeIndianRupee, UsersRound, PackageSearch, Landmark, HardHat, ShieldCheck, Forklift, PieChart, ShieldEllipsis, ChevronLeft, ChevronRight, Home, Lock, Crown, ListTodo, ClipboardCheck } from "lucide-react";
 import { getToken, apiMe } from "../lib/api";
 import { canApprove, canDelete, isSuperAdmin, currentUserEmail, logout, currentRole } from "../lib/store";
 import { can, deptOfPath, loadAcl } from "../lib/acl";
 
 const ITEMS = [
   { n: "T", l: "My Tasks", to: "/my-tasks", d: "tasks", icon: ListTodo, c: "#22c55e" },
+  { n: "R", l: "Requisitions", to: "/requisitions", d: "tasks", icon: ClipboardCheck, c: "#f59e0b" },
   { n: "C", l: "Core Committee", to: "/core-dashboard", d: "core", icon: Crown, c: "#c81e2b" },
   { n: 1, l: "GM Dashboard", to: "/gm", d: "gm", icon: Gauge, c: "#f59e0b" },
   { n: 2, l: "Client & Revenue Management", to: "/client-revenue", d: "client", icon: BadgeIndianRupee, c: "#0ea5e9" },

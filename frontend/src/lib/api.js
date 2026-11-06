@@ -220,6 +220,14 @@ export const apiFixDuplicateNumbers = (dry_run) => req("/admin/fix-duplicate-num
 export const apiCoreConfig = () => req("/core/config");
 export const apiCoreConfigSave = (cfg) => req("/core/config", { method: "PUT", body: JSON.stringify(cfg) });
 export const apiCoreConfigHistory = () => req("/core/config/history");
+export const apiReqList = (scope) => req(`/requisitions?scope=${scope}`);
+export const apiReqCreate = (b) => req("/requisitions", { method: "POST", body: JSON.stringify(b) });
+export const apiReqAction = (id, b) => req(`/requisitions/${id}/action`, { method: "POST", body: JSON.stringify(b) });
+export const apiReqDiscSetup = (id, b) => req(`/requisitions/${id}/discussion`, { method: "POST", body: JSON.stringify(b) });
+export const apiReqDiscComment = (id, b) => req(`/requisitions/${id}/discussion/comment`, { method: "POST", body: JSON.stringify(b) });
+export const apiReqDiscConclude = (id, b) => req(`/requisitions/${id}/discussion/conclude`, { method: "POST", body: JSON.stringify(b) });
+export const apiReqFileUpload = (id, b) => req(`/requisitions/${id}/files`, { method: "POST", body: JSON.stringify(b) });
+export const apiReqFileGet = (id, fid) => req(`/requisitions/${id}/files/${fid}`);
 export const apiUserDirectory = () => req("/users/directory");
 export const apiNotifications = () => req("/notifications");
 export const apiNotifRead = (id) => req(`/notifications/${id}/read`, { method: "POST" });
