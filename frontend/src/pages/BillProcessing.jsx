@@ -392,7 +392,9 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
     if (bill.step >= 5) { toast.error("Already in Payment Due List"); return; }
     if (!validate()) return;
     if (![0, 1, 2].includes(Number(bill.tdsRate))) { toast.error("TDS 0%, 1% ya 2% chunein"); return; }
-    const breaches = contractBreaches(await findProject(bill.projectCodeLocation), items.map((r) => ({ description: r.description, itemCode: r.itemCode, rate: r.woRate, qty: r.billedQty })));
+    const asLine = (r) => ({ description: r.description, itemCode: r.itemCode, rate: r.woRate, qty: r.billedQty });
+    const prior = getBills().filter((b) => b.id !== bill.id && b.projectCodeLocation === bill.projectCodeLocation && !/reject/i.test(String(b.status || ""))).flatMap((b) => (b.items || []).map(asLine));
+    const breaches = contractBreaches(await findProject(bill.projectCodeLocation), items.map(asLine), prior);
     if (breaches.length) { toast.error(`CONTRACT CHECK FAIL · ${breaches[0]}${breaches.length > 1 ? ` (+${breaches.length - 1} aur)` : ""}`); return; }
     if (isCreate && Number(bill.step) < 2) {
       const locks = await apiBillLocks([{ billNo: bill.billNo, vendorCode: bill.vendorCode, createdAt: bill.createdAt || new Date().toISOString() }]).catch((e) => { toast.error(e.message); return null; });

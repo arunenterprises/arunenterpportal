@@ -303,7 +303,7 @@ const BOQEditor = ({ writeAllowed, approveAllowed }) => {
               const blankGrid = !(p.items || []).some((x) => String(x.description || "").trim());
               const take = rows.length && (blankGrid || window.confirm(`Contract ${m.contractNo} ke ${rows.length} items (Item Code, Qty, Rate) grid mein load karein? Purani lines hat jayengi.`));
               const items = take ? rows.map((i) => ({ id: i.id, scheduleType: "USSOR Item", itemCode: i.itemCode, description: i.description, hsn: i.hsn, qty: i.qty, unit: i.unit, rate: i.rate, gstPct: i.gstPct, amount: i.amount })) : p.items;
-              return { ...p, projectSite: v, contractId: m?.contractId || "", contractNo: m?.contractNo || "", projectLocation: m?.siteLocation || p.projectLocation || "", items, total: (items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0) };
+              return { ...p, projectSite: v, contractId: m?.contractId || "", contractNo: m?.contractNo || "", projectLocation: m?.siteLocation || p.projectLocation || "", clientName: p.clientName || m?.client || "", items, total: (items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0) };
             })} />
             {boq.contractNo && <div data-testid="boq-contract-info" style={{ fontSize: 10.5, color: "#166534", marginTop: 3 }}>Contract {boq.contractNo} se items/rates linked</div>}
             <input data-testid="boq-location" value={boq.projectLocation || ""} onChange={(e) => set("projectLocation", e.target.value)} disabled={locked} placeholder="Location (sirf yeh bharein)" style={{ marginTop: 4 }} />

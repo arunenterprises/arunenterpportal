@@ -1,0 +1,42 @@
+{
+  "summary": "Iter55: Work Contracts (crm_contracts) as Single Source of Truth for Project dropdowns. Backend: 5/5 pytest pass (/api/projects/master returns TEST_Naini Yard source=contract with items/tdsPct=2/contractValue=500000/id crm-TEST_c1, TEST_Old Core Project source=core with id core-*, no duplicate names, no _id; /api/contracts/master returns full contract with dates + items amount 25000; both 401/403 unauthenticated). Frontend (Playwright, SuperAdmin): Project Mgmt New Project -> pm-f-contract CT/TEST/77 fills name, site=Naini (readonly), start/end 01/01/2026-31/12/2026 (disabled), budget 500000; BOQ tab boq-project lists both TEST rows, selecting Naini on blank BOQ loads Earthwork/100/Cum/250, boq-location=Naini, boq-contract-info shown, switching to Old Core hides info; RFQ/CS cs-project loads Earthwork qty 100 into matrix; Core Projects Register ops-f-name fills location Naini, value 500000, loaNo CT/TEST/77, code, dates; Vendor Bill bill-project: TDS manually set 0 -> becomes 2 after selecting Naini, bill-contract-info visible, hidden for core project. No page errors. Bill submit contract-breach block NOT executed end-to-end (needs approved vendor+WO); verified by code review only. Nothing saved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/projects/master", "issue": "ops_projects linked to contracts only by contractNo; a Project Register row with the same name as a contract but empty contractNo hides the contract row (dedupe by name) and loses items/tdsPct. Consider fallback match by projectName."},
+      {"endpoint": "/api/projects/master", "issue": "Core project rows with loaNo = a contract No do not add the contract id to `linked`, so if names differ both the contract row and core row appear for the same contract."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Vendor Bill contract check", "issue": "contractBreaches matches bill lines only by description (bill items have no itemCode field and are not auto-loaded from the contract), so any free-typed description that differs slightly (or vendor material lines not in the client BOQ) blocks submission with 'contract items mein nahi hai'. Qty check is per line vs total contract qty, not cumulative across earlier bills.", "affected_selectors": ["item-desc-*", "bill-project"]},
+      {"flow": "Bill GST from contract", "issue": "GST slab taken only from contract items[0].gstPct; multi-rate contracts get first item's GST.", "affected_selectors": ["bill-project"]}
+    ],
+    "design_issues": [
+      {"screen": "Project Management New Project", "issues": ["When contract has no client, pm-f-client becomes read-only AND empty, so user can't enter client at all (seed TEST_c1 has no clientId)."]},
+      {"screen": "ContractSelect labels", "issues": ["Contract-sourced rows show the contract no twice: 'CT/TEST/77 · TEST_Naini Yard · Contract CT/TEST/77 · Naini' (code == contractNo)."]},
+      {"screen": "RFQ & Comp. Stmt matrix", "issues": ["Vendor A/B/C header inputs are truncated and the Lowest L1 column overflows the card at 1920px."]},
+      {"screen": "BOQ", "issues": ["Client Name not auto-filled from contract master on project select (only location)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter55_project_master.py", "/app/test_reports/pytest/iter55.xml"],
+  "action_items": [
+    "Allow manual Client entry when linked contract has empty clientName (or fill from contract and keep editable)",
+    "Vendor Bill: load contract items into bill rows (with itemCode) or provide a picker, so breach check doesn't block on description typos; consider cumulative qty check",
+    "projects_master: fallback-link ops_projects to contract by projectName; mark contract as linked when a core project's loaNo matches",
+    "Dedupe dropdown label when code == contractNo",
+    "Fix CS matrix column overflow"
+  ],
+  "critical_code_review_comments": [
+    "BillProcessing.jsx line 395 contractBreaches relies on description-only match (no itemCode in bill rows)",
+    "Bill GST from items[0] only",
+    "BillProcessing.jsx / PurchaseManagement.jsx are very large files (>1000 lines) - consider splitting"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter55_project_master.py"],
+  "success_rate": {"backend": "100%", "frontend": "100% of requested flows (bill-submit breach not exercised e2e)"},
+  "seed_data_creation": "None. Used main agent's TEST_c1 and TEST_cp1. No BOQ/CS/bill/project saved.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Purchase page defaults to Vendor tab; click purchase-tab-boq / purchase-tab-rfq or use /purchase?tab=billing. Core Projects form opens via button 'Core Projects' on /core-dashboard (no core-sec-core_project testid). calc-tds-rate default is 2, set to 0 before selecting project to verify contract TDS applies. Login body field 'identifier'."
+}

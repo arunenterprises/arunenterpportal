@@ -1433,23 +1433,28 @@ def _with_contract(p: Dict, c: Dict) -> Dict:
 async def projects_master(user: Dict = Depends(get_current_user)):
     cons = await _contracts_full()
     by_no = {_nk(c["contractNo"]): c for c in cons}
+    by_name = {_nk(c["projectName"]): c for c in cons if c["projectName"]}
     keys = ("id", "code", "name", "contractNo", "client", "siteLocation", "manager", "status", "startDate", "endDate", "budget", "pettyFloat", "projectType")
     out, seen, linked = [], set(), set()
     for r in await db.ops_projects.find({"status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(2000):
         if not r.get("name") or _nk(r["name"]) in seen:
             continue
-        c = by_no.get(_nk(r.get("contractNo"))) or {}
+        c = by_no.get(_nk(r.get("contractNo"))) or ({} if r.get("contractNo") else by_name.get(_nk(r["name"]))) or {}
         linked.add(c.get("id"))
         seen.add(_nk(r["name"]))
         out.append({**_with_contract({k: r.get(k, "") for k in keys}, c), "source": "project"})
+    core = [r for r in await db.ops_core_project.find({"status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(2000) if r.get("name")]
+    for r in core:
+        if _nk(r["name"]) not in seen and _nk(r.get("loaNo")) in by_no:
+            linked.add(by_no[_nk(r["loaNo"])]["id"])
     for c in cons:
         name = c["projectName"] or c["contractNo"]
         if c["id"] in linked or _nk(name) in seen:
             continue
         seen.add(_nk(name))
         out.append({**_with_contract({"id": f"crm-{c['id']}", "code": c["contractNo"], "name": name, "status": "Contract"}, c), "source": "contract"})
-    for r in await db.ops_core_project.find({"status": {"$ne": "Rejected"}}, {"_id": 0}).to_list(2000):
-        if not r.get("name") or _nk(r["name"]) in seen:
+    for r in core:
+        if _nk(r["name"]) in seen:
             continue
         seen.add(_nk(r["name"]))
         c = by_no.get(_nk(r.get("loaNo"))) or {}

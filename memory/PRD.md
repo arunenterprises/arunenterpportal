@@ -473,3 +473,13 @@ See `/app/memory/test_credentials.md`.
 - Old free-text values stay visible as "(purana)" option.
 - TDS in Vendor Bill is a dropdown 0% / 1% / 2% (default by vendor type). Procurement tab order: Vendor → RFQ → BOQ → WO → Store & GRN → Vendor Bill.
 
+
+## 2026-11-06 (later 3) — Work Contracts = Single Source of Truth
+- /api/projects/master now merges: Project Register (ops_projects, linked to contract by contractNo or projectName) + every CRM contract not yet in Project Register (source=contract) + older Core Project Register entries (source=core, linked via loaNo). Fixes "purana data show nahi". Each row carries contractId, value, retention/TDS/advance %, dates, items.
+- /api/contracts/master returns full contract (items, dates, financials; falls back to workOrderNo when contractNo empty).
+- Project Register: contract pick fills client/site/start/end/budget (read-only when from contract).
+- Core Projects Register: name pick fills code, client, location, LOA, value, dates (opsConfig `fill`).
+- BOQ & RFQ/CS: project pick loads contract item grid (Item Code, desc, HSN, unit, qty, rate, GST).
+- Vendor Bill: project pick applies contract TDS % and GST %; submit blocks lines whose rate > contract rate or cumulative billed qty (all bills of project) > contract qty. Lines not in contract are not blocked.
+- contractId stored on BOQ / WO / Bill / ops records. Tested iteration_55 (backend 5/5, frontend flows pass; bill-submit block verified by code only).
+

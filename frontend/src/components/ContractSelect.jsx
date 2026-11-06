@@ -14,14 +14,17 @@ export const findProject = (name) => loadProjects().then((l) => l.find((p) => St
 // Contract item grid → BOQ / RFQ / Bill rows
 export const contractRows = (m) => (m?.items || []).map((i, k) => ({ ...i, id: `ci_${Date.now()}_${k}` }));
 // Vendor bill lines vs contract approved rate / qty
-export const contractBreaches = (m, lines) => {
+// prior = same-project lines of earlier bills (cumulative qty check); lines not in the contract are not blocked
+export const contractBreaches = (m, lines, prior = []) => {
   const norm = (s) => String(s || "").trim().toLowerCase();
   if (!m?.items?.length) return [];
+  const match = (l) => m.items.find((x) => (l.itemCode && norm(x.itemCode) === norm(l.itemCode)) || norm(x.description) === norm(l.description));
   return lines.filter((l) => String(l.description || "").trim()).map((l) => {
-    const c = m.items.find((x) => (l.itemCode && norm(x.itemCode) === norm(l.itemCode)) || norm(x.description) === norm(l.description));
-    if (!c) return `'${l.description}' contract items mein nahi hai`;
+    const c = match(l);
+    if (!c) return "";
     if (Number(l.rate) > Number(c.rate) + 1e-6) return `'${l.description}' rate ₹${l.rate} > contract rate ₹${c.rate}`;
-    if (Number(l.qty) > Number(c.qty) + 1e-6) return `'${l.description}' qty ${l.qty} > contract BOQ qty ${c.qty}`;
+    const before = prior.filter((p) => match(p) === c).reduce((s, p) => s + (Number(p.qty) || 0), 0);
+    if (before + Number(l.qty) > Number(c.qty) + 1e-6) return `'${l.description}' total billed qty ${before + Number(l.qty)} > contract BOQ qty ${c.qty}`;
     return "";
   }).filter(Boolean);
 };
@@ -48,7 +51,7 @@ const MasterSelect = ({ loader, valueOf, labelOf, empty, value, onChange, disabl
 // Every "Project" field in the ERP: Project Master (Project Register). value = project name; onChange(value, masterRecord)
 export const ContractSelect = (p) => (
   <MasterSelect {...p} loader={loadProjects} valueOf={(c) => c.name} empty="— Project Master (Project Register) —"
-    labelOf={(c) => [c.code, c.name, c.contractNo && `Contract ${c.contractNo}`, c.siteLocation].filter(Boolean).join(" · ")} />
+    labelOf={(c) => [c.code, c.name, c.contractNo && c.contractNo !== c.code && `Contract ${c.contractNo}`, c.siteLocation].filter(Boolean).join(" · ")} />
 );
 
 // Used only inside Project Register: link the master to Client & Revenue → Work Contracts
