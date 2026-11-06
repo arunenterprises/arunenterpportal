@@ -558,7 +558,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
           <div className="module-doc-header"><Header formTitle={isCreate ? "PURCHASE · NEW VENDOR BILL CREATION" : "ACCOUNTS DEPARTMENT"} /></div>
           <ModuleHero
             tag={isCreate ? "Procurement Management" : "Finance Management"}
-            title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : ""}
+            title={isCreate ? "Vendor Selection · Bill Feed · Submit to Accounts" : "All Financial Functions"}
             subtitle={isCreate ? "Vendor + WO select · items feed · Submit karte hi Reference No milega" : ""}
             icon={isCreate ? ShoppingCart : LandmarkIcon}
             gradient={isCreate ? "linear-gradient(135deg,#14532d 0%,#166534 45%,#65a30d 100%)" : "linear-gradient(135deg,#064e3b 0%,#065f46 45%,#14b8a6 100%)"}
