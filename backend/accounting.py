@@ -35,7 +35,8 @@ DEFAULT_COA = [
     ("bank_chg", "5300", "Bank Charges", "Expenses", "Indirect Expenses"),
 ]
 GROUPS = ["Assets", "Liabilities", "Equity", "Income", "Expenses"]
-TDS_SECTIONS = {"194C": "Contractor", "194J": "Professional / Technical", "194I": "Rent", "194H": "Commission", "194Q": "Purchase of Goods", "206AA": "No PAN", "NA": "No TDS"}
+TDS_SECTIONS = {"194C": "Contractor", "194J": "Professional fees", "194J-T": "Technical services", "194I-PM": "Rent - Plant & Machinery", "194I": "Rent - Land / Building",
+                "194H": "Commission", "194Q": "Purchase of Goods", "206AA": "No PAN", "NA": "No TDS"}
 
 
 def make_router(db, get_current_user, acl_ok, num, list_collection) -> APIRouter:
@@ -150,8 +151,8 @@ def make_router(db, get_current_user, acl_ok, num, list_collection) -> APIRouter
 
     @r.post("/accounts")
     async def save_account(body: Dict = Body(...), user: Dict = Depends(guard("c"))):
-        if not str(body.get("name") or "").strip() or body.get("group") not in GROUPS:
-            raise HTTPException(status_code=400, detail="Account name aur sahi Group zaroori")
+        if not str(body.get("name") or "").strip() or not str(body.get("code") or "").strip() or body.get("group") not in GROUPS:
+            raise HTTPException(status_code=400, detail="Account code, name aur sahi Group zaroori")
         await accounts()
         aid = body.get("id") or f"acc-{uuid.uuid4().hex[:10]}"
         ex = await db.acc_accounts.find_one({"id": aid}, {"_id": 0}) or {}
@@ -185,6 +186,8 @@ def make_router(db, get_current_user, acl_ok, num, list_collection) -> APIRouter
         ids = {a["id"] for a in await accounts()}
         if len(lines) < 2 or any(ln.get("accountId") not in ids for ln in lines):
             raise HTTPException(status_code=400, detail="Kam se kam 2 lines aur har line par sahi Account chahiye")
+        if any(num(ln.get("dr")) < 0 or num(ln.get("cr")) < 0 for ln in lines):
+            raise HTTPException(status_code=400, detail="Negative amount allowed nahi")
         if any((num(ln.get("dr")) > 0) == (num(ln.get("cr")) > 0) for ln in lines):
             raise HTTPException(status_code=400, detail="Har line par sirf Debit YA Credit amount bharein")
         dr, cr = round(sum(num(ln.get("dr")) for ln in lines), 2), round(sum(num(ln.get("cr")) for ln in lines), 2)
@@ -246,8 +249,8 @@ def make_router(db, get_current_user, acl_ok, num, list_collection) -> APIRouter
         cancel = body.get("status") == "Cancelled"
         if (ex or cancel) and not await acl_ok(user, "accounting", "a" if cancel else "e"):
             raise HTTPException(status_code=403, detail="Permission nahi hai")
-        if not cancel and (not body.get("clientId") or num(body.get("amount")) <= 0 or not body.get("date")):
-            raise HTTPException(status_code=400, detail="Client, Date aur Amount zaroori")
+        if not cancel and (not body.get("clientId") or num(body.get("amount")) <= 0 or not body.get("date") or num(body.get("tdsDeducted")) < 0 or num(body.get("retentionHeld")) < 0):
+            raise HTTPException(status_code=400, detail="Client, Date aur Amount zaroori (negative allowed nahi)")
         now = datetime.now(timezone.utc).isoformat()
         doc = {**{k: body.get(k) for k in ("clientId", "invoiceId", "date", "mode", "refNo", "bankAccountId", "narration")}, "amount": num(body.get("amount")),
                "tdsDeducted": num(body.get("tdsDeducted")), "retentionHeld": num(body.get("retentionHeld")), "id": rid,
@@ -266,7 +269,15 @@ def make_router(db, get_current_user, acl_ok, num, list_collection) -> APIRouter
     async def set_brs(body: Dict = Body(...), user: Dict = Depends(guard("e"))):
         if not body.get("key"):
             raise HTTPException(status_code=400, detail="key required")
-        doc = {"key": body["key"], "clearDate": (body.get("clearDate") or "")[:10], "bankRef": body.get("bankRef") or "", "by": user.get("name") or user.get("email")}
+        cd = (body.get("clearDate") or "")[:10]
+        if cd:
+            try:
+                datetime.fromisoformat(cd)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Clearing date sahi nahi")
+            if body.get("voucherDate") and cd < str(body["voucherDate"])[:10]:
+                raise HTTPException(status_code=400, detail="Clearing date voucher date se pehle nahi ho sakti")
+        doc = {"key": body["key"], "clearDate": cd, "bankRef": body.get("bankRef") or "", "by": user.get("name") or user.get("email")}
         await db.acc_brs.update_one({"key": body["key"]}, {"$set": doc}, upsert=True)
         return doc
 

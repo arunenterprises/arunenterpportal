@@ -1,0 +1,45 @@
+{
+  "summary": "Iter57 tested the Accounting module inside Finance Management (backend and frontend). Backend: 15/15 pytest pass (/app/backend/tests/test_iter57_accounting.py). It covers: 24 system ledgers are seeded; create, duplicate-code reject, bad group reject and delete of a ledger; system ledger cannot be deleted and its group cannot be changed; journal rejects unbalanced lines, lines with both Dr and Cr, lines with neither, and a missing narration; a balanced JV gets AE/JV/2627/000N; Cancelled removes the JV from entries and a cancelled JV cannot be edited (423); auto-posting of TEST_b1 is right (Dr subcon 100000 + CGST 9000 + SGST 9000 / Cr creditors 111000, TDS 2000, retention 5000); PV TEST_PV1 posts Dr creditors 50000; invoice TEST_i1 posts Dr debtors 236000 / Cr revenue 200000 + IGST 36000; total Dr equals total Cr; receipt AE/RV posts Dr bank + TDS recv + retention recv / Cr debtors; BRS upsert; tax register (194C 2% TDS 2000, gstIn CGST 9000, gstOut IGST 36000); ITC toggle saves; customer TEST_cl1 is IGST; RBAC: User and Purchase get 403, Accounts Manager and Member Financial get 200, Member Financial cannot delete (403), no-auth request is rejected. Frontend (Playwright, SuperAdmin, 1920x1080): there is no sidebar Accounting item, /accounting redirects to /bill?view=acc-coa, and the accounting-view-tabs row shows all 6 tabs. COA shows 24 ledgers with balances (bank 4,50,000 Dr) and a new ledger can be created. JV: jv-diff shows 'Difference ₹50.00' and jv-post stays disabled until balanced; the Dr/Cr side switch swaps the input; posting adds a row to jv-table. Sales: cust-table shows TEST Client Delhi with an IGST badge and ₹2,36,000 Dr; inv-kpi-igst is ₹36,000; the receipt form shows a posting preview and the receipt appears in the register. GST/TDS: tds-table shows TEST_REF1 194C 2% ₹2,000; itc-match-TEST_REF1 toggles and gst-kpi-in goes from 0 to ₹18,000. Banking: new bank ledger created; BRS clear date marks the row Cleared and brs-bank updates. Reports: TB tallied (8,04,000 = 8,04,000), P&L net profit 99,750, BS balances (7,03,750 = 7,03,750), ageing TEST_V1 61,000 (and 1,11,000 as of 15/09), ledger closing 61,000 Cr. Vendor Bill calc-tds-section sets calc-tds-rate (194C 2, 194J 10, 194I 10, 194H 2, 194Q 0.1, 206AA 20, NA 0). No page errors. One main RBAC gap and a few minor issues are listed below.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/acc/* (_acl_default accounting branch)", "issue": "Access is decided by the 'role' field only. The real Accounts Manager user komal.srivastava@arunenterprises.online (and kl.srivastava 'Account Manager') has role 'Admin' with designation 'Accounts Manager'. _acl_default('Admin','accounting',*) returns False, so the company's actual Accounts Manager gets 403 and the accounting tabs are hidden for her until SuperAdmin grants the 'accounting' ACL. This is the same in frontend aclDefault. Fix: also accept designation 'Accounts Manager' / isAccountsManager() whitelist, or give Admin accounting access by default, or confirm this with the user.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "/api/acc/tax sections", "issue": "Backend TDS_SECTIONS has no '194J-T' and '194I-PM', but the Vendor Bill dropdown offers them. Bills under these sections are missing from the tds-section-filter options and from the per-section KPIs (secSum iterates only d.sections keys)."},
+      {"endpoint": "POST /api/acc/journals & /receipts", "issue": "Negative amounts are not rejected. A line {dr:100, cr:-100} passes the 'only Dr or Cr' check (dr>0 != cr>0), and negative tdsDeducted/retentionHeld are accepted on receipts. Add a dr>=0, cr>=0 validation."},
+      {"endpoint": "POST /api/acc/accounts", "issue": "Code is not required. A second ledger without a code fails with 'Account code None pehle se hai'. Validate that code is not empty."},
+      {"endpoint": "POST /api/acc/brs", "issue": "No check that the clearing date is on or after the voucher date. The clearing date also does not have to be a valid ISO date on the backend."},
+      {"endpoint": "entries()", "issue": "Every /entries call and every account DELETE rebuilds the whole ledger from bills, expenses, payments, crm_invoices, receipts and journals. This will get slow as data grows. Consider caching or materialising postings."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Journal Entry lines", "issues": ["The jv-side-N select (90px) cuts its text to 'Dr (Del' / 'Cr (Cre'. Widen it or use the labels 'Dr' / 'Cr'."]},
+      {"screen": "Vendor Ageing", "issues": ["The vendor name falls back to the code, so it shows 'TEST_V1 TEST_V1' when the vendor is not found in /vendors."]},
+      {"screen": "Customer Master", "issues": ["The State column shows 'Code 07' instead of the state name when the client record has no state."]},
+      {"screen": "Vendor Bill", "issues": ["The calc-tds-section select cuts 'No TDS / Lower deduction certificat...' at 1920px."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter57_accounting.py", "/app/test_reports/pytest/iter57.xml"],
+  "action_items": [
+    "Decide on and fix the accounting RBAC for real Accounts Manager users whose role is 'Admin' (Komal). Use the designation or isAccountsManager() whitelist in _acl_default and aclDefault, or grant this by default.",
+    "Add '194J-T' and '194I-PM' to backend TDS_SECTIONS in accounting.py so it matches the frontend.",
+    "Reject negative dr/cr/amount/tds/retention values in journals and receipts.",
+    "Require an account code in POST /api/acc/accounts.",
+    "Optional: widen the jv-side select; show vendor names in ageing."
+  ],
+  "critical_code_review_comments": [
+    "ACC_ROLES in accounting.py is defined but never used. The real RBAC is in server._acl_default.",
+    "Bill auto-posting includes every bill with step>=5 and does not look at the approval status. Check that rejected or cancelled bills cannot sit at step>=5, otherwise they get posted to the ledger.",
+    "CRM invoice receivedAmount posting is skipped only when an acc_receipt with the same invoiceId exists. A partial receipt entered in Accounting therefore hides the full CRM receivedAmount posting, and vice versa. Document this or reconcile both.",
+    "BillProcessing.jsx is over 2000 lines and should be split."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter57_accounting.py", "/app/test_reports/iteration_57.json"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% of requested flows (one RBAC design gap found)"},
+  "seed_data_creation": "Pytest created and then deleted (by id): TEST_ users test_<role>_xxxx@arun.com for User, Purchase, Accounts Manager and Member Financial; a TEST_Ledger account; a JV (TEST_jv post, later cancelled and removed); a receipt; a TEST_brs_key. UI created and then deleted by id: account acc-eaa4fa488e (TEST_UI Ledger 9771), bank acc-6b221e215e (TEST_UI SBI Current 1077), journal jv-2d8d718426 (AE/JV/2627/0003), receipt rv-f7cc4ee28f (AE/RV/2627/0002), BRS row key 'jv:TEST_j1|sys-bank'. The ITC flag for bill:TEST_b1 was put back to matched=false. Side effects: the JV and RV voucher counters moved forward (numbering gaps). The sys-bank ledger was re-saved with the same values, so only updatedAt/updatedBy changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: data-testid login-username + login-password, then Enter (SuperAdmin needs no captcha). Non-SA test users: register via /api/auth/register, set users.otp_bypass_until in the DB and insert a known captcha hash (see _role_session in test_iter57_accounting.py). DateInput fields take DD/MM/YYYY text (e.g. fill '05/10/2026'), not ISO. Wait about 3s after a tab loads, because tables show 'No records yet' before the fetch finishes. Vendor Bill form is at /purchase?tab=billing."
+}

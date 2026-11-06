@@ -39,6 +39,8 @@ import { loadCrmCache, crmReportRows, RA_STEPS, STEP_WF } from "../components/cr
 import { CRM_REPORTS } from "../components/crm/CrmReports";
 import { OPS } from "../components/ops/opsConfig";
 import { apiOpsList } from "../lib/api";
+import { ACC_DEPTS, ACC_IDS, loadAccCache, setAccRange } from "../components/acc/accReports";
+import { can } from "../lib/acl";
 
 const CRM_AMOUNT = { ra_bills: "net", contracts: "contractValue", change_orders: "value", retention: "balance", leads: "value" };
 const CRM_STATUS = { ra_bills: ["step", RA_STEPS], mb: ["step", STEP_WF], change_orders: ["step", STEP_WF], clients: ["step", STEP_WF], leads: ["status", null] };
@@ -376,8 +378,9 @@ const DEPT_CONFIG = [
   },
   ...CRM_DEPTS,
   ...OPS_DEPTS,
+  ...ACC_DEPTS,
 ];
-const RH_GROUPED = new Set(["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement", "employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill", "vendors", "boqs", "work_orders", "bills", "payments", "expenses", "advances", "loans", "fooding", "ops_dpr", "ops_indent", "ops_core_project", "ops_core_progress", "ops_core_escalation", "ops_qc_test", "ops_safety_audit", "ops_machine", "ops_machine_log", "ops_diesel_log"]);
+const RH_GROUPED = new Set([...ACC_IDS, "crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement", "employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill", "vendors", "boqs", "work_orders", "bills", "payments", "expenses", "advances", "loans", "fooding", "ops_dpr", "ops_indent", "ops_core_project", "ops_core_progress", "ops_core_escalation", "ops_qc_test", "ops_safety_audit", "ops_machine", "ops_machine_log", "ops_diesel_log"]);
 
 const getCellValue = (row, col, cfg) => {
   // Computed columns
@@ -632,7 +635,7 @@ const ReportsHub = () => {
     if (syncing) return;
     setSyncing(true);
     try {
-      await Promise.all([syncFromCloud(), loadCrmCache().catch(() => null), loadOpsCache()]);
+      await Promise.all([syncFromCloud(), loadCrmCache().catch(() => null), loadOpsCache(), loadAccCache().catch(() => null)]);
       setRefresh((v) => v + 1);
       setLastSyncAt(new Date());
       if (!silent) toast.success("✓ Latest data pulled from server");
@@ -669,6 +672,7 @@ const ReportsHub = () => {
   };
   const rawRows = useMemo(() => {
     try {
+      setAccRange(fy, fromDate, toDate);
       const raw = cfg.fetch() || [];
       // Defensive de-dup — collapse rows that share the same unique process key.
       // Prevents the "same PV / Bill / BOQ showing 5× in a row" display bug.
@@ -684,7 +688,7 @@ const ReportsHub = () => {
       }
       return out;
     } catch { return []; }
-  }, [cfg, refresh]);
+  }, [cfg, refresh, fy, fromDate, toDate]);
 
   const filteredRows = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
@@ -1053,7 +1057,7 @@ const ReportsHub = () => {
 
         {/* Department tabs */}
         <div data-testid="rh-dept-tabs" style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8, background: "#f1f5f9", borderRadius: 6, marginBottom: 14, border: "1px solid #e2e8f0" }}>
-          {[["Core Management", "#c81e2b", ["ops_core_project", "ops_core_progress", "ops_core_escalation"]], ["2. Client & Revenue Management", "#0284c7", ["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement"]], ["3. HR Management", "#db2777", ["employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill"]], ["4. Procurement Management", "#16a34a", ["vendors", "boqs", "work_orders", "bills"]], ["5. Finance Management", "#0d9488", ["payments", "expenses", "advances", "loans", "fooding"]], ["6. Project Management", "#ea580c", ["ops_dpr", "ops_indent"]], ["7. QC & Safety Management", "#7c3aed", ["ops_qc_test", "ops_safety_audit"]], ["8. P & M Management", "#ca8a04", ["ops_machine", "ops_machine_log", "ops_diesel_log"]]].map(([g, gc, ids]) => [g, gc, ids.filter((x) => DEPT_CONFIG.some((d) => d.id === x))]).concat([["Other", "#64748b", DEPT_CONFIG.map((d) => d.id).filter((x) => !RH_GROUPED.has(x))]]).filter(([, , ids]) => ids.length).map(([g, gc, ids]) => (
+          {[["Core Management", "#c81e2b", ["ops_core_project", "ops_core_progress", "ops_core_escalation"]], ["2. Client & Revenue Management", "#0284c7", ["crm_leads", "crm_clients", "crm_contracts", "crm_mb", "crm_ra_bills", "crm_change_orders", "crm_retention", "ops_booking", "ops_demand_letter", "ops_tender", "ops_agreement"]], ["3. HR Management", "#db2777", ["employees", "paybills", "exits", "recruitments", "ops_labour", "ops_labour_bill"]], ["4. Procurement Management", "#16a34a", ["vendors", "boqs", "work_orders", "bills"]], ["5. Finance Management", "#0d9488", ["payments", "expenses", "advances", "loans", "fooding"]], ["5. Finance · Accounting & Ledger Reports", "#0f766e", can("accounting", "v") ? ACC_IDS : []], ["6. Project Management", "#ea580c", ["ops_dpr", "ops_indent"]], ["7. QC & Safety Management", "#7c3aed", ["ops_qc_test", "ops_safety_audit"]], ["8. P & M Management", "#ca8a04", ["ops_machine", "ops_machine_log", "ops_diesel_log"]]].map(([g, gc, ids]) => [g, gc, ids.filter((x) => DEPT_CONFIG.some((d) => d.id === x))]).concat([["Other", "#64748b", DEPT_CONFIG.map((d) => d.id).filter((x) => !RH_GROUPED.has(x))]]).filter(([, , ids]) => ids.length).map(([g, gc, ids]) => (
           <div key={g} data-testid={`rh-group-${ids[0]}`} style={{ display: "grid", gridTemplateColumns: "210px 1fr", alignItems: "center", gap: 12, padding: "8px 12px", background: "#fff", borderRadius: 6, border: "1px solid #e2e8f0", borderLeft: `4px solid ${gc}` }}>
           <span style={{ fontSize: 11, fontWeight: 900, color: gc, letterSpacing: 0.3, textTransform: "uppercase", lineHeight: 1.35 }}>{g}</span>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 6 }}>

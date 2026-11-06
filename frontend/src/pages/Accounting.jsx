@@ -6,10 +6,9 @@ import { Journal } from "../components/acc/Journal";
 import { Sales } from "../components/acc/Sales";
 import { Tax } from "../components/acc/Tax";
 import { Banking } from "../components/acc/Banking";
-import { FinReports } from "../components/acc/FinReports";
 import { can } from "../lib/acl";
 
-const VIEWS = { "acc-coa": Coa, "acc-jv": Journal, "acc-sales": Sales, "acc-tax": Tax, "acc-bank": Banking, "acc-reports": FinReports };
+const VIEWS = { "acc-coa": Coa, "acc-jv": Journal, "acc-sales": Sales, "acc-tax": Tax, "acc-bank": Banking };
 
 const Panel = ({ view }) => {
   const acc = useAcc();

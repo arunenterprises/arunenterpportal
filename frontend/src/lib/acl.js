@@ -1,5 +1,5 @@
 import { apiGetAcl } from "./api";
-import { currentRole, currentUserEmail } from "./store";
+import { currentRole, currentUserEmail, isAccountsManager } from "./store";
 
 export const ACL_DEPTS = [
   { k: "gm", l: "1. GM Dashboard" }, { k: "client", l: "2. Client & Revenue Management" }, { k: "hr", l: "3. HR Management" },
@@ -42,6 +42,7 @@ export const aclCell = (m, role, dept, email = "") => ({ ...aclRoleCell(m, role,
 export const can = (dept, op) => {
   const r = currentRole();
   if (r === "SuperAdmin" || !dept) return true;
+  if (dept === "accounting" && op !== "d" && isAccountsManager()) return true;
   return !!aclCell(getAcl(), r, dept, currentUserEmail())[op];
 };
 export const maskedKeys = () => {

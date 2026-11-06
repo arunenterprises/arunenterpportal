@@ -44,7 +44,7 @@ export const Journal = ({ accounts, reload }) => {
             {f.lines.map((l, i) => (
               <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                 <td style={{ padding: 4, width: 24 }}>{i + 1}</td>
-                <td style={{ padding: 4, width: 90 }}><Sel data-testid={`jv-side-${i}`} value={l.side} onChange={(e) => setL(i, "side", e.target.value)} options={[{ v: "Dr", l: "Dr (Debit)" }, { v: "Cr", l: "Cr (Credit)" }]} /></td>
+                <td style={{ padding: 4, width: 110 }}><Sel data-testid={`jv-side-${i}`} value={l.side} onChange={(e) => setL(i, "side", e.target.value)} options={[{ v: "Dr", l: "Dr" }, { v: "Cr", l: "Cr" }]} /></td>
                 <td style={{ padding: 4 }}><Sel data-testid={`jv-acc-${i}`} value={l.accountId} onChange={(e) => setL(i, "accountId", e.target.value)} options={accOpts(accounts)} /></td>
                 <td style={{ padding: 4, width: 170 }}><Inp data-testid={`jv-party-${i}`} value={l.party} onChange={(e) => setL(i, "party", e.target.value)} placeholder="Vendor / Client code (optional)" /></td>
                 <td style={{ padding: 4, width: 130 }}>{l.side === "Dr" && <Inp data-testid={`jv-dr-${i}`} type="number" value={l.amount} onChange={(e) => setL(i, "amount", e.target.value)} />}</td>

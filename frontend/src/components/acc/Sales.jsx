@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Send, Ban, ExternalLink } from "lucide-react";
 import { Card, Grid, Field, Inp, Sel, Btn, Table, Badge, inr, num } from "../crm/crmShared";
+import { parseGstin } from "../../lib/gstin";
 import { accGet, accPost, today, KPI, SubTabs, bal } from "./accShared";
 import { can } from "../../lib/acl";
 
@@ -46,7 +47,7 @@ export const Sales = ({ accounts, entries, reload }) => {
       {sub === "cust" && (
         <Card title={`Customer Master · ${customers.length}`} testid="cust-list" right={<Btn tone="ghost" data-testid="cust-open-crm" onClick={() => nav("/client-revenue")}><ExternalLink size={12} /> Naya client: Client & Revenue → Clients Master</Btn>}>
           <Table testid="cust-table" cols={["Customer", "GSTIN", "PAN", "State", "GST Applied", "Contact", "Outstanding"]}
-            rows={customers.map((c) => [<b>{c.name}</b>, c.gst || "—", c.pan || "—", c.state || (c.gst ? `Code ${c.gst.slice(0, 2)}` : "—"),
+            rows={customers.map((c) => [<b>{c.name}</b>, c.gst || "—", c.pan || "—", c.state || (c.gst ? parseGstin(c.gst).state || `Code ${c.gst.slice(0, 2)}` : "—"),
               <Badge text={c.taxType} tone={c.taxType === "IGST" ? "amber" : "green"} />, [c.contactPerson, c.mobile].filter(Boolean).join(" · ") || "—", <b data-testid={`cust-out-${c.id}`}>{bal(outstanding[c.id] || 0)}</b>])} />
         </Card>
       )}

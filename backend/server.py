@@ -1114,6 +1114,9 @@ async def _acl_ok(user: Dict, dept: str, op: str) -> bool:
     """RBAC check: role cell, then per-user override (value._users[email][dept])."""
     if _is_super_admin(user):
         return True
+    if dept == "accounting" and op != "d" and (user.get("is_accounts_approver") or user.get("is_full_access")
+                                               or re.sub(r"[\s\-]", "", str(user.get("designation") or "").lower()) in ("accountsmanager", "accountmanager")):
+        return True
     role = (user.get("role") or "User").strip()
     email = (user.get("email") or "").lower().strip()
     val = ((await db.settings.find_one({"key": "acl"}, {"_id": 0})) or {}).get("value") or {}

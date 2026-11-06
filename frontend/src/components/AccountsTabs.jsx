@@ -4,22 +4,22 @@ import { Receipt, Wallet, IndianRupee, Utensils, LogOut, FileCheck2, ListTree, N
 import { can } from "../lib/acl";
 
 const TABS = [
-  { id: "vendor", label: "Vendor Bill Process", tone: "#065f46", icon: Receipt },
-  { id: "expense", label: "Expenses", tone: "#065f46", icon: Wallet },
-  { id: "advance", label: "Advance Reg.", tone: "#065f46", icon: Wallet },
-  { id: "paybill", label: "Pay Bills Process", tone: "#065f46", icon: IndianRupee },
-  { id: "fooding", label: "Weekly Fooding", tone: "#065f46", icon: Utensils },
-  { id: "exit", label: "Exit & F&F", tone: "#065f46", icon: LogOut },
-  { id: "vouchers", label: "Payment Vouchers", tone: "#065f46", icon: FileCheck2 },
+  { id: "vendor", label: "1. Vendor Bill Process", tone: "#065f46", icon: Receipt },
+  { id: "expense", label: "2. Expenses", tone: "#065f46", icon: Wallet },
+  { id: "advance", label: "3. Advance Reg.", tone: "#065f46", icon: Wallet },
+  { id: "paybill", label: "4. Pay Bills Process", tone: "#065f46", icon: IndianRupee },
+  { id: "fooding", label: "5. Weekly Fooding", tone: "#065f46", icon: Utensils },
+  { id: "exit", label: "6. Exit & F&F", tone: "#065f46", icon: LogOut },
+  { id: "vouchers", label: "7. Payment Vouchers", tone: "#065f46", icon: FileCheck2 },
 ];
-// Accounting & Ledger (double entry) — part of Finance Management
+// Accounting & Ledger (double entry) — part of Finance Management; its reports live in Reports Management
 const ACC_TABS = [
-  { id: "acc-coa", label: "Chart of Accounts", tone: "#0f766e", icon: ListTree },
-  { id: "acc-jv", label: "Journal Entry", tone: "#0f766e", icon: NotebookPen },
-  { id: "acc-sales", label: "Sales & Receivables", tone: "#0f766e", icon: HandCoins },
-  { id: "acc-tax", label: "GST / TDS", tone: "#0f766e", icon: Percent },
-  { id: "acc-bank", label: "Banking & BRS", tone: "#0f766e", icon: Landmark },
-  { id: "acc-reports", label: "Financial Reports", tone: "#0f766e", icon: BarChart3 },
+  { id: "acc-coa", label: "8. Chart of Accounts", tone: "#0f766e", icon: ListTree },
+  { id: "acc-jv", label: "9. Journal Entry", tone: "#0f766e", icon: NotebookPen },
+  { id: "acc-sales", label: "10. Sales & Receivables", tone: "#0f766e", icon: HandCoins },
+  { id: "acc-tax", label: "11. GST ITC Matching", tone: "#0f766e", icon: Percent },
+  { id: "acc-bank", label: "12. Banking & BRS", tone: "#0f766e", icon: Landmark },
+  { id: "acc-reports", label: "13. Accounting Reports", tone: "#0f766e", icon: BarChart3 },
 ];
 
 // Shared Accounts department tab bar (same on /bill and /expense so the heading stays fixed).
@@ -27,6 +27,7 @@ export const AccountsTabs = ({ active, onSelect }) => {
   const nav = useNavigate();
   const go = (id) => {
     if (id === "vouchers") { nav("/final"); return; }
+    if (id === "acc-reports") { nav("/reports-hub?dept=acc_tb"); return; }
     if (onSelect) { onSelect(id); return; }
     nav(id === "vendor" ? "/bill" : `/bill?view=${id}`);
   };
