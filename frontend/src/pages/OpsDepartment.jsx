@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { FolderKanban } from "lucide-react";
 import HomeNavBar from "../components/HomeNavBar";
@@ -9,18 +8,19 @@ import { OPS, DEPTS } from "../components/ops/opsConfig";
 import { apiOpsList } from "../lib/api";
 import { QcNormsGuide } from "../components/ops/QcNormsGuide";
 import { DeptTabs } from "../components/DeptTabs";
+import ProjectManagement from "./ProjectManagement";
 
 export default function OpsDepartment({ dept }) {
   const d = DEPTS[dept];
-  const nav = useNavigate();
   const isSite = dept === "site";
   const [projects, setProjects] = useState([]);
   const [pid, setPid] = useState(() => (isSite ? localStorage.getItem("ae_site_project") || "" : ""));
   useEffect(() => { if (isSite) apiOpsList("projects").then(setProjects).catch(() => {}); }, [isSite]);
   const proj = projects.find((p) => p.id === pid);
   const tabs = isSite && proj ? (proj.forms?.length ? proj.forms : d.tabs).filter((k) => OPS[k]) : d.tabs;
-  const [tab, setTab] = useState(d.tabs[0]);
-  const active = tabs.includes(tab) ? tab : tabs[0];
+  const [tab, setTab] = useState(() => (d.projectsLink && new URLSearchParams(window.location.search).get("view") === "projects" ? "projects" : d.tabs[0]));
+  const showReg = d.projectsLink && tab === "projects";
+  const active = showReg ? "projects" : tabs.includes(tab) ? tab : tabs[0];
   const pick = (id) => { setPid(id); localStorage.setItem("ae_site_project", id); };
   return (
     <>
@@ -39,10 +39,10 @@ export default function OpsDepartment({ dept }) {
           </div>
         )}
         <DeptTabs idPrefix="dept-tab" tone={OPS[active]?.color || "#0f766e"} active={active} style={{ margin: "14px 0" }}
-          onSelect={(k) => (k === "projects" ? nav("/project") : setTab(k))}
+          onSelect={(k) => { setTab(k); window.history.replaceState(null, "", k === "projects" ? "/site?view=projects" : "/site"); }}
           tabs={[...(d.projectsLink ? [{ id: "projects", label: "Projects Register", icon: FolderKanban }] : []), ...tabs.map((k) => ({ id: k, label: OPS[k].title }))]} />
         {tabs.includes("qc_test") && <QcNormsGuide />}
-        <OpsModule cfg={OPS[active]} preset={proj ? { project: proj.name } : null} />
+        {showReg ? <ProjectManagement embedded /> : <OpsModule cfg={OPS[active]} preset={proj ? { project: proj.name } : null} />}
       </div>
     </>
   );

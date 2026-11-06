@@ -74,7 +74,7 @@ const Pill = ({ text, color, bg, size = "sm" }) => (
   }}>{text}</span>
 );
 
-export default function ProjectManagement() {
+export default function ProjectManagement({ embedded = false }) {
   const nav = useNavigate();
   const me = currentUserProfile();
   const role = currentRole();
@@ -245,18 +245,18 @@ export default function ProjectManagement() {
 
   return (
     <>
-      <Toaster position="top-center" richColors />
-      <HomeNavBar />
+      {!embedded && <Toaster position="top-center" richColors />}
+      {!embedded && <HomeNavBar />}
 
-      <div style={{ minHeight: "calc(100vh - 56px)", background: "#f1f5f9", padding: "14px 20px 24px" }}>
+      <div style={embedded ? undefined : { minHeight: "calc(100vh - 56px)", background: "#f1f5f9", padding: "14px 20px 24px" }}>
         <div style={{ maxWidth: 1600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }} data-testid="project-mgmt-page">
 
-          <div className="module-doc-header" style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
+          {!embedded && <div className="module-doc-header" style={{ background: "#fff", border: "1.5px solid #0f172a", borderRadius: 10, padding: "10px 18px", boxShadow: "0 2px 8px rgba(15,23,42,.06)" }}>
             <Header formTitle="Project Management Department" compact />
-          </div>
+          </div>}
 
           {/* Banner + KPIs */}
-          <ModuleHero
+          {!embedded && <ModuleHero
             tag="Project Management"
             title="Projects · Milestones · Teams · Budget"
             subtitle={`${stats.total} total · ${stats.inProgress} in-progress · ${stats.completed} completed · ₹${Number(stats.totalBudget).toLocaleString("en-IN")} budget · ${stats.utilizationPct}% spent`}
@@ -270,7 +270,7 @@ export default function ProjectManagement() {
                 <KpiTile color="#86efac" label="Completed" value={stats.completed} />
               </div>
             }
-          />
+          />}
           {false && (
           <div style={{ background: "linear-gradient(135deg,#0f766e 0%,#115e59 60%,#064e3b 100%)", color: "#fff", borderRadius: 10, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, boxShadow: "0 4px 12px rgba(6,78,59,.25)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

@@ -12,7 +12,6 @@ import UsersAdmin from "./pages/UsersAdmin";
 import PurchaseManagement from "./pages/PurchaseManagement";
 import GeneralManager from "./pages/GeneralManager";
 import HRManagement from "./pages/HRManagement";
-import ProjectManagement from "./pages/ProjectManagement";
 import CoreDashboard from "./pages/CoreDashboard";
 import MyTasks from "./pages/MyTasks";
 import Requisitions from "./pages/Requisitions";
@@ -112,7 +111,7 @@ function App() {
           <Route path="/final" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/reports" element={<Navigate to="/final" replace />} />
           <Route path="/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
-          <Route path="/project" element={<RequireAuth><ProjectManagement /></RequireAuth>} />
+          <Route path="/project" element={<Navigate to="/site?view=projects" replace />} />
           <Route path="/core-dashboard" element={<RequireAuth><CoreDashboard /></RequireAuth>} />
           <Route path="/my-tasks" element={<RequireAuth><MyTasks /></RequireAuth>} />
           <Route path="/requisitions" element={<RequireAuth><Requisitions /></RequireAuth>} />
