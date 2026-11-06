@@ -1504,7 +1504,7 @@ const AccountsAdvanceView = ({ rev, bumpRev }) => {
 
   return (
     <div data-testid="accounts-advance-view">
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 10, marginTop: 12, alignItems: "stretch" }}>
         <KpiBox label="Pending Approval" value={pending.length} tone="#f59e0b" sub={`₹ ${inrN(totalPending)}`} />
         <KpiBox label="Approved · To Pay" value={approved.length} tone="#0369a1" />
         <KpiBox label="Paid · PV Generated" value={paid.length} tone="#16a34a" />
@@ -1661,7 +1661,7 @@ const AccountsPayBillView = ({ rev, bumpRev }) => {
 
   return (
     <div data-testid="accounts-paybill-view">
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 10, marginTop: 12, alignItems: "stretch" }}>
         <KpiBox label="Submitted to GM" value={submitted.length} tone="#f59e0b" />
         <KpiBox label="GM Approved · To Settle" value={gmApproved.length} tone="#0369a1" />
         <KpiBox label="Settled · PV Done" value={settled.length} tone="#16a34a" />
@@ -1783,7 +1783,7 @@ const AccountsExitView = ({ rev, bumpRev }) => {
 
   return (
     <div data-testid="accounts-exit-view">
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginTop: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 10, marginTop: 12, alignItems: "stretch" }}>
         <KpiBox label="Pending Accounts" value={pending.length} tone="#f59e0b" sub={`₹ ${inrN(totalPending)}`} />
         <KpiBox label="Settled · PV Done" value={settled.length} tone="#16a34a" />
         <KpiBox label="In HR (Draft/GM)" value={drafts.length} tone="#64748b" />
@@ -1855,24 +1855,32 @@ const ExitSection = ({ title, rows, tone, testid, renderActions }) => (
 const KpiBox = ({ label, value, tone, sub, onClick, active }) => (
   <div
     onClick={onClick}
+    data-testid={`kpi-${String(label).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
     style={{
-      padding: 12,
+      padding: "10px 12px",
+      minHeight: 78,
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
       background: active ? `${tone}10` : "#fff",
-      border: `1.5px solid ${tone}${active ? "" : "30"}`,
+      border: `1px solid ${tone}${active ? "" : "30"}`,
       borderLeft: `4px solid ${tone}`,
-      borderRadius: 6,
+      borderRadius: 8,
       cursor: onClick ? "pointer" : "default",
-      transition: "all 0.15s",
-      boxShadow: active ? `0 2px 6px ${tone}30` : "none",
+      transition: "background-color .15s, box-shadow .15s",
+      boxShadow: active ? `0 2px 6px ${tone}30` : "0 1px 2px rgba(15,23,42,.05)",
     }}
     title={onClick ? "Click to view data" : undefined}
   >
-    <div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <span>{label}</span>
-      {onClick && <span style={{ fontSize: 9, color: tone, fontWeight: 700 }}>{active ? "▲ hide" : "▼ view"}</span>}
+    <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", letterSpacing: .6, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      {onClick && <span style={{ fontSize: 9, color: tone, fontWeight: 700, flexShrink: 0 }}>{active ? "▲ hide" : "▼ view"}</span>}
     </div>
-    <div style={{ fontSize: 22, fontWeight: 800, color: tone, marginTop: 2 }}>{value}</div>
-    {sub && <div style={{ fontSize: 11, fontWeight: 700, color: "#78350f", marginTop: 2 }}>{sub}</div>}
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+      <span style={{ fontSize: 22, fontWeight: 800, color: tone, lineHeight: 1 }}>{value}</span>
+      {sub && <span style={{ fontSize: 11.5, fontWeight: 700, color: "#78350f", whiteSpace: "nowrap" }}>{sub}</span>}
+    </div>
   </div>
 );
 
