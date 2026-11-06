@@ -61,8 +61,8 @@ const REG = (id, title, fetch, dateKey, columns, amount = "_amount") => ({ id, t
 
 export const ACC_DEPTS = [
   ST("acc_tb", "Trial Balance", tbRows, [col("code", "Code", false, 80), col("name", "Account", false, 220), col("group", "Group"), col("open", "Opening", true), col("dr", "Debit", true), col("cr", "Credit", true), col("cdr", "Closing Dr", true), col("ccr", "Closing Cr", true)]),
-  ST("acc_pl", "Profit & Loss A/c", plRows, [col("side", "Side"), col("name", "Particulars", false, 260), col("_amount", "Amount (₹)", true)]),
-  ST("acc_bs", "Balance Sheet", bsRows, [col("side", "Side", false, 170), col("name", "Particulars", false, 260), col("_amount", "Amount (₹)", true)]),
+  ST("acc_pl", "Profit & Loss A/c", () => plRows().map((r) => ({ ...r, amt: inr(r._amount) || "0.00" })), [col("side", "Side"), col("name", "Particulars", false, 260), col("amt", "Amount (₹)", true)]),
+  ST("acc_bs", "Balance Sheet", () => bsRows().map((r) => ({ ...r, amt: (r._amount < 0 ? "-" : "") + (inr(Math.abs(r._amount)) || "0.00") })), [col("side", "Side", false, 170), col("name", "Particulars", false, 260), col("amt", "Amount (₹)", true)]),
   ST("acc_ageing", "Vendor Ageing", ageRows, [col("vendor", "Vendor", false, 200), col("code", "Code"), col("b0", "0-30 days", true), col("b30", "31-60 days", true), col("b60", "61-90 days", true), col("b90", "90+ days", true), col("_amount", "Outstanding", true), col("adv", "Advance", true)], "_amount"),
   REG("acc_daybook", "Day Book / Ledger", () => C.entries.map((e, i) => ({ id: `${e.key}-${i}`, date: e.date, vno: e.vno, source: e.source, account: accName(e.accountId), party: party(e.party), narration: e.narration, dr: inr(e.dr), cr: inr(e.cr), _amount: e.dr })),
     "date", [col("date", "Date", false, 95), col("vno", "Voucher"), col("source", "Source"), col("account", "Account", false, 200), col("party", "Party"), col("narration", "Narration", false, 240), col("dr", "Debit", true), col("cr", "Credit", true)]),

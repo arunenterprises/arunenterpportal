@@ -1,0 +1,40 @@
+{
+  "summary": "Iter58 tested the accounting reorganisation and the iteration_57 fixes. Backend: the new /app/backend/tests/test_iter58_accounting_fixes.py passes 20/20. The iter57 regression suite passes 15/15 after updating one stale assertion on the TDS sections set. Frontend (Playwright at 1920x1080, SuperAdmin and Komal): the /bill tabs are numbered 1-7 and 8-13 correctly. Tab 13 goes to /reports-hub?dept=acc_tb. The Reports hub group '5. Finance · Accounting & Ledger Reports' lists all 10 accounting reports. The Trial Balance is tallied (8,04,000 = 8,04,000), and changing the FY or To date recomputes it: FY 25-26 shows an empty tallied total; To 15/09/2026 gives 3,54,000 = 3,54,000 and ageing TEST_V1 1,11,000; the default ageing is 61,000. Day Book, Journal Register, Payment Receipts, TDS (TEST_REF1 194C 2,000), GST In and GST Out all load. Excel export downloads acc_tb_all_all_<date>.xlsx and Print opens a new window. Tab 11 shows only ITC matching: itc-table, the itc-match-TEST_REF1 toggle (KPI goes 0 to 18,000, then restored), and itc-open-reports goes to /reports-hub?dept=acc_tds. Komal (Admin, designation Accounts Manager) sees the accounting tabs, COA, JV, Sales and the Reports hub group, and gets HTTP 200 on all 8 /api/acc GET endpoints. She can create a JV and a ledger, and deleting a ledger returns 403. JV Dr/Cr selects are 102px wide and readable. The customer state shows 'Delhi' from GSTIN 07. Validations work: negative JV/receipt/tds/retention returns 400, an account without a code returns 400, and a BRS clear date before the voucher date returns 400 with a toast in the UI. Vendor Bill calc-tds-section supports 194J-T and 194I-PM. One significant bug: the P&L and Balance Sheet reports show every amount as 0.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/acc/brs", "issue": "The check that the clear date is not before the voucher date uses the voucherDate sent by the client. If a client leaves voucherDate out, the check is skipped. The server should look up the voucher date from the entry key itself."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ReportsHub acc_pl / acc_bs", "issue": "Every value in the Amount column shows 0, including Net Profit and the BS totals. Root cause: ReportsHub cellValue() renders col '_amount' as Number(row[cfg.amountKey]). accReports.js ST() passes amount=null for acc_pl and acc_bs, so it reads row[null] = 0. acc_ageing works because it passes '_amount'. Fix: give acc_pl/acc_bs amountKey '_amount', or rename the column key (e.g. 'amt' with pre-formatted inr) so it does not hit the _amount special case. Check the Excel/print export too, which probably shows the same zeros.", "selector": "[data-testid='rh-tab-acc_pl'], [data-testid='rh-tab-acc_bs'] -> rh-table", "priority": "HIGH"},
+      {"component": "Banking BRS", "issue": "When the clear date is rejected (toast 'Clearing date voucher date se pehle nahi ho sakti'), the brs-clear input still shows the rejected date (01/01/2026) instead of going back to blank. The status correctly stays Pending.", "selector": "[data-testid='brs-clear-2']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reports hub header", "issues": ["The subtitle still says '12 modules', which is stale now that the accounting group has been added."]},
+      {"screen": "Vendor Ageing report", "issues": ["The Vendor column shows the code (TEST_V1) instead of the firm name when the vendor code is not in /vendors. That is expected for this test data, but confirm it with real vendors."]},
+      {"screen": "Reports hub acc statements", "issues": ["With 'All FY' selected, the TB/P&L silently use the current FY start, so 'All FY' is not truly all-time. Picking a Month filter hides the statements unless To falls in that month, because the statement rows use _asOf = To. Consider labelling this or ignoring Month for statements."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter58_accounting_fixes.py", "/app/backend/tests/test_iter57_accounting.py", "/app/test_reports/pytest/iter58.xml"],
+  "action_items": [
+    "HIGH: Fix P&L and Balance Sheet amounts showing 0 in Reports hub (amountKey null -> cellValue reads row[null]); pass '_amount' or use a different column key. Then re-verify Net Profit 99,750 and BS 7,03,750 = 7,03,750 on screen and in the Excel export.",
+    "BRS: validate the voucher date on the server from the entry key instead of trusting body.voucherDate; reset the input when a value is rejected.",
+    "Update the '12 modules' subtitle in the Reports hub header."
+  ],
+  "critical_code_review_comments": [
+    "ReportsHub.jsx is 1350 lines; it should be split (dept config, filters, table, print/export).",
+    "accReports.js uses a module-level mutable cache and RANGE; setAccRange is called inside useMemo, which is a side effect. It works but is fragile; pass the range into fetch(range) instead.",
+    "Each test receipt or JV uses up an FY voucher number (receipts are already at AE/RV/2627/0007), so there are gaps in the voucher series. Consider this for audit, or reuse numbers in tests.",
+    "The Accounts Manager designation grants every op except delete, including 'a' (Cancel JV/receipt). Confirm this is the intended business rule."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter58_accounting_fixes.py", "/app/backend/tests/test_iter57_accounting.py (line 187: sections assertion changed to a superset check, since 194J-T/194I-PM were added)"],
+  "success_rate": {"backend": "100% (35/35 across iter57+iter58 suites)", "frontend": "~90% (P&L/BS amount column broken)"},
+  "test_credentials": "SuperAdmin arunenterprises2023@gmail.com/Arun2023@12 works without captcha. Komal komal.srivastava@arunenterprises.online/Komal2026@12 needs captcha and email OTP. Tests insert a TEST_ captcha into db.captchas and set the one-shot users.otp_bypass_until, which is auto-unset on login. Note: the first Komal login attempt (before the bypass was added) triggered one real OTP email to Komal. Komal's logins also take over any live session she has (single-session).",
+  "seed_data_creation": "Everything was cleaned up by id: JVs (TEST_komal jv, TEST_jv58), receipts (TEST_UTR58, rv-7fadb886f9), the TEST_komal_ledger account, TEST_brs58_* BRS keys and TEST_ captchas. The ITC toggle on TEST_REF1 was set back to unmatched. Seed TEST_b1/p1/cl1/i1/j1 were left untouched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Reports hub: rh-tab-<id>, rh-fy (values '', '2526', '2627'...), rh-to/rh-from (DateInput, fill 'DD/MM/YYYY' then Tab), rh-table tbody tr, rh-xlsx (download), rh-print (new window). Clicking a hub tab clears the filters. For Komal UI login, route POST **/api/auth/login and rewrite captcha_id/captcha to a DB-inserted TEST_ captcha, and set otp_bypass_until first (see /tmp/komal_prep.py approach in the komal fixture). BRS sub-tab: bank-sub-brs; brs-clear-N takes DD/MM/YYYY text. Expected values: TB 8,04,000 tallied; ageing TEST_V1 61,000 (1,11,000 at 15/09/2026); P&L net profit should be 99,750 (currently renders 0)."
+}

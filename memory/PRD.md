@@ -489,3 +489,13 @@ See `/app/memory/test_credentials.md`.
 - Contract check matches by Item Code first (description only for rows without code), cumulative across same-project bills. Tested iteration_56 (6/6 pass; code-switch bug fixed after).
 
 
+## 2026-11-06 (later 5) — Accounting System inside Finance Management
+- backend/accounting.py (router /api/acc, ACL dept "accounting": SuperAdmin, GM, Accounts Manager role/designation, Member Financial (no delete), + SuperAdmin grants).
+- 24 default system ledgers (COA); custom ledgers; Journal (balanced Dr=Cr, AE/JV/FY/####, cancel); Receipts (AE/RV/..., Dr Bank+TDS+Retention, Cr Debtors).
+- Auto double-entry postings computed live: approved Vendor Bills (step>=5, CGST/SGST if vendor GSTIN 09 else IGST, TDS/Retention payable), Expenses, final Payment Vouchers, CRM Tax Invoices (step 3-5), invoice receivedAmount, receipts, journals.
+- Finance /bill tabs numbered 1-7 + Accounting row 8 COA, 9 Journal, 10 Sales & Receivables (Customer Master = CRM clients, invoice GST dashboard, receipts), 11 GST ITC Matching (2B), 12 Banking & BRS.
+- Vendor Bill: TDS Section dropdown (194C/194J/194J-T/194I-PM/194I/194H/194Q/206AA/NA) auto-sets rate.
+- All accounting reports in Reports Management group "5. Finance · Accounting & Ledger Reports": Trial Balance, P&L, Balance Sheet, Vendor Ageing, Day Book, Journal Register, Receipts, TDS Register, GST Input, GST Output (FY/date filters, Excel/Print).
+- Tested iteration_57/58 (backend 35/35). Not yet: advances/paybills/fooding auto-posting (use manual JV).
+
+

@@ -54,7 +54,7 @@ const Brs = ({ banks, entries }) => {
   const k = (e) => `${e.key}|${e.accountId}`;
   const cleared = (e) => clr[k(e)]?.clearDate && clr[k(e)].clearDate <= asOf;
   const save = async (e, clearDate, bankRef = clr[k(e)]?.bankRef || "") => {
-    try { const r = await accPost("brs", { key: k(e), clearDate, bankRef, voucherDate: e.date }); setClr((c) => ({ ...c, [r.key]: r })); } catch (er) { toast.error(er.message); }
+    try { const r = await accPost("brs", { key: k(e), clearDate, bankRef, voucherDate: e.date }); setClr((c) => ({ ...c, [r.key]: r })); } catch (er) { toast.error(er.message); setClr((c) => ({ ...c })); }
   };
   const books = (a ? (a.openingType === "Cr" ? -1 : 1) * num(a.opening) : 0) + rows.reduce((s, e) => s + e.dr - e.cr, 0);
   const unDep = rows.filter((e) => e.dr && !cleared(e)).reduce((s, e) => s + e.dr, 0);

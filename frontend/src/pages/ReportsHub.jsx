@@ -1038,7 +1038,7 @@ const ReportsHub = () => {
         <ModuleHero
           tag="Reports Management"
           title="All Departments · Dept-wise Reports"
-          subtitle="FY / Month / Date-range filters · Print A4 · PDF · Excel · 12 modules"
+          subtitle="FY / Month / Date-range filters · Print A4 · PDF · Excel · All modules + Accounting & Ledger"
           icon={BarChart3}
           gradient="linear-gradient(135deg,#312e81 0%,#4f46e5 45%,#0ea5e9 100%)"
           shadowRgba="79,70,229,.28"

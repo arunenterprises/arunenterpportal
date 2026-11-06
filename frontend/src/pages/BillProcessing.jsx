@@ -576,11 +576,11 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
 
           {activeView === "vendor" && (<>
           {!isCreate && (
-            <div data-testid="bill-fetch-panel" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "10px 0", padding: "10px 12px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8 }}>
-              <b style={{ fontSize: 12, color: "#1e3a8a" }}>Purchase se aaya bill fetch karein:</b>
+            <div data-testid="bill-fetch-panel" style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap", margin: "8px 0", padding: "5px 8px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, maxWidth: "100%" }}>
+              <b style={{ fontSize: 11.5, color: "#1e3a8a", whiteSpace: "nowrap" }}>Purchase se aaya bill fetch:</b>
               <input data-testid="bill-fetch-ref" value={refFetch} onChange={(e) => setRefFetch(e.target.value.toUpperCase())} placeholder="Reference No (e.g. AE0001...)"
                 onKeyDown={(e) => { if (e.key === "Enter") document.querySelector("[data-testid=bill-fetch-btn]")?.click(); }}
-                style={{ flex: "1 1 220px", padding: "7px 10px", fontSize: 12.5, border: "1px solid #93c5fd", borderRadius: 6, fontFamily: "monospace" }} />
+                style={{ width: 240, maxWidth: "100%", padding: "5px 9px", fontSize: 12, border: "1px solid #93c5fd", borderRadius: 6, fontFamily: "monospace" }} />
               <button data-testid="bill-fetch-btn" onClick={() => {
                 const q = refFetch.trim().toLowerCase();
                 if (!q) { toast.error("Reference No daalein"); return; }
@@ -588,7 +588,7 @@ export default function BillProcessing({ mode = "process", embedded = false }) {
                 if (!m) { toast.error(`Ref No "${refFetch}" ka koi bill nahi mila`); return; }
                 if (Number(m.step) < 2) { toast.error("Yeh bill abhi Purchase mein draft hai (submit nahi hua)"); return; }
                 loadBill(m); setRefFetch("");
-              }} style={{ padding: "7px 14px", background: "#1e3a8a", color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Search size={13} /> Fetch Bill</button>
+              }} style={{ padding: "5px 12px", background: "#1e3a8a", color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 11.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}><Search size={12} /> Fetch Bill</button>
             </div>
           )}
           {/* View Switcher — Vendor Bills · HR Payroll · Employee Advance */}

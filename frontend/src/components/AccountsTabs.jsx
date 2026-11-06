@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Receipt, Wallet, IndianRupee, Utensils, LogOut, FileCheck2, ListTree, NotebookPen, HandCoins, Percent, Landmark, BarChart3 } from "lucide-react";
+import { Receipt, Wallet, IndianRupee, Utensils, LogOut, FileCheck2, ListTree, NotebookPen, HandCoins, Percent, Landmark } from "lucide-react";
 import { can } from "../lib/acl";
 
 const TABS = [
@@ -19,7 +19,6 @@ const ACC_TABS = [
   { id: "acc-sales", label: "10. Sales & Receivables", tone: "#0f766e", icon: HandCoins },
   { id: "acc-tax", label: "11. GST ITC Matching", tone: "#0f766e", icon: Percent },
   { id: "acc-bank", label: "12. Banking & BRS", tone: "#0f766e", icon: Landmark },
-  { id: "acc-reports", label: "13. Accounting Reports", tone: "#0f766e", icon: BarChart3 },
 ];
 
 // Shared Accounts department tab bar (same on /bill and /expense so the heading stays fixed).
@@ -27,7 +26,6 @@ export const AccountsTabs = ({ active, onSelect }) => {
   const nav = useNavigate();
   const go = (id) => {
     if (id === "vouchers") { nav("/final"); return; }
-    if (id === "acc-reports") { nav("/reports-hub?dept=acc_tb"); return; }
     if (onSelect) { onSelect(id); return; }
     nav(id === "vendor" ? "/bill" : `/bill?view=${id}`);
   };

@@ -277,6 +277,10 @@ def make_router(db, get_current_user, acl_ok, num, list_collection) -> APIRouter
                 raise HTTPException(status_code=400, detail="Clearing date sahi nahi")
             if body.get("voucherDate") and cd < str(body["voucherDate"])[:10]:
                 raise HTTPException(status_code=400, detail="Clearing date voucher date se pehle nahi ho sakti")
+            vkey = str(body["key"]).split("|")[0]
+            vd = next((e["date"] for e in await entries() if e["key"] == vkey), "")
+            if vd and cd < vd:
+                raise HTTPException(status_code=400, detail="Clearing date voucher date se pehle nahi ho sakti")
         doc = {"key": body["key"], "clearDate": cd, "bankRef": body.get("bankRef") or "", "by": user.get("name") or user.get("email")}
         await db.acc_brs.update_one({"key": body["key"]}, {"$set": doc}, upsert=True)
         return doc

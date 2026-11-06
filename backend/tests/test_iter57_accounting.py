@@ -184,7 +184,7 @@ def test_tax_and_itc(s):
     orig = gi["matched"]
     assert gi["cgst"] == 9000 and gi["igst"] == 0
     assert any(x["igst"] == 36000 for x in t["gstOut"])
-    assert set(t["sections"]) == {"194C", "194J", "194I", "194H", "194Q", "206AA", "NA"}
+    assert {"194C", "194J", "194J-T", "194I-PM", "194I", "194H", "194Q", "206AA", "NA"} <= set(t["sections"])
     r = s.post(f"{A}/itc", json={"billKey": "bill:TEST_b1", "matched": not orig})
     assert r.status_code == 200
     assert next(x for x in s.get(f"{A}/tax").json()["gstIn"] if x["key"] == "bill:TEST_b1")["matched"] == (not orig)
