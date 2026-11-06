@@ -112,8 +112,8 @@ const TABS = [
   { id: "rfq", title: "RFQ & Comp. Stmt", subtitle: "L1 vendor · PO", icon: Scale, color: "#166534" },
   { id: "boq", title: "BOQ", subtitle: "Bid of Quantity", icon: ClipboardList, color: "#166534" },
   { id: "wo", title: "Work Order", subtitle: "WO Creation", icon: FileText, color: "#166534" },
-  { id: "billing", title: "Vendor Bill", subtitle: "3-Way Match · submit", icon: Receipt, color: "#166534" },
   { id: "grn", title: "Store & GRN", subtitle: "Receipt · Stock Register", icon: Warehouse, color: "#166534" },
+  { id: "billing", title: "Vendor Bill", subtitle: "3-Way Match · submit", icon: Receipt, color: "#166534" },
 ];
 
 // Shared datalist for units. Users can type any custom unit that isn't listed.
