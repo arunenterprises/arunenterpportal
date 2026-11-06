@@ -13,7 +13,7 @@ const ST_C = { Pending: "#0369a1", Discussion: "#b45309", Approved: "#15803d", R
 const card = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14 };
 const inp = { width: "100%", padding: "7px 9px", border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 12.5, boxSizing: "border-box" };
 const btn = (c, dis) => ({ padding: "7px 12px", background: dis ? "#cbd5e1" : c, color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: dis ? "not-allowed" : "pointer", display: "inline-flex", gap: 5, alignItems: "center" });
-const inr = (v) => `\u20b9${Number(v || 0).toLocaleString("en-IN")}`;
+const inr = (v) => `₹${Number(v || 0).toLocaleString("en-IN")}`;
 const lbl = { fontSize: 11, fontWeight: 700, color: "#334155" };
 const Pill = ({ s }) => <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800, color: "#fff", background: ST_C[s] || "#64748b" }}>{s}</span>;
 const FILE_OK = ["application/pdf", "image/png", "image/jpeg", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
@@ -27,7 +27,7 @@ const CreateForm = ({ onDone }) => {
     if (f.title.trim().length < 3) return toast.error("Title kam se kam 3 akshar");
     if (f.rtype === "Material" && !f.discipline) return toast.error("Discipline chunein");
     if (f.rtype === "Finance" && amt <= 0) return toast.error("Finance requisition mein amount zaroori");
-    try { const r = await apiReqCreate({ ...f, amount: amt }); toast.success(`${r.reqNo} bani \u00b7 ${r.status}`); setF((x) => ({ ...x, title: "", amount: "", description: "" })); onDone(r.id); } catch (e) { toast.error(e.message); }
+    try { const r = await apiReqCreate({ ...f, discipline: f.rtype === "Material" ? f.discipline : "", amount: amt }); toast.success(`${r.reqNo} bani · ${r.status}`); setF((x) => ({ ...x, title: "", amount: "", description: "" })); onDone(r.id); } catch (e) { toast.error(e.message); }
   };
   return (
     <div style={{ ...card, marginBottom: 12 }} data-testid="req-create-form">
@@ -36,11 +36,11 @@ const CreateForm = ({ onDone }) => {
         <label style={lbl}>Type *<select data-testid="req-f-type" style={inp} value={f.rtype} onChange={(e) => set("rtype", e.target.value)}>{["Material", "Finance", "Machinery"].map((t) => <option key={t}>{t}</option>)}</select></label>
         <label style={{ ...lbl, gridColumn: "span 2" }}>Title *<input data-testid="req-f-title" style={inp} value={f.title} onChange={(e) => set("title", e.target.value)} /></label>
         <label style={lbl}>Project / Site<input data-testid="req-f-project" style={inp} value={f.project} onChange={(e) => set("project", e.target.value)} /></label>
-        {f.rtype === "Material" && <label style={lbl}>Discipline *<select data-testid="req-f-discipline" style={inp} value={f.discipline} onChange={(e) => set("discipline", e.target.value)}><option value="">\u2014 Select \u2014</option>{discs.map((d) => <option key={d}>{d}</option>)}</select></label>}
-        <label style={lbl}>Amount (\u20b9){f.rtype === "Finance" ? " *" : ""}<input data-testid="req-f-amount" type="number" min="0" style={inp} value={f.amount} onChange={(e) => set("amount", e.target.value)} /></label>
+        {f.rtype === "Material" && <label style={lbl}>Discipline *<select data-testid="req-f-discipline" style={inp} value={f.discipline} onChange={(e) => set("discipline", e.target.value)}><option value="">— Select —</option>{discs.map((d) => <option key={d}>{d}</option>)}</select></label>}
+        <label style={lbl}>Amount (₹){f.rtype === "Finance" ? " *" : ""}<input data-testid="req-f-amount" type="number" min="0" style={inp} value={f.amount} onChange={(e) => set("amount", e.target.value)} /></label>
         <label style={{ ...lbl, gridColumn: "span 2" }}>Details<textarea data-testid="req-f-desc" rows={2} style={inp} value={f.description} onChange={(e) => set("description", e.target.value)} /></label>
       </div>
-      {amt > 3000000 && <div data-testid="req-threshold-warn" style={{ marginTop: 8, fontSize: 11.5, color: "#b45309", fontWeight: 700 }}><Lock size={12} /> \u20b930 lakh se zyada: requisition lock hokar Discussion Window mein jayegi.</div>}
+      {amt > 3000000 && <div data-testid="req-threshold-warn" style={{ marginTop: 8, fontSize: 11.5, color: "#b45309", fontWeight: 700 }}><Lock size={12} /> ₹30 lakh se zyada: requisition lock hokar Discussion Window mein jayegi.</div>}
       <div style={{ marginTop: 10 }}><button data-testid="req-submit" onClick={submit} style={btn("#1d4ed8")}><Send size={13} /> Submit</button></div>
     </div>
   );
@@ -80,20 +80,20 @@ const Discussion = ({ r, role, onChange }) => {
           <button data-testid="req-disc-save" onClick={() => run(() => apiReqDiscSetup(r.id, { topic, departments: deps }), "Discussion set")} style={{ ...btn("#b45309"), marginTop: 8 }}>Topic & Departments Save</button>
         </div>
       )}
-      {d.topic && <div style={{ fontSize: 12, marginTop: 8 }}><b>Topic:</b> {d.topic} \u00b7 <b>Departments:</b> {(d.departments || []).join(", ")}</div>}
-      {(d.comments || []).map((c, i) => <div key={i} style={{ marginTop: 6, padding: "6px 8px", background: "#fff", borderLeft: "3px solid #f59e0b", fontSize: 11.5 }}><b>{c.by}</b> ({c.role}) \u00b7 {c.decision} {c.amount ? `\u00b7 ${inr(c.amount)}` : ""}<div>{c.text}</div></div>)}
+      {d.topic && <div style={{ fontSize: 12, marginTop: 8 }}><b>Topic:</b> {d.topic} · <b>Departments:</b> {(d.departments || []).join(", ")}</div>}
+      {(d.comments || []).map((c, i) => <div key={i} style={{ marginTop: 6, padding: "6px 8px", background: "#fff", borderLeft: "3px solid #f59e0b", fontSize: 11.5 }}><b>{c.by}</b> ({c.role}) · {c.decision} {c.amount ? `· ${inr(c.amount)}` : ""}<div>{c.text}</div></div>)}
       {d.topic && mine && !d.concluded && (
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 6, marginTop: 8, alignItems: "end" }}>
           <label style={lbl}>Working Decision *<input data-testid="req-disc-text" style={inp} value={text} onChange={(e) => setText(e.target.value)} /></label>
           <label style={lbl}>Mat<select data-testid="req-disc-decision" style={inp} value={decision} onChange={(e) => setDecision(e.target.value)}>{["Approve", "Modify", "Reject"].map((x) => <option key={x}>{x}</option>)}</select></label>
-          <label style={lbl}>Financial Limit (\u20b9)<input data-testid="req-disc-amount" type="number" style={inp} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+          <label style={lbl}>Financial Limit (₹)<input data-testid="req-disc-amount" type="number" style={inp} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
           <button data-testid="req-disc-comment" onClick={() => run(() => apiReqDiscComment(r.id, { text, decision, amount }), "Decision added").then(() => setText(""))} style={btn("#0f766e")}>Add</button>
         </div>
       )}
       {gm && !d.concluded && d.topic && (
         <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "end" }}>
           <label style={{ ...lbl, flex: 1 }}>Final Summary *<input data-testid="req-disc-summary" style={inp} value={summary} onChange={(e) => setSummary(e.target.value)} /></label>
-          <button data-testid="req-disc-conclude" disabled={!(d.comments || []).length} onClick={() => run(() => apiReqDiscConclude(r.id, { summary }), "Discussion concluded \u2014 approval shuru")} style={btn("#15803d", !(d.comments || []).length)}>Conclude</button>
+          <button data-testid="req-disc-conclude" disabled={!(d.comments || []).length} onClick={() => run(() => apiReqDiscConclude(r.id, { summary }), "Discussion concluded — approval shuru")} style={btn("#15803d", !(d.comments || []).length)}>Conclude</button>
         </div>
       )}
     </div>
@@ -133,21 +133,21 @@ const Detail = ({ r, role, me, onChange }) => {
   };
   return (
     <div style={card} data-testid="req-detail">
-      <div style={{ display: "flex", justifyContent: "space-between" }}><div><div style={{ fontSize: 10.5, fontFamily: "monospace", color: "#64748b" }}>{r.reqNo} \u00b7 {r.rtype}{r.discipline ? ` \u00b7 ${r.discipline}` : ""}</div><div style={{ fontWeight: 900, fontSize: 15 }}>{r.title}</div></div><Pill s={r.status} /></div>
-      <div style={{ fontSize: 12, color: "#334155", marginTop: 6 }}>Amount: <b>{inr(r.amount)}</b> \u00b7 Project: <b>{r.project || "\u2014"}</b> \u00b7 By: <b>{r.requestedByName}</b></div>
+      <div style={{ display: "flex", justifyContent: "space-between" }}><div><div style={{ fontSize: 10.5, fontFamily: "monospace", color: "#64748b" }}>{r.reqNo} · {r.rtype}{r.discipline ? ` · ${r.discipline}` : ""}</div><div style={{ fontWeight: 900, fontSize: 15 }}>{r.title}</div></div><Pill s={r.status} /></div>
+      <div style={{ fontSize: 12, color: "#334155", marginTop: 6 }}>Amount: <b>{inr(r.amount)}</b> · Project: <b>{r.project || "—"}</b> · By: <b>{r.requestedByName}</b></div>
       {r.description && <div style={{ fontSize: 12, marginTop: 4, whiteSpace: "pre-wrap" }}>{r.description}</div>}
       <Stepper r={r} />
       {canAct && (
         <div style={{ display: "flex", gap: 6, alignItems: "end" }}>
           <label style={{ ...lbl, flex: 1 }}>Remarks (Reject par zaroori)<input data-testid="req-remarks" style={inp} value={remarks} onChange={(e) => setRemarks(e.target.value)} /></label>
-          <button data-testid="req-approve" onClick={() => act("approve")} style={btn("#15803d")}><CheckCircle2 size={13} /> {stg.label}</button>
-          <button data-testid="req-reject" onClick={() => act("reject")} style={btn("#dc2626")}><XCircle size={13} /> Reject</button>
+          <button data-testid="req-approve-btn" onClick={() => act("approve")} style={btn("#15803d")}><CheckCircle2 size={13} /> {stg.label}</button>
+          <button data-testid="req-reject-btn" onClick={() => act("reject")} style={btn("#dc2626")}><XCircle size={13} /> Reject</button>
         </div>
       )}
       {r.status === "Pending" && !canAct && stg && <div style={{ fontSize: 11.5, color: "#64748b" }}>Abhi {stg.role} ke paas ({stg.label})</div>}
       {r.discussion && <Discussion r={r} role={role} onChange={onChange} />}
       <Files r={r} onChange={onChange} />
-      <div style={{ marginTop: 10, fontSize: 10.5, color: "#64748b" }}>{(r.history || []).map((h, i) => <div key={i}>{new Date(h.at).toLocaleString("en-IN")} \u00b7 {h.by}{h.role ? ` (${h.role})` : ""} \u00b7 {h.action}{h.remarks ? ` \u2014 ${h.remarks}` : ""}</div>)}</div>
+      <div style={{ marginTop: 10, fontSize: 10.5, color: "#64748b" }}>{(r.history || []).map((h, i) => <div key={i}>{new Date(h.at).toLocaleString("en-IN")} · {h.by}{h.role ? ` (${h.role})` : ""} · {h.action}{h.remarks ? ` — ${h.remarks}` : ""}</div>)}</div>
     </div>
   );
 };
@@ -170,7 +170,7 @@ export default function Requisitions() {
       <Toaster position="top-center" richColors />
       <HomeNavBar />
       <div data-testid="requisitions-page" style={{ background: "#f1f5f9", minHeight: "calc(100vh - 56px)", padding: "18px clamp(10px, 2.5vw, 28px) 80px" }}>
-        <ModuleHero tag="Centralized Requisition" title="Requisitions \u00b7 Material / Finance / Machinery" subtitle="Site \u2192 Manager verification \u2192 Core Member \u2192 GM \u00b7 \u20b930 lakh se upar Discussion Window" icon={ClipboardCheck} gradient="linear-gradient(135deg,#0b1f4d 0%,#1d4ed8 55%,#f59e0b 100%)" shadowRgba="29,78,216,.28" />
+        <ModuleHero tag="Centralized Requisition" title="Requisitions · Material / Finance / Machinery" subtitle="Site → Manager verification → Core Member → GM · ₹30 lakh se upar Discussion Window" icon={ClipboardCheck} gradient="linear-gradient(135deg,#0b1f4d 0%,#1d4ed8 55%,#f59e0b 100%)" shadowRgba="29,78,216,.28" />
         <div style={{ display: "flex", gap: 6, margin: "14px 0" }}>
           {[["inbox", "Meri Approval (Inbox)"], ["mine", "Meri Requisitions"], ["all", "Sabhi"]].map(([k, l]) => <button key={k} data-testid={`req-scope-${k}`} onClick={() => setScope(k)} style={btn(scope === k ? "#0b1f4d" : "#94a3b8")}>{l}</button>)}
         </div>
@@ -181,7 +181,7 @@ export default function Requisitions() {
             {rows.map((r) => (
               <button key={r.id} data-testid={`req-row-${r.id}`} onClick={() => setSel(r.id)} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 10px", marginBottom: 6, borderRadius: 8, border: `1px solid ${sel === r.id ? "#1d4ed8" : "#e2e8f0"}`, borderLeft: `4px solid ${ST_C[r.status]}`, background: sel === r.id ? "#eff6ff" : "#fff", cursor: "pointer" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><b style={{ fontSize: 12.5 }}>{r.title}</b><Pill s={r.status} /></div>
-                <div style={{ fontSize: 10.5, color: "#64748b", marginTop: 3 }}>{r.reqNo} \u00b7 {r.rtype} \u00b7 {inr(r.amount)} \u00b7 {r.status === "Pending" && r.stages[r.stage] ? `${r.stages[r.stage].role}` : r.status}</div>
+                <div style={{ fontSize: 10.5, color: "#64748b", marginTop: 3 }}>{r.reqNo} · {r.rtype} · {inr(r.amount)} · {r.status === "Pending" && r.stages[r.stage] ? `${r.stages[r.stage].role}` : r.status}</div>
               </button>
             ))}
           </div>

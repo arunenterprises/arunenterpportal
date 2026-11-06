@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 51 tested Phase 1 Requisitions and the Discussion Window on desktop. Backend: the new pytest test_iter51_requisitions.py had 8 of 9 tests pass. All requested backend rules work. These cover the Material CIVIL stage chain and its notifications, the 403 for a wrong role, for SuperAdmin and for a creator approving their own requisition, reject remarks (400 under 5 characters), Finance over 30 lakh (locked, 409 on approve), the GM discussion setup and conclude rules, the 403 when a department that is not assigned comments, and the file type and 2MB checks. The one failure is a security gap: any logged-in user can download any evidence file. UI: the role selects, the sidebar item, the scopes, the create form validation and the Discussion Window all work. One CRITICAL UI bug: req-approve and req-reject are hidden by a global CSS rule for every stage role except GM, so Sr. Site Operation Manager, Member Civil, Purchase Manager, Accounts Manager and Member Financial cannot approve or reject from the UI. Unicode escapes (\\u00b7, \\u2192, \\u20b9, \\u2014) appear as literal text across the page.",
+  "verified_working": [
+    "Both role selects (admin-create-role and user-role-<email>) contain Sr. Site Operation Manager, Accounts Manager and Purchase Manager. PATCH /users/{email}/role accepts these roles.",
+    "sidebar-R opens /requisitions and requisitions-page loads with req-scope-inbox, req-scope-mine and req-scope-all.",
+    "Create form toasts: 'Title kam se kam 3 akshar', 'Discipline chunein', 'Finance requisition mein amount zaroori'. A Material CIVIL request for ₹50,000 got AE/REQ/0001/2627 with status Pending. Finance ₹40L showed req-threshold-warn and was created as AE/REQ/0002/2627 with status Discussion.",
+    "API: a Material CIVIL request goes through Sr. Site Operation Manager, Member Civil, Purchase Manager and GM, and ends Approved. Each next role and the creator get notifications. A wrong role, SuperAdmin and the creator each get 403. Acting on a closed requisition gives 409. Reject with remarks under 5 characters gives 400. Reject sets Rejected and notifies the creator. Machinery stages are Sr. Site Operation Manager, Member Procurement and GM. Material OHE with amount 0 has no GM stage.",
+    "Discussion: approve gives 409 while locked. A comment before a topic is set gives 409. A non-GM setup gives 403. Empty topic or departments gives 400. A department that is not assigned gets 403 on comment. Conclude with no comments gives 409, and with a summary under 5 characters gives 400. Conclude with a valid summary sets status Pending, stage 0, unlocked. Accounts Manager then approves and it moves to stage 1.",
+    "Discussion UI: GM deep link /requisitions?id= opens the 'all' scope. req-disc-save with empty fields shows the toast. Saving the topic with the AccountsManager checkbox works. req-disc-conclude stays disabled until a decision exists. Accounts Manager added a decision (Modify, ₹35,00,000). GM concluded and the Accounts Manager 'Audit' step became current.",
+    "Evidence: PDF upload works in the UI. A .txt file is rejected on the client. Clicking the chip downloads t.pdf. The API rejects .txt and files over 2MB with 400, and an unrelated role gets 403 on upload.",
+    "Regression: /my-tasks and /core-dashboard load with no page errors."
+  ],
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/requisitions/{rid}/files/{fid}", "issue": "No access check. Any logged-in user (e.g. Member Financial on a Material requisition) can download any requisition's evidence (returns 200). Apply the same ACL as upload/view."},
+      {"endpoint": "POST /api/requisitions/{rid}/discussion/conclude", "issue": "The '>=1 decision' check counts GM's own comments. GM can comment and then conclude without any input from an assigned department. Require at least one comment whose role is in discussion.departments."},
+      {"endpoint": "POST /api/requisitions", "issue": "The discipline is stored for Finance and Machinery too. The UI keeps the old discipline state when the type is switched, so the Finance detail shows 'Finance · CIVIL'. Clear discipline when rtype != Material, on both client and server."},
+      {"endpoint": "POST /api/requisitions", "issue": "Disciplines are checked against the static MEMBER_DISC. The frontend uses the dynamic core config (loadCoreConfig), so custom disciplines would get 400, and custom member departments are silently dropped in the discussion setup."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Requisitions Detail approve/reject", "issue": "The rule at App.css:1136, body.ae-no-approve button:is([data-testid$=\"approve\"], [data-testid$=\"reject\"]) {display:none !important}, hides req-approve and req-reject. AppSidebar sets ae-no-approve for every user without the global approve perm, and that includes every new Manager and Member role. Only GM can see the buttons, so the Material, Finance and Machinery chains cannot be advanced from the UI. Confirmed: SSOM button computed display was 'none'. After a test-only CSS override, approve worked. Fix: add an exemption to the rule (e.g. :not(.ae-req-action), with that class on the req buttons), or rename the testids.", "selector": "[data-testid='req-approve'], [data-testid='req-reject']", "priority": "CRITICAL"},
+      {"component": "Requisitions.jsx text", "issue": "Unicode escapes inside JSX string attributes and JSX text appear literally. Examples: ModuleHero title and subtitle ('\\u00b7', '\\u2192', '\\u20b9'), the row meta separators, the detail header, 'Amount (\\u20b9)', 'Financial Limit (\\u20b9)', '\\u2014 Select \\u2014', the threshold warning, the topic line and the history lines. Replace them with the real characters or wrap them in {\"...\"}.", "selector": "[data-testid='requisitions-page']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Requisitions detail", "issues": ["The status Pill in the detail header is a tall oval with the text at the top. Needs whiteSpace:nowrap and alignSelf:flex-start (same issue as in MyTasks)."]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "GET /requisitions loads all docs (to_list 3000) and filters in Python. Move the scope filters into the Mongo query.",
+    "File size is checked from the base64 length and the content type comes from the client. Consider checking magic bytes. Files are stored in Mongo as base64, so the 16MB document limit is fine at 2MB.",
+    "A GM can re-run the discussion setup after comments exist and change the departments. Consider locking it once comments exist.",
+    "PATCH /users/{email}/role allowed_roles does not include 'Purchase', but register does (inconsistent; this predates this change)."
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter51_requisitions.py", "/app/backend/tests/iter51_ui_setup.py", "/app/test_reports/pytest/pytest_iter51.xml"],
+  "action_items": [
+    "CRITICAL: exempt the requisition approve and reject buttons from the body.ae-no-approve CSS rule (App.css:1136) so stage roles can act.",
+    "HIGH: replace the literal \\uXXXX escapes in Requisitions.jsx JSX text and attributes.",
+    "MEDIUM: add an access check to GET /requisitions/{rid}/files/{fid}.",
+    "MEDIUM: conclude should require a decision from an assigned department, not from GM.",
+    "LOW: clear discipline for non-Material requisitions; support dynamic core-config disciplines; fix the Pill sizing."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter51_requisitions.py", "/app/backend/tests/iter51_ui_setup.py"],
+  "success_rate": {"backend": "89% (8/9; the failure is the file-download access check)", "frontend": "~75% (all flows work except stage-role approve/reject, which is hidden by CSS)"},
+  "seed_data_creation": "None kept. All TEST users, requisitions, req_files and notifications were deleted. The counters doc {key:'requisitions'} did not exist before and was removed again. Before this run there were no real requisitions and no users with the GM or Manager roles.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run with -n 0 and export REACT_APP_BACKEND_URL. Non-SA login: SA POST /api/admin/users/{email}/otp-reset before every login, because the bypass is used up on login. iter51_ui_setup.py setup|otp <gm|ssom|am|user|civil>|state|teardown, password TestPw@1234. In browser scripts you can import requests to call otp-reset inline. Retest: (1) as SSOM, req-approve is visible without the CSS workaround; (2) there are no literal \\u escapes; (3) the file GET access check (test_file_download_acl should pass).",
+  "rca of the issue": "Hidden buttons: AppSidebar.jsx:108 toggles body.ae-no-approve when !canApprove(). The new roles use _role_default_perms with approve:false. The global CSS at App.css:1136 hides every button whose testid ends in 'approve' or 'reject'. Requisition approval is role and stage based, not permission based, so it should not be hidden by this rule. Literal escapes: JSX does not process \\uXXXX in string attributes or in text children, only inside JS expressions."
+}

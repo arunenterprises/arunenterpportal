@@ -2633,6 +2633,8 @@ async def req_create(body: ReqBody, user: Dict = Depends(get_current_user)):
     fy = f"{str(fy_start)[2:]}{str(fy_start + 1)[2:]}"
     c = await db.counters.find_one_and_update({"key": "requisitions"}, {"$inc": {fy: 1}}, upsert=True, return_document=True)
     big = body.amount > REQ_THRESHOLD
+    if body.rtype != "Material":
+        body.discipline = ""
     doc = {**body.model_dump(), "id": uuid.uuid4().hex, "reqNo": f"AE/REQ/{int(c[fy]):04d}/{fy}", "stages": _req_stages(body.rtype, body.discipline, body.amount),
            "stage": 0, "status": "Discussion" if big else "Pending", "locked": big, "requestedBy": user["email"], "requestedByName": user.get("name") or user["email"],
            "discussion": {"topic": "", "departments": [], "comments": [], "concluded": False} if big else None,
@@ -2746,6 +2748,8 @@ async def req_disc_conclude(rid: str, body: Dict = Body(...), user: Dict = Depen
     if (user.get("role") or "") != "GM":
         raise HTTPException(status_code=403, detail="Discussion sirf GM conclude kar sakta hai")
     disc = d.get("discussion") or {}
+    if not any(c.get("role") in disc.get("departments", []) for c in disc.get("comments") or []):
+        raise HTTPException(status_code=409, detail="Kisi assigned department ka decision aane ke baad hi conclude karein")
     if d["status"] != "Discussion" or not disc.get("comments"):
         raise HTTPException(status_code=409, detail="Kam se kam ek department ka decision aane ke baad hi conclude karein")
     summary = str(body.get("summary") or "").strip()
@@ -2778,6 +2782,10 @@ async def req_file_upload(rid: str, body: Dict = Body(...), user: Dict = Depends
 
 @api_router.get("/requisitions/{rid}/files/{fid}")
 async def req_file_get(rid: str, fid: str, user: Dict = Depends(get_current_user)):
+    d = await _req_get(rid)
+    role = user.get("role") or ""
+    if not (_req_view(user) or d["requestedBy"] == user["email"] or role in (d.get("discussion") or {}).get("departments", []) or any(s["role"] == role for s in d["stages"])):
+        raise HTTPException(status_code=403, detail="Is file ko dekhne ki permission nahi hai")
     f = await db.req_files.find_one({"id": fid, "reqId": rid}, {"_id": 0})
     if not f:
         raise HTTPException(status_code=404, detail="File nahi mili")
